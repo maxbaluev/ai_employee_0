@@ -1,0 +1,273 @@
+Perfect. Now I have a comprehensive understanding of all the components. Let me create a detailed architecture plan document.
+
+## **AI Employee Control Plane — Architecture Plan**
+
+Based on my review of the PRD and integration partner documentation, here's a comprehensive architecture plan for implementing `architecture.md`:
+
+---
+
+### **Recommended Document Structure**
+
+#### **1. Executive Architecture Summary**
+- Mission alignment with PRD vision (objective-first, evidence-driven, governed autonomy)
+- Core architectural principles: zero-trust progression, composable plays, human-in-the-loop by default
+- Technology stack overview: Composio (tooling), CopilotKit (UI/CoAgents), ADK (orchestration), Supabase (state/analytics)
+
+#### **2. System Architecture Overview**
+
+**2.1 High-Level Components**
+- **Control Plane Layer**: Objective intake, capability grounding, plan synthesis
+- **Orchestration Layer**: Multi-agent coordination (ADK-based hierarchies), workflow execution
+- **Execution Layer**: MCP server integrations (Composio toolkits), tool invocation runtime
+- **Governance Layer**: Approval checkpoints, guardrail enforcement, rollback mechanisms
+- **Evidence Layer**: Artifact capture, ROI analytics, audit trails
+- **Presentation Layer**: CopilotKit CoAgents UI (chat, generative UI, shared state)
+
+**2.2 Runtime Modes**
+- **Dry-Run (Zero-Privilege)**: 
+  - Generates artifacts without credentials (drafts, schedules, research briefs)
+  - Uses Composio `no_auth` tools exclusively
+  - Outputs static evidence packs for stakeholder review
+  - Fast proof-of-value (target: <15 min objective→evidence)
+  
+- **Governed Activation (Connected)**:
+  - Executes via OAuth-authenticated MCP servers
+  - Enforces approval gates (human-in-the-loop via CopilotKit)
+  - Applies caps (rate limits, quiet hours, tone constraints)
+  - Logs all actions with undo instructions
+
+---
+
+#### **3. Major Subsystems**
+
+**3.1 Objective & Planning Subsystem**
+- **Input**: Structured prompts (goal, audience, timeframe, guardrails)
+- **Capability Discovery**: Query Composio toolkit catalog, filter by auth requirements
+- **Play Matching**: RAG-based retrieval from private library (Supabase vector store)
+- **Proposal Generation**: ADK LlmAgent produces Top-3 Predicted Jobs with:
+  - Why (alignment narrative)
+  - Impact (projected ROI)
+  - Risk (guardrail triggers)
+  - Proof (dry-run plan)
+  - Undo (rollback steps)
+- **Output**: Editable mission brief + ranked play candidates
+
+**3.2 Orchestration & Execution Subsystem**
+- **Agent Hierarchy** (ADK multi-agent):
+  - **Coordinator Agent**: Routes to specialized agents based on objective type
+  - **Planner Agent**: Decomposes objectives into steps, selects Composio tools
+  - **Executor Agents**: Domain-specific (CRM outreach, research, support, finance)
+  - **Validator Agent**: Checks guardrails, tone, compliance pre-send
+  - **Evidence Agent**: Captures artifacts, logs metrics
+  
+- **Tool Integration** (Composio):
+  - Discovery: `list_toolkits(filters={...})`, `list_tools(toolkit_id)`
+  - Authentication: OAuth flow orchestration (server-side token exchange)
+  - Invocation: `composio.invoke(tool_name, args)` with retry + exponential backoff
+  - Error Handling: Map provider errors → user guidance (e.g., `invalid_scope` → reconnect flow)
+
+- **Human-in-the-Loop** (CopilotKit):
+  - **Approval Checkpoints**: CopilotKit LangGraph integration, pause agent at destructive actions
+  - **UI Patterns**: CopilotPopup for reviews, Generative UI for real-time artifact preview
+  - **Shared State**: Bidirectional sync between agent session state and frontend (edits flow back)
+
+**3.3 Governance & Safety Subsystem**
+- **Pre-Flight Checks**:
+  - Tool auth validation (OAuth scopes sufficient?)
+  - Guardrail schema enforcement (caps, quiet hours, blocked domains)
+  - PII redaction in logs
+  
+- **Runtime Guardrails**:
+  - Rate limiting per user/tenant/provider (implement via Supabase RLS + in-memory counters)
+  - Tone/brand validators (LlmAgent reviews outputs before send)
+  - Approval gates: Mandatory for `send_email`, `post_message`, `charge_card`, etc.
+  
+- **Rollback & Undo**:
+  - Each executed action logs inverse operation (e.g., `send_email` → `draft_apology_email`)
+  - UI surfaces "Undo last action" with pre-filled rollback plan
+  - Evidence store retains action history for audit
+
+**3.4 Evidence & Analytics Subsystem**
+- **Data Model** (Supabase Postgres):
+  - `objectives`: goal, tenant_id, status, created_at
+  - `plays`: play_id, objective_id, type (dry_run | connected), plan_json
+  - `tool_calls`: id, play_id, provider, tool_name, args, result, latency_ms, cost_cents, created_at
+  - `artifacts`: id, play_id, type (draft | list | schedule), content, reviewed_at
+  - `approvals`: id, tool_call_id, reviewer_id, decision, timestamp
+  - `oauth_tokens`: tenant_id, provider, scopes[], refreshed_at, revoked_at (encrypted)
+  
+- **Analytics Dashboards** (Supabase PostgREST + frontend charts):
+  - **Adoption Metrics**: Dry runs per tenant, OAuth connection rate, library reuse rate
+  - **ROI Tracking**: Before/after deltas (e.g., dormant accounts reactivated, response time reduction)
+  - **Governance Health**: Approval rate, guardrail trigger frequency, rollback requests
+  - **Agent Performance**: Tool latency p95, error rate by provider, token cost per play
+
+**3.5 Library & Learning Subsystem**
+- **Play Storage**: Successful jobs saved as templates (prompt + tool sequence + guardrails)
+- **Ranking**: Embeddings (Supabase pgvector) + usage frequency + outcome scores
+- **Recommendations**: "Next best job" suggestions based on tenant context
+- **Franchising**: Multi-tenant play sharing (opt-in for agencies)
+
+---
+
+#### **4. Data Flows**
+
+**4.1 Dry-Run Flow (Zero-Privilege Proof)**
+```
+User submits objective → Planner queries Composio no_auth tools → 
+ADK Coordinator generates plan → Executor agents produce artifacts (no sends) → 
+Evidence Agent stores drafts in Supabase → UI displays preview + "Connect to Activate"
+```
+
+**4.2 Connected Flow (Governed Execution)**
+```
+User approves play → OAuth check (if missing, redirect to Composio auth) → 
+ADK Executor invokes Composio OAuth tools → 
+Pre-send: Validator Agent checks guardrails → CopilotKit approval checkpoint → 
+Execute tool → Evidence Agent logs result + undo steps → 
+UI shows confirmation + ROI delta
+```
+
+**4.3 Approval Flow (Human-in-the-Loop)**
+```
+Agent reaches destructive action → Pause execution → 
+CopilotKit frontend renders approval UI (action summary, risk, undo) → 
+User approves/rejects/edits → State sync back to agent → 
+Resume with modified args or skip step
+```
+
+---
+
+#### **5. Security & Compliance**
+
+**5.1 Zero-Privilege Design**
+- Default: All plays start in dry-run mode
+- Credentials never in prompts or client-side code
+- Supabase RLS enforces tenant isolation
+- OAuth tokens encrypted at rest (Supabase vault), rotated per provider guidance
+
+**5.2 Audit Trails**
+- Every tool invocation logged: who, what, when, args (sanitized), result
+- Approval chain captured: reviewer, decision, timestamp
+- Retention policy: 90 days hot (Postgres), 2 years cold (object storage)
+
+**5.3 PII & Secret Handling**
+- Composio args redacted in logs (email addresses, API keys)
+- Supabase server-side functions for sensitive operations
+- LLM prompts: Use references (`contact_id`) not raw PII
+
+**5.4 Compliance**
+- GDPR: User data export/deletion via Supabase APIs
+- SOC 2: Audit log immutability, access controls, encryption
+- Provider ToS: Respect rate limits, no scraping, data locality per toolkit
+
+---
+
+#### **6. Deployment Architecture**
+
+**6.1 Frontend (Next.js + CopilotKit)**
+- Vercel/similar PaaS hosting
+- CopilotKit provider wraps app, connects to Copilot Cloud or self-hosted runtime
+- Components: CopilotPopup (chat), custom Generative UI for artifact previews
+
+**6.2 Agent Backend (Python ADK)**
+- **Option A (Recommended)**: LangGraph Studio for dev, LangGraph Platform for prod (managed scalability)
+- **Option B**: Self-hosted FastAPI + ADK runner, containerized (Docker), deployed to Cloud Run/GCP
+- Exposes agent endpoints via Copilot Cloud remote endpoint or direct integration
+- Environment: `COMPOSIO_API_KEY`, `OPENAI_API_KEY`, `SUPABASE_URL`, `SUPABASE_KEY`
+
+**6.3 Orchestration (ADK Multi-Agent)**
+- Coordinator agent as root
+- Sub-agents for each domain (outreach, research, support, finance)
+- Custom agents for conditional logic (e.g., tone check → regenerate)
+
+**6.4 State & Analytics (Supabase)**
+- Postgres: Session state, evidence, analytics tables
+- RLS policies: Tenant-scoped reads/writes
+- Realtime: Subscribe to approval events, live dashboards
+- Edge Functions: OAuth callbacks, webhook handlers
+
+**6.5 Tool Runtime (Composio MCP)**
+- Composio SDK (`pip install composio`) in agent backend
+- Discovery: Cache toolkit metadata in Supabase (refresh daily)
+- Auth: Server-side OAuth exchange, persist tokens per tenant
+- Invocation: Direct SDK calls with retry logic
+
+---
+
+#### **7. Integration Patterns**
+
+**7.1 Composio Integration**
+- **Discovery**: On tenant onboarding, populate capability catalog (toolkits, tools, auth types)
+- **Auth**: Generate OAuth URLs via `composio.oauthAuthorizeUrl()`, handle callbacks, persist tokens
+- **Execution**: Planner selects tools, Executor calls `composio.invoke()`, Evidence logs results
+- **Case Study Anchors**: Reference Assista AI (90% GTM reduction), Fabrile (rapid Google integrations) in UI
+
+**7.2 CopilotKit Integration**
+- **Frontend**: `<CopilotKit publicApiKey={...} agent="coordinator_agent">`
+- **CoAgents**: LangGraph agents decorated with CopilotKit hooks for shared state, frontend actions
+- **UI Building Blocks**:
+  - Agentic Chat: Primary interaction for objective intake
+  - Generative UI: Live artifact rendering (drafts, lists)
+  - Human-in-the-Loop: Approval modals at `interrupt()` nodes
+  
+**7.3 ADK Integration**
+- **Agent Design**:
+  - Root: Coordinator (routes by objective type)
+  - Level 2: Domain specialists (Outreach, Research, Support)
+  - Leaves: LlmAgents for specific tasks (draft_email, search_contacts)
+- **Workflow Patterns**:
+  - SequentialAgent for linear plays (generate → critique → revise)
+  - LoopAgent for iterative refinement (max_iterations=2)
+  - Custom agents for conditional logic (tone check → branch)
+- **Deployment**: LangGraph Platform for prod, built-in observability
+
+---
+
+#### **8. Actionable Next Steps**
+
+**Phase 1: Foundation (Weeks 1-2)**
+1. Set up Supabase project: define schema (objectives, plays, tool_calls, artifacts, approvals, oauth_tokens), enable RLS
+2. Initialize ADK project: define Coordinator agent skeleton, stub Planner + Executor agents
+3. Integrate Composio SDK: discovery script to populate toolkit catalog, OAuth flow prototype
+4. Build CopilotKit frontend shell: Next.js + Copilot provider, basic chat UI
+
+**Phase 2: Dry-Run MVP (Weeks 3-4)**
+5. Implement Planner agent: objective parsing, Composio `no_auth` tool selection, plan JSON generation
+6. Build Executor agents: outreach (draft email), research (web search summary)
+7. Evidence Agent: artifact capture → Supabase, UI preview in CopilotKit Generative UI
+8. Validation: 3 anchor customers test dry-run flows, measure time to evidence (<15 min goal)
+
+**Phase 3: Governed Activation (Weeks 5-7)**
+9. Implement OAuth flows: Composio auth URLs, callback handlers, token storage (encrypted)
+10. Add Validator Agent: pre-send guardrail checks (tone, rate limits, quiet hours)
+11. Human-in-the-Loop: CopilotKit approval checkpoints at destructive actions, state sync
+12. Rollback system: undo step generation, UI action log with "Undo" buttons
+
+**Phase 4: Analytics & Library (Weeks 8-10)**
+13. Build analytics tables + views: adoption, ROI, governance metrics
+14. Dashboards: PostgREST APIs + frontend charts (Recharts/similar)
+15. Play library: save successful runs, embeddings (pgvector), ranking algorithm
+16. Recommendations: "Next best job" LlmAgent using library context
+
+**Phase 5: Hardening & GTM (Weeks 11-12)**
+17. Security audit: PII redaction, token encryption, audit log review
+18. Performance tuning: tool call caching, batch writes, rate limit backoff
+19. Documentation: API docs (ADK agents), integration guides (Composio toolkits), compliance artifacts
+20. Limited GA prep: onboarding flows, in-product cookbook links, case study spotlights
+
+---
+
+### **Key Design Decisions**
+
+1. **Zero-Privilege First**: Fastest path to value, builds trust before credentials shared
+2. **ADK for Orchestration**: Code-first, debuggable, hierarchical multi-agent support
+3. **CopilotKit for UX**: Production-ready human-in-the-loop patterns, shared state
+4. **Composio for Breadth**: 250+ toolkits, OAuth management, proven case studies
+5. **Supabase for State**: Postgres RLS for isolation, realtime for live dashboards, edge functions for webhooks
+6. **Approval-Mandatory**: Destructive actions paused by default, opt-in autopilot windows
+7. **Evidence-Centric**: Every run produces artifacts, logs, and ROI deltas for stakeholder confidence
+
+---
+
+This architecture plan aligns the PRD's business vision (objective-led, accountable, scalable) with the technical capabilities of the partner stack, ensuring a clear path from private preview to production scale while maintaining governance and trust at every layer.
