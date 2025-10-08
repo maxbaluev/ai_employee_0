@@ -1,110 +1,232 @@
-# AI Employee Control Plane — Execution Tracker (October 8, 2025)
+# AI Employee Control Plane — Checkpoint Control Plan (October 8, 2025)
 
-This tracker is the single source of truth for what the AI Employee Control Plane must deliver and verify across all gates. Treat every item as actionable by AI agents or human counterparts unless marked informational.
+## Purpose
+Provide a single program tracker that governs every gate of the AI Employee Control Plane. Each checkpoint below defines the minimum scope, acceptance instrumentation, evidence bundles, and dependencies needed to promote the system from zero-privilege proofs to governed activation and scale. Treat every checklist item as enforceable; promotion is blocked until all exit criteria are satisfied.
 
-## Live Program Snapshot
-- **Current Gate:** G-A (Foundation Baseline)
-- **Target Next Gate:** G-B readiness dry run ETA ≤ 2 sprints once high-priority backlog clears.
-- **Core Pillars:** CopilotKit UX, Gemini ADK orchestration, Composio integrations, Supabase data plane, Governance/Compliance.
+## Canonical References
+- Business PRD (`new_docs/prd.md`)
+- Technical Architecture Blueprint (`new_docs/architecture.md`)
+- Guardrail Policy Pack (`new_docs/guardrail_policy_pack.md`)
+- CopilotKit documentation (`libs_docs/copilotkit/llms-full.txt`)
+- Composio field guide (`libs_docs/composio/llms.txt`)
+- Gemini ADK repository notes (`libs_docs/adk/llms-full.txt`)
+- Supabase AI & Vector toolkit (`libs_docs/supabase/llms_docs.txt`)
 
-## Gate Ladder — Goals, Scope, Deliverables, Signals
+## Role Charter
+| Role | Primary Ownership | Critical Touchpoints |
+| --- | --- | --- |
+| Runtime Steward | Gemini ADK orchestration, evaluation harnesses | ADK eval suites, custom `_run_async_impl` flows, error budgets |
+| CopilotKit Squad | Mission intake UX, streaming status, approvals UI | `copilotkit_emit_message`, `copilotkit_exit`, shared state persistence |
+| Data Engineer | Supabase schema, pgvector, Cron, analytics | `pg_cron`, PostgREST, Edge Functions, evidence exports |
+| Governance Sentinel | Guardrails, reviewer SOPs, undo assurances | Policy enforcement, audit trails, redaction workflows |
+| GTM Enablement Lead | Play library, evidence storytelling, customer readiness | Dry-run artifacts, ROI dashboards, enablement bundles |
 
-### Gate G-A — Foundation Baseline
-- **Goal:** Stand up zero-privilege infrastructure that proves the objective → artifact loop without OAuth credentials.
-- **Scope (build & configure):**
-  - Supabase migration `0001_init.sql` with pgvector enabled, RLS enforced, schema tests captured via `supabase db diff/push` transcripts.
-  - CopilotKit control-plane shell in staging, synchronized with Supabase-backed session/message persistence (tables, retention policy, migrations, rollback plan).
-  - Gemini ADK coordinator + planner availability checks (`adk eval` smoke suite) returning healthy.
-  - Composio catalog snapshot job scheduled through Supabase `pg_cron` (nightly) writing checksum + metadata rows.
-- **Deliverables / Evidence:**
-  - `status_beacon_A.json` summarizing readiness %, blockers, owner sign-offs.
-  - Supabase checksum log excerpts and CopilotKit smoke-note attachment stored in `docs/readiness/`.
-- **Signals / Ownership:** Runtime Steward (ADK health), Data Engineer (Supabase schema & cron), CopilotKit squad (persistence QA), Governance Sentinel (RLS review).
+## Checkpoint Overview
+| Gate | Capability Focus | Primary Outcomes | Evidence Artifacts |
+| --- | --- | --- | --- |
+| G-A | Foundation Baseline | Zero-privilege proof infrastructure, catalog sync, persistence scaffolding | `status_beacon_A.json`, Supabase checksum logs, CopilotKit smoke notes |
+| G-B | Dry-Run Proof Loop | Draft-quality outputs <15 minutes, streaming UX, transcript retention | `dry_run_verification.md`, QA media, telemetry snapshot |
+| G-C | Governed Activation Core | OAuth execution, approvals, undo plans, trigger lifecycle | `governed_activation_report.csv`, approval feed export |
+| G-D | Insight & Library Fabric | Analytics dashboards, library embeddings, trigger warehouse | `insight_snapshot.parquet`, `library_recommendations.json` |
+| G-E | Scale Hardening | Security & performance certification, enablement assets | `trust_review.pdf`, `load_test_results.json`, enablement bundle |
+| G-F | Stabilised Operations | Sustained governed ops, incident hygiene, roadmap alignment | `stabilisation_digest.md`, KPI exports |
 
-### Gate G-B — Dry-Run Proof Loop
-- **Goal:** Produce stakeholder-ready drafts within 15 minutes using no-auth toolkits.
-- **Scope:**
-  - Planner ranks plays via PRD + Composio `tools.get(search=…)` + Supabase embeddings.
-  - Executors generate outreach/research/scheduling drafts; Evidence agent stores outputs and telemetry.
-  - CopilotKit UI streams long-running updates with `copilotkit_emit_message`, exits loops via `copilotkit_exit`, and supports reviewer annotations.
-  - Mission transcripts persisted for replay/debugging; retention validated.
-- **Evidence:** `dry_run_verification.md` (latency chart, artifact samples, planner telemetry) and CopilotKit QA video/screenshots.
-- **Signals:** `status_beacon_B.json`, Governance Sentinel SLA alerts, CopilotKit review transcript.
+---
 
-### Gate G-C — Governed Activation Core
-- **Goal:** Enable OAuth-connected execution with approvals, undo, and triggers.
-- **Scope:**
-  - Composio OAuth handshake (`toolkits.authorize()` → `wait_for_connection()` → `tools.get()` → `provider.handle_tool_calls()` / `tools.execute()`) scripted and replayable.
-  - Trigger lifecycle helpers (list/get/create/subscribe/disable) implemented with type-safe payloads and Supabase storage for audit.
-  - Validator enforcing tone, rate, quiet hours; undo pipeline surfaced in CopilotKit UI with log references.
-  - Copilot loop hygiene: every approval or completion path issues `copilotkit_exit`, prunes revoked messages, and verifies router recovery.
-- **Evidence:** `governed_activation_report.csv` (connections, approvals, undo traces, trigger events) + approval feed export.
-- **Signals:** `status_beacon_C.json`, CopilotKit approval feed notification trail, trigger health monitor.
+## Gate G-A — Foundation Baseline
+**Mission Question:** Can we demonstrate the objective → artifact loop without credentials while keeping governance instrumentation ready?
 
-### Gate G-D — Insight & Library Fabric
-- **Goal:** Transform telemetry into recommendations and reusable plays.
-- **Scope:**
-  - Supabase dashboards (PostgREST + SQL queries) for adoption, ROI, guardrail incidents, approval throughput.
-  - Library API with embeddings + ranking metadata; “next best job” endpoint using pgvector similarity.
-  - Trigger event warehouse tables with analytics rollups.
-- **Evidence:** `insight_snapshot.parquet`, `library_recommendations.json`, dashboard QA recordings.
-- **Signals:** `status_beacon_D.json`, analytics QA alerts, trigger heatmaps.
+### Build Scope
+- **CopilotKit:** Stage the mission workspace with shared state backed by Supabase tables (sessions/messages), apply retention policy, confirm message management hooks from the docs are callable.
+- **Gemini ADK:** Expose coordinator + planner agents with deterministic `_run_async_impl` branches; ensure eval harness (`adk eval`) executes smoke scenarios.
+- **Composio:** Nightly catalog snapshot via `pg_cron`, store toolkit metadata + checksum, validate `tools.get` and `get_raw_composio_tools` sampling for no-auth toolkits.
+- **Supabase:** Apply `0001_init.sql` with pgvector, enforce RLS, rehearse `supabase db diff/push` to capture migration evidence.
+- **Governance:** Map guardrail policy primitives (tone, quiet hours, undo concept) into documentation and reviewer SOP drafts.
 
-### Gate G-E — Scale Hardening
-- **Goal:** Validate security, performance, enablement ahead of GA.
-- **Scope:**
-  - Security checklist (token rotation, PII redaction, trigger permission audits).
-  - Load tests for Composio tool & trigger throughput, Supabase query latency.
-  - Enablement bundle (case studies, ROI calculator, trigger playbooks) published.
-- **Evidence:** `trust_review.pdf`, `load_test_results.json`, enablement bundle artifact package.
-- **Signals:** `status_beacon_E.json`, performance dashboards, enablement readiness score.
+### Acceptance Tests & Instrumentation
+- `adk eval` smoke run logs saved with pass/fail summary.
+- CopilotKit persistence rehearsal: create mission, refresh session, confirm state restored, log DB row hashes.
+- Cron dry run: execute snapshot job once, verify checksum change and Supabase log entry.
 
-### Gate G-F — Stabilised Operations
-- **Goal:** Demonstrate governed operations over two reporting windows.
-- **Scope:**
-  - Production telemetry with incident retrospectives and escalation analytics.
-  - Trigger incident drill-downs and next-phase backlog alignment.
-- **Evidence:** `stabilisation_digest.md` (KPIs, incident ledger, backlog summary).
-- **Signals:** `status_beacon_F.json`, Supabase KPI snapshot, GTM sentiment digest.
+### Evidence to Produce
+- `status_beacon_A.json` with readiness %, owners, blockers.
+- Supabase migration log (hash + command output) stored under `docs/readiness/`.
+- Catalog snapshot checksum report.
 
-## Immediate Backlog (Sprint-Level)
-- [ ] **Supabase persistence:** finalize CopilotKit session/message schema, retention, migrations, and document rollback.
-- [ ] **Cron job:** deploy nightly Composio catalog sync, expose job status + checksum validation in `status_beacon_A.json`.
-- [ ] **CopilotKit streaming & exits:** add `copilotkit_emit_message` + `copilotkit_exit` hooks to current mission flow, capture QA artifacts (video + console logs).
-- [ ] **pgvector/RLS validation:** run `supabase db diff/push` rehearsals and store command output with approvals in readiness archive.
-- [ ] **Trigger scaffolding:** draft Supabase tables for trigger events and seed synthetic data for downstream analytics.
-- [ ] **Evidence automation:** script exports of `docs/readiness/` artifacts to cold storage post-each checkpoint review.
+### Exit Checklist
+- [ ] Supabase schema + RLS validated, audit log captured.
+- [ ] CopilotKit persistence + reload verified with screenshots/console output.
+- [ ] Nightly Cron job scheduled and monitored.
+- [ ] Guardrail policy mapping approved by Governance Sentinel.
 
-## Operational Rituals & Verification
-- **Before promoting a gate:** run targeted `adk eval` suites (dry-run + governed traces) and attach logs inside corresponding `status_beacon_<letter>.json`.
-- **UI QA:** Capture CopilotKit session recordings whenever validating streaming updates, approvals, undo flows, or router exits.
-- **Cron Monitoring:** Log Supabase `pg_cron` job execution IDs and errors into governance digest; page Data Engineer if failures >1 in 24h.
-- **Evidence Sync:** After each checkpoint review, ensure Supabase evidence exports and `docs/readiness/` artifacts align (hash comparison logged).
+### Dependencies & Notes
+- Requires Google Gemini API key, Composio API key, Supabase project credentials (no secrets in repo).
 
-## Cross-Stream Ownership
-- **Orchestration Runtime:** Runtime Steward — ADK services, Composio SDK wrappers, trigger utilities.
-- **Frontend & Copilot UX:** CopilotKit squad — mission intake, approvals UI, trigger notifications, streaming UX.
-- **Data & Analytics:** Data Engineer — migrations, embeddings, dashboards, trigger warehouse.
-- **Governance:** Governance Sentinel — guardrails, reviewer SOPs, undo assurances, retention policy compliance.
-- **GTM Enablement:** Enablement Lead — playbooks, ROI stories, packaged plays, customer narratives.
+---
 
-## Dependency Matrix
-- **CopilotKit:** `libs_docs/copilotkit/llms-full.txt` for persistence hooks, streaming, exit behaviours, message management.
-- **Composio:** `libs_docs/composio/llms.txt` for discovery, auth, trigger lifecycle, governance expectations.
-- **Gemini ADK:** `libs_docs/adk/llms-full.txt` covering agent composition, custom `_run_async_impl` patterns, eval tooling.
-- **Supabase:** `libs_docs/supabase/llms_docs.txt` for pgvector, PostgREST, Edge Functions, Cron, CLI workflows.
+## Gate G-B — Dry-Run Proof Loop
+**Mission Question:** Can stakeholders receive high-quality drafts with full telemetry in <15 minutes and observe the agent’s reasoning live?
+
+### Build Scope
+- **CopilotKit:** Implement streaming via `copilotkit_emit_message`, enforce `copilotkit_exit` at loop completion, enable reviewer annotations.
+- **Gemini ADK:** Planner ranking uses PRD recipes + Composio search + Supabase embeddings; Evidence agent archives artifacts and metrics.
+- **Composio:** Integrate `tools.get(search=…)` filters for persona-relevant no-auth toolkits; log tool selection rationale in planner output.
+- **Supabase:** Persist mission transcripts, artifact metadata, and telemetry with retention verification.
+- **Governance:** Document reviewer workflow for dry-run sign-off, including undo narrative requirements.
+
+### Acceptance Tests & Instrumentation
+- End-to-end dry-run timed tests (<15 minutes) recorded with start/end timestamps.
+- Evidence agent output hashed and compared to Supabase artifact storage records.
+- Streaming UX QA video demonstrating interim status updates and reviewer edits.
+
+### Evidence to Produce
+- `dry_run_verification.md` containing timing table, artifact samples, planner telemetry.
+- CopilotKit session recording (video) + console logs.
+- Updated `status_beacon_B.json`.
+
+### Exit Checklist
+- [ ] Dry-run latency KPI met across 3 persona scenarios.
+- [ ] Streaming status + exit hooks validated.
+- [ ] Mission transcript retention confirmed for 7-day window.
+- [ ] Reviewer workflow documented and approved.
+
+### Dependencies & Notes
+- Requires curated library seeds from architecture section 4.4 + PRD plays.
+
+---
+
+## Gate G-C — Governed Activation Core
+**Mission Question:** Can the system execute OAuth-backed plays with approvals, undo, and trigger lifecycle controls while preserving auditability?
+
+### Build Scope
+- **CopilotKit:** Approval modals with risk, undo, scope preview; undo buttons wired to Evidence agent data; message pruning for revoked actions.
+- **Gemini ADK:** Validators enforce tone, rate, quiet hours; Evidence agent stores undo plans; custom branching reruns executions on validation failure.
+- **Composio:** Implement OAuth handshake (`toolkits.authorize`, `waitForConnection`) and trigger CRUD (`triggers.create/subscribe/disable`); log auth evidence.
+- **Supabase:** Store approvals, tool calls, trigger configs with RLS; add PostgREST policies for reviewer and admin personas.
+- **Governance:** Publish approval SOP, quiet-hour override policy, rollback checklist.
+
+### Acceptance Tests & Instrumentation
+- OAuth connection rehearsal recorded (redirect URL, connection ID, scopes).
+- Trigger subscription test produces synthetic event logged in Supabase.
+- Validator negative-case suite (tone violation, quiet hour breach) halts execution and raises CopilotKit interrupt.
+
+### Evidence to Produce
+- `governed_activation_report.csv` (connections, approvals, undo traces, trigger events).
+- Approval feed export showing reviewer decisions.
+- `status_beacon_C.json` with risk assessment.
+
+### Exit Checklist
+- [ ] At least two OAuth toolkits operational with approvals recorded.
+- [ ] Trigger lifecycle covered (list/get/create/subscribe/disable) with audit logs.
+- [ ] Validator interruptions verified and resolved paths documented.
+- [ ] Undo buttons tested and evidence stored.
+
+### Dependencies & Notes
+- Coordinate with security for vaulting OAuth secrets; ensure compliance with guardrail policy pack.
+
+---
+
+## Gate G-D — Insight & Library Fabric
+**Mission Question:** Can we surface actionable analytics, recommendations, and reusable plays across tenants and personas?
+
+### Build Scope
+- **CopilotKit:** Evidence browsing UI with filters (tenant, persona, mission state); recommendation surfaces tied to Supabase endpoints.
+- **Gemini ADK:** Library agent curates embeddings, ROI, risk metadata; Planner consumes recommendation API for next-best-job prompts.
+- **Composio:** Tag tool usage with metadata for analytics (toolkit, scopes, success score).
+- **Supabase:** Dashboards via PostgREST (adoption, ROI, guardrails, latency), hybrid search combining pgvector + keyword, trigger warehouse tables.
+- **Governance:** Analytics access control and data retention policy published.
+
+### Acceptance Tests & Instrumentation
+- Dashboard QA: p95 latency < target, filters functioning, data accurate vs sample queries.
+- Recommendation API integration tests verifying contextual suggestions.
+- Trigger warehouse consistency checks (events vs tool calls).
+
+### Evidence to Produce
+- `insight_snapshot.parquet` (metrics extract).
+- `library_recommendations.json` (top plays, metadata, embeddings hashes).
+- Analytics QA recording + `status_beacon_D.json`.
+
+### Exit Checklist
+- [ ] Dashboards validated with governance-approved metrics.
+- [ ] Recommendation service serving at least 5 curated templates per persona.
+- [ ] Trigger warehouse populated and reconciled with live events.
+
+### Dependencies & Notes
+- Confirm Supabase Edge Functions for streaming evidence and ROI calculations are deployed.
+
+---
+
+## Gate G-E — Scale Hardening
+**Mission Question:** Is the platform ready for broader rollout with enforced security, performance, and enablement guardrails?
+
+### Build Scope
+- **Security:** Token rotation, PII redaction pipelines, trigger permission audits, SOC2-oriented controls documented.
+- **Performance:** Load testing for Composio tool execution and trigger throughput; Supabase query/embedding latency benchmarks.
+- **Enablement:** Publish enablement bundle (case studies, ROI calculator, trigger playbooks) aligned with PRD packaging models.
+
+### Acceptance Tests & Instrumentation
+- Load-test reports (success %, error classes, latency percentiles) archived.
+- Security checklist sign-off with evidence (logs, policies, runbooks).
+- Enablement content review with GTM/cross-functional stakeholders.
+
+### Evidence to Produce
+- `trust_review.pdf` (security/compliance summary).
+- `load_test_results.json` (latency + capacity data).
+- Enablement bundle artifact + `status_beacon_E.json`.
+
+### Exit Checklist
+- [ ] Security controls audited and signed.
+- [ ] Performance SLAs met or mitigation plan approved.
+- [ ] Enablement package distributed to stakeholders.
+
+### Dependencies & Notes
+- Coordinate with partner teams (Composio, CopilotKit, ADK, Supabase) for roadmap validation per PRD guidance.
+
+---
+
+## Gate G-F — Stabilised Operations
+**Mission Question:** Can we sustain governed operations over multiple reporting windows with incident hygiene and future roadmap clarity?
+
+### Build Scope
+- **Operational Metrics:** Collect two reporting cycles of production KPIs (adoption, approvals, guardrail incidents, ROI).
+- **Incident Hygiene:** Document incidents, postmortems, escalation handling, trigger failures.
+- **Roadmap Alignment:** Compile backlog for next phase based on telemetry and GTM feedback.
+
+### Acceptance Tests & Instrumentation
+- KPI exports reconciled with Supabase dashboard data.
+- Incident ledger reviewed with governance and runtime teams.
+- Next-phase backlog scored and prioritized.
+
+### Evidence to Produce
+- `stabilisation_digest.md` (KPIs, incidents, backlog summary).
+- `status_beacon_F.json` with final readiness score.
+
+### Exit Checklist
+- [ ] Two consecutive reporting windows closed with compliant metrics.
+- [ ] All incidents resolved with documented learnings.
+- [ ] Next-phase roadmap approved by leadership.
+
+### Dependencies & Notes
+- Ensure evidence archives (Supabase storage + `docs/readiness/`) mirror final state.
+
+---
+
+## Operational Cadence & Verification
+- **Weekly:** Review Cron health, streaming UX QA status, open risks; update tracker with task progress.
+- **Bi-Weekly:** Run `adk eval` regression suites, validate Supabase diffs, confirm Composio tool coverage.
+- **Pre-Gate Review:** Freeze feature work, re-run acceptance instrumentation, gather required evidence, update `status_beacon_<letter>.json`.
+- **Post-Gate:** Export artifacts to cold storage, refresh analytics baselines, adjust risk register.
 
 ## Risk Watchlist & Mitigations
-- **Credential adoption lag:** escalate if <50% tenants progress to OAuth by Gate G-C; reinforce value via dry-run artifacts + case studies.
-- **Approval fatigue:** monitor reviewer load (>6 approvals/day triggers batching feature design).
-- **Integration drift:** schedule quarterly roadmap syncs with Composio, CopilotKit, ADK, Supabase; refresh docs + trackers after each sync.
-- **Data anomalies:** run weekly QA queries; alert if embeddings drift, trigger events missing, or dashboards lag >24h.
-- **Throughput guardrails:** enforce Composio/trigger latency p95 <250ms prior to Gate G-E; log load-test results.
+- Credential adoption lag → escalate at Gate C if <50% tenants opt into OAuth; amplify dry-run success stories.
+- Reviewer fatigue → monitor approvals per reviewer; design batching/autopilot windows when threshold exceeded.
+- Integration drift → quarterly sync with Composio, CopilotKit, ADK, Supabase; update tracker within 48h of each sync.
+- Data anomalies → automated QA on embeddings, trigger streams, dashboards; alert on drift or missing data.
+- Latency/Throughput spikes → run load tests during each gate promotion rehearsal; enforce p95 <250ms before Gate E.
 
-## Decision Log & Open Questions (address before Gate G-D)
-- [ ] Confirm LLM fallback strategy (Gemini primary vs. OpenAI/Anthropic adapters) and document prompt/telemetry adjustments.
-- [ ] Finalize message redaction workflow within CopilotKit UI/CLI for governance audits.
-- [ ] Schedule partner syncs (Composio, CopilotKit, ADK, Supabase) to validate roadmap assumptions embedded here.
-- [ ] Determine telemetry granularity needed for outcome-based pricing experiments.
+## Decision Log Template
+Maintain a dated list of major decisions (e.g., LLM provider fallback, pricing telemetry granularity, redaction workflow) within this document during reviews. Include context, decision, owner, and follow-up tasks.
 
-Keep this tracker updated whenever evidence ships, risks escalate, or dependency assumptions change. It replaces prior checkpoint plans — do not maintain parallel lists elsewhere.
+## Upcoming Reviews
+- **Next checkpoint audit:** October 22, 2025 (target readiness review for Gate G-A → G-B promotion).
+- Update this tracker immediately after every checkpoint or major decision; it replaces all prior implementation plans.
