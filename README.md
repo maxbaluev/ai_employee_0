@@ -6,7 +6,7 @@ This repository delivers the Gate G-A foundation for the AI Employee Control Pla
 - **Frontend:** `src/app/(control-plane)` renders the mission intake, artifact gallery, and Copilot sidebar.
 - **Backend:** `agent/` exposes a FastAPI app with a Gemini ADK agent (`agent/agents/control_plane.py`) and Composio catalog parsing (`agent/tools/composio_client.py`).
 - **Data Plane:** `supabase/migrations/0001_init.sql` provisions tenants, objectives, plays, approvals, tool telemetry, pgvector embeddings, and RLS policies.
-- Reference product docs live in `new_docs/` (architecture, implementation plan, guardrails, readiness schemas).
+- Reference product docs live in `new_docs/` (architecture, execution tracker, guardrails, readiness schemas).
 
 ## Prerequisites
 - [mise](https://mise.jdx.dev/) for tool version management

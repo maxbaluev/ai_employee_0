@@ -43,6 +43,42 @@ Deliver an objective-first AI employee that plans, executes, and learns like a t
 - **Governed activation:** Connected mode executes the same plays through confirmed MCP toolkits with approvals, caps, and quiet hours enforced.
 - **Evidence & coaching:** Dashboards highlight ROI deltas, artifacts, guardrail events, and “next best job” recommendations drawn from the library.
 
+## Detailed Requirements & Acceptance Criteria
+
+### CopilotKit Experience
+- Mission chat, contextual briefs, approval modals, and artifact previews must all run on CopilotKit CoAgents using shared state; persistence is required via Supabase Postgres tables (CopilotKit message/state storage) so reviewers can reload or transfer conversations without losing context.
+- Each long-running node (planner ranking, executor synthesis, validator audits) must provide interim feedback through `copilotkit_emit_message`, and successful/aborted runs must call `copilotkit_exit` so routers regain control cleanly.
+- UI components (Agentic Chat, Generative UI, Frontend Actions) expose reviewer levers for edits, approvals, undo, trigger enrollment, and risk acknowledgements. These surfaces must remain accessible on desktop and tablet breakpoints.
+- Message history hygiene and redaction controls must exist so governance teams can remove sensitive strings while maintaining evidence pointers.
+
+### Agent Orchestration & ADK Expectations
+- Coordinator, planner, executor, validator, and evidence agents run on Gemini ADK with deterministic `_run_async_impl` branches for conditional loops (e.g., regenerate plays if tone check fails). Shared state (`ctx.session.state`) stores mission metadata, guardrail flags, and evidence references.
+- Checkpointed evaluations (`adk eval`) must replay top missions across dry-run and governed modes, confirming stable outcomes before promotion.
+- Orchestration logs capture tool calls, approvals, and undo instructions with IDs that align to Supabase tables and UI events.
+
+### Tooling & Integrations
+- Composio usage adheres to the SDK guidance in `libs_docs/composio/llms.txt`: limit tool payloads, scope searches, avoid mixing filters, and capture auth evidence (`redirectUrl`, `connectedAccountId`, scopes).
+- Trigger lifecycle (list/get/create/subscribe/disable) is first-class; proof packs expose event-based automations with required payload templates and reviewer toggles.
+- Supabase hosts objectives, plays, tool calls, approvals, artifacts, triggers, and library embeddings. Vector search leverages pgvector with indexes sized per tenant. PostgREST and Edge Functions provide the API surfaces consumed by the frontend.
+- Supabase Cron schedules nightly Composio catalog refreshes and analytics rollups; Edge Functions deliver streaming evidence search and ROI calculations without exposing secrets client-side.
+
+### Evidence, Analytics & Governance
+- Each mission generates an evidence bundle: mission brief, tool outputs (redacted), ROI estimates, risk notes, undo plan, and telemetry summary. Bundles are reviewable in CopilotKit and exportable via Supabase APIs.
+- Dashboards present dry-run conversion, approval throughput, guardrail exceptions, and library reuse. Data must be filterable by tenant, persona, and checkpoint state.
+- Guardrails enforce zero-privilege default, tone policies, quiet hours, and undo readiness. Violations trigger CopilotKit interrupts and require reviewer action logged in Supabase.
+
+### Non-Functional Requirements
+- **Latency:** Dry-run loop ≤15 minutes end-to-end; streaming updates surface within 5 seconds of agent emission.
+- **Reliability:** Daily Cron sync success rate ≥99%; trigger subscription health monitored with automated alerts.
+- **Security:** Row Level Security on all Supabase tables; OAuth tokens encrypted, rotated, and never serialized to prompts or logs.
+- **Observability:** Unified log correlation across CopilotKit, ADK, Composio, and Supabase with run IDs accessible to operations.
+- **Scalability:** Support 20 concurrent governed missions with maintained latency targets by Gate G-D.
+
+### Stakeholder Sign-Off Criteria
+- Governance officers can audit any mission’s approvals, toolkits, and undo plans via UI or API.
+- GTM leads can demonstrate at least three dry-run wins per persona during pilots, using evidence packs as collateral.
+- Technical enablement validates MCP-triggered workflows and repo-safe change management before expanding scope.
+
 ## Metrics & Success Criteria
 
 - **North Star:** Weekly approved agent jobs per active account.
@@ -73,6 +109,13 @@ Deliver an objective-first AI employee that plans, executes, and learns like a t
 - **Scope creep toward unsupervised automation:** Keep approvals mandatory by default, surface rollback instructions, and offer opt-in autopilot windows.
 - **Tool discovery overwhelm:** Curate recommended toolkits per persona, leverage cookbook recipes, and surface relevant success stories in-product.
 - **Partner dependency drift:** Schedule quarterly alignment with Composio, CopilotKit, and ADK teams on roadmap, branding, and co-marketing commitments.
+
+## Open Questions & Assumptions
+
+- **Pricing evolution:** Outcome-based pricing pilots may require additional telemetry beyond current scope; assume pricing experiments start Gate G-D unless GTM revises.
+- **Multi-tenant analytics:** Assumes Supabase project per control-plane instance; if shared, RLS rules and anon key scopes must be revisited.
+- **LLM provider mix:** Primary guidance targets Gemini via ADK; assume OpenAI fallback remains allowable but requires prompt/telemetry alignment work.
+- **Trigger coverage:** Initial trigger catalog based on Composio availability as of October 8, 2025; expansion cadence depends on partner roadmap syncs.
 
 ## User Stories
 

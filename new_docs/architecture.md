@@ -59,6 +59,7 @@ This architecture builds on the baseline and introduces the control-plane layers
   - `ValidatorAgent`: Performs tone checks, ROI sanity, compliance gating before destructive actions.
   - `EvidenceAgent`: Captures outputs, metrics, and rollback context.
 - **Workflow Patterns:** Sequential agents for draft→critique→revise, Loop agents for iterative enrichment, conditional branches for guardrail triggers.
+- **Custom Control Flow:** When planners need bespoke branching, inherit from `BaseAgent` and implement `_run_async_impl` so the coordinator can yield events from specialist sub-agents while reading/writing `ctx.session.state` for shared memory. This pattern keeps deterministic replay while allowing conditional regeneration (e.g., rerun execution if `tone_check` fails) as documented in the ADK custom agent guide.
 - **Tool Invocation:** Executors follow the Composio Quickstart handshake: initiate `toolkits.authorize()` for a user, await `wait_for_connection()`, fetch schemas with `tools.get()`, and pass those structured tool definitions into whichever LLM runtime is driving the mission. Python agents lean on `composio.Composio` plus `provider.handle_tool_calls()` while TypeScript counterparts import `@composio/core` (and optional provider packages such as `@composio/anthropic`). All flows must record redirect URLs, connection IDs, and toolkit slug metadata.
 - **Session Customisation:** When a mission requires per-run headers (tenant routing, correlation IDs, sandbox toggles), agents instantiate scoped SDK sessions via `Composio.createSession({ headers })` rather than mutating global clients.
 - **Fallback Handling:** Map provider errors (invalid_scope, quota exceeded) to actionable CopilotKit prompts.
@@ -87,6 +88,20 @@ This architecture builds on the baseline and introduces the control-plane layers
 - Ranking blends reuse frequency, reviewer NPS, measured ROI, and risk incidents.
 - Agencies can opt-in to share templates across tenants, enabling franchising while maintaining tenant isolation through Supabase Row Level Security (RLS).
 
+### 4.6 CopilotKit Interaction Contracts
+- **Shared History:** Persist conversations and agent state inside Supabase Postgres (e.g., `copilot_sessions` + `copilot_messages` tables) using CopilotKit’s persistence hooks. Run migrations alongside Supabase schema apply, and hydrate caches during app startup so CoAgents revive with the latest mission context.
+- **In-Flight Feedback:** Long-running nodes must call `copilotkit_emit_message` to stream interim status (e.g., "Syncing CRM contacts…") back to reviewers, ensuring adherence to human-in-the-loop expectations.
+- **Session Exit Discipline:** When a node hands control back to routers or shared workflows, invoke `copilotkit_exit` to avoid ghost loops. Each exit publishes a `ToolMessage` or UI update summarizing success/abort state.
+- **Message Hygiene:** Use CopilotKit message management APIs to prune or redact logs when undoing actions, keeping audit trails free of sensitive data while retaining evidence references.
+- **Frontend Hooks:** The Next.js layer wires CopilotKit components (Agentic Chat UI, Generative UI, Frontend Actions) behind feature flags so reviewer checkpoints, undo buttons, and trigger subscriptions stay discoverable and testable.
+
+### 4.7 Supabase Operations & Integrations
+- **Catalog Sync Cron:** Supabase `pg_cron` schedules nightly Composio catalog refreshes, writing toolkit metadata snapshots plus checksums that planners reference before each mission.
+- **Edge Functions:** Implement streaming evidence search, trigger webhooks, and ROI calculators in Supabase Edge Functions (TypeScript/Deno) to keep sensitive logic server-side while supporting low-latency UI interactions.
+- **REST & RLS:** Expose `objectives`, `plays`, `tool_calls`, and analytics via the PostgREST API with RLS policies that align to tenant scopes; the frontend consumes these endpoints through service-role keys on the server and anon keys on the client.
+- **Vector Tooling:** Use Supabase `vecs` client and pgvector for embeddings; index management follows the Execution Tracker readiness checklist in `new_docs/todo.md`.
+- **Local Dev Cadence:** Teams rely on Supabase CLI for schema diffs, branch previews, and migration promotion (`supabase init/start`, `supabase db push`). Production deploys hinge on GitHub-integrated migration pipelines.
+
 ## 5. Data Flows
 
 ### 5.1 Dry-Run Proof Sequence
@@ -94,13 +109,13 @@ This architecture builds on the baseline and introduces the control-plane layers
 2. Planner agent normalizes data, stores `objective` row.
 3. Capability discovery pulls Composio `no_auth` toolkits (e.g., Slack draft, Trello sandbox) and library plays via vector similarity.
 4. Planner generates play candidates; writes to `plays` with mode `dry_run`.
-5. Executor agents generate artifacts (draft emails, schedules, briefs) without sending; Evidence agent persists artifacts and metrics in Supabase.
-6. CopilotKit renders generative UI preview; reviewers iterate before opting into activation.
+5. Executor agents generate artifacts (draft emails, schedules, briefs) without sending; they stream interim updates via `copilotkit_emit_message` for reviewer awareness, and the Evidence agent persists artifacts and metrics in Supabase.
+6. CopilotKit renders generative UI preview; reviewers iterate before opting into activation, and the active loop exits with `copilotkit_exit` once reviewers regain control.
 
 ### 5.2 Governed Activation Sequence
 1. Reviewer selects play for activation; system verifies OAuth tokens and guardrail readiness.
 2. Validator agent checks tone, compliance, quota; CopilotKit surfaces approval summary.
-3. Upon approval, executor calls Composio OAuth toolkit; result captured by Evidence agent alongside undo plan.
+3. Upon approval, executor calls Composio OAuth toolkit; result captured by Evidence agent alongside undo plan and streamed to reviewers; orchestration loop exits cleanly after `copilotkit_exit` confirms router takeover.
 4. Supabase logs tool call, approval decision, ROI metrics (e.g., reactivated accounts, time saved).
 5. Dashboard updates via Supabase realtime; CopilotKit notifies stakeholders with evidence pack.
 
@@ -196,7 +211,7 @@ Agents advance through the following capability states. Each state must satisfy 
 - **CopilotKit UX:** `libs_docs/copilotkit/llms-full.txt` — mission intake, approvals, generative surfaces, ADK integration patterns.
 - **Gemini ADK:** `libs_docs/adk/llms-full.txt` — multi-agent composition, deployment patterns, evaluation tooling.
 - **Supabase AI Toolkit:** `libs_docs/supabase/llms_docs.txt` — pgvector, Edge Functions, PostgREST, AI templates and integrations.
-- **Evidence Tracking:** Gate-specific artifacts are documented within the implementation plan; store outputs under `docs/readiness/` and Supabase storage as they are introduced.
+- **Evidence Tracking:** Gate-specific artifacts are documented within `new_docs/todo.md`; store outputs under `docs/readiness/` and Supabase storage as they are introduced.
 - **Guardrail Policies:** `new_docs/guardrail_policy_pack.md` — enforcement parameters for tone, rate, quiet hours, and undo guarantees (implemented across `agent/` validators and `src/app` approval flows).
 
 This architecture grounds the AI Employee Control Plane in the documented partner capabilities, delivering an accountable, extensible system that converts objectives into governed outcomes with a clear path from private preview to scaled adoption.

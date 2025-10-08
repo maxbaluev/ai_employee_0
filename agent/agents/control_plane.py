@@ -236,7 +236,7 @@ def build_control_plane_agent() -> ADKAgent:
         instruction=(
             "You coordinate the AI Employee control plane foundation. "
             "Focus on capturing mission objectives, referencing guardrail policies, "
-            "and preparing evidence artifacts aligned with the PRD and implementation plan."
+            "and preparing evidence artifacts aligned with the PRD and Execution Tracker."
         ),
         tools=[set_mission_details, append_planner_note, upsert_artifact],
         before_agent_callback=on_before_agent,
