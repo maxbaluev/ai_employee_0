@@ -1,0 +1,1 @@
+Composio SDK status placeholder. Run `python -m agent.tools.composio_client --status` and capture output here for gate reviews.

@@ -57,10 +57,10 @@ Deliver an objective-first AI employee that plans, executes, and learns like a t
 - Orchestration logs capture tool calls, approvals, and undo instructions with IDs that align to Supabase tables and UI events.
 
 ### Tooling & Integrations
-- Composio usage adheres to the SDK guidance in `libs_docs/composio/llms.txt`: limit tool payloads, scope searches, avoid mixing filters, and capture auth evidence (`redirectUrl`, `connectedAccountId`, scopes).
+- Composio usage follows the official SDK guidance: limit tool payloads, scope searches, avoid mixing filters, and capture auth evidence (`redirectUrl`, `connectedAccountId`, scopes).
 - Trigger lifecycle (list/get/create/subscribe/disable) is first-class; proof packs expose event-based automations with required payload templates and reviewer toggles.
 - Supabase hosts objectives, plays, tool calls, approvals, artifacts, triggers, and library embeddings. Vector search leverages pgvector with indexes sized per tenant. PostgREST and Edge Functions provide the API surfaces consumed by the frontend.
-- Supabase Cron schedules nightly Composio catalog refreshes and analytics rollups; Edge Functions deliver streaming evidence search and ROI calculations without exposing secrets client-side.
+- Supabase Cron handles analytics rollups; Edge Functions deliver streaming evidence search and ROI calculations without exposing secrets client-side.
 
 ### Guardrail Governance
 - Guardrail profiles, mission overrides, and incident logging must follow `new_docs/guardrail_policy_pack.md`.

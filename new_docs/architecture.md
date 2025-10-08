@@ -24,7 +24,7 @@ This blueprint translates the Gate G-A mandate into concrete implementation guid
 | Presentation (Next.js + CopilotKit) | Mission intake, shared state, approval UX, artifact previews | `src/app/(control-plane)`, `src/app/components`, CopilotKit hooks |
 | Control Plane APIs | Objective CRUD, approval logging, guardrail validation | `src/app/api/objectives`, `src/app/api/approvals`, `src/app/api/guardrails/*` |
 | Orchestration (Gemini ADK) | Agent hierarchy, state management, evaluation harness | `agent/agent.py`, `agent/agents/control_plane.py`, `adk eval` suites |
-| Execution (Composio & MCP) | Tool discovery, OAuth, trigger lifecycle, tool execution | `agent/tools/composio_client.py`, `supabase/functions/catalog-sync` |
+| Execution (Composio & MCP) | Tool discovery, OAuth, trigger lifecycle, tool execution | `agent/tools/composio_client.py`, Composio SDK |
 | Governance & Evidence | Guardrail enforcement, approvals, undo, evidence bundling | `agent/services/evidence_service.py`, `src/app/components/ApprovalModal.tsx`, guardrail pack |
 | Data & Analytics (Supabase) | Mission tables, pgvector embeddings, dashboards, cron jobs | `supabase/migrations/*.sql`, Edge Functions, PostgREST views |
 
@@ -86,7 +86,7 @@ coordinator_agent = SequentialAgent(
 - **State Keys:** Standardize on `execution_plan`, `execution_results`, `validation_passed`, `validation_failed`, `violation_details`, `evidence_bundle`, `guardrails`.
 
 ### 3.3 Execution & Composio Integration
-- **Discovery:** Use `Composio.tools.get` with one filter at a time (toolkit, search, scopes). Cache nightly snapshots via Supabase cron (`catalog_snapshot` table).
+- **Discovery:** Use `Composio.tools.get` with one filter at a time (toolkit, search, scopes). Fetch metadata directly from the Composio SDK using the configured API key.
 - **OAuth:** Initiate via `toolkits.authorize`, persist `redirect_url`, `connection_id`, and scopes in `oauth_tokens` with encryption (see §3.6).
 - **Execution helper:**
 ```python
@@ -138,10 +138,8 @@ language sql stable as $$
 $$;
 ```
 - **Edge Functions:**
-  - `supabase/functions/catalog-sync` — nightly Composio toolkit snapshot.
   - `supabase/functions/generate-embedding` — writes embeddings for `library_entries` and artifacts.
 - **Cron Jobs:**
-  - `catalog_snapshot_nightly` — refresh Composio metadata and checksums.
   - `guardrail_override_expiry` — expire stale override tokens.
 
 ### 3.5 Evidence & Analytics

@@ -23,7 +23,7 @@
     "shared_state_checksum": "23a277b1f6a8d8e25be1accf40a8c7750601231cca77e9a73c822d0cdcb6df1f"
   },
   "composio": {
-    "catalog_checksum": "df1b9ec6384ec932ee5d8ab751f3e67ffda01f41eea3a451b59a0e52cee0e8e3",
+    "sdk_status": "ok",
     "toolkit_count": 11
   },
   "generated_at": "2025-10-07T21:41:11.204603+00:00"

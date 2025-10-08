@@ -148,7 +148,7 @@ def on_before_agent(callback_context: CallbackContext) -> None:
         )
         state[ARTIFACT_STATE_KEY] = artifacts
 
-    client = ComposioCatalogClient.from_default_cache()
+    client = ComposioCatalogClient.from_env()
     state.setdefault("composio_catalog", client.metadata)
 
     if not mission.planner_notes:
@@ -156,7 +156,7 @@ def on_before_agent(callback_context: CallbackContext) -> None:
         mission.planner_notes.extend(
             [
                 "Gate G-A baseline initialised",
-                f"Catalog cached toolkits: {summary.get('toolkits', 0)}",
+                f"Catalog available toolkits: {summary.get('toolkits', 0)}",
             ]
         )
         state[MISSION_STATE_KEY] = mission

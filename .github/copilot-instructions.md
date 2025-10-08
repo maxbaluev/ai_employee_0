@@ -56,7 +56,7 @@ mise run agent      # Agent only (Python FastAPI)
 - `agent/agents/control_plane.py` — Core agent with mission state tools
 - `agent/runtime/app.py` — FastAPI app factory, imports agents
 - `src/app/api/copilotkit/route.ts` — CopilotKit runtime connecting to Python agent
-- `agent/tools/composio_client.py` — Composio catalog parser from `libs_docs/`
+- `agent/tools/composio_client.py` — Composio catalog wrapper around the SDK
 
 ## Project-Specific Conventions
 
@@ -77,7 +77,7 @@ mise run agent      # Agent only (Python FastAPI)
 ### Integration Patterns
 
 - **Agent Communication:** HttpAgent connects Next.js API route to Python FastAPI
-- **Catalog Management:** Parse Composio docs from `libs_docs/composio/llms.txt`
+- **Catalog Management:** Use the Composio SDK to hydrate catalog metadata on demand
 - **Mission Flow:** Draft → Agent Planning → Evidence Generation → Approval → Execution
 - **Evidence Storage:** Artifacts stored as JSON in agent state, presented in React gallery
 
@@ -118,6 +118,6 @@ mise run agent      # Agent only (Python FastAPI)
 - **Agent disconnection:** Ensure `GOOGLE_API_KEY` set and Python service running
 - **State desync:** Always use CopilotKit tools, avoid direct state mutation
 - **Package conflicts:** Use `pnpm` for frontend, `uv` for Python (not mixing package managers)
-- **Catalog staleness:** Rerun validation workflow after updating `libs_docs/composio/llms.txt`
+- **Catalog staleness:** Refresh via `python -m agent.tools.composio_client --refresh` after updating `libs_docs/composio/llms.txt`
 
 This system emphasizes governed autonomy with human oversight — all automations start as dry-run proofs before earning OAuth credentials.

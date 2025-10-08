@@ -1,10 +1,10 @@
 # AI Employee Control Plane — Gate G-A Foundation
 
-This repository delivers the Gate G-A foundation for the AI Employee Control Plane. It pairs a CopilotKit-powered Next.js workspace with a packaged Gemini ADK backend, a Composio catalog cache, and Supabase migrations so you can generate zero-privilege proof packs before requesting oauth credentials.
+This repository delivers the Gate G-A foundation for the AI Employee Control Plane. It pairs a CopilotKit-powered Next.js workspace with a packaged Gemini ADK backend, a Composio SDK integration, and Supabase migrations so you can generate zero-privilege proof packs before requesting oauth credentials.
 
 ## Architecture Highlights
 - **Frontend:** `src/app/(control-plane)` renders the mission intake, artifact gallery, and Copilot sidebar.
-- **Backend:** `agent/` exposes a FastAPI app with a Gemini ADK agent (`agent/agents/control_plane.py`) and Composio catalog parsing (`agent/tools/composio_client.py`).
+- **Backend:** `agent/` exposes a FastAPI app with a Gemini ADK agent (`agent/agents/control_plane.py`) and a Composio SDK-powered discovery client (`agent/tools/composio_client.py`).
 - **Data Plane:** `supabase/migrations/0001_init.sql` provisions tenants, objectives, plays, approvals, tool telemetry, pgvector embeddings, and RLS policies.
 - Reference product docs live in `new_docs/` (architecture, execution tracker, guardrails, readiness schemas).
 
@@ -16,6 +16,7 @@ This repository delivers the Gate G-A foundation for the AI Employee Control Pla
 - [uv](https://github.com/astral-sh/uv) for Python dependency installs
 - Google Makersuite API key (https://makersuite.google.com/app/apikey)
 - Supabase CLI (optional, for local database testing)
+- Composio API key (required for catalog discovery)
 
 > Run `mise trust` once in the repo, then `mise install` to hydrate Node, pnpm, and Python according to `.mise.toml`.
 
@@ -36,9 +37,12 @@ This repository delivers the Gate G-A foundation for the AI Employee Control Pla
    uv pip install -r agent/requirements.txt
    ```
 
-4. **Export your Makersuite key**
+4. **Export environment variables**
    ```bash
    export GOOGLE_API_KEY="your-google-api-key-here"
+
+   # Required: enable Composio catalog discovery
+   export COMPOSIO_API_KEY="your-composio-api-key"
    ```
 
 5. **Run the full stack**
@@ -57,6 +61,10 @@ supabase start
 supabase db push --file supabase/migrations/0001_init.sql
 ```
 
+### Composio catalog utilities
+- Check SDK connectivity: `python -m agent.tools.composio_client --status`
+- Force a fresh catalogue fetch: `python -m agent.tools.composio_client --refresh`
+
 ## Linting & Checks
 - Lint/type-check the UI: `mise run lint`
 - Quick Python syntax check: `mise exec python -- -m compileall agent`
@@ -65,7 +73,7 @@ supabase db push --file supabase/migrations/0001_init.sql
 - `src/app/(control-plane)/page.tsx` — Mission intake workspace with CopilotKit state synchronisation.
 - `agent/runtime/app.py` — FastAPI app factory consumed by both uvicorn and tests.
 - `agent/agents/control_plane.py` — Mission state tools (`set_mission_details`, `append_planner_note`, `upsert_artifact`) and catalog-aware prompts.
-- `agent/tools/composio_client.py` — Parses `libs_docs/composio/llms.txt` into a checksummed catalog.
+- `agent/tools/composio_client.py` — Minimal Composio SDK client with CLI helpers.
 - `supabase/migrations/0001_init.sql` — Gates tenants, objectives, plays, approvals, tool telemetry, library embeddings, guardrail policies.
 - `docs/readiness/` — Machine-readable evidence bundles for future gates.
 - `new_docs/` — Canonical architecture, guardrail, and readiness references.
@@ -74,7 +82,7 @@ supabase db push --file supabase/migrations/0001_init.sql
 - **Agent connection warnings** usually mean the backend isn’t running or `GOOGLE_API_KEY` is missing. Ensure `mise run dev` (or `mise run agent`) is active.
 - **Python import errors**: re-run `uv pip install -r agent/requirements.txt` to sync dependencies.
 - **Supabase RLS/pgvector errors**: confirm the migration has been applied (`supabase db push ...`).
-- **Catalog checksum mismatch** after editing `libs_docs/composio/llms.txt`: rerun your preferred validation workflow to ensure planners see current metadata.
+- **Catalog sync issues** when using the Composio SDK: confirm the SDK is installed, `COMPOSIO_API_KEY` is configured, and run `python -m agent.tools.composio_client --status` for diagnostics.
 
 ## Additional References
 - [Gemini ADK docs](https://google.github.io/adk-docs/)

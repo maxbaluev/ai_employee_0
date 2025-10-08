@@ -97,17 +97,14 @@ This roadmap governs all implementation work from zero-privilege proofs to gover
 - [ ] Create `agent/evals/smoke_g_a.yaml` with baseline scenario
 - [ ] Run `adk eval agent/evals/smoke_g_a.yaml` and save pass/fail logs to `docs/readiness/adk_eval_G-A.log`
 
-#### Composio Catalog Sync
+#### Composio Catalog Integration
 **Owner:** Runtime Steward
 **Reference:** [architecture.md §3.3](./architecture.md#33-execution--composio-integration), [prd.md §5](./prd.md#tooling--integrations)
 
-- [ ] Implement `agent/tools/composio_client.py` with `discover(user_id, **filters)` method
+- [ ] Implement `agent/tools/composio_client.py` with `discover(user_id, **filters)` method using the SDK
 - [ ] Call `Composio.tools.get` with no-auth filter and log toolkit metadata
-- [ ] Create Supabase Edge Function `supabase/functions/catalog-sync` for nightly snapshot
-- [ ] Deploy edge function: `supabase functions deploy catalog-sync`
-- [ ] Configure `pg_cron` job `catalog_snapshot_nightly` to run at 03:00 UTC
-- [ ] Execute Cron job once manually, verify checksum change in `catalog_snapshot` table
-- [ ] Export checksum report to `docs/readiness/catalog_checksum_G-A.json`
+- [ ] Document the requirement for `COMPOSIO_API_KEY` in setup guides
+- [ ] Export SDK status output (`python -m agent.tools.composio_client --status`) to `docs/readiness/composio_status_G-A.txt`
 
 #### Guardrail Policy Seeding
 **Owner:** Governance Sentinel
@@ -125,13 +122,13 @@ This roadmap governs all implementation work from zero-privilege proofs to gover
 **Required Tests:**
 1. **ADK smoke run:** `adk eval agent/evals/smoke_g_a.yaml` produces pass/fail summary with timestamps
 2. **CopilotKit persistence:** Create mission, refresh session, confirm state restored; log DB row hashes
-3. **Cron dry run:** Execute `catalog_snapshot_nightly` once; verify checksum change and Supabase log entry
+3. **SDK connectivity:** Run `python -m agent.tools.composio_client --status`; record toolkit count and categories
 4. **Guardrail seed validation:** Query `guardrail_profiles` table; export CSV; confirm base policies present
 
 **Evidence Artifacts:**
 - `docs/readiness/status_beacon_A.json` with readiness %, owners, blockers
 - `docs/readiness/migration_log_G-A.md` with Supabase migration hash + command output
-- `docs/readiness/catalog_checksum_G-A.json` with toolkit count and checksum
+- `docs/readiness/composio_status_G-A.txt` with SDK status output
 - `docs/readiness/guardrail_profiles_seed.csv`
 - `docs/readiness/copilotkit_qa_G-A/` (screenshots + console logs)
 
@@ -597,7 +594,7 @@ This roadmap governs all implementation work from zero-privilege proofs to gover
 ## Operational Cadence & Verification
 
 **Weekly:**
-- Review Cron health: `catalog_snapshot_nightly`, `guardrail_override_expiry`
+- Review Cron health: `guardrail_override_expiry`
 - Streaming UX QA status: confirm CopilotKit sessions loading without errors
 - Open risks: update risk register in `docs/readiness/risk_register.md`
 - Task progress: update status beacons with blockers and owners
@@ -605,7 +602,7 @@ This roadmap governs all implementation work from zero-privilege proofs to gover
 **Bi-Weekly:**
 - Run `adk eval` regression suites: `agent/evals/smoke_g_a.yaml`, `agent/evals/validator_g_c.yaml`
 - Validate Supabase diffs: `supabase db diff`, confirm no unexpected schema changes
-- Confirm Composio tool coverage: check catalog snapshot for new toolkits
+- Confirm Composio tool coverage: run `python -m agent.tools.composio_client --status` and record toolkit count
 
 **Pre-Gate Review:**
 - Freeze feature work

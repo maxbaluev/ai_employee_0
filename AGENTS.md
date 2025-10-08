@@ -29,7 +29,7 @@ This repository hosts the Gate G-A foundation for the AI Employee Control Plane.
 
 ## Domain Guidance
 - Use `new_docs/architecture.md` and `guardrail_policy_pack.md` to validate new planner/validator behavior. Gate G-A assumes dry-run only (no OAuth sends).
-- Composio catalog metadata is parsed from `libs_docs/composio/llms.txt`. If you refresh upstream docs, rerun your chosen validation workflow so planners see the latest catalog snapshot.
+- Composio catalog metadata is sourced via the Composio SDK. Keep the SDK pinned, ensure `COMPOSIO_API_KEY` is configured, and rerun your chosen validation workflow so planners see the latest catalogue state.
 - Supabase schema changes must retain RLS. Update `supabase/migrations/` and keep downstream validation assets in sync.
 
 ## When Editing
