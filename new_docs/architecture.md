@@ -1,217 +1,296 @@
-# AI Employee Control Plane — Technical Architecture
+# AI Employee Control Plane — Technical Architecture (October 8, 2025)
 
-## 0. Repository Baseline (October 2025)
-- **Frontend:** Next.js 15 application under `src/app`, currently exposing a CopilotKit-powered UI (`src/app/page.tsx`) with supporting assets in `public/` and styles in `src/app/globals.css`.
-- **Agent Service:** Python ADK FastAPI service in `agent/agent.py`, launched via `scripts/run-agent.sh`, providing the initial LLM agent endpoint.
-- **Documentation Inputs:** Partner summaries in `libs_docs/`, new control-plane docs in `new_docs/`, and starter README instructions in `README.md`.
-- **Tooling:** Node scripts defined in `package.json`, Python deps declared in `agent/requirements.txt`, shell helpers in `scripts/`.
+This blueprint translates the Gate G-A mandate into concrete implementation guidance. Use it with the Business PRD, Guardrail Policy Pack, and Checkpoint Control Plan when shipping features or onboarding agents.
 
-This architecture builds on the baseline and introduces the control-plane layers, data services, and governance assets required for the AI Employee roadmap.
+## 0. Repository Snapshot
+- **Frontend:** Next.js 15 app in `src/app` with the CopilotKit workspace at `src/app/(control-plane)` and API routes under `src/app/api`.
+- **Agent Backend:** Gemini ADK-powered FastAPI service at `agent/agent.py` with supporting agents in `agent/agents` and utilities in `agent/tools` & `agent/services`.
+- **Data Plane:** Supabase migrations in `supabase/migrations`, readiness evidence in `docs/readiness`, and pgvector-enabled Postgres for analytics.
+- **Documentation Inputs:** Partner reference packs at `libs_docs/` (Composio, CopilotKit, ADK, Supabase) + new control-plane docs under `new_docs/`.
+- **Tooling:** Managed via `mise`. Run `mise run install`, `mise run dev`, `mise run lint`, and `mise run agent` to hydrate deps, start stacks, and lint.
 
-## 1. Executive Architecture Summary
-- **Mission Alignment:** Operationalize the PRD vision (October 7, 2025) of an objective-first, evidence-backed AI employee that progresses from zero-privilege proofs to governed automations.
-- **Core Tenets:** Zero-trust progression, human-in-the-loop by default, composable plays, measurable ROI, reversible execution.
-- **Partner Stack:** Composio for Model Context Protocol (MCP) tool breadth and OAuth management, CopilotKit CoAgents for collaborative UX, Google Gemini ADK for orchestrating multi-agent workflows, and Supabase for state, evidence, analytics, and vectorized play retrieval.
-- **Outcome:** A control plane that lets accounts move from mission intake to verified outcomes in under 15 minutes, while preserving auditability, guardrails, and expansion hooks.
+## 1. Mission & Architectural Tenets
+- **Objective-first:** Every mission begins with a structured intake and capability scan before committing to execution.
+- **Zero-privilege default:** Dry-run proofs leverage Composio `no_auth` toolkits until governance approves OAuth scopes (see §3.3).
+- **Deterministic guardrails:** Tone, quiet hours, rate limits, and undo guarantees are enforced in multiple layers (validator, UI, database) per the guardrail pack.
+- **Evidence-centric:** All mission activity results in reproducible artifacts, telemetry, and undo plans stored in Supabase and surfaced in dashboards.
+- **Composable agents:** The Gemini ADK coordinator routes work across planner, executor, validator, and evidence agents; each must remain debuggable and replayable.
+- **Observability first:** Tool calls, approvals, overrides, and incidents feed real-time metrics for operators and auditors.
 
-## 2. Architectural Principles
-- **Zero-Privilege First:** Every objective begins in dry-run mode using Composio `no_auth` toolkits to earn trust before credentials are shared.
-- **Governed Autonomy:** Any mutating action requires explicit approval and undo plans; quiet hours, rate caps, tone policies, and rollback cues are enforced by default.
-- **Evidence-Centric:** Each play outputs artifacts, telemetry, and ROI deltas stored in Supabase for stakeholders and analytics.
-- **Composable Agent Mesh:** ADK multi-agent hierarchies allow specialized planners, executors, validators, and evidence bots to cooperate while remaining debuggable.
-- **Human-In-The-Loop UX:** CopilotKit CoAgents provide shared state, generative UI, and interruption points for reviewers to steer or block execution.
-- **Observability & Learning:** Tool calls, approvals, and outcomes feed a play library with vector search for rapid reuse and franchising across tenants.
+## 2. Layered Architecture Overview
 
-## 3. System Architecture Overview
+| Layer | Responsibilities | Primary Assets |
+| --- | --- | --- |
+| Presentation (Next.js + CopilotKit) | Mission intake, shared state, approval UX, artifact previews | `src/app/(control-plane)`, `src/app/components`, CopilotKit hooks |
+| Control Plane APIs | Objective CRUD, approval logging, guardrail validation | `src/app/api/objectives`, `src/app/api/approvals`, `src/app/api/guardrails/*` |
+| Orchestration (Gemini ADK) | Agent hierarchy, state management, evaluation harness | `agent/agent.py`, `agent/agents/control_plane.py`, `adk eval` suites |
+| Execution (Composio & MCP) | Tool discovery, OAuth, trigger lifecycle, tool execution | `agent/tools/composio_client.py`, `supabase/functions/catalog-sync` |
+| Governance & Evidence | Guardrail enforcement, approvals, undo, evidence bundling | `agent/services/evidence_service.py`, `src/app/components/ApprovalModal.tsx`, guardrail pack |
+| Data & Analytics (Supabase) | Mission tables, pgvector embeddings, dashboards, cron jobs | `supabase/migrations/*.sql`, Edge Functions, PostgREST views |
 
-### 3.1 Layered View
-1. **Presentation Layer:** Existing Next.js frontend (`src/app`) expanded with CopilotKit chat, generative previews, and approval modals.
-2. **Control Plane Layer:** New TypeScript modules under `src/app/(control-plane)` (or equivalent) for mission intake, capability grounding, play ranking, and mission briefs.
-3. **Orchestration Layer:** ADK coordinator service evolved from `agent/agent.py`, potentially split into submodules under `agent/` to host planner, executor, validator, and evidence agents.
-4. **Execution Layer:** Composio MCP servers orchestrated via Python SDK calls inside the agent service (e.g., `agent/tools/`), with retry/backoff helpers.
-5. **Governance Layer:** Guardrail enforcement logic and approval queues persisted via Supabase (server components or API routes under `src/app/api/guardrails/`).
-6. **Evidence & Analytics Layer:** Supabase Postgres + pgvector with migrations tracked in a new `supabase/migrations/` directory, served through PostgREST and surfaced in frontend dashboards.
+## 3. Component Blueprints
 
-### 3.2 Runtime Modes
-- **Dry-Run Proof (Zero-Privilege):**
-  - Inputs: Objective brief, guardrails.
-  - Behavior: Planner selects `no_auth` toolkits (e.g., Slack drafts, Google Sheets sandbox) to produce drafts, lists, schedules.
-  - Outputs: Evidence pack (mission brief, artifacts, risk/undo narratives) stored in Supabase, surfaced in CopilotKit for review.
-- **Governed Activation (Connected):**
-  - Prerequisites: OAuth connections via Composio AgentAuth; Supabase token vault.
-  - Behavior: Executors call live toolkits after approvals; Validator enforces tone, rate caps, quiet hours; Evidence agent logs actions and undo scripts.
-  - Outputs: Executed play telemetry, ROI deltas, compliance trail, and library updates.
+### 3.1 Presentation & Control Plane (Next.js + CopilotKit)
+- **Mission Intake (`MissionIntake.tsx`):** Collect goal, audience, timeframe, and guardrails; expose structured state via `useCopilotReadable`. Submit to `/api/objectives`.
+- **Shared State Hooks:** `useCopilotReadable` for mission context, `useCopilotAction` for interactive UI responses, `useCopilotAction.renderAndWaitForResponse` for approval modals.
+- **Persistence:** Store chat history and mission state in Supabase tables (`copilot_sessions`, `copilot_messages`) using CopilotKit persistence utilities.
+- **Example component skeleton:**
+```typescript
+// src/app/(control-plane)/MissionIntake.tsx
+useCopilotReadable({ description: 'Mission objective draft', value: objective });
+useCopilotAction({
+  name: 'createMission',
+  parameters: [/* goal, audience, timeframe, guardrails */],
+  handler: async (payload) => {
+    const response = await fetch('/api/objectives', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+    });
+    return `Mission ${ (await response.json()).id } captured.`;
+  }
+});
+```
+- **API scaffolding (`src/app/api/objectives/route.ts`):** Validate session via `createRouteHandlerClient`, insert objective into Supabase with status `draft`, and return the inserted row.
+- **Approval UX:** `ApprovalModal.tsx` renders guardrail summaries, undo plan, and reviewer actions; results persist via `/api/approvals`.
 
-## 4. Subsystem Detail
+### 3.2 Orchestration (Gemini ADK)
+- **Agent Hierarchy:**
+  - `CoordinatorAgent` (`SequentialAgent`) orchestrates planner + conditional executor.
+  - `PlannerAgent` (`LlmAgent`) populates `execution_plan` with Composio tool selections, ranked plays, and Supabase library references.
+  - `ConditionalExecutor` (`BaseAgent`) loops execution, validation, and evidence capture until guardrails pass or retries expire.
+  - `ValidatorAgent` enforces guardrails using merged config (see guardrail pack §2) and raises ADK interrupts.
+  - `EvidenceAgent` assembles artifacts, ROI, undo plans, and telemetry.
+- **Coordinator sketch:**
+```python
+class ConditionalExecutor(BaseAgent):
+    max_retries = 3
+    async def _run_async_impl(self, ctx: InvocationContext):
+        attempts = 0
+        while attempts < self.max_retries:
+            async for event in executor_agent.run_async(ctx):
+                yield event
+            async for event in validator_agent.run_async(ctx):
+                yield event
+            if ctx.session.state.get('validation_passed'):
+                async for event in evidence_agent.run_async(ctx):
+                    yield event
+                return
+            attempts += 1
+            ctx.session.state.update({'validation_failed': False, 'validation_passed': False})
+        ctx.session.state['execution_status'] = 'failed_max_retries'
 
-### 4.1 Objective & Planning Subsystem
-- **Mission Intake:** CopilotKit chat collects goal, audience, timeframe, guardrails; normalized into Supabase `objectives`.
-- **Capability Grounding:** Planner agent queries cached Composio catalog (`list_toolkits`, `list_tools`) filtered by industry tags, auth type, and known scopes.
-- **Play Discovery:** Combines PRD playpacks with Composio cookbook recipes (CRM, finance, analytics, Trello MCP server, etc.) and historical successes stored as vectors in Supabase.
-- **Proposal Generation:** ADK planner crafts Top 3 plays with Why, Impact, Risk, Proof, Undo narratives aligned to PRD expectations; outputs to `plays` table.
-- **User Edits:** CopilotKit shared state lets reviewers adjust parameters (audience segment, quiet hours) before committing.
+coordinator_agent = SequentialAgent(
+    name='CoordinatorAgent', sub_agents=[planner_agent, ConditionalExecutor()]
+)
+```
+- **Eval Harness:** Add `adk eval` scenarios for (a) dry-run success, (b) tone violation, (c) guardrail override. Store eval sets in `agent/evals` and run bi-weekly.
+- **State Keys:** Standardize on `execution_plan`, `execution_results`, `validation_passed`, `validation_failed`, `violation_details`, `evidence_bundle`, `guardrails`.
 
-### 4.2 Orchestration & Execution Subsystem
-- **Agent Hierarchy (ADK):**
-  - `CoordinatorAgent`: Routes objectives to specialist trees (Outreach, Support, Finance, Research).
-  - `PlannerAgent`: Decomposes plays into tasks, selects Composio tool invocations.
-  - `ExecutorAgents`: Domain-specific CoAgents (e.g., CRM reactivation, billing nudges, research syntheses) with contextual prompts.
-  - `ValidatorAgent`: Performs tone checks, ROI sanity, compliance gating before destructive actions.
-  - `EvidenceAgent`: Captures outputs, metrics, and rollback context.
-- **Workflow Patterns:** Sequential agents for draft→critique→revise, Loop agents for iterative enrichment, conditional branches for guardrail triggers.
-- **Custom Control Flow:** When planners need bespoke branching, inherit from `BaseAgent` and implement `_run_async_impl` so the coordinator can yield events from specialist sub-agents while reading/writing `ctx.session.state` for shared memory. This pattern keeps deterministic replay while allowing conditional regeneration (e.g., rerun execution if `tone_check` fails) as documented in the ADK custom agent guide.
-- **Tool Invocation:** Executors follow the Composio Quickstart handshake: initiate `toolkits.authorize()` for a user, await `wait_for_connection()`, fetch schemas with `tools.get()`, and pass those structured tool definitions into whichever LLM runtime is driving the mission. Python agents lean on `composio.Composio` plus `provider.handle_tool_calls()` while TypeScript counterparts import `@composio/core` (and optional provider packages such as `@composio/anthropic`). All flows must record redirect URLs, connection IDs, and toolkit slug metadata.
-- **Session Customisation:** When a mission requires per-run headers (tenant routing, correlation IDs, sandbox toggles), agents instantiate scoped SDK sessions via `Composio.createSession({ headers })` rather than mutating global clients.
-- **Fallback Handling:** Map provider errors (invalid_scope, quota exceeded) to actionable CopilotKit prompts.
+### 3.3 Execution & Composio Integration
+- **Discovery:** Use `Composio.tools.get` with one filter at a time (toolkit, search, scopes). Cache nightly snapshots via Supabase cron (`catalog_snapshot` table).
+- **OAuth:** Initiate via `toolkits.authorize`, persist `redirect_url`, `connection_id`, and scopes in `oauth_tokens` with encryption (see §3.6).
+- **Execution helper:**
+```python
+class ComposioHandler:
+    def __init__(self, api_key: str):
+        self.cx = Composio(api_key=api_key)
 
-### 4.3 Governance & Safety Subsystem
-- **Pre-Flight Checks:** Confirm OAuth tokens, guardrail schema, allowed send windows, and reviewer availability before moving to governed mode.
-- **Approval Workflow:** CopilotKit interruption nodes surface action summaries with risk and undo steps; reviewers approve, reject, or edit.
-- **Run-Time Guardrails:** Rate caps per tenant/provider stored in Supabase; quiet hours enforced via scheduler; PII redaction pipeline for prompts/logs.
-- **Undo & Rollback:** Each successful tool call writes inverse instructions; CopilotKit UI exposes instant undo buttons with context.
+    async def discover(self, user_id: str, **filters):
+        return await self.cx.tools.get(user_id=user_id, **filters)
 
-### 4.4 Evidence, Analytics & Library Subsystem
-- **Schema (Supabase Postgres):**
-  - `objectives(id, tenant_id, goal, audience, timeframe, guardrails, status, created_at)`
-  - `plays(id, objective_id, mode, plan_json, impact_estimate, risk_profile, undo_plan, created_at)`
-  - `tool_calls(id, play_id, provider, toolkit, tool_name, args_hash, result_ref, latency_ms, cost_cents, quiet_hour_override, created_at)`
-  - `approvals(id, tool_call_id, reviewer_id, decision, rationale, decision_at)`
-  - `artifacts(id, play_id, type, title, content_ref, reviewer_edits, stored_at)`
-  - `oauth_tokens(id, tenant_id, provider, scopes, encrypted_token, refreshed_at, revoked_at)`
-  - `library_entries(id, tenant_id, embedding vector(1536), metadata_json, success_score, reuse_count)`
-- **Vector Search:** pgvector enables semantic retrieval of play templates and external content for planners; embeddings generated via Supabase Edge Functions.
-- **Analytics:** PostgREST exposes metrics for dashboards (weekly approved jobs, dry-run-to-connected conversion, guardrail incidents, latency p95).
-- **Case Study Anchors:** Evidence hub references Composio examples (Assista AI 90% GTM reduction, Fabrile Google integration) and Supabase customer stories to reinforce trust.
+    async def execute(self, tool_slug: str, *, user_id: str, arguments: dict, connected_account_id: str | None = None):
+        try:
+            result = await self.cx.tools.execute(tool_slug, user_id=user_id, arguments=arguments, connected_account_id=connected_account_id)
+            return { 'success': True, 'result': result }
+        except Exception as err:
+            return { 'success': False, 'error': str(err), 'arguments_hash': hash(str(arguments)) }
 
-### 4.5 Library & Learning
-- Successful plays saved as parametrized templates with embeddings for quick cloning.
-- Ranking blends reuse frequency, reviewer NPS, measured ROI, and risk incidents.
-- Agencies can opt-in to share templates across tenants, enabling franchising while maintaining tenant isolation through Supabase Row Level Security (RLS).
+    async def create_trigger(self, user_id: str, slug: str, config: dict):
+        trigger = await self.cx.triggers.create(slug=slug, user_id=user_id, trigger_config=config)
+        return { 'trigger_id': trigger.id, 'status': 'active' }
+```
+- **Tool Router / MCP:** Expose curated toolkits per persona when integrating with IDEs (Claude Desktop, Cursor) using Composio MCP APIs.
+- **Logging:** All executions must hash arguments, store undo plans, and capture latency/cost metadata for analytics.
 
-### 4.6 CopilotKit Interaction Contracts
-- **Shared History:** Persist conversations and agent state inside Supabase Postgres (e.g., `copilot_sessions` + `copilot_messages` tables) using CopilotKit’s persistence hooks. Run migrations alongside Supabase schema apply, and hydrate caches during app startup so CoAgents revive with the latest mission context.
-- **In-Flight Feedback:** Long-running nodes must call `copilotkit_emit_message` to stream interim status (e.g., "Syncing CRM contacts…") back to reviewers, ensuring adherence to human-in-the-loop expectations.
-- **Session Exit Discipline:** When a node hands control back to routers or shared workflows, invoke `copilotkit_exit` to avoid ghost loops. Each exit publishes a `ToolMessage` or UI update summarizing success/abort state.
-- **Message Hygiene:** Use CopilotKit message management APIs to prune or redact logs when undoing actions, keeping audit trails free of sensitive data while retaining evidence references.
-- **Frontend Hooks:** The Next.js layer wires CopilotKit components (Agentic Chat UI, Generative UI, Frontend Actions) behind feature flags so reviewer checkpoints, undo buttons, and trigger subscriptions stay discoverable and testable.
+### 3.4 Supabase Data Plane
+- **Core tables:**
+| Table | Purpose | Key Columns |
+| --- | --- | --- |
+| `objectives` | Mission intake records | `tenant_id`, `goal`, `audience`, `timeframe`, `guardrails`, `status` |
+| `plays` | Planner output & recommended jobs | `objective_id`, `mode`, `plan_json`, `impact_estimate`, `risk_profile`, `undo_plan` |
+| `tool_calls` | Every Composio action | `play_id`, `toolkit`, `tool_name`, `args_hash`, `result_ref`, `undo_plan`, `latency_ms`, `quiet_hour_override` |
+| `approvals` | Human decisions | `tool_call_id`, `reviewer_id`, `decision`, `edits`, `decision_at`, `guardrail_violation` |
+| `artifacts` | Evidence payloads | `play_id`, `type`, `title`, `content_ref`, `reviewer_edits` |
+| `library_entries` | Reusable plays with embeddings | `embedding vector(1536)`, `success_score`, `reuse_count` |
+| `guardrail_profiles`, `mission_guardrails` | Guardrail provenance | See guardrail pack §2 |
+- **Example migration snippet:**
+```sql
+create index tool_calls_play_id_idx on tool_calls(play_id);
+create index library_entries_embedding_idx
+  on library_entries using ivfflat (embedding vector_cosine_ops) with (lists = 100);
 
-### 4.7 Supabase Operations & Integrations
-- **Catalog Sync Cron:** Supabase `pg_cron` schedules nightly Composio catalog refreshes, writing toolkit metadata snapshots plus checksums that planners reference before each mission.
-- **Edge Functions:** Implement streaming evidence search, trigger webhooks, and ROI calculators in Supabase Edge Functions (TypeScript/Deno) to keep sensitive logic server-side while supporting low-latency UI interactions.
-- **REST & RLS:** Expose `objectives`, `plays`, `tool_calls`, and analytics via the PostgREST API with RLS policies that align to tenant scopes; the frontend consumes these endpoints through service-role keys on the server and anon keys on the client.
-- **Vector Tooling:** Use Supabase `vecs` client and pgvector for embeddings; index management follows the Execution Tracker readiness checklist in `new_docs/todo.md`.
-- **Local Dev Cadence:** Teams rely on Supabase CLI for schema diffs, branch previews, and migration promotion (`supabase init/start`, `supabase db push`). Production deploys hinge on GitHub-integrated migration pipelines.
+create or replace function match_plays(query_embedding vector(1536), match_count int)
+returns table(play_id uuid, similarity float)
+language sql stable as $$
+  select id, 1 - (embedding <=> query_embedding) as similarity
+  from library_entries
+  order by similarity desc
+  limit match_count;
+$$;
+```
+- **Edge Functions:**
+  - `supabase/functions/catalog-sync` — nightly Composio toolkit snapshot.
+  - `supabase/functions/generate-embedding` — writes embeddings for `library_entries` and artifacts.
+- **Cron Jobs:**
+  - `catalog_snapshot_nightly` — refresh Composio metadata and checksums.
+  - `guardrail_override_expiry` — expire stale override tokens.
 
-## 5. Data Flows
+### 3.5 Evidence & Analytics
+- **Evidence service** (`agent/services/evidence_service.py`):
+  - Hash arguments before logging, upload large outputs to Supabase Storage bucket `evidence-artifacts`, and append undo plans.
+  - Provide `execute_undo(tool_call_id)` to reverse actions programmatically when possible.
+- **Analytics Views:**
+  - `analytics_weekly_approved_jobs` — weekly adoption metric.
+  - `analytics_guardrail_incidents` — number and severity of guardrail violations.
+  - `analytics_library_reuse` — reuse count per persona.
+- **Dashboards:** Build Next.js server components backed by PostgREST to render adoption, ROI, guardrail incidents, undo success, and time-to-proof.
 
-### 5.1 Dry-Run Proof Sequence
-1. User enters objective via CopilotKit chat.
-2. Planner agent normalizes data, stores `objective` row.
-3. Capability discovery pulls Composio `no_auth` toolkits (e.g., Slack draft, Trello sandbox) and library plays via vector similarity.
-4. Planner generates play candidates; writes to `plays` with mode `dry_run`.
-5. Executor agents generate artifacts (draft emails, schedules, briefs) without sending; they stream interim updates via `copilotkit_emit_message` for reviewer awareness, and the Evidence agent persists artifacts and metrics in Supabase.
-6. CopilotKit renders generative UI preview; reviewers iterate before opting into activation, and the active loop exits with `copilotkit_exit` once reviewers regain control.
+### 3.6 Governance & Guardrails
+- Enforce guardrail configuration per guardrail policy pack.
+- **API Validation:** `src/app/api/guardrails/validate/route.ts` inspects guardrail payloads before execution.
+- **CopilotKit Interrupts:** `ApprovalModal.tsx` surfaces violations, override requests, and undo steps. All overrides route through `/api/guardrails/override` and log to Supabase.
+- **Validator Agent Responsibilities:** Evaluate tone, quiet hours, rate limit, budget, and undo readiness. Set `validation_passed` or `validation_failed` with `violation_details` and escalate via CopilotKit interrupts.
+- **Evidence Artifacts:** Guardrail evaluations append to `guardrail_incidents` and `tool_calls.guardrail_snapshot`.
 
-### 5.2 Governed Activation Sequence
-1. Reviewer selects play for activation; system verifies OAuth tokens and guardrail readiness.
-2. Validator agent checks tone, compliance, quota; CopilotKit surfaces approval summary.
-3. Upon approval, executor calls Composio OAuth toolkit; result captured by Evidence agent alongside undo plan and streamed to reviewers; orchestration loop exits cleanly after `copilotkit_exit` confirms router takeover.
-4. Supabase logs tool call, approval decision, ROI metrics (e.g., reactivated accounts, time saved).
-5. Dashboard updates via Supabase realtime; CopilotKit notifies stakeholders with evidence pack.
+## 4. Runtime Flows
 
-### 5.3 Approval & Undo Loop
-1. Guardrail condition encountered (quiet hour, budget cap) → Validator raises `interrupt` event.
-2. CopilotKit modal presents options (reschedule, request override, cancel).
-3. Reviewer decision updates Supabase `approvals`; ADK resumes with modified parameters or rollback.
-4. Undo request triggers Evidence agent to execute stored inverse sequence through Composio or human handoff instructions.
+### 4.1 Dry-Run Proof Sequence
+```mermaid
+sequenceDiagram
+    participant User
+    participant CopilotKit
+    participant Planner
+    participant Library
+    participant Executor
+    participant Evidence
+    participant Supabase
 
-## 6. Security, Privacy & Compliance
-- **Zero-Privilege Baseline:** Credentials never exposed during dry runs; Composio AgentAuth gates OAuth flows with least-privilege scopes.
-- **Token Management:** Supabase stores encrypted tokens; access mediated by Edge Functions; refresh cadence logged for audit.
-- **Row Level Security:** Enforced across all Supabase tables, ensuring tenant isolation for objectives, plays, tool calls, and library entries.
-- **PII Handling:** Replace explicit PII with resource IDs in prompts; Composio args sanitized before logging; Supabase functions perform redaction.
-- **Audit Trail:** Immutable logs (tool_calls, approvals) retained 90 days hot, archived to cold storage for two years; PostgREST enables export for audits.
-- **Compliance Targets:** SOC 2 readiness (access controls, logging), GDPR (export/delete endpoints), provider ToS adherence (rate limits, data locality, no scraping).
+    User->>CopilotKit: Submit mission objective
+    CopilotKit->>Planner: Share structured intake & guardrails
+    Planner->>Library: Query vector library for similar plays
+    Planner->>Supabase: Persist Top 3 plays (mode=dry_run)
+    Planner->>CopilotKit: Emit recommended plays
+    User->>CopilotKit: Select play for draft run
+    CopilotKit->>Executor: Trigger dry-run execution (no auth)
+    Executor->>Composio: Call `no_auth` toolkits
+    Executor->>CopilotKit: Stream progress via `copilotkit_emit_message`
+    Executor->>Evidence: Forward artifacts and telemetry
+    Evidence->>Supabase: Store artifacts & tool calls
+    CopilotKit->>User: Display preview & request feedback
+```
 
-## 7. Deployment Architecture
-- **Frontend:** Next.js app deployed on Vercel (or similar) with CopilotKit provider; integrates PostgREST endpoints and Supabase client for secure data access.
-- **Agent Backend:** Python ADK services deployed on ADK Platform (preferred) with observability hooks; fallback to containerized FastAPI on Cloud Run.
-- **Supabase:** Managed Postgres with pgvector extension, Row Level Security, Edge Functions for OAuth callbacks, and Realtime channels for approvals and dashboards.
-- **Composio Runtime:** SDK within agent backend; periodic catalog sync job caches toolkit metadata in Supabase; execution uses governed MCP servers.
-- **Observability:** Use ADK logging, Supabase metrics, and CopilotKit session traces; aggregate into centralized monitoring.
+### 4.2 Governed Activation Sequence
+```mermaid
+sequenceDiagram
+    participant User
+    participant CopilotKit
+    participant Validator
+    participant ComposioAuth
+    participant Executor
+    participant Evidence
+    participant Supabase
 
-## 8. Integration Patterns
+    User->>CopilotKit: Approve governed activation
+    CopilotKit->>Supabase: Check OAuth tokens & guardrails
+    alt Missing token
+        CopilotKit->>ComposioAuth: Initiate OAuth connect
+        ComposioAuth->>User: Redirect to provider
+        User->>ComposioAuth: Grant scopes
+        ComposioAuth->>Supabase: Store encrypted token
+    end
+    CopilotKit->>Validator: Run pre-flight checks
+    Validator->>Supabase: Evaluate rate/quiet/tone metrics
+    alt Violation detected
+        Validator->>CopilotKit: Raise guardrail interrupt
+        CopilotKit->>User: Present override/reschedule/cancel options
+    end
+    CopilotKit->>Executor: Execute with approved scopes
+    Executor->>ComposioAuth: Call live toolkit
+    Executor->>Evidence: Supply outputs + undo plan
+    Evidence->>Supabase: Log tool call & evidence bundle
+    Supabase->>CopilotKit: Stream results via Realtime
+    CopilotKit->>User: Show outcomes & undo button
+```
 
-### 8.1 Composio MCP
-- **Discovery:** Nightly job refreshes toolkit metadata (tags, auth requirements) referencing cookbook categories (CRM, analytics, finance, Trello), and supports conversational semantic search via `tools.get(search=..., limit=...)` and `tools.get_raw_composio_tools()` for upstream LLMs.
-- **Authentication:** Composio AgentAuth handles OAuth; Supabase Edge Functions store tokens; UI highlights scope lists and connection health.
-- **Execution:** Executors call the Composio SDK (`tools.execute()` in Python or `tools.execute()` / `composio.provider.handleToolCalls()` in TypeScript) with structured args; they reuse cached toolkit metadata where possible, apply SDK-level retry helpers, and capture response envelopes for evidence.
-- **Eventing & Triggers:** Trigger discovery (`triggers.list_types`, `triggers.getType`) and subscription (`triggers.create`, `triggers.subscribe`) are wired into planners so conversations can reason about event-based workflows. Trigger events feed evidence tables alongside tool calls.
-- **Use-Case Surfacing:** UI references Assista AI, Fabrile, and AgentArena case studies to illustrate value and trust.
+### 4.3 Approval & Undo Loop
+```mermaid
+sequenceDiagram
+    participant Executor
+    participant Validator
+    participant CopilotKit
+    participant Reviewer
+    participant Evidence
+    participant Supabase
 
-### 8.2 CopilotKit CoAgents
-- **Shared State:** ADK agents expose context to the front end, enabling collaborative editing of mission briefs and artifact drafts.
-- **Human Checkpoints:** `interrupt()` nodes trigger approval modals for sends, charges, or code changes.
-- **Generative UI:** Real-time previews of drafts, dashboards, and undo plans; integrates CopilotKit chat, Agentic Chat UI, and frontend actions.
+    Executor->>Validator: Validate proposed action
+    Validator->>CopilotKit: Interrupt with violation details
+    CopilotKit->>Reviewer: Display approval modal
+    Reviewer->>CopilotKit: Approve | Approve with edits | Reject | Reschedule
+    CopilotKit->>Supabase: Persist decision & edits
+    alt Undo requested
+        Reviewer->>CopilotKit: Trigger undo
+        CopilotKit->>Evidence: Execute undo plan
+        Evidence->>Supabase: Record undo completion
+        CopilotKit->>Reviewer: Confirm rollback status
+    end
+```
 
-### 8.3 Gemini ADK Runtime
-- **Agent Composition:** Coordinator, Planner, Executor, Validator, Evidence agents defined via ADK; ADK orchestrates branching, looping, and guardrail interrupts.
-- **Testing & Evaluation:** ADK eval tooling ensures deterministic dry-run outputs before enabling governed mode.
-- **Deployment:** CI/CD packages the ADK project to the ADK Platform or Cloud Run; environment variables include `COMPOSIO_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `OPENAI_API_KEY` (if used for prompting).
+## 5. Deployment & Operations
+- **Local Dev:**
+  - Install toolchains: `mise run install` (pnpm) + `uv pip install -r agent/requirements.txt`.
+  - Start stacks: `mise run dev` (UI + agent) or `mise run ui` / `mise run agent` individually.
+  - Apply Supabase schema: `supabase start` → `supabase db push --file supabase/migrations/0001_init.sql`.
+- **Environment Variables:**
+  - Frontend `.env.local`: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
+  - Agent `.env`: `COMPOSIO_API_KEY`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `GOOGLE_API_KEY`, `OPENAI_API_KEY`, `ENCRYPTION_KEY` (32-byte hex for token vault).
+- **Cron & Edge Deploy:**
+  - `supabase functions deploy catalog-sync` (Composio metadata).
+  - `supabase functions deploy generate-embedding`.
+  - Configure Supabase `pg_cron` jobs for catalog refresh, analytics rollups, and guardrail override expiry.
+- **CI/CD Expectations:**
+  - Lint: `mise run lint` (Next.js + TypeScript).
+  - ADK evals: `adk eval agent/evals/dry_run` before merges.
+  - Release gating: promotion requires updated status beacons and evidence artifacts (see §6).
 
-### 8.4 Supabase Platform
-- **Data Plane:** Postgres schema with RLS, vector storage, and PostgREST APIs; integrates seamlessly with Next.js via service role on server and anon keys on client.
-- **Edge Functions:** Handle OAuth callbacks, webhook ingestion, and embedding generation; rely on Supabase's open source toolkit for AI workflows.
-- **Analytics & Search:** Use Supabase vector columns for semantic search, hybrid search for metadata filters, and REST endpoints for dashboards.
+## 6. Capability Progression & Evidence Requirements
 
-## 9. Capability Progression Ladder
+| Gate | Capability Focus | Exit Criteria Highlights | Evidence Artifacts |
+| --- | --- | --- | --- |
+| G-A — Foundation | Dry-run loop scaffolding, persistence, catalog sync | Supabase schema applied with RLS; CopilotKit persistence rehearsal; nightly Composio snapshot job scheduled; guardrail profiles seeded | `docs/readiness/status_beacon_A.json`, migration logs, catalog checksum report |
+| G-B — Dry-Run Proof | Streaming UX, planner/executor loop, evidence bundle | Dry-run missions complete <15 min across 3 personas; evidence bundles stored; streaming status recorded; reviewer workflow documented | `docs/readiness/dry_run_verification.md`, QA video, Supabase artifact hashes |
+| G-C — Governed Activation | OAuth, guardrail enforcement, undo plan | Two production toolkits connected; validator interrupts demonstrated; undo path verified; trigger lifecycle exercised | `docs/readiness/governed_activation_report.csv`, approval export, trigger logs |
+| G-D — Insight & Library | Dashboards, pgvector recommendations, trigger warehouse | Analytics dashboards live; recommendation API returns next-best jobs; trigger warehouse reconciles events | `docs/readiness/insight_snapshot.parquet`, `docs/readiness/library_recommendations.json` |
+| G-E — Scale & Trust | Security hardening, load/perf tests, enablement bundle | Token rotation, redaction pipeline, audit export validated; load test passes p95 <250ms; enablement assets published | `docs/readiness/trust_review.pdf`, `docs/readiness/load_test_results.json`, enablement bundle |
+| G-F — Stabilized Ops | Operational reporting, incident hygiene | Two reporting windows closed; incident ledger + postmortems; next-phase roadmap prioritized | `docs/readiness/stabilisation_digest.md`, KPI exports |
 
-Agents advance through the following capability states. Each state must satisfy all exit criteria before promotion. No calendar assumptions are required; promotions occur as soon as predicates are met.
+Gate promotions must reference the guardrail policy pack, architecture blueprint updates, and the checkpoint control plan checklists.
 
-### State A — Foundation Ready
-- Supabase project provisioned with schema, RLS, and pgvector enabled.
-- ADK coordinator and planner agents reachable through ADK runtime endpoints.
-- CopilotKit shell exposes mission intake, shared state, and artifact preview surfaces.
-- Composio catalog sync job caches `no_auth` discovery data for planners.
+## 7. Observability & Incident Response
+- **Metrics pipeline:** Publish latency, success/error counts, override rate, guardrail incidents, undo success via Supabase Realtime → dashboards.
+- **Logging:**
+  - Agent backend uses structured logging (mission_id, play_id, tool_call_id) for every ADK event.
+  - Supabase triggers populate `tool_call_metrics` aggregates.
+- **Alerts:**
+  - Guardrail incidents above threshold trigger Governance Sentinel alert (Slack or PagerDuty).
+  - Cron failures, catalog sync errors, and Supabase replication lag generate runtime steward alerts.
+- **Incident Workflow:** See guardrail pack §7 and checkpoint plan for escalation steps; all incidents must result in postmortems stored under `docs/readiness/guardrail_reports/`.
 
-### State B — Dry-Run Proof Ready
-- Planner ranks plays using PRD recipes plus Composio cookbook metadata.
-- Domain executor agents generate outreach drafts, research syntheses, and scheduling proposals.
-- Evidence agent persists artifacts and metrics in Supabase; CopilotKit renders previews for reviewers.
-- Dry-run validation check confirms objective-to-evidence cycle completes within 15 minutes in simulation.
-
-### State C — Governed Activation Ready
-- Composio AgentAuth OAuth flow operational for at least two production toolkits.
-- Validator agent enforces tone, rate, quiet hours, and guardrail policies; violations raise CopilotKit interrupts.
-- Undo mechanics create inverse instructions for each mutating call and surface undo shortcuts in UI.
-- Telemetry for latency, error classes, and ROI estimates streams into Supabase analytics tables.
-
-### State D — Insight & Library Ready
-- Dashboards expose adoption, ROI, guardrail incidents, and approval throughput via PostgREST endpoints.
-- Play library persists embeddings, ranking metadata, and template cloning controls.
-- Recommendation service surfaces “next best job” suggestions conditioned on tenant context.
-- Supabase AI templates (semantic + hybrid search) wired into evidence browsing.
-
-### State E — Scale & Trust Ready
-- Security review checklist passes (token rotation, PII redaction, audit exports, privilege boundaries).
-- Load tests verify Composio invocation throughput and Supabase query latency within guardrails.
-- Compliance documentation and customer-facing guides published; case study spotlights embedded in UI onboarding.
-- Observability alerts and incident runbooks validated through tabletop simulation.
-
-## 10. Risks & Mitigations
-- **Credential Hesitancy:** Maintain polished dry-run artifacts and highlight Composio case studies to demonstrate value pre-credentials.
-- **Tool Overload:** Curate recommended toolkits per persona; use CopilotKit suggestions and Supabase vector ranks to surface relevant plays.
-- **Governance Drift:** Enforce approvals, audit logs, and regular guardrail testing; provide dashboards for governance officers.
-- **Partner Dependency:** Schedule quarterly roadmap syncs with Composio, CopilotKit, ADK, and Supabase teams; maintain abstraction layers in orchestration code.
-- **Scalability Spikes:** Use Supabase's scalable PostgREST, Supabase Edge caching, and ADK autoscaling on ADK Platform or Cloud Run autoscaling configurations.
-
-## 11. Appendix — Key References
+## 8. Reference Index
 - **Business PRD:** `new_docs/prd.md`
-- **Composio Resources:** `libs_docs/composio/llms.txt` — case studies (Assista AI, Fabrile), cookbook categories (CRM, analytics, finance, Trello MCP).
-- **CopilotKit UX:** `libs_docs/copilotkit/llms-full.txt` — mission intake, approvals, generative surfaces, ADK integration patterns.
-- **Gemini ADK:** `libs_docs/adk/llms-full.txt` — multi-agent composition, deployment patterns, evaluation tooling.
-- **Supabase AI Toolkit:** `libs_docs/supabase/llms_docs.txt` — pgvector, Edge Functions, PostgREST, AI templates and integrations.
-- **Evidence Tracking:** Gate-specific artifacts are documented within `new_docs/todo.md`; store outputs under `docs/readiness/` and Supabase storage as they are introduced.
-- **Guardrail Policies:** `new_docs/guardrail_policy_pack.md` — enforcement parameters for tone, rate, quiet hours, and undo guarantees (implemented across `agent/` validators and `src/app` approval flows).
+- **Guardrail Policy Pack:** `new_docs/guardrail_policy_pack.md`
+- **Checkpoint Control Plan:** `new_docs/todo.md`
+- **Composio Field Guide:** `libs_docs/composio/llms.txt`
+- **CopilotKit Docs:** `libs_docs/copilotkit/llms-full.txt`
+- **Gemini ADK Docs:** `libs_docs/adk/llms-full.txt`
+- **Supabase AI & Vectors:** `libs_docs/supabase/llms_docs.txt`
 
-This architecture grounds the AI Employee Control Plane in the documented partner capabilities, delivering an accountable, extensible system that converts objectives into governed outcomes with a clear path from private preview to scaled adoption.
+Keep this blueprint synchronized with code changes. Any deviation (new agents, new tables, guardrail updates) requires revising this document and cross-linking the relevant evidence artifacts.

@@ -24,9 +24,9 @@ Provide a single program tracker that governs every gate of the AI Employee Cont
 ## Checkpoint Overview
 | Gate | Capability Focus | Primary Outcomes | Evidence Artifacts |
 | --- | --- | --- | --- |
-| G-A | Foundation Baseline | Zero-privilege proof infrastructure, catalog sync, persistence scaffolding | `status_beacon_A.json`, Supabase checksum logs, CopilotKit smoke notes |
-| G-B | Dry-Run Proof Loop | Draft-quality outputs <15 minutes, streaming UX, transcript retention | `dry_run_verification.md`, QA media, telemetry snapshot |
-| G-C | Governed Activation Core | OAuth execution, approvals, undo plans, trigger lifecycle | `governed_activation_report.csv`, approval feed export |
+| G-A | Foundation Baseline | Zero-privilege proof infrastructure, catalog sync, persistence scaffolding | `status_beacon_A.json`, Supabase checksum logs, CopilotKit smoke notes, `guardrail_profiles_seed.csv` |
+| G-B | Dry-Run Proof Loop | Draft-quality outputs <15 minutes, streaming UX, transcript retention | `dry_run_verification.md`, QA media, telemetry snapshot, `guardrail_incidents_dry_run.md` |
+| G-C | Governed Activation Core | OAuth execution, approvals, undo plans, trigger lifecycle | `governed_activation_report.csv`, approval feed export, `guardrail_override_register.csv` |
 | G-D | Insight & Library Fabric | Analytics dashboards, library embeddings, trigger warehouse | `insight_snapshot.parquet`, `library_recommendations.json` |
 | G-E | Scale Hardening | Security & performance certification, enablement assets | `trust_review.pdf`, `load_test_results.json`, enablement bundle |
 | G-F | Stabilised Operations | Sustained governed ops, incident hygiene, roadmap alignment | `stabilisation_digest.md`, KPI exports |
@@ -41,12 +41,13 @@ Provide a single program tracker that governs every gate of the AI Employee Cont
 - **Gemini ADK:** Expose coordinator + planner agents with deterministic `_run_async_impl` branches; ensure eval harness (`adk eval`) executes smoke scenarios.
 - **Composio:** Nightly catalog snapshot via `pg_cron`, store toolkit metadata + checksum, validate `tools.get` and `get_raw_composio_tools` sampling for no-auth toolkits.
 - **Supabase:** Apply `0001_init.sql` with pgvector, enforce RLS, rehearse `supabase db diff/push` to capture migration evidence.
-- **Governance:** Map guardrail policy primitives (tone, quiet hours, undo concept) into documentation and reviewer SOP drafts.
+- **Governance:** Seed `guardrail_profiles` + `mission_guardrails`, validate guardrail payload merge against policy pack, and draft reviewer SOPs.
 
 ### Acceptance Tests & Instrumentation
 - `adk eval` smoke run logs saved with pass/fail summary.
 - CopilotKit persistence rehearsal: create mission, refresh session, confirm state restored, log DB row hashes.
 - Cron dry run: execute snapshot job once, verify checksum change and Supabase log entry.
+- Guardrail seed validation: query `guardrail_profiles` to confirm base policies, export CSV to `docs/readiness/`.
 
 ### Evidence to Produce
 - `status_beacon_A.json` with readiness %, owners, blockers.
@@ -57,7 +58,7 @@ Provide a single program tracker that governs every gate of the AI Employee Cont
 - [ ] Supabase schema + RLS validated, audit log captured.
 - [ ] CopilotKit persistence + reload verified with screenshots/console output.
 - [ ] Nightly Cron job scheduled and monitored.
-- [ ] Guardrail policy mapping approved by Governance Sentinel.
+- [ ] Guardrail policy mapping approved by Governance Sentinel; `guardrail_profiles` seeded and stored in evidence.
 
 ### Dependencies & Notes
 - Requires Google Gemini API key, Composio API key, Supabase project credentials (no secrets in repo).
@@ -103,12 +104,14 @@ Provide a single program tracker that governs every gate of the AI Employee Cont
 - **Gemini ADK:** Validators enforce tone, rate, quiet hours; Evidence agent stores undo plans; custom branching reruns executions on validation failure.
 - **Composio:** Implement OAuth handshake (`toolkits.authorize`, `waitForConnection`) and trigger CRUD (`triggers.create/subscribe/disable`); log auth evidence.
 - **Supabase:** Store approvals, tool calls, trigger configs with RLS; add PostgREST policies for reviewer and admin personas.
-- **Governance:** Publish approval SOP, quiet-hour override policy, rollback checklist.
+- **Governance:** Publish approval SOP, quiet-hour override policy, rollback checklist, and guardrail override register maintenance process.
 
 ### Acceptance Tests & Instrumentation
 - OAuth connection rehearsal recorded (redirect URL, connection ID, scopes).
 - Trigger subscription test produces synthetic event logged in Supabase.
 - Validator negative-case suite (tone violation, quiet hour breach) halts execution and raises CopilotKit interrupt.
+- Override workflow drill: submit override via CopilotKit, ensure `/api/guardrails/override` writes to `guardrail_overrides` and guardrail incidents capture resolution.
+- Undo regression: execute undo plan for at least one governed tool call and confirm evidence update.
 
 ### Evidence to Produce
 - `governed_activation_report.csv` (connections, approvals, undo traces, trigger events).
@@ -118,7 +121,7 @@ Provide a single program tracker that governs every gate of the AI Employee Cont
 ### Exit Checklist
 - [ ] At least two OAuth toolkits operational with approvals recorded.
 - [ ] Trigger lifecycle covered (list/get/create/subscribe/disable) with audit logs.
-- [ ] Validator interruptions verified and resolved paths documented.
+- [ ] Validator interruptions verified and resolved paths documented; guardrail overrides closed within SLA.
 - [ ] Undo buttons tested and evidence stored.
 
 ### Dependencies & Notes

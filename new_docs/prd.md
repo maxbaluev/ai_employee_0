@@ -62,15 +62,22 @@ Deliver an objective-first AI employee that plans, executes, and learns like a t
 - Supabase hosts objectives, plays, tool calls, approvals, artifacts, triggers, and library embeddings. Vector search leverages pgvector with indexes sized per tenant. PostgREST and Edge Functions provide the API surfaces consumed by the frontend.
 - Supabase Cron schedules nightly Composio catalog refreshes and analytics rollups; Edge Functions deliver streaming evidence search and ROI calculations without exposing secrets client-side.
 
+### Guardrail Governance
+- Guardrail profiles, mission overrides, and incident logging must follow `new_docs/guardrail_policy_pack.md`.
+- Validator agents consume a merged guardrail payload and record every evaluation in `tool_calls.guardrail_snapshot` plus the `guardrail_incidents` table.
+- CopilotKit approval modals display active guardrails, violation details, and undo plans; all override decisions persist via `/api/guardrails/override`.
+- Guardrail overrides expire automatically and block gate promotion until resolved; override flow instrumentation is required for incident reports.
+
 ### Evidence, Analytics & Governance
 - Each mission generates an evidence bundle: mission brief, tool outputs (redacted), ROI estimates, risk notes, undo plan, and telemetry summary. Bundles are reviewable in CopilotKit and exportable via Supabase APIs.
 - Dashboards present dry-run conversion, approval throughput, guardrail exceptions, and library reuse. Data must be filterable by tenant, persona, and checkpoint state.
-- Guardrails enforce zero-privilege default, tone policies, quiet hours, and undo readiness. Violations trigger CopilotKit interrupts and require reviewer action logged in Supabase.
+- Guardrail telemetry (incidents, overrides, undo outcomes) must sync with Supabase analytics views and appear in weekly governance reports per the guardrail policy pack.
 
 ### Non-Functional Requirements
 - **Latency:** Dry-run loop ≤15 minutes end-to-end; streaming updates surface within 5 seconds of agent emission.
 - **Reliability:** Daily Cron sync success rate ≥99%; trigger subscription health monitored with automated alerts.
 - **Security:** Row Level Security on all Supabase tables; OAuth tokens encrypted, rotated, and never serialized to prompts or logs.
+- **Guardrail Overhead:** Validator checks and interrupt handling add <200ms p95 latency per governed tool call.
 - **Observability:** Unified log correlation across CopilotKit, ADK, Composio, and Supabase with run IDs accessible to operations.
 - **Scalability:** Support 20 concurrent governed missions with maintained latency targets by Gate G-D.
 
@@ -85,6 +92,7 @@ Deliver an objective-first AI employee that plans, executes, and learns like a t
 - **Adoption:** ≥70% of new tenants complete a Dry Run within Day 1; median time from objective to evidence under 15 minutes.
 - **Expansion:** 60% of zero-privilege tenants connect at least two MCP servers within 30 days; average of three plays reused per tenant per month.
 - **Retention & Advocacy:** Library reuse rate, reviewer NPS, and governance satisfaction (caps honored, rollback clarity).
+- **Operational Safety:** Guardrail incident rate <5% of governed runs; override closure time <24 hours; undo success rate ≥95%.
 
 ## Go-to-Market & Packaging Outline
 
