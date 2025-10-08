@@ -1,157 +1,334 @@
-# Composio LLM Field Guide (Gate G-A)
+# Composio LLM Field Guide (Gate G‑A)
+Updated: 2025‑10‑08
 
-Use this index whenever you plan or execute Composio-powered missions. It distills the current docs (pulled October 7, 2025) into the flows Gate G-A needs.
+Use this index whenever you plan or execute Composio‑powered missions. It distills the current docs into the flows Gate G‑A needs, with a deep focus on **search & discovery**, **auth**, **execution**, **MCP/Tool Router**, and **governance**.
 
-## 1. Primary References
-- Quickstart (authenticated tool calling workflow): https://docs.composio.dev/docs/quickstart
-- Python SDK reference (`composio.Composio`, models, modifiers): https://docs.composio.dev/sdk-reference/python/python-sdk-reference
-- TypeScript SDK reference (`@composio/core` Composio class): https://docs.composio.dev/sdk-reference/type-script/core-classes/composio
-- Executing tools guide (provider-agnostic examples & user scoping): https://docs.composio.dev/docs/executing-tools
-- Authenticating tools (auth configs, connect links, direct flows): https://docs.composio.dev/docs/authenticating-tools
-- Providers index (OpenAI, Anthropic, Google, Vercel AI): https://docs.composio.dev/providers
-- ROI case studies (Assista AI, Fabrile, AgentArena): https://docs.composio.dev/case-study
-- Compliance & pricing: https://composio.dev/privacy | https://composio.dev/terms | https://composio.dev/pricing
+---
 
-## 2. Core Workflow (Agents MUST follow)
-1. **Discovery** – planners sync toolkit metadata nightly (`toolkits.list`, `tools.get_raw`) so play selection can filter by tags, auth type (`no_auth` vs `oauth`), rate hints, and scopes.
-2. **Auth Config Prep** – auditors create/inspect auth configs via dashboard or SDK (`auth_configs.list/get`). Record required fields for each toolkit.
-3. **Quickstart Handshake** – for every governed execution:
-   - Call `toolkits.authorize(user_id, toolkit)` (or `connected_accounts.initiate/link`).
-   - Persist the returned `redirect_url` + `connection.id` to Supabase evidence (`connected_accounts`, `tool_calls`).
-   - Block until `connection.wait_for_connection()` resolves. Guardrail pack §4 requires this before any tool runs.
-4. **Tool Fetch & Invoke** – pull structured schemas with `tools.get(user_id, toolkits=[...])`; forward them into the runtime (OpenAI, Anthropic, Vercel AI, etc.). After the LLM emits tool calls, invoke:
-   - Python: `composio.provider.handle_tool_calls(response=response, user_id=user_id)` or `tools.execute(...)` for manual calls.
-   - TypeScript: `composio.provider.handleToolCalls(userId, completion)` or `tools.execute(...)`.
-   - Capture latency, inputs, outputs, and undo plan JSON in Supabase evidence tables.
-5. **Session Isolation** – when tenant-specific headers or sandbox flags are required use scoped sessions (`Composio.createSession({ headers })` in TS, or instantiate a new `Composio(..., headers={})` in Py). Never mutate the global client.
-6. **Retry / Rate Handling** – obey SDK retries; on `rate_limited` apply exponential backoff (base 2, max 5). Surface CopilotKit interrupts for `invalid_scope`, quota, or quiet-hour conflicts.
-7. **MCP & IDE Flows** – if an IDE uses MCP, either connect to Composio’s packaged MCP server or wrap selected toolkits so MCP tool invocations proxy to `tools.execute`.
+## 1) Primary References (bookmark these)
+- Quickstart (authenticated tool calling): https://docs.composio.dev/docs/quickstart
+- Executing tools (providers & direct calls): https://docs.composio.dev/docs/executing-tools
+- Fetching & filtering tools (search, scopes, limits): https://docs.composio.dev/docs/fetching-tools
+- Authenticating tools (auth configs, connect links, SDK): https://docs.composio.dev/docs/authenticating-tools
+- Python SDK reference: https://docs.composio.dev/sdk-reference/python/python-sdk-reference
+- TypeScript SDK reference: https://docs.composio.dev/sdk-reference/type-script/core-classes/composio
+- Connected accounts (TS): https://docs.composio.dev/sdk-reference/type-script/models/connected-accounts
+- Toolkits (TS): https://docs.composio.dev/sdk-reference/type-script/models/toolkits
+- API: list tools: https://docs.composio.dev/api-reference/tools/get-tools | execute: https://docs.composio.dev/api-reference/tools/post-tools-execute-by-tool-slug
+- Triggers: https://docs.composio.dev/docs/using-triggers
+- MCP overview: https://docs.composio.dev/docs/mcp-overview
+- Tool Router Quick Start (Beta): https://docs.composio.dev/docs/tool-router/quick-start
+- Modifiers (schema / inputs / outputs): 
+  - Schemas: https://docs.composio.dev/docs/modifying-tool-schemas
+  - Before execute: https://docs.composio.dev/docs/modifying-tool-inputs
+  - After execute: https://docs.composio.dev/docs/modifying-tool-outputs
+- User management (scoping): https://docs.composio.dev/docs/user-management
+- Pricing: https://composio.dev/pricing | Premium tools: https://docs.composio.dev/toolkits/premium-tools
 
-## 3. Provider Specifics
-- **OpenAI** (default): install `composio_openai` or `@composio/openai`; feed `tools.get()` results into Chat Completions/Responses and finish with `handle_tool_calls`.
-- **Anthropic**: install `@composio/anthropic`; compose with `AnthropicProvider` + `messages.create`; finish via `handleToolCalls`.
-- **Vercel AI SDK**: use `@composio/vercel` + `generateText`; wait for connection before prompt.
-- **OpenAI Agents (Python)**: `composio_openai_agents` + `Runner.run` workflow; evidence agent must log undo plans.
+---
 
-## 4. Governance Hooks (map to guardrail pack §4)
-- Store redirect URLs, connection IDs, chosen scopes, and toolkit slugs for every auth attempt.
-- Keep Supabase `connected_accounts` rows synchronized with connection status from Composio.
-- Never expose raw tokens; comply with Supabase RLS + redaction requirements.
+## 2) Vocabulary & Mental Model
+- **Toolkit**: an integration (e.g., Gmail, Slack, GitHub). Toolkits contain **tools** and sometimes **triggers**.
+- **Tool**: a single API action with a schema (inputs/outputs). You fetch tools, pass them to a provider (OpenAI, Anthropic, etc.), and handle tool calls.
+- **Auth Config**: a reusable blueprint for connecting accounts to a toolkit (OAuth2/API key/Basic/Bearer). You create one per variant of scopes/credentials, then use it for many users.
+- **Connected Account**: the per‑user connection to a toolkit under an auth config. Connect via **link() / initiate()** and **waitForConnection()**.
+- **Provider**: adapter that formats tools for your LLM/runtime (OpenAI, Anthropic, Vercel AI, OpenAI Agents SDK, etc.).
+- **Trigger**: event subscription that delivers structured payloads (webhook/WebSocket) to your app, which can wake agents/workflows.
+- **MCP**: Model Context Protocol servers that expose tools/context to MCP‑compatible clients (Claude Desktop, Cursor, OpenAI MCP connector, etc.).
+- **Tool Router (experimental)**: session‑scoped, MCP‑exposed meta‑tools that discover/auth/execute relevant tools with planning and parallelism.
 
-## 5. Common Snippets
+---
 
-### Python Quickstart
+## 3) Search & Discovery (the part agents misuse most)
+**Goal**: Load only the right tools, with the right scopes, for the right user—without flooding the model.
+
+### 3.1 Tool Discovery via SDK (Python/TS)
+Composio ranks tools by “importance.” Default `limit=20`. Combine **one** filter mode at a time.
+
+**Filter modes (mutually exclusive):**
+1) **By specific tool slugs**  
+2) **By toolkit(s)** (optionally `limit`)  
+3) **Single toolkit + scopes** (OAuth scope filtering)  
+4) **Semantic search (experimental)**: `search="query"` (optionally within toolkits)
+
+**Python**
 ```python
 from composio import Composio
 from composio_openai import OpenAIProvider
-from openai import OpenAI
 
 user_id = "user-123"
-composio = Composio(provider=OpenAIProvider())
-openai = OpenAI()
+cx = Composio(provider=OpenAIProvider())
 
-connection = composio.toolkits.authorize(user_id=user_id, toolkit="gmail")
-print("Authorize at:", connection.redirect_url)
-connection.wait_for_connection()
+# A) Toolkits (ranked, default limit=20)
+tools = cx.tools.get(user_id, toolkits=["GITHUB"], limit=5)
 
-tools = composio.tools.get(user_id=user_id, toolkits=["GMAIL"])
-completion = openai.chat.completions.create(
-    model="gpt-4o",
-    messages=[{"role": "user", "content": "Send a recap"}],
-    tools=tools,
-)
-result = composio.provider.handle_tool_calls(response=completion, user_id=user_id)
-print(result)
+# B) Single toolkit with scopes (OAuth only)
+repo_tools = cx.tools.get(user_id, toolkits=["GITHUB"], scopes=["repo"], limit=10)
+
+# C) Specific tools by slug
+subset = cx.tools.get(user_id, tools=["GITHUB_CREATE_AN_ISSUE", "GITHUB_CREATE_AN_ISSUE_COMMENT"])
+
+# D) Semantic search (experimental)
+search_hits = cx.tools.get(user_id, search="repository issues", toolkits=["GITHUB"], limit=5)
+
+# E) Inspect raw schemas
+raw = cx.tools.get_raw_composio_tool_by_slug("HACKERNEWS_GET_LATEST_POSTS")
 ```
 
-### TypeScript Quickstart
+**TypeScript**
 ```ts
-import { Composio } from '@composio/core';
-import { OpenAIProvider } from '@composio/openai';
-import OpenAI from 'openai';
+import { Composio } from "@composio/core";
+import { OpenAIProvider } from "@composio/openai";
+const userId = "user-123";
+const cx = new Composio({ provider: new OpenAIProvider(), apiKey: process.env.COMPOSIO_API_KEY });
 
-const userId = 'user-123';
-const composio = new Composio({
-  apiKey: process.env.COMPOSIO_API_KEY,
-  provider: new OpenAIProvider(),
-});
-const session = composio.createSession({ headers: { 'x-tenant-id': 'tenant-42' } });
+// A) Ranked by toolkit
+const tools = await cx.tools.get(userId, { toolkits: ["GITHUB"], limit: 5 });
 
-const connection = await session.toolkits.authorize(userId, 'GMAIL');
-console.log('Authorize at', connection.redirectUrl);
+// B) Single toolkit + scopes
+const repoTools = await cx.tools.get(userId, { toolkits: ["GITHUB"], scopes: ["repo"], limit: 10 });
+
+// C) By slugs
+const subset = await cx.tools.get(userId, { tools: ["GITHUB_CREATE_AN_ISSUE", "GITHUB_CREATE_AN_ISSUE_COMMENT"] });
+
+// D) Semantic search (experimental)
+const searchHits = await cx.tools.get(userId, { search: "repository issues", toolkits: ["GITHUB"], limit: 5 });
+
+// E) Raw schema(s)
+const raw = await cx.tools.get_raw_composio_tool_by_slug("HACKERNEWS_GET_LATEST_POSTS");
+```
+
+**Notes & guardrails**
+- Don’t mix `tools` with `search`, and don’t use `scopes` across multiple toolkits.
+- Start with `search` to shortlist, then tighten with a single toolkit + scopes to avoid over‑exposing tools.
+- For tool catalogs/menus, prefetch via `toolkits.list()` and cache metadata daily.
+
+### 3.2 Tool Discovery via REST (server‑side menus, offline indexing)
+- **GET /tools** supports filters (`toolkit_slug`, `tool_slugs`, `tags`, `important`, `auth_config_ids`) and search terms. Useful for server‑rendered pickers and nightly indexing pipelines.
+
+### 3.3 “Important” ranking & limits
+- By default Composio returns top/“important” tools first; cap with `limit` to shrink context and reduce model confusion.
+
+### 3.4 Scopes‑first search for OAuth apps
+- For enterprise tenants, prefer **single‑toolkit scope filters** to keep only tools your current auth actually permits. If a tool requires scopes you don’t have, either re‑auth with broader scopes or hide the tool from the agent.
+
+### 3.5 Inspect before you prompt (raw schemas)
+- Use `get_raw_composio_tool_by_slug` or `get_raw_composio_tools(...)` to programmatically reason about params, required fields, and outputs, then write better system prompts and validations.
+
+---
+
+## 4) Authentication & User Scoping
+**Golden rule**: every tool call must run under the correct “userId” (an individual, org, or hybrid).
+
+### 4.1 Fast path (managed auth via toolkit authorize)
+**Python**
+```python
+connection = cx.toolkits.authorize(user_id="user-123", toolkit="github")
+print("Authorize at:", connection.redirect_url)
+connection.wait_for_connection()
+```
+**TypeScript**
+```ts
+const connection = await cx.toolkits.authorize("user-123", "github");
+console.log("Authorize at", connection.redirectUrl);
 await connection.waitForConnection();
+```
 
-const tools = await session.tools.get(userId, { toolkits: ['GMAIL'] });
+### 4.2 Connect Link & Account Control (TS)
+```ts
+// Create a hosted “connect link” for any auth config
+const req = await cx.connectedAccounts.link("user-123", "ac_github");
+console.log(req.redirectUrl);
+const acct = await cx.connectedAccounts.waitForConnection(req.id);
+```
+
+### 4.3 Programmatic Auth Configs & Custom OAuth
+- Create/update **Auth Configs** for different scopes, methods (OAuth2/API Key/Basic/Bearer), or environments. 
+- Use `get_auth_config_creation_fields()` / `get_connected_account_initiation_fields()` (Py) to inspect required fields.
+- Never store client secrets in prompts or logs. Keep them in your secret manager.
+
+### 4.4 User Management patterns
+- **Per‑user**: each person connects e.g. their Gmail/GitHub. Use DB `user.id` as `userId`.
+- **Org‑shared**: admin connects Slack/Jira for the org; everyone uses `organization.id` as `userId` for those toolkits.
+- **Hybrid**: personal Gmail + org Slack—match `userId` to how the connection was created.
+
+### 4.5 Multiple accounts per toolkit
+- A single `userId` may have multiple connected accounts for one toolkit (personal + work). Prefer explicit `connected_account_id` at execute time when ambiguity matters.
+
+---
+
+## 5) Execution Patterns
+### 5.1 LLM chat completions (OpenAI example)
+**Python**
+```python
+from openai import OpenAI
+tools = cx.tools.get(user_id, toolkits=["GOOGLECALENDAR"])
+resp = OpenAI().chat.completions.create(model="gpt-4o-mini", messages=[{"role":"user","content":"What's on my calendar next 7d?"}], tools=tools)
+result = cx.provider.handle_tool_calls(user_id=user_id, response=resp)
+```
+
+**TypeScript (Anthropic example)**
+```ts
+import Anthropic from "@anthropic-ai/sdk";
+import { AnthropicProvider } from "@composio/anthropic";
+const a = new Anthropic();
+const cxA = new Composio({ provider: new AnthropicProvider(), apiKey: process.env.COMPOSIO_API_KEY });
+// ... get tools() as above, call messages.create(), then:
+const final = await cxA.provider.handleToolCalls(userId, completion);
+```
+
+### 5.2 Agent frameworks
+- Python **OpenAI Agents SDK**: use `OpenAIAgentsProvider` and `Runner.run(...)` with Composio tools.
+- Vercel AI SDK: use `@composio/vercel` integration.
+
+### 5.3 Direct execute & Proxy
+```python
+# Execute a tool directly
+cx.tools.execute("GITHUB_LIST_STARGAZERS", user_id=user_id, arguments={"owner":"ComposioHQ","repo":"composio","page":1,"per_page":5})
+
+# Proxy a raw provider endpoint while Composio injects auth
+cx.tools.proxy(endpoint="/repos/composiohq/composio/issues/1", method="GET", connected_account_id="ca_xxx")
+```
+
+### 5.4 Files
+- Auto file upload/download is handled for supporting tools; configure `file_download_dir` (Py) or disable auto‑handling in TS and use `files.upload/download` yourself.
+
+---
+
+## 6) Modifiers (production‑grade prompting through code)
+- **Schema modifiers**: reshape tool descriptions/args (e.g., add defaults, require `thought`, hide params).
+- **Before‑execute modifiers**: enforce/augment inputs (e.g., inject headers, sanitize arguments, normalize dates).
+- **After‑execute modifiers**: transform raw outputs to simpler, model‑friendly responses.
+
+**Python (schema modifier)**
+```python
+from composio import schema_modifier
+from composio.types import Tool
+
+@schema_modifier(tools=["HACKERNEWS_GET_LATEST_POSTS"])
+def modify_schema(tool, toolkit, schema: Tool) -> Tool:
+    _ = schema.input_parameters["properties"].pop("page", None)
+    schema.input_parameters["required"] = ["size"]
+    return schema
+```
+
+---
+
+## 7) Triggers (events → webhooks → agent wake‑ups)
+- Inspect trigger types & required config, then create per‑user trigger instances.
+- Subscribe via **webhooks** for production (recommended); use SDK subscribe for local prototyping.
+- Manage lifecycle via enable/disable; keep audit history.
+
+**Python (create)**
+```python
+t = cx.triggers.create(slug="GITHUB_COMMIT_EVENT", user_id=user_id, trigger_config={"owner":"org","repo":"name"})
+```
+
+---
+
+## 8) MCP & Tool Router (for IDEs and autonomous flows)
+### 8.1 MCP Servers
+- Create servers that expose specific toolkits & allowed tools, then generate **per‑user** server URLs for Claude Desktop, Cursor, OpenAI MCP connector, etc.
+
+**TypeScript (sketch)**
+```ts
+const mcp = await cx.mcp.create({
+  name: "personal-gmail",
+  serverConfig: [{ authConfigId: "ac_gmail", allowedTools: ["GMAIL_FETCH_EMAILS"] }],
+  options: { isChatAuth: true }
+});
+const urls = await mcp.getServer({ userId });
+```
+
+### 8.2 Tool Router (experimental)
+- **Discovery → Authentication → Execution** via MCP meta‑tools:
+  - `COMPOSIO_SEARCH_TOOLS` (find tools)
+  - `COMPOSIO_CREATE_PLAN` (plan steps)
+  - `COMPOSIO_MANAGE_CONNECTIONS` (auth)
+  - `COMPOSIO_MULTI_EXECUTE_TOOL` (parallel run)
+
+Use for **auto‑planning across many apps**; keep an eye on context usage (~20k tokens/session) and latency.
+
+---
+
+## 9) Governance & Evidence (Gate G‑A expectations)
+- **User scoping**: choose `userId` patterns (individual / org / hybrid) and be consistent.
+- **Auth evidence**: store auth attempt `redirectUrl`, `connectedAccountId`, chosen scopes, toolkit slugs.
+- **Tool evidence**: log tool slug, inputs, outputs (redacted), latency, and undo intent.
+- **Redaction**: never persist secrets or raw OAuth tokens in prompts/logs; keep in your vault.
+- **Rate/Retry**: apply sane exponential backoff on provider rate limits; surface actionable errors to UI.
+
+---
+
+## 10) Provider Cheat‑Sheet
+- **OpenAI**: default provider—format tools for Chat Completions/Responses; finish with `handle_tool_calls`.
+- **OpenAI Agents SDK**: use `composio_openai_agents` to expose tools to the Agents API loop.
+- **Anthropic**: `@composio/anthropic` pairs with `messages.create` + `handleToolCalls`.
+- **Vercel AI SDK**: `@composio/vercel` + `generateText` flows.
+- **Custom providers**: build adapters for other runtimes if needed.
+
+---
+
+## 11) Pricing & Limits (snapshots; verify before launch)
+- Free, $29/mo, $229/mo tiers with included tool call quotas; usage‑based overages. Some **premium tools** cost ~3× a standard call. Check plans and per‑tool pricing before big runs.
+
+---
+
+## 12) Playbook: “Find tools we can use *now*”
+1) **Discovery**: `tools.get(search="gmail list threads")` then `tools.get(toolkits=["GMAIL"], scopes=[...])` to match current auth.
+2) **Auth**: if missing, call `toolkits.authorize()` or `connectedAccounts.link()` and `waitForConnection()`.
+3) **Load**: pass tools to your provider; keep `limit` small (≤10) to avoid confusion.
+4) **Run**: `provider.handle_tool_calls()`; record evidence; apply modifiers for output normalization.
+5) **Iterate**: tighten scopes and reduce tool set after the first successful run.
+
+---
+
+## 13) Common Pitfalls
+- Mixing `search` with `tools` in a single call; or using `scopes` across multiple toolkits (not allowed).
+- Using the wrong `userId` (org‑level connection accessed with a personal userId).
+- Overloading the model with 100s of tools (forgetting to cap `limit`).
+- Prompting before `waitForConnection()` finishes.
+- Forgetting to specify `connected_account_id` when a user has multiple accounts for the same toolkit.
+
+---
+
+## 14) Minimal End‑to‑End (TypeScript)
+```ts
+import { Composio } from "@composio/core";
+import { OpenAIProvider } from "@composio/openai";
+import OpenAI from "openai";
+
+const userId = "user-123";
+const composio = new Composio({ apiKey: process.env.COMPOSIO_API_KEY, provider: new OpenAIProvider() });
+
+// 1) Auth handshake
+const req = await composio.toolkits.authorize(userId, "gmail");
+console.log("Auth at:", req.redirectUrl);
+await req.waitForConnection();
+
+// 2) Fetch tools (keep it tight)
+const tools = await composio.tools.get(userId, { toolkits: ["GMAIL"], limit: 6 });
+
+// 3) Chat + handle tool calls
 const openai = new OpenAI();
 const completion = await openai.chat.completions.create({
-  model: 'gpt-4o',
-  messages: [{ role: 'user', content: 'Schedule a follow-up with the team' }],
-  tools,
+  model: "gpt-4o-mini",
+  messages: [{ role: "user", content: "Summarize my last important email from today" }],
+  tools
 });
-const result = await session.provider.handleToolCalls(userId, completion);
+
+const result = await composio.provider.handleToolCalls(userId, completion);
 console.log(result);
 ```
 
-### Python Trigger Subscribe + Handle
-```python
-from composio import Composio
+---
 
-user_id = "user-123"
-composio = Composio()
+## 15) Appendix: Useful one‑liners
+- List toolkits (ranked): `toolkits.list(sort_by="usage", limit=50)`
+- List categories: `toolkits.list_categories()`
+- TS session isolation: `composio.createSession({ headers: { "x-tenant-id": "tenant-42" } })`
+- Inspect tool args in dashboard: Auth Configs → Toolkit → Tools & Triggers → pick tool
 
-# Create trigger instance for GitHub star events
-trigger = composio.triggers.create(
-    slug="GITHUB_STAR_ADDED_EVENT",
-    user_id=user_id,
-    connected_account_id="github-account-id"
-)
+---
 
-# Subscribe (long-poll or async loop)
-with composio.triggers.subscribe(timeout=30) as stream:
-    for event in stream:
-        if event.trigger_id == trigger.id:
-            print(f"{event.data['repository_name']} starred by {event.data['starred_by']}")
-```
-
-### TypeScript Trigger Subscribe + Types
-```ts
-import { Composio } from '@composio/core';
-import type { TriggerEvent } from '@composio/core';
-
-const composio = new Composio({ apiKey: process.env.COMPOSIO_API_KEY });
-
-const trigger = await composio.triggers.create({
-  slug: 'GITHUB_STAR_ADDED_EVENT',
-  userId: 'user-123',
-  connectedAccountId: 'github-account-id'
-});
-
-type GitHubStarPayload = {
-  action: 'created';
-  repository_name: string;
-  starred_by: string;
-};
-
-for await (const event of composio.triggers.subscribe<GitHubStarPayload>()) {
-  if (event.triggerId === trigger.id) {
-    console.log(`${event.data.repository_name} starred by ${event.data.starred_by}`);
-  }
-}
-```
-
-## 6. ROI + Storytelling Anchors
-- **Assista AI:** 90% faster go-to-market via Composio tooling.
-- **Fabrile:** Rapid Google Workspace integrations showcased at conferences.
-- **AgentArena (UC Berkeley Gorilla):** Agent research platform powered by Composio tool breadth.
-
-## 7. Trigger Handling Notes
-- `composio.triggers.list_types()` and `getType()` return metadata (auth requirements, payload schemas) so planners can reason about events conversationally.
-- Use `triggers.create(...)` to instantiate per-user trigger instances; store trigger IDs in Supabase for governance and undo flows.
-- Subscribe via `triggers.subscribe(timeout=...)` for streaming events or `triggers.list_active(...)` for poll-style dashboards.
-- Pause or disable triggers (`triggers.disable(...)`) instead of deleting to preserve audit history.
-- Guardrails treat trigger invocations as mutating actions when downstream workflows execute; log every trigger event into evidence tables.
-
-## 8. Safety Reminders
-- No service-role keys or OAuth secrets in prompts/logs.
-- Always log undo plans, quiet-hour overrides, scopes, and evidence artifacts.
-- For `rate_limited`/`invalid_scope` events, raise CopilotKit interrupts with remediation options.
+**Ship it. Keep context small. Scope auth narrowly. Log evidence.**

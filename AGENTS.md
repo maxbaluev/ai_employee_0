@@ -40,7 +40,6 @@ This repository hosts the Gate G-A foundation for the AI Employee Control Plane.
 ## Useful References
 - Implementation sequencing: `new_docs/implementation_plan.md`
 - Guardrails & approvals: `new_docs/guardrail_policy_pack.md`
-- Readiness artifact schemas: `new_docs/readiness_artifact_schemas.md`
 - Libraries & partner docs: `libs_docs/` (Composio, CopilotKit, ADK, Supabase)
 
 Keep this file current as you expand beyond Gate G-A. Anything you would brief a new teammate on should live here for agents to pick up automatically.

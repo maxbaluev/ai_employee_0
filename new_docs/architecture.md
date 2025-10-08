@@ -196,7 +196,7 @@ Agents advance through the following capability states. Each state must satisfy 
 - **CopilotKit UX:** `libs_docs/copilotkit/llms-full.txt` — mission intake, approvals, generative surfaces, ADK integration patterns.
 - **Gemini ADK:** `libs_docs/adk/llms-full.txt` — multi-agent composition, deployment patterns, evaluation tooling.
 - **Supabase AI Toolkit:** `libs_docs/supabase/llms_docs.txt` — pgvector, Edge Functions, PostgREST, AI templates and integrations.
-- **Readiness Artifacts:** `new_docs/readiness_artifact_schemas.md` — machine-readable evidence packages for gate progression (store output locally under `docs/readiness/` and in Supabase storage).
+- **Evidence Tracking:** Gate-specific artifacts are documented within the implementation plan; store outputs under `docs/readiness/` and Supabase storage as they are introduced.
 - **Guardrail Policies:** `new_docs/guardrail_policy_pack.md` — enforcement parameters for tone, rate, quiet hours, and undo guarantees (implemented across `agent/` validators and `src/app` approval flows).
 
 This architecture grounds the AI Employee Control Plane in the documented partner capabilities, delivering an accountable, extensible system that converts objectives into governed outcomes with a clear path from private preview to scaled adoption.
