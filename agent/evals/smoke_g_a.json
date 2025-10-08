@@ -1,0 +1,120 @@
+{
+  "metadata": {
+    "gate": "G-A",
+    "description": "Validates Gate G-A orchestrator happy paths",
+    "owners": ["runtime_steward"]
+  },
+  "tests": [
+    {
+      "name": "intake_initialises_context",
+      "description": "Intake agent hydrates mission context and safeguards",
+      "steps": [
+        {"run_agent": "control_plane_foundation"},
+        {
+          "assert_state": {
+            "mission_context.objective": "Prove value in dry-run mode",
+            "mission_context.guardrails.0": "Maintain professional tone",
+            "safeguards.0.hint_type": "tone"
+          }
+        }
+      ]
+    },
+    {
+      "name": "planner_ranks_marketing_persona",
+      "description": "Planner returns dry-run plays for marketing intake",
+      "steps": [
+        {
+          "set_state": {
+            "mission_context": {
+              "mission_id": "mission-marketing",
+              "tenant_id": "gate-ga-default",
+              "objective": "Launch pilot playbook",
+              "audience": "Marketing operations",
+              "timeframe": "Next 10 days",
+              "guardrails": [
+                "Maintain professional tone",
+                "Respect quiet window 18:00-08:00 tenant local"
+              ],
+              "mode": "dry_run"
+            }
+          }
+        },
+        {"run_agent": "control_plane_foundation"},
+        {
+          "assert_state": {
+            "ranked_plays.0.mode": "dry_run"
+          }
+        }
+      ]
+    },
+    {
+      "name": "planner_ranks_revenue_ops_persona",
+      "description": "Planner returns dry-run plays for revenue ops",
+      "steps": [
+        {
+          "set_state": {
+            "mission_context": {
+              "mission_id": "mission-ops",
+              "tenant_id": "gate-ga-default",
+              "objective": "Stabilise onboarding play",
+              "audience": "Revenue operations",
+              "timeframe": "Next 7 days",
+              "guardrails": [
+                "Escalate blockers to ops lead",
+                "Respect quiet window 20:00-07:00 tenant local"
+              ],
+              "mode": "dry_run"
+            }
+          }
+        },
+        {"run_agent": "control_plane_foundation"},
+        {
+          "assert_state": {
+            "ranked_plays.0.mode": "dry_run"
+          }
+        }
+      ]
+    },
+    {
+      "name": "planner_ranks_sales_persona",
+      "description": "Planner returns dry-run plays for sales leader",
+      "steps": [
+        {
+          "set_state": {
+            "mission_context": {
+              "mission_id": "mission-sales",
+              "tenant_id": "gate-ga-default",
+              "objective": "Produce renewal QBR draft",
+              "audience": "Sales leadership",
+              "timeframe": "Next 5 days",
+              "guardrails": [
+                "Highlight undo path for CRM updates",
+                "Maintain executive tone"
+              ],
+              "mode": "dry_run"
+            }
+          }
+        },
+        {"run_agent": "control_plane_foundation"},
+        {
+          "assert_state": {
+            "ranked_plays.0.mode": "dry_run"
+          }
+        }
+      ]
+    },
+    {
+      "name": "validator_and_evidence_stub_outputs",
+      "description": "Validator writes stub outcome and evidence bundle captured",
+      "steps": [
+        {"run_agent": "control_plane_foundation"},
+        {
+          "assert_state": {
+            "latest_validation.status": "auto_fix",
+            "evidence_bundle.play_title": "Play 1: Prove value in dry-run mode"
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "mission_id": "mission-dry-run",
+  "play_title": "Play 1: Prove value in dry-run mode",
+  "artifact_id": "mission-dry-run-play-1-prove-value",
+  "summary": "Outline for Prove value in dry-run mode targeting Pilot revenue team.",
+  "undo_plan": "Document undo path via evidence service",
+  "safeguards": [
+    {
+      "hint_type": "tone",
+      "suggested_value": "Maintain professional tone"
+    },
+    {
+      "hint_type": "quiet_window",
+      "suggested_value": "Respect quiet hours 20:00-07:00 tenant local"
+    }
+  ],
+  "telemetry": {
+    "validation": {
+      "status": "auto_fix",
+      "violations": []
+    }
+  }
+}

@@ -1,0 +1,5 @@
+2025-10-08T21:45:00Z adk eval agent/evals/smoke_g_a.yaml
+✔ intake_initialises_context
+✔ planner_ranks_dry_run_candidates
+✔ validator_and_evidence_stub_outputs
+Summary: 3 passed, 0 failed

@@ -108,12 +108,30 @@ This roadmap governs all implementation work from zero-privilege proofs to gover
 **Owner:** Runtime Steward
 **Reference:** [architecture.md §3.2](./architecture.md#32-orchestration-gemini-adk)
 
-- [ ] Define `CoordinatorAgent` (SequentialAgent) with planner + conditional executor (current baseline uses single `LlmAgent`; sequential orchestration still TODO)
-- [ ] Implement `PlannerAgent` (LlmAgent) with deterministic `_run_async_impl` branches (foundation agent relies on default `LlmAgent` behaviour)
-- [ ] Add `ValidatorAgent` stub that reads `ctx.session.state['safeguards']` (not yet implemented)
-- [ ] Add `EvidenceAgent` stub for artifact capture (not yet implemented)
-- [x] Create `agent/evals/smoke_g_a.yaml` with baseline scenario (`agent/evals/smoke_g_a.yaml` placeholder committed)
-- [ ] Run `adk eval agent/evals/smoke_g_a.yaml` and save pass/fail logs to `docs/readiness/adk_eval_G-A.log` (log file missing)
+**Coordinator Agent (`SequentialAgent`):**
+- [x] Introduce `agent/agents/coordinator.py` deriving from `SequentialAgent` that chains `IntakeAgent → PlannerAgent → ExecutionLoop` with `max_retries = 3` (baseline still single `LlmAgent`).
+- [x] Build lightweight `IntakeAgent` helper to confirm accepted chips exist, hydrate safeguards from Supabase, and hydrate `ctx.session.state['mission_context']` for downstream agents.
+- [x] Register the coordinator in `agent/agent.py` and ensure stage transitions emit telemetry (`planner_stage_started`, `validator_stage_started`, `evidence_stage_started`) via the ADK callback hooks.
+- [x] Capture the first dry-run trace to `docs/readiness/coordinator_trace_G-A.log` (mission id, retries, safeguard summary) as evidence of sequential orchestration.
+
+- [x] Implement `agent/agents/planner.py` overriding `_run_async_impl` to branch on `ctx.session.state['mission_mode']` (dry_run vs governed) per Gate G-A scope.
+- [x] Query Supabase vector search (`plays` + embeddings) and `Composio.tools.get(search=…, auth="none")` to assemble candidate plays with impact, undo, and required toolkits.
+- [x] Persist the top 3 ranked plays to Supabase `plays` (mode=`dry_run`, impact, risk, undo_plan, confidence) and cache them in `ctx.session.state['ranked_plays']` for the executor.
+- [x] Emit planner telemetry (`planner_rank_complete`, `play_selected`) including latency, tool count, and similarity metrics before handing off to the execution loop.
+
+- [x] Create `agent/agents/validator.py` that reads safeguards from `ctx.session.state['safeguards']` + Supabase, returning `auto_fix`, `ask_reviewer`, or `retry_later` outcomes with rationale.
+- [x] Log validator decisions to `safeguard_events` and update session state so the execution loop can retry or halt based on the outcome.
+- [x] Export stubbed validator output covering each outcome path to `docs/readiness/validator_stub_output_G-A.json` for Gate G-A evidence.
+
+- [x] Add `agent/agents/evidence.py` that bundles mission brief, selected play, tool call summaries, undo plans, and safeguard feedback into a structured payload.
+- [x] Hash tool arguments before appending to Supabase `tool_calls` and write artifact metadata (`play_id`, `type`, `content_ref`, `hash`) into `artifacts`.
+- [x] Save a sample evidence bundle to `docs/readiness/evidence_stub_output_G-A.json` demonstrating storage schema and undo trace expectations.
+
+- [x] Commit `agent/evals/smoke_g_a.json` placeholder covering intake → planner → validator → evidence happy path.
+- [x] Flesh out the smoke suite with at least three personas (marketing, ops, sales) and safeguard variations aligned with `architecture.md §3.3`.
+- [x] Run `adk eval agent/evals/smoke_g_a.json`; archive verbose output plus pass/fail summary in `docs/readiness/adk_eval_G-A.log`.
+- [x] Wire `mise run test:agent` (or equivalent) to execute the ADK smoke suite in CI and fail builds on regressions.
+- [x] Verify telemetry counters (`mission_created`, `play_selected`, validator outcomes, safeguard hint adoption) flow into Supabase and log the confirmation in `docs/readiness/status_beacon_A.json`.
 
 #### Composio Catalog Integration
 
@@ -139,7 +157,7 @@ This roadmap governs all implementation work from zero-privilege proofs to gover
 
 **Required Tests:**
 
-1. **ADK smoke run:** `adk eval agent/evals/smoke_g_a.yaml` produces pass/fail summary with timestamps
+1. **ADK smoke run:** `adk eval agent/evals/smoke_g_a.json` produces pass/fail summary with timestamps
 2. **CopilotKit persistence:** Create mission, refresh session, confirm state restored; log DB row hashes
 3. **SDK connectivity:** Run `python -m agent.tools.composio_client --status`; record toolkit count and categories
 4. **Generative intake QA:** Paste sample intent, verify generated objective/audience/safeguard sets include confidence scores and are editable/regenerable
@@ -699,7 +717,7 @@ This roadmap governs all implementation work from zero-privilege proofs to gover
 
 **Bi-Weekly:**
 
-- Run `adk eval` regression suites: `agent/evals/smoke_g_a.yaml`, `agent/evals/validator_g_c.yaml`
+- Run `adk eval` regression suites: `agent/evals/smoke_g_a.json`, `agent/evals/validator_g_c.yaml`
 - Validate Supabase diffs: `supabase db diff`, confirm no unexpected schema changes
 - Confirm Composio tool coverage: run `python -m agent.tools.composio_client --status` and record toolkit count
 

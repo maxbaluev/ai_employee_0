@@ -37,6 +37,11 @@
       "name": "Composio catalog snapshot",
       "status": "completed",
       "notes": "Captured python -m agent.tools.composio_client --status output (5 toolkits / 1 category snapshot) in docs/readiness/composio_status_G-A.txt."
+    },
+    {
+      "name": "ADK telemetry staging",
+      "status": "completed",
+      "notes": "Coordinator + execution loop emit planner/executor/validator/evidence stage events; offline logs captured in docs/readiness/coordinator_trace_G-A.log with Supabase fallbacks."
     }
   ],
   "updated_at": "2025-10-08T14:45:00Z"

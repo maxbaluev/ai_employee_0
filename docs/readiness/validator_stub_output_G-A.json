@@ -1,0 +1,18 @@
+{
+  "mission_id": "mission-dry-run",
+  "status": "auto_fix",
+  "notes": "Validator performed Gate G-A safeguard checks.",
+  "violations": [],
+  "safeguards": [
+    {
+      "hint_type": "tone",
+      "suggested_value": "Maintain professional tone",
+      "confidence": 0.82
+    },
+    {
+      "hint_type": "quiet_window",
+      "suggested_value": "Respect quiet hours 20:00-07:00 tenant local",
+      "confidence": 0.74
+    }
+  ]
+}

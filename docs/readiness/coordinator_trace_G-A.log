@@ -1,0 +1,7 @@
+{"stage": "intake_stage_started", "mission": "mission-dry-run", "tenant": "gate-ga-default", "timestamp": "2025-10-08T21:30:10Z"}
+{"stage": "planner_stage_started", "mission": "mission-dry-run", "tenant": "gate-ga-default", "timestamp": "2025-10-08T21:30:11Z"}
+{"stage": "execution_loop_started", "mission": "mission-dry-run", "tenant": "gate-ga-default", "timestamp": "2025-10-08T21:30:12Z"}
+{"stage": "executor_stage_started", "mission": "mission-dry-run", "tenant": "gate-ga-default", "attempt": 1, "timestamp": "2025-10-08T21:30:12Z"}
+{"stage": "validator_stage_started", "mission": "mission-dry-run", "tenant": "gate-ga-default", "attempt": 1, "timestamp": "2025-10-08T21:30:13Z"}
+{"stage": "evidence_stage_started", "mission": "mission-dry-run", "tenant": "gate-ga-default", "attempt": 1, "timestamp": "2025-10-08T21:30:13Z"}
+{"stage": "execution_loop_completed", "mission": "mission-dry-run", "tenant": "gate-ga-default", "attempts": 1, "timestamp": "2025-10-08T21:30:13Z"}
