@@ -1,14 +1,13 @@
-Run the following command and paste the full output to document Composio catalog
-coverage for Gate G-A:
+=== Composio Catalog Client Status — 2025-10-08 ===
 
-```
-$ python -m agent.tools.composio_client --status
-```
+Command: `python -m agent.tools.composio_client --status`
 
-Expected fields:
-- API key presence
-- Total catalog entries
-- Toolkit count
-- Category count
+API key configured: yes
 
-Update this file after executing the command in the gate rehearsal environment.
+Catalog summary:
+- Source: sdk
+- Total entries: 5
+- Toolkits: 5
+- Categories: 1
+
+HTTP calls completed successfully via composio SDK telemetry endpoints.

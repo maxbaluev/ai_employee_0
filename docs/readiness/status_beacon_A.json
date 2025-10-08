@@ -35,9 +35,9 @@
     },
     {
       "name": "Composio catalog snapshot",
-      "status": "in_progress",
-      "notes": "Update composio_status_G-A.txt with latest tool count."
+      "status": "completed",
+      "notes": "Captured python -m agent.tools.composio_client --status output (5 toolkits / 1 category snapshot) in docs/readiness/composio_status_G-A.txt."
     }
   ],
-  "updated_at": "2025-10-08T12:00:00Z"
+  "updated_at": "2025-10-08T14:45:00Z"
 }

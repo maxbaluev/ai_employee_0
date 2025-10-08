@@ -123,7 +123,7 @@ This roadmap governs all implementation work from zero-privilege proofs to gover
 - [x] Implement `agent/tools/composio_client.py` with SDK-backed discovery helpers (`ComposioCatalogClient.get_summary/get_tools`)
 - [x] Call `Composio.tools.get` with no-auth filter and log toolkit metadata (`ComposioCatalogClient.get_tools` and CLI status output)
 - [x] Document the requirement for `COMPOSIO_API_KEY` in setup guides (see `AGENTS.md`, `README.md`, `new_docs/architecture.md`)
-- [ ] Export SDK status output (`python -m agent.tools.composio_client --status`) to `docs/readiness/composio_status_G-A.txt` (file still placeholder instructions)
+- [x] Export SDK status output (`python -m agent.tools.composio_client --status`) to `docs/readiness/composio_status_G-A.txt` (captured 5 toolkit snapshot on 2025-10-08)
 
 #### Safeguard Hint Seeds
 
