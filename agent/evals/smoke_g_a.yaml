@@ -1,0 +1,22 @@
+# Gate G-A smoke evaluation placeholder
+#
+# Populate this file with ADK evaluation cases once the planner loop
+# is wired to Supabase and Composio. The placeholder ensures CI has a
+# deterministic entry point for gate rehearsals.
+
+metadata:
+  gate: G-A
+  description: "Validates control plane bootstrap flow"
+  owners:
+    - runtime_steward
+
+tests:
+  - name: mission_brief_roundtrip
+    description: "Ensure mission state initialises with default planner notes"
+    steps:
+      - run_agent: control_plane_foundation
+      - assert_state:
+          mission.objective: "Prove value in dry-run mode"
+          mission.planner_notes:
+            contains: "Gate G-A baseline initialised"
+

@@ -40,9 +40,14 @@ This repository delivers the Gate G-A foundation for the AI Employee Control Pla
 4. **Export environment variables**
    ```bash
    export GOOGLE_API_KEY="your-google-api-key-here"
-
-   # Required: enable Composio catalog discovery
    export COMPOSIO_API_KEY="your-composio-api-key"
+   export NEXT_PUBLIC_SUPABASE_URL="http://localhost:54321"
+   export NEXT_PUBLIC_SUPABASE_ANON_KEY="anon-key-from-supabase"
+   export SUPABASE_SERVICE_ROLE_KEY="service-role-key-from-supabase"
+   export GATE_GA_DEFAULT_TENANT_ID="00000000-0000-0000-0000-000000000000"
+   export NEXT_PUBLIC_COPILOT_RUNTIME_URL="/api/copilotkit"
+   export NEXT_PUBLIC_COPILOT_AGENT_ID="control_plane_foundation"
+   export AGENT_HTTP_URL="http://localhost:8000/"
    ```
 
 5. **Run the full stack**
@@ -61,8 +66,13 @@ supabase start
 supabase db push --file supabase/migrations/0001_init.sql
 ```
 
+Record the CLI output in `docs/readiness/migration_log_G-A.md` and update
+`docs/readiness/db_checksum_G-A.csv` with the row checksums you observe. Seed
+baseline guardrail profiles using `docs/readiness/guardrail_profiles_seed.csv`
+before running QA.
+
 ### Composio catalog utilities
-- Check SDK connectivity: `python -m agent.tools.composio_client --status`
+- Check SDK connectivity: `python -m agent.tools.composio_client --status` (paste the result into `docs/readiness/composio_status_G-A.txt`)
 - Force a fresh catalogue fetch: `python -m agent.tools.composio_client --refresh`
 
 ## Linting & Checks
@@ -70,7 +80,8 @@ supabase db push --file supabase/migrations/0001_init.sql
 - Quick Python syntax check: `mise exec python -- -m compileall agent`
 
 ## Repository Tour
-- `src/app/(control-plane)/page.tsx` — Mission intake workspace with CopilotKit state synchronisation.
+- `src/app/(control-plane)/page.tsx` — Server component that hydrates Supabase data for the Gate G-A workspace.
+- `src/app/(control-plane)/ControlPlaneWorkspace.tsx` — Client workspace aligning with the UX blueprint and CopilotKit actions.
 - `agent/runtime/app.py` — FastAPI app factory consumed by both uvicorn and tests.
 - `agent/agents/control_plane.py` — Mission state tools (`set_mission_details`, `append_planner_note`, `upsert_artifact`) and catalog-aware prompts.
 - `agent/tools/composio_client.py` — Minimal Composio SDK client with CLI helpers.

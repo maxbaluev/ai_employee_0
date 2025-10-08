@@ -1,0 +1,11 @@
+table,checksum
+objectives,pending_after_seed
+plays,pending_after_seed
+tool_calls,pending_after_seed
+approvals,pending_after_seed
+artifacts,pending_after_seed
+library_entries,pending_after_seed
+guardrail_profiles,pending_after_seed
+mission_guardrails,pending_after_seed
+copilot_sessions,pending_after_seed
+copilot_messages,pending_after_seed

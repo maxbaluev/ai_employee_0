@@ -6,7 +6,7 @@ This repository hosts the Gate G-A foundation for the AI Employee Control Plane.
 - Prefer **mise** to hydrate toolchains. Run `mise trust` (once), then `mise install` and `mise env activate` so Node 22, Python 3.13, pnpm, and uv match `.mise.toml`.
 - Frontend packages use **pnpm**. Avoid generating lockfiles with other package managers.
 - Python services live under `agent/`. Install deps with `uv pip install -r agent/requirements.txt` (fast) or a virtualenv activated via `mise exec python -- -m venv .venv`.
-- Environment variables: `GOOGLE_API_KEY` must be set for ADK, plus Supabase/Composio secrets when you move past dry-run work. Keep secrets out of committed files.
+- Environment variables: configure `GOOGLE_API_KEY`, `COMPOSIO_API_KEY`, Supabase keys (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`), `GATE_GA_DEFAULT_TENANT_ID`, and Copilot settings (`NEXT_PUBLIC_COPILOT_RUNTIME_URL`, `NEXT_PUBLIC_COPILOT_AGENT_ID`, `AGENT_HTTP_URL`). Keep secrets out of committed files.
 
 ## Setup Commands
 - Install frontend deps: `mise run install` (wraps `pnpm install`)
@@ -23,14 +23,14 @@ This repository hosts the Gate G-A foundation for the AI Employee Control Plane.
 
 ## Code Style & Patterns
 - **TypeScript**: stick to strict mode defaults (`tsconfig`), use single quotes and trailing commas, no implicit `any`. Favor functional React patterns and avoid class components.
-- **React**: colocate components in the `(control-plane)` directory, keep mission state sync through `useCoAgent`. Use descriptive tailwind utility groupings, no inline hex strings except theme accents.
+- **React**: colocate components in the `(control-plane)` directory. Use `useCopilotReadable`/`useCopilotAction` to keep mission state in sync with CopilotKit. Use descriptive Tailwind groupings and reserve custom hex colours for theme accents only.
 - **Python**: follow PEP 8. Prefer dataclasses/Pydantic models for state. Avoid global side effects in module imports—use application factories (`agent/runtime/app.py`).
 - Keep guardrail logic deterministic. Mission state mutations go through the declared ADK tools (`set_mission_details`, `append_planner_note`, `upsert_artifact`).
 
 ## Domain Guidance
 - Use `new_docs/architecture.md` and `guardrail_policy_pack.md` to validate new planner/validator behavior. Gate G-A assumes dry-run only (no OAuth sends).
 - Composio catalog metadata is sourced via the Composio SDK. Keep the SDK pinned, ensure `COMPOSIO_API_KEY` is configured, and rerun your chosen validation workflow so planners see the latest catalogue state.
-- Supabase schema changes must retain RLS. Update `supabase/migrations/` and keep downstream validation assets in sync.
+- Supabase schema changes must retain RLS. Update `supabase/migrations/` and refresh readiness artifacts (`docs/readiness/migration_log_G-A.md`, `db_checksum_G-A.csv`, and guardrail seeds) whenever tables or policies change.
 
 ## When Editing
 - Keep any gate-specific evidence assets up to date as they are introduced by future milestones.

@@ -8,10 +8,12 @@
 
 ## Executive Summary
 
-This UX blueprint defines the user experience strategy for the AI Employee Control Plane — a mission workspace that transforms high-intent objectives into measurable outcomes through transparent, governed AI execution. The design centers on **trust through visibility**: users maintain control at every checkpoint while AI agents handle complexity, evidence, and orchestration.
+This UX blueprint defines the user experience strategy for the AI Employee Control Plane — a mission workspace that converts a single freeform input (links, goals, context) into fully generated missions, objectives, toolkits, audiences, and guardrails that remain editable at every step. The design centers on **trust through visibility**: users provide intent once, then maintain control as the system proposes, auto-populates, and iterates on the plan.
 
 The experience prioritizes:
-- **Zero-to-value in <15 minutes** — from objective to proof pack
+- **Single-input onboarding** — users paste one prompt; the workspace generates structured objectives, personas, constraints, and plays
+- **Generative defaults with human oversight** — every recommendation is editable, traceable, and easy to accept, refine, or replace
+- **Zero-to-value in <15 minutes** — from initial input to reviewable proof pack
 - **Progressive trust** — dry-run first, governed activation when ready
 - **Continuous visibility** — streaming agent reasoning, guardrail enforcement, evidence trails
 - **Human-centered approvals** — collaborative decision points, not gatekeeping friction
@@ -39,6 +41,9 @@ The experience prioritizes:
 
 ### 1.1 Core Tenets
 
+**Generative by Default, Editable by Design**
+The workspace ingests a single freeform input and produces structured objectives, audiences, guardrails, and plays automatically. Every generated element is surfaced with edit, replace, or reject affordances so users stay in control.
+
 **Trust Through Transparency**
 Every agent action, guardrail check, and execution step surfaces in real-time. Users never wonder "what is it doing?" — they see reasoning, evidence, and undo plans as work unfolds.
 
@@ -49,7 +54,7 @@ Start with zero-privilege dry runs (drafts, lists, schedules). Once value is pro
 The agent is a collaborative partner, not a replacement. Approval moments are designed as constructive checkpoints — users refine, approve, or redirect with minimal friction.
 
 **Objective-First, Not Tool-First**
-Users describe goals and constraints; the system recommends toolkits, plays, and workflows based on capability grounding and library intelligence.
+Users describe goals and constraints once; the system recommends toolkits, plays, and workflows based on capability grounding and library intelligence, while keeping manual overrides simple.
 
 **Radically Reversible**
 Every mutating action includes an undo plan. Users can roll back with confidence, and governance teams audit rollback success rates.
@@ -58,6 +63,7 @@ Every mutating action includes an undo plan. Users can roll back with confidence
 
 | Principle | What It Means | How It Shapes UX |
 |-----------|---------------|------------------|
+| **Generative Scaffolding** | System proposes objectives, audiences, toolkits automatically, always editable | Chips, inline editors, "Regenerate" buttons on every generated section |
 | **Clarity Over Cleverness** | Simple, direct language beats jargon; status updates beat spinners | Plain language mission briefs, progress narration, explicit error messages |
 | **Guardrails as Guidance** | Constraints are helpers, not barriers | Inline guardrail summaries, proactive override paths, contextual help |
 | **Evidence Before Execution** | Prove value with artifacts before requesting credentials | Dry-run proofs with sample outputs, ROI estimates, risk disclosures |
@@ -86,6 +92,7 @@ Every mutating action includes an undo plan. Users can roll back with confidence
 - Fast dry-run loop (<15 min from objective to draft campaign)
 - Clear ROI estimates (contacts enriched, messages drafted, expected reply rate)
 - Smooth OAuth onboarding once trust is earned
+- Generative starting point that auto-creates objective, audience, guardrails, and outreach plan with inline edit controls
 
 ---
 
@@ -104,6 +111,7 @@ Every mutating action includes an undo plan. Users can roll back with confidence
 - Tone guardrails front-and-center in approval modals
 - Undo buttons for every customer-facing action
 - Clear evidence bundles for compliance audits
+- Auto-generated guardrail-aware responses with quick edit/approve toggles
 
 ---
 
@@ -122,6 +130,7 @@ Every mutating action includes an undo plan. Users can roll back with confidence
 - Read-only governance dashboard with full audit trails
 - Guardrail override register with expiry tracking
 - Exportable evidence bundles (CSV, PDF) for external audits
+- Generated policy summaries highlighting any inferred guardrail adjustments before activation
 
 ---
 
@@ -140,6 +149,7 @@ Every mutating action includes an undo plan. Users can roll back with confidence
 - Clear diff previews in approval modals
 - Inline commentary from validator agents
 - Git-aware undo plans (revert commits, not force-push)
+- Generated implementation plan that suggests repositories, branches, and reviewers while remaining editable
 
 ---
 
@@ -158,6 +168,7 @@ Every mutating action includes an undo plan. Users can roll back with confidence
 - Executive-friendly analytics (simple KPIs, trend lines, filters)
 - Exportable reports (PDF, slides)
 - Incident summaries with mitigation narratives
+- Generated board-ready summary cards populated automatically after each mission
 
 ---
 
@@ -179,12 +190,13 @@ Every mutating action includes an undo plan. Users can roll back with confidence
 
 | Stage | User Actions | Agent Actions | UI Touchpoints | Success Criteria |
 |-------|--------------|---------------|----------------|------------------|
-| **1. Mission Intake** | Describes goal: "Revive 100 dormant enterprise accounts with personalized outreach" | Captures structured objective: goal, audience, timeframe, guardrails | Mission Intake Form (CopilotKit chat or modal) | Objective stored in Supabase; confirmation message |
-| **2. Capability Grounding** | Reviews recommended toolkits (CRM, email, research) | Queries Composio catalog, ranks by persona + success rate | Toolkit Carousel with no-auth badges, "Why this?" tooltips | User understands toolkit scope, no surprises |
-| **3. Play Ranking** | Selects "Top 3 Predicted Jobs" (e.g., "Enrich + Draft Campaign") | Planner agent ranks plays using library embeddings + PRD recipes | Play Cards with impact estimates, risk profiles, undo plans | User selects preferred play confidently |
-| **4. Dry-Run Execution** | Clicks "Generate Proof Pack" | Executor calls no-auth Composio tools, streams progress | Streaming status panel: "Researching accounts… Drafting messages…" | <15 min to evidence bundle |
-| **5. Evidence Review** | Browses drafts, enriched contact list, ROI estimate | Evidence agent assembles artifacts, hashes outputs, stores in Supabase | Artifact Previews (expandable cards), "Why this works" narrative | User sees tangible value, shares with stakeholders |
-| **6. Trust Decision** | Clicks "Approve & Connect" or "Refine & Retry" | If approved, initiates OAuth flow for HubSpot (or chosen CRM) | OAuth Modal with scope disclosure, "What we'll access" list | User grants scopes or iterates on dry run |
+| **1. Single Input Capture** | Pastes one paragraph with objective, links, tone preferences: "We’re Acme SaaS..." | Parses text, extracts entities, infers personas, timeframe, tone | Generative Intake Panel with paste box + "Generate mission" CTA | Input accepted; generation kicks off |
+| **2. Generated Brief Preview** | Reviews auto-created mission brief (objective, audience, KPIs, guardrails) | Builds structured brief, confidence scores, suggested edits | Brief Summary Card with inline chips + "Edit", "Regenerate" | User accepts or tweaks brief items |
+| **3. Auto Toolkit & Auth Draft** | Scans brief, proposes toolkits, auth modes, quiet hours | Queries Composio catalog + Supabase data to recommend no-auth + OAuth paths | Toolkit & Auth Drawer with badges ("Connect later", "No Auth") | User accepts defaults or swaps | 
+| **4. Generated Play Ranking** | Picks from 3 generated plays ("Enrich + Draft Campaign", etc.) | Planner ranks plays, attaches rationale, undo plans | Play Cards with impact, risk, "Regenerate" button | Preferred play selected with minimal edits |
+| **5. Dry-Run Execution** | Clicks "Run Draft" (auto-populated) | Executor uses chosen plan, streams progress | Streaming status panel: "Researching accounts…" etc. | <15 min to evidence bundle |
+| **6. Evidence Review** | Reviews generated artifacts, ROI estimate, optional adjustments | Evidence agent assembles bundles, highlights suggested modifications | Artifact Previews + inline edit toggles (e.g., edit draft email) | User comfortable with outputs, optionally refines |
+| **7. Trust Decision** | Chooses "Approve & Connect" (with auto-suggested scopes) or "Regenerate" | Initiates OAuth flow with recommended scopes, or loops back | OAuth Modal pre-filled with recommended scopes + editable list | User grants scopes or requests new generation |
 
 **Total Time Budget:** 12–15 minutes from intake to evidence
 **Key Metrics:** Dry-run completion rate, time-to-evidence, approval-to-OAuth conversion
@@ -199,11 +211,11 @@ Every mutating action includes an undo plan. Users can roll back with confidence
 
 | Stage | User Actions | Agent Actions | UI Touchpoints | Success Criteria |
 |-------|--------------|---------------|----------------|------------------|
-| **1. Post-OAuth Setup** | Connects Zendesk + Slack via OAuth | Stores encrypted tokens, scopes in Supabase | Connection Status Panel: green checkmarks, scope summaries | Toolkits ready for governed runs |
-| **2. Guardrail Configuration** | Reviews tone policy, quiet hours, rate limits | Loads tenant guardrail profile from Supabase | Guardrail Summary Card (collapsible), "Edit Policies" link | User understands active constraints |
-| **3. Governed Execution Trigger** | Submits mission: "Respond to churn-risk tickets flagged today" | Validator checks tone, quiet hours, rate limits before execution | Pre-flight Validation Panel: "All checks passed" or "Violation: quiet hours" | Guardrails enforced before action |
-| **4. Approval Checkpoint** | Reviews proposed response draft in approval modal | Validator surfaces tone check results, undo plan | Approval Modal: response preview, tone score, "Undo will delete draft reply" | User approves, edits, or rejects with context |
-| **5. Live Execution** | Clicks "Approve & Send" | Executor posts Zendesk reply, logs tool call, captures latency | Execution Confirmation: "Reply sent to Ticket #12345, undo available" | Action completes; evidence stored |
+| **1. Generated Connection Plan** | Reviews auto-suggested toolkit + scope plan (Zendesk triage + Slack summaries) | Builds connection checklist, scopes, quiet hours from brief & historical runs | Connection Planner Panel with toggle chips ("Zendesk Reply", "Slack Digest") | User enables/edits suggested connections |
+| **2. Guardrail Auto-Tune** | Sees generated quiet hours, tone rules based on tenant + mission | Suggests guardrail profile adjustments (e.g., "quiet hours 9pm–7am PST") with rationale | Guardrail Summary Card w/ "Accept", "Edit", "Regenerate" controls | Guardrails confirmed or adjusted |
+| **3. Governed Execution Trigger** | Accepts generated mission start prompt | Validator checks tone, quiet hours, rate limits before execution | Pre-flight Validation Panel showing generated checklist | Guardrails enforced before action |
+| **4. Approval Checkpoint** | Reviews generated response + suggested edits | Validator surfaces tone check results, undo plan, recommended edits | Approval Modal with generative suggestions ("Apply suggested tone softener?") | User approves, tweaks, or regenerates portions |
+| **5. Live Execution** | Clicks "Approve & Send" | Executor posts Zendesk reply, logs tool call, captures latency | Execution Confirmation: "Reply sent... Undo available" | Action completes; evidence stored |
 | **6. Undo Safety Net** | Clicks "Undo" within 10 minutes | Evidence service deletes reply, updates Zendesk, logs rollback | Undo Status: "Reply removed, ticket restored to 'Open'" | User rolls back confidently |
 
 **Total Time Budget:** 3–5 minutes per approval cycle

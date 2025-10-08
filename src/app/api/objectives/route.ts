@@ -1,0 +1,103 @@
+import { NextResponse, type NextRequest } from "next/server";
+import { z } from "zod";
+
+import { getRouteHandlerSupabaseClient } from "@/lib/supabase/server";
+import { getServiceSupabaseClient } from "@/lib/supabase/service";
+import type { Database, Json } from "@supabase/types";
+
+const payloadSchema = z.object({
+  goal: z.string().min(1, "Goal is required"),
+  audience: z.string().min(1, "Audience is required"),
+  timeframe: z.string().min(1, "Timeframe is required"),
+  guardrails: z.union([z.string(), z.record(z.any())]).default(""),
+  metadata: z.record(z.any()).optional(),
+  tenantId: z.string().uuid().optional(),
+});
+
+function coerceGuardrails(value: string | Record<string, unknown>) {
+  if (typeof value === "string") {
+    try {
+      return value ? JSON.parse(value) : {};
+    } catch (error) {
+      throw new Error("Guardrails must be valid JSON");
+    }
+  }
+
+  return value ?? {};
+}
+
+export async function POST(request: NextRequest) {
+  const raw = await request.json().catch(() => null);
+
+  const parsed = payloadSchema.safeParse(raw);
+  if (!parsed.success) {
+    return NextResponse.json(
+      {
+        error: "Invalid mission payload",
+        details: parsed.error.flatten(),
+      },
+      { status: 400 },
+    );
+  }
+
+  const supabaseRoute = getRouteHandlerSupabaseClient();
+  const {
+    data: { session },
+  } = await supabaseRoute.auth.getSession();
+
+  const fallbackTenant = process.env.GATE_GA_DEFAULT_TENANT_ID;
+  const tenantId = parsed.data.tenantId ?? session?.user?.id ?? fallbackTenant;
+
+  if (!tenantId) {
+    return NextResponse.json(
+      {
+        error: "No tenant context provided",
+        hint: "Authenticate with Supabase or supply tenantId in the payload",
+      },
+      { status: 401 },
+    );
+  }
+
+  let guardrails: Record<string, unknown>;
+  try {
+    guardrails = coerceGuardrails(parsed.data.guardrails);
+  } catch (error) {
+    return NextResponse.json(
+      {
+        error: "Invalid guardrails JSON",
+        hint: (error as Error).message,
+      },
+      { status: 400 },
+    );
+  }
+
+  const serviceClient = getServiceSupabaseClient();
+  const payload: Database["public"]["Tables"]["objectives"]["Insert"] = {
+    tenant_id: tenantId,
+    created_by: session?.user?.id ?? null,
+    goal: parsed.data.goal,
+    audience: parsed.data.audience,
+    timeframe: parsed.data.timeframe,
+    guardrails: guardrails as Json,
+    status: "draft",
+    metadata: (parsed.data.metadata ?? {}) as Json,
+  };
+
+  const { data, error } = await serviceClient
+    .from("objectives")
+    .insert(payload)
+    .select("*")
+    .maybeSingle();
+
+  if (error) {
+    return NextResponse.json(
+      {
+        error: "Failed to create objective",
+        hint: error.message,
+      },
+      { status: 500 },
+    );
+  }
+
+  return NextResponse.json({ objective: data }, { status: 201 });
+}

@@ -1,1 +1,14 @@
-Composio SDK status placeholder. Run `python -m agent.tools.composio_client --status` and capture output here for gate reviews.
+Run the following command and paste the full output to document Composio catalog
+coverage for Gate G-A:
+
+```
+$ python -m agent.tools.composio_client --status
+```
+
+Expected fields:
+- API key presence
+- Total catalog entries
+- Toolkit count
+- Category count
+
+Update this file after executing the command in the gate rehearsal environment.
