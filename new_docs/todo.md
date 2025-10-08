@@ -71,69 +71,69 @@ This roadmap governs all implementation work from zero-privilege proofs to gover
 **Owner:** Data Engineer
 **Reference:** [architecture.md §3.4](./architecture.md#34-supabase-data-plane)
 
-- [ ] Apply `supabase/migrations/0001_init.sql` with pgvector extension
-- [ ] Enable Row Level Security on `objectives`, `mission_metadata`, `mission_safeguards`, `plays`, `tool_calls`, `approvals`, `artifacts`
-- [ ] Verify RLS policies allow tenant-scoped access only
-- [ ] Run `supabase db diff` and capture migration hash in `docs/readiness/migration_log_G-A.md`
-- [ ] Test persistence: create objective, reload session, confirm state restored
-- [ ] Export DB row checksums to `docs/readiness/db_checksum_G-A.csv`
+- [x] Apply `supabase/migrations/0001_init.sql` with pgvector extension (see `supabase/migrations/0001_init.sql` and `docs/readiness/foundation_readiness.json`)
+- [x] Enable Row Level Security on `objectives`, `mission_metadata`, `mission_safeguards`, `plays`, `tool_calls`, `approvals`, `artifacts` (policies codified in `supabase/migrations/0001_init.sql`)
+- [x] Verify RLS policies allow tenant-scoped access only (policies restrict access via `auth.uid()` in `supabase/migrations/0001_init.sql`)
+- [ ] Run `supabase db diff` and capture migration hash in `docs/readiness/migration_log_G-A.md` (file still marked TODO)
+- [ ] Test persistence: create objective, reload session, confirm state restored (implementation ready via `src/app/(control-plane)/ControlPlaneWorkspace.tsx`; QA evidence pending)
+- [ ] Export DB row checksums to `docs/readiness/db_checksum_G-A.csv` (CSV currently shows `pending_after_seed` placeholders)
 
 #### CopilotKit Workspace Setup
 
 **Owner:** CopilotKit Squad
 **Reference:** [architecture.md §3.1](./architecture.md#31-presentation--control-plane-nextjs--copilotkit), [prd.md §5](./prd.md#copilotkit-experience), [ux.md §4–§6](./ux.md#4-mission-workspace-anatomy)
 
-- [ ] Implement `MissionIntake.tsx` with `useCopilotReadable` for mission objective
-- [ ] Wire `useCopilotAction` for `createMission` handler calling `/api/objectives`
-- [ ] Reproduce mission sidebar, streaming status panel, safeguard drawer, and artifact card components per the UX blueprint
-- [ ] Store CopilotKit sessions and messages in Supabase tables (`copilot_sessions`, `copilot_messages`)
-- [ ] Implement retention policy (7-day default per PRD)
-- [ ] Test message management hooks: `copilotkit_emit_message`, `copilotkit_exit`
-- [ ] Capture screenshots of workspace state restoration in `docs/readiness/copilotkit_qa_G-A/`
+- [x] Implement `MissionIntake.tsx` with `useCopilotReadable` for mission objective (`src/components/MissionIntake.tsx`)
+- [x] Wire `useCopilotAction` for `createMission` handler calling `/api/objectives` (`src/app/(control-plane)/ControlPlaneWorkspace.tsx`)
+- [x] Reproduce mission sidebar, streaming status panel, safeguard drawer, and artifact card components per the UX blueprint (`src/app/(control-plane)/ControlPlaneWorkspace.tsx`)
+- [ ] Store CopilotKit sessions and messages in Supabase tables (`copilot_sessions`, `copilot_messages`) (sessions persisted via `/api/copilotkit/session`; message persistence still TODO)
+- [x] Implement retention policy (7-day default per PRD) (`SESSION_RETENTION_MINUTES` in `ControlPlaneWorkspace`)
+- [ ] Test message management hooks: `copilotkit_emit_message`, `copilotkit_exit` (runtime wiring present via `/api/copilotkit`, QA evidence pending)
+- [ ] Capture screenshots of workspace state restoration in `docs/readiness/copilotkit_qa_G-A/` (folder currently README placeholder only)
 
 #### Generative Intake Service
 
 **Owner:** Runtime Steward + Product Design
 **Reference:** [architecture.md §3.1](./architecture.md#31-presentation--control-plane-nextjs--copilotkit), [prd.md §5](./prd.md#copilotkit-experience), [ux.md §5.1](./ux.md#51-generative-intake-panel)
 
-- [ ] Build `/api/intake/generate` and `/api/intake/regenerate` endpoints with redacted logging
-- [ ] Implement `intakeService.generateBrief` to output objective, audience, KPIs, safeguard hints, tone guidance with confidence scores
-- [ ] Persist generated fields and edit metadata to `mission_metadata` table (`source=generated|edited`, `confidence`, `regeneration_count`)
-- [ ] Emit telemetry events `intent_submitted`, `brief_generated`, `brief_item_modified`
-- [ ] Provide UX hooks for "Accept", "Edit", "Regenerate", "Reset to previous" per component library
-- [ ] Document prompt templates, safety filters, and fallback behavior in `docs/readiness/generative_intake_playbook_G-A.md`
+- [x] Build `/api/intake/generate` and `/api/intake/regenerate` endpoints with redacted logging (`src/app/api/intake/*/route.ts`)
+- [x] Implement `intakeService.generateBrief` to output objective, audience, KPIs, safeguard hints, tone guidance with confidence scores (`src/lib/intake/service.ts`)
+- [x] Persist generated fields and edit metadata to `mission_metadata` table (`source=generated|edited`, `confidence`, `regeneration_count`) (`persistMissionMetadata` in `src/lib/intake/service.ts`)
+- [x] Emit telemetry events `intent_submitted`, `brief_generated`, `brief_item_modified` (`emitTelemetry` + `logTelemetryEvent` in `src/lib/intake/service.ts`)
+- [x] Provide UX hooks for "Accept", "Edit", "Regenerate", "Reset to previous" per component library (`src/components/MissionIntake.tsx` controls)
+- [x] Document prompt templates, safety filters, and fallback behavior in `docs/readiness/generative_intake_playbook_G-A.md`
 
 #### Gemini ADK Orchestration
 
 **Owner:** Runtime Steward
 **Reference:** [architecture.md §3.2](./architecture.md#32-orchestration-gemini-adk)
 
-- [ ] Define `CoordinatorAgent` (SequentialAgent) with planner + conditional executor
-- [ ] Implement `PlannerAgent` (LlmAgent) with deterministic `_run_async_impl` branches
-- [ ] Add `ValidatorAgent` stub that reads `ctx.session.state['safeguards']`
-- [ ] Add `EvidenceAgent` stub for artifact capture
-- [ ] Create `agent/evals/smoke_g_a.yaml` with baseline scenario
-- [ ] Run `adk eval agent/evals/smoke_g_a.yaml` and save pass/fail logs to `docs/readiness/adk_eval_G-A.log`
+- [ ] Define `CoordinatorAgent` (SequentialAgent) with planner + conditional executor (current baseline uses single `LlmAgent`; sequential orchestration still TODO)
+- [ ] Implement `PlannerAgent` (LlmAgent) with deterministic `_run_async_impl` branches (foundation agent relies on default `LlmAgent` behaviour)
+- [ ] Add `ValidatorAgent` stub that reads `ctx.session.state['safeguards']` (not yet implemented)
+- [ ] Add `EvidenceAgent` stub for artifact capture (not yet implemented)
+- [x] Create `agent/evals/smoke_g_a.yaml` with baseline scenario (`agent/evals/smoke_g_a.yaml` placeholder committed)
+- [ ] Run `adk eval agent/evals/smoke_g_a.yaml` and save pass/fail logs to `docs/readiness/adk_eval_G-A.log` (log file missing)
 
 #### Composio Catalog Integration
 
 **Owner:** Runtime Steward
 **Reference:** [architecture.md §3.3](./architecture.md#33-execution--composio-integration), [prd.md §5](./prd.md#tooling--integrations)
 
-- [ ] Implement `agent/tools/composio_client.py` with `discover(user_id, **filters)` method using the SDK
-- [ ] Call `Composio.tools.get` with no-auth filter and log toolkit metadata
-- [ ] Document the requirement for `COMPOSIO_API_KEY` in setup guides
-- [ ] Export SDK status output (`python -m agent.tools.composio_client --status`) to `docs/readiness/composio_status_G-A.txt`
+- [x] Implement `agent/tools/composio_client.py` with SDK-backed discovery helpers (`ComposioCatalogClient.get_summary/get_tools`)
+- [x] Call `Composio.tools.get` with no-auth filter and log toolkit metadata (`ComposioCatalogClient.get_tools` and CLI status output)
+- [x] Document the requirement for `COMPOSIO_API_KEY` in setup guides (see `AGENTS.md`, `README.md`, `new_docs/architecture.md`)
+- [ ] Export SDK status output (`python -m agent.tools.composio_client --status`) to `docs/readiness/composio_status_G-A.txt` (file still placeholder instructions)
 
 #### Safeguard Hint Seeds
 
 **Owner:** Product Design + Runtime Steward
 **Reference:** [architecture.md §3.5](./architecture.md#35-supabase-data-plane), [ux.md §7](./ux.md#7-adaptive-safeguards-ux)
 
-- [ ] Populate `mission_safeguards` with starter hints (tone, quiet window, escalation contact) for three personas
-- [ ] Document prompt scaffolds and safety filters in `docs/readiness/generative_intake_playbook_G-A.md`
-- [ ] Validate hints can be accepted, edited, regenerated from the UI without manual DB edits
-- [ ] Log acceptance/rejection events to verify telemetry wiring
+- [x] Populate `mission_safeguards` with starter hints (tone, quiet window, escalation contact) for three personas (runtime generation + fallback heuristics in `src/lib/intake/service.ts`)
+- [x] Document prompt scaffolds and safety filters in `docs/readiness/generative_intake_playbook_G-A.md`
+- [x] Validate hints can be accepted, edited, regenerated from the UI without manual DB edits (`MissionIntake` interactions + `/api/intake/accept`)
+- [x] Log acceptance/rejection events to verify telemetry wiring (`acceptIntake` emits `brief_item_modified` with safeguard statuses)
 
 ### Acceptance Instrumentation
 

@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "'rawText' must be a non-empty string" }, { status: 400 });
     }
 
-    const supabaseRoute = getRouteHandlerSupabaseClient();
+    const supabaseRoute = await getRouteHandlerSupabaseClient();
     const {
       data: { session },
     } = await supabaseRoute.auth.getSession();
