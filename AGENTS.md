@@ -1,6 +1,6 @@
 # AI Employee Control Plane — Agent Guide
 
-This repository hosts the Gate G-A foundation for the AI Employee Control Plane. The system pairs a Next.js CopilotKit workspace with a packaged Gemini ADK backend, Supabase migrations, and readiness evidence scripts. Use this guide to stay aligned with the guardrails, build steps, and verification flows described in `new_docs/`.
+This repository hosts the Gate G-A foundation for the AI Employee Control Plane. The system pairs a Next.js CopilotKit workspace with a packaged Gemini ADK backend, Supabase migrations, and catalog parsing helpers. Use this guide to stay aligned with the guardrails, build steps, and verification flows described in `new_docs/`.
 
 ## Environment & Tooling
 - Prefer **mise** to hydrate toolchains. Run `mise trust` (once), then `mise install` and `mise env activate` so Node 22, Python 3.13, pnpm, and uv match `.mise.toml`.
@@ -20,7 +20,6 @@ This repository hosts the Gate G-A foundation for the AI Employee Control Plane.
 - UI lint/type checks: `mise run lint`
 - (Future) add unit tests under `agent/tests/` and run via `pnpm test` / `pytest`; keep placeholders updated as testing harness lands.
 - Smoke-check the Python package after edits: `mise exec python -- -m compileall agent`
-- Generate the Gate G-A evidence bundle when migrations or control-plane UI change: `python scripts/generate_foundation_readiness.py > docs/readiness/foundation_readiness.json`
 
 ## Code Style & Patterns
 - **TypeScript**: stick to strict mode defaults (`tsconfig`), use single quotes and trailing commas, no implicit `any`. Favor functional React patterns and avoid class components.
@@ -30,11 +29,11 @@ This repository hosts the Gate G-A foundation for the AI Employee Control Plane.
 
 ## Domain Guidance
 - Use `new_docs/architecture.md` and `guardrail_policy_pack.md` to validate new planner/validator behavior. Gate G-A assumes dry-run only (no OAuth sends).
-- Composio catalog metadata is parsed from `libs_docs/composio/llms.txt`. If you refresh upstream docs, rerun the readiness script to capture the checksum.
-- Supabase schema changes must retain RLS. Update `supabase/migrations/` and ensure `foundation_readiness.json` reflects the new migration hash.
+- Composio catalog metadata is parsed from `libs_docs/composio/llms.txt`. If you refresh upstream docs, rerun your chosen validation workflow so planners see the latest catalog snapshot.
+- Supabase schema changes must retain RLS. Update `supabase/migrations/` and keep downstream validation assets in sync.
 
 ## When Editing
-- Update `docs/readiness/` artifacts whenever migrations, catalog parsing, or shared state scaffolding change. The stored JSON is the machine-checked proof for Governance Sentinel.
+- Keep any gate-specific evidence assets up to date as they are introduced by future milestones.
 - Touching `agent/agents/control_plane.py`? Confirm the CopilotKit UI still renders mission/artifact data (`pnpm dev` + browser check) and keep instructions aligned with Gate G progression.
 - Coordinate copy or UX tweaks with the PRD (`new_docs/prd.md`) so Gate definitions (G-A → G-F) remain traceable.
 

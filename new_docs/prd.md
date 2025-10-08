@@ -36,6 +36,8 @@ Deliver an objective-first AI employee that plans, executes, and learns like a t
 
 - **Objective intake:** Structured prompts capture goal, audience, timeframe, and guardrails, producing an editable mission brief.
 - **Capability grounding:** The agent surfaces relevant MCP servers and toolkits, highlighting no-auth vs. OAuth requirements for approval.
+- **Semantic tool search:** Mission planners query the Composio catalog in-context using `tools.get(search=..., limit=...)` and `tools.get_raw_composio_tools(...)`, allowing the workspace (or an upstream LLM) to converse about candidate actions (“hubspot organize contacts”, “repository issues”) before permissions are granted.
+- **Trigger-ready plays:** Planner recommendations include event-driven workflows by querying Composio trigger types; users can opt into MCP-triggered automations (e.g., “GitHub issue created”, “Slack reaction added”) with the same approval rigor.
 - **Plan proposals:** Users receive Top-3 Predicted Jobs and Play candidates with Why, Impact, Risk, Proof, and Undo narratives.
 - **Dry-run proof packs:** Zero-privilege mode generates drafts, lists, and schedules for stakeholder review before live permissions.
 - **Governed activation:** Connected mode executes the same plays through confirmed MCP toolkits with approvals, caps, and quiet hours enforced.

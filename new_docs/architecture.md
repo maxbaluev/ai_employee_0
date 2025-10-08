@@ -59,7 +59,8 @@ This architecture builds on the baseline and introduces the control-plane layers
   - `ValidatorAgent`: Performs tone checks, ROI sanity, compliance gating before destructive actions.
   - `EvidenceAgent`: Captures outputs, metrics, and rollback context.
 - **Workflow Patterns:** Sequential agents for draft→critique→revise, Loop agents for iterative enrichment, conditional branches for guardrail triggers.
-- **Tool Invocation:** Integrate Composio Python SDK from executor agents; enforce retry with exponential backoff, rate hints, and latency metrics.
+- **Tool Invocation:** Executors follow the Composio Quickstart handshake: initiate `toolkits.authorize()` for a user, await `wait_for_connection()`, fetch schemas with `tools.get()`, and pass those structured tool definitions into whichever LLM runtime is driving the mission. Python agents lean on `composio.Composio` plus `provider.handle_tool_calls()` while TypeScript counterparts import `@composio/core` (and optional provider packages such as `@composio/anthropic`). All flows must record redirect URLs, connection IDs, and toolkit slug metadata.
+- **Session Customisation:** When a mission requires per-run headers (tenant routing, correlation IDs, sandbox toggles), agents instantiate scoped SDK sessions via `Composio.createSession({ headers })` rather than mutating global clients.
 - **Fallback Handling:** Map provider errors (invalid_scope, quota exceeded) to actionable CopilotKit prompts.
 
 ### 4.3 Governance & Safety Subsystem
@@ -119,7 +120,7 @@ This architecture builds on the baseline and introduces the control-plane layers
 
 ## 7. Deployment Architecture
 - **Frontend:** Next.js app deployed on Vercel (or similar) with CopilotKit provider; integrates PostgREST endpoints and Supabase client for secure data access.
-- **Agent Backend:** Python ADK project with LangGraph runtime; preferred managed deployment on LangGraph Platform for observability, fallback to containerized FastAPI on Cloud Run.
+- **Agent Backend:** Python ADK services deployed on ADK Platform (preferred) with observability hooks; fallback to containerized FastAPI on Cloud Run.
 - **Supabase:** Managed Postgres with pgvector extension, Row Level Security, Edge Functions for OAuth callbacks, and Realtime channels for approvals and dashboards.
 - **Composio Runtime:** SDK within agent backend; periodic catalog sync job caches toolkit metadata in Supabase; execution uses governed MCP servers.
 - **Observability:** Use ADK logging, Supabase metrics, and CopilotKit session traces; aggregate into centralized monitoring.
@@ -127,20 +128,21 @@ This architecture builds on the baseline and introduces the control-plane layers
 ## 8. Integration Patterns
 
 ### 8.1 Composio MCP
-- **Discovery:** Nightly job refreshes toolkit metadata (tags, auth requirements) referencing cookbook categories (CRM, analytics, finance, Trello).
+- **Discovery:** Nightly job refreshes toolkit metadata (tags, auth requirements) referencing cookbook categories (CRM, analytics, finance, Trello), and supports conversational semantic search via `tools.get(search=..., limit=...)` and `tools.get_raw_composio_tools()` for upstream LLMs.
 - **Authentication:** Composio AgentAuth handles OAuth; Supabase Edge Functions store tokens; UI highlights scope lists and connection health.
-- **Execution:** Executors call `composio.invoke` with structured args; backoff strategies respect provider rate hints; results linked to artifacts.
+- **Execution:** Executors call the Composio SDK (`tools.execute()` in Python or `tools.execute()` / `composio.provider.handleToolCalls()` in TypeScript) with structured args; they reuse cached toolkit metadata where possible, apply SDK-level retry helpers, and capture response envelopes for evidence.
+- **Eventing & Triggers:** Trigger discovery (`triggers.list_types`, `triggers.getType`) and subscription (`triggers.create`, `triggers.subscribe`) are wired into planners so conversations can reason about event-based workflows. Trigger events feed evidence tables alongside tool calls.
 - **Use-Case Surfacing:** UI references Assista AI, Fabrile, and AgentArena case studies to illustrate value and trust.
 
 ### 8.2 CopilotKit CoAgents
-- **Shared State:** LangGraph agents expose context to front end, enabling collaborative editing of mission briefs and artifact drafts.
+- **Shared State:** ADK agents expose context to the front end, enabling collaborative editing of mission briefs and artifact drafts.
 - **Human Checkpoints:** `interrupt()` nodes trigger approval modals for sends, charges, or code changes.
 - **Generative UI:** Real-time previews of drafts, dashboards, and undo plans; integrates CopilotKit chat, Agentic Chat UI, and frontend actions.
 
-### 8.3 Gemini ADK (with LangGraph)
-- **Agent Composition:** Coordinator, Planner, Executor, Validator, Evidence agents defined via ADK; orchestrated with LangGraph for branching and loop control.
+### 8.3 Gemini ADK Runtime
+- **Agent Composition:** Coordinator, Planner, Executor, Validator, Evidence agents defined via ADK; ADK orchestrates branching, looping, and guardrail interrupts.
 - **Testing & Evaluation:** ADK eval tooling ensures deterministic dry-run outputs before enabling governed mode.
-- **Deployment:** CI/CD packages ADK project to LangGraph Platform or Cloud Run; environment variables include `COMPOSIO_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `OPENAI_API_KEY` (if used for prompting).
+- **Deployment:** CI/CD packages the ADK project to the ADK Platform or Cloud Run; environment variables include `COMPOSIO_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `OPENAI_API_KEY` (if used for prompting).
 
 ### 8.4 Supabase Platform
 - **Data Plane:** Postgres schema with RLS, vector storage, and PostgREST APIs; integrates seamlessly with Next.js via service role on server and anon keys on client.
@@ -153,7 +155,7 @@ Agents advance through the following capability states. Each state must satisfy 
 
 ### State A — Foundation Ready
 - Supabase project provisioned with schema, RLS, and pgvector enabled.
-- ADK coordinator and planner agents reachable through LangGraph runtime.
+- ADK coordinator and planner agents reachable through ADK runtime endpoints.
 - CopilotKit shell exposes mission intake, shared state, and artifact preview surfaces.
 - Composio catalog sync job caches `no_auth` discovery data for planners.
 
@@ -186,12 +188,12 @@ Agents advance through the following capability states. Each state must satisfy 
 - **Tool Overload:** Curate recommended toolkits per persona; use CopilotKit suggestions and Supabase vector ranks to surface relevant plays.
 - **Governance Drift:** Enforce approvals, audit logs, and regular guardrail testing; provide dashboards for governance officers.
 - **Partner Dependency:** Schedule quarterly roadmap syncs with Composio, CopilotKit, ADK, and Supabase teams; maintain abstraction layers in orchestration code.
-- **Scalability Spikes:** Use Supabase's scalable PostgREST, Supabase Edge caching, and ADK autoscaling on LangGraph Platform or Cloud Run autoscaling configurations.
+- **Scalability Spikes:** Use Supabase's scalable PostgREST, Supabase Edge caching, and ADK autoscaling on ADK Platform or Cloud Run autoscaling configurations.
 
 ## 11. Appendix — Key References
 - **Business PRD:** `new_docs/prd.md`
 - **Composio Resources:** `libs_docs/composio/llms.txt` — case studies (Assista AI, Fabrile), cookbook categories (CRM, analytics, finance, Trello MCP).
-- **CopilotKit CoAgents:** `libs_docs/copilotkit/llms-full.txt` — standard vs CoAgents, human-in-the-loop patterns, LangGraph integration.
+- **CopilotKit UX:** `libs_docs/copilotkit/llms-full.txt` — mission intake, approvals, generative surfaces, ADK integration patterns.
 - **Gemini ADK:** `libs_docs/adk/llms-full.txt` — multi-agent composition, deployment patterns, evaluation tooling.
 - **Supabase AI Toolkit:** `libs_docs/supabase/llms_docs.txt` — pgvector, Edge Functions, PostgREST, AI templates and integrations.
 - **Readiness Artifacts:** `new_docs/readiness_artifact_schemas.md` — machine-readable evidence packages for gate progression (store output locally under `docs/readiness/` and in Supabase storage).

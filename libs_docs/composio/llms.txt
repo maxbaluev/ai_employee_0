@@ -1,436 +1,157 @@
-# composio.dev llms.txt
+# Composio LLM Field Guide (Gate G-A)
 
-- [Assista AI Case Study](https://composio.dev/blog/assista-case-study): Showcase how Composio helped Assista AI reduce go-to-market time by 90% with efficient app integrations.
-- [Automation Recipes Cookbook](https://composio.dev/cookbook): Provide recipes to automate workflows integrating AI agents with tools like Slack and Google Calendar.
-- [Composio AI Agent Platform](https://composio.dev): Provides a platform for developers to easily integrate and manage AI agents interacting with thousands of tools via APIs.
-- [Claude Code with MCP](https://composio.dev/blog/cluade-code-with-mcp-is-all-you-need): Describe building an invoice management MVP in one day using Claude Code and MCP for efficient developer workflows.
-- [Assista AI Case Study](https://composio.dev/case-study/assista-case-study): Showcase how Composio accelerated Assista AI's app integration and reduced go-to-market time by 90%.
-- [Agent Authentication Solution](https://composio.dev/agentauth): Securely connect and authenticate agents to various toolkits with seamless OAuth and built-in features for developers.
-- [Setup Trello MCP Server](https://composio.dev/blog/how-to-setup-trello-mcp-server-with-claude-and-cursor-for-efficient-task-tracking): Guide to setting up Trello MCP server with Claude and Cursor for automated and efficient task tracking.
-- [Composio Supports AgentArena](https://composio.dev/case-study/gorilla-agentarena): Describe how Composio enabled UC Berkeley's Gorilla team to integrate AI agents with external apps for AgentArena.
-- [Composio Privacy Policy](https://composio.dev/privacy): Explain Composio's data collection, use, and protection policies for user privacy on their iPaaS platform.
-- [E-commerce Automation Recipes](https://composio.dev/cookbook-categories/e-commerce): Showcase and provide recipes for automating e-commerce workflows using Composio's AI agent integrations.
-- [Developer Tools & DevOps](https://composio.dev/cookbook-categories/developer-tools-devops): Showcase Composio's developer tools and DevOps automation recipes integrating AI agents with popular toolkits.
-- [Analytics & Data Automations](https://composio.dev/cookbook-categories/analytics-data): Provide resources and recipes to automate workflows integrating AI agents with various data and analytics tools.
-- [Composio Supports AgentArena](https://composio.dev/blog/gorilla-agentarena): Explain how Composio enabled UC Berkeley's Gorilla team to build AI agents with real-world app integrations for AgentArena.
-- [Composio CRM Automations](https://composio.dev/cookbook-categories/crm): Showcases Composio CRM automations integrating AI with tools like Slack and Google Calendar to enhance workflow efficiency.
-- [Design Creative Tools](https://composio.dev/cookbook-categories/design-creative-tools): Showcase and provide resources for building design and creative tool automations using Composio recipes and integrations.
-- [Fabrile Integration Case Study](https://composio.dev/blog/ingram-case-study): Showcases how Fabrile used Composio to rapidly integrate Google apps, saving time and gaining traction at tech events.
-- [AI Integration Blog](https://composio.dev/blog): Share insights and guides on building AI agents and integrations using MCP and related AI technologies.
-- [Composio Pricing Plans](https://composio.dev/pricing): Display detailed pricing plans and features for Composio's scalable LLM integration services.
-- [Field Guide to AI Tools](https://composio.dev/blog/how-to-build-tools-for-ai-agents-a-field-guide): Guide on designing effective AI agent tools through naming, scopes, descriptions, parameters, and iterative improvements.
-- [AI Integration Case Studies](https://composio.dev/case-study): Showcase AI integration case studies demonstrating Composio's solutions and success stories.
-- [Enterprise LLM Solutions](https://composio.dev/enterprise): Offer scalable, secure, and compliant LLM agentic solutions with enterprise-grade features and dedicated support.
-- [Terms of Service](https://composio.dev/terms): Outline the legal terms, conditions, and policies governing the use of Composio's platform and services.
-- [Build AI Agent with MCP](https://composio.dev/blog/how-to-build-your-first-ai-agent-with-mcp-in-rust): Guide to building a multi-agent AI system in Rust using MCP for tool integration and orchestration.
-- [AI & Machine Learning Cookbook](https://composio.dev/cookbook-categories/ai-machine-learning): Provide AI and machine learning automation recipes and integrations for real workflow enhancements using Composio.
-- [Composio for Startups](https://composio.dev/startups): Provide credits, support, and resources to eligible startups for building software products.
-- [Collaboration Automations](https://composio.dev/cookbook-categories/collaboration): Showcase and provide AI automation recipes integrating tools like Slack and Google Calendar for improved collaboration.
-- [Education LMS Automations](https://composio.dev/cookbook-categories/education-lms): Showcase automation recipes and integrations for education LMS using Composio's AI agent platform.
-- [Entertainment Media Automations](https://composio.dev/cookbook-categories/entertainment-media): Provide automation recipes and integrations for AI workflows in entertainment and media.
-- [File Management Automations](https://composio.dev/cookbook-categories/file-management): Showcase Composio's file management automation recipes and integration capabilities with various toolkits.
-- [Fabrile Google Integration Case Study](https://composio.dev/case-study/ingram-case-study): Showcase Fabrile's rapid integration of Google apps using Composio, enabling AI-driven workflows and startup success.
-- [Finance Automation Recipes](https://composio.dev/cookbook-categories/finance-accounting): Provide finance and accounting automation recipes and integration tools for AI workflows.
+Use this index whenever you plan or execute Composio-powered missions. It distills the current docs (pulled October 7, 2025) into the flows Gate G-A needs.
 
+## 1. Primary References
+- Quickstart (authenticated tool calling workflow): https://docs.composio.dev/docs/quickstart
+- Python SDK reference (`composio.Composio`, models, modifiers): https://docs.composio.dev/sdk-reference/python/python-sdk-reference
+- TypeScript SDK reference (`@composio/core` Composio class): https://docs.composio.dev/sdk-reference/type-script/core-classes/composio
+- Executing tools guide (provider-agnostic examples & user scoping): https://docs.composio.dev/docs/executing-tools
+- Authenticating tools (auth configs, connect links, direct flows): https://docs.composio.dev/docs/authenticating-tools
+- Providers index (OpenAI, Anthropic, Google, Vercel AI): https://docs.composio.dev/providers
+- ROI case studies (Assista AI, Fabrile, AgentArena): https://docs.composio.dev/case-study
+- Compliance & pricing: https://composio.dev/privacy | https://composio.dev/terms | https://composio.dev/pricing
 
-# llms-full.txt
-# Comprehensive, LLM-friendly documentation index for using Composio with agents and MCP.
-# Version: 1.0
-# Last-Updated: 2025-10-07
-# Project-Owner: <Your org / product name>
-# Preferred-Name: Composio Integrations (LLM/Agent Access)
-# Contact: support@<your-domain> | security@<your-domain>
+## 2. Core Workflow (Agents MUST follow)
+1. **Discovery** – planners sync toolkit metadata nightly (`toolkits.list`, `tools.get_raw`) so play selection can filter by tags, auth type (`no_auth` vs `oauth`), rate hints, and scopes.
+2. **Auth Config Prep** – auditors create/inspect auth configs via dashboard or SDK (`auth_configs.list/get`). Record required fields for each toolkit.
+3. **Quickstart Handshake** – for every governed execution:
+   - Call `toolkits.authorize(user_id, toolkit)` (or `connected_accounts.initiate/link`).
+   - Persist the returned `redirect_url` + `connection.id` to Supabase evidence (`connected_accounts`, `tool_calls`).
+   - Block until `connection.wait_for_connection()` resolves. Guardrail pack §4 requires this before any tool runs.
+4. **Tool Fetch & Invoke** – pull structured schemas with `tools.get(user_id, toolkits=[...])`; forward them into the runtime (OpenAI, Anthropic, Vercel AI, etc.). After the LLM emits tool calls, invoke:
+   - Python: `composio.provider.handle_tool_calls(response=response, user_id=user_id)` or `tools.execute(...)` for manual calls.
+   - TypeScript: `composio.provider.handleToolCalls(userId, completion)` or `tools.execute(...)`.
+   - Capture latency, inputs, outputs, and undo plan JSON in Supabase evidence tables.
+5. **Session Isolation** – when tenant-specific headers or sandbox flags are required use scoped sessions (`Composio.createSession({ headers })` in TS, or instantiate a new `Composio(..., headers={})` in Py). Never mutate the global client.
+6. **Retry / Rate Handling** – obey SDK retries; on `rate_limited` apply exponential backoff (base 2, max 5). Surface CopilotKit interrupts for `invalid_scope`, quota, or quiet-hour conflicts.
+7. **MCP & IDE Flows** – if an IDE uses MCP, either connect to Composio’s packaged MCP server or wrap selected toolkits so MCP tool invocations proxy to `tools.execute`.
 
-###############################################################################
-## 0) WHAT THIS FILE IS
-###############################################################################
-# This is a single, machine- and human-readable file designed for LLMs/agents.
-# It explains how to use Composio to discover, authenticate, and call third-
-# party tools (SaaS apps, cloud APIs, developer services) from your agents.
-#
-# Use this file when:
-# - Building planners that must automatically find and configure tools
-# - Running quick demos with no-auth or sandbox tools
-# - Implementing OAuth quickly for “real” integrations
-# - Selecting toolkits for cold outreach, research, coding, and CRM workflows
-#
-# A short index is available at /llms.txt (recommended for small contexts).
-# This “full” file contains expanded instructions, safety notes, and examples.
+## 3. Provider Specifics
+- **OpenAI** (default): install `composio_openai` or `@composio/openai`; feed `tools.get()` results into Chat Completions/Responses and finish with `handle_tool_calls`.
+- **Anthropic**: install `@composio/anthropic`; compose with `AnthropicProvider` + `messages.create`; finish via `handleToolCalls`.
+- **Vercel AI SDK**: use `@composio/vercel` + `generateText`; wait for connection before prompt.
+- **OpenAI Agents (Python)**: `composio_openai_agents` + `Runner.run` workflow; evidence agent must log undo plans.
 
-###############################################################################
-## 1) TL;DR
-###############################################################################
-# - Composio exposes curated toolkits (collections of tools) and single tools.
-# - Each tool describes its schema (names, params, auth type, rate hints).
-# - Many tools require OAuth scopes; some are “no_auth” for rapid demos.
-# - Your agent should: PLAN → SELECT TOOL(S) → AUTH (if needed) → EXECUTE →
-#   VALIDATE → PERSIST → RETRY (if transient error).
-# - Recommended stacks: LangGraph, CrewAI, OpenAI/Anthropic tools, Gemini ADK.
-# - For MCP (Model Context Protocol), you can discover and use tools via a
-#   Composio server or SDK adapters.
+## 4. Governance Hooks (map to guardrail pack §4)
+- Store redirect URLs, connection IDs, chosen scopes, and toolkit slugs for every auth attempt.
+- Keep Supabase `connected_accounts` rows synchronized with connection status from Composio.
+- Never expose raw tokens; comply with Supabase RLS + redaction requirements.
 
-###############################################################################
-## 2) KEY CONCEPTS
-###############################################################################
-# Tool            : A single API capability (e.g., “create_issue”, “send_email”).
-# Toolkit         : A group of related tools for a service (e.g., “GitHub,” “Gmail”).
-# no_auth         : Tools that can run without user credentials (best for demos).
-# OAuth           : User-consented auth with scopes (production-grade access).
-# Provider        : The external service (Google, GitHub, Slack, Notion, etc.).
-# Capability meta : JSON describing name, args schema, auth type, rate limits.
+## 5. Common Snippets
 
-###############################################################################
-## 3) DISCOVERY (HOW AGENTS FIND TOOLS)
-###############################################################################
-# Your agent should:
-# 1) Query Composio for available toolkits and tools.
-# 2) Filter by:
-#    - no_auth=true (for demos) vs oauth (for real accounts)
-#    - Capability keywords (e.g., “crm”, “email”, “docs”, “calendar”)
-# 3) Optionally ask the user to confirm selected toolkits.
-#
-# Pseudocode:
-#   - list_toolkits()         -> [{id, name, description, auth_type, tags, ...}]
-#   - list_tools(toolkit_id)  -> [{name, args_schema, auth, rate_notes, ...}]
-#   - get_tool(name)          -> details for a single tool
-#
-# Planner guidance:
-# - Prefer toolkits that match the user’s ecosystem (e.g., HubSpot vs Salesforce).
-# - If multiple providers exist, rank by required scopes + data locality.
+### Python Quickstart
+```python
+from composio import Composio
+from composio_openai import OpenAIProvider
+from openai import OpenAI
 
-###############################################################################
-## 4) AUTHENTICATION
-###############################################################################
-# Modes
-# - no_auth: Ideal for demos; may be read-only or sandboxed; limited scope.
-# - oauth:   Standard production flow; obtain tokens per user/tenant.
-#
-# OAuth Checklist:
-# - Server-side exchange ONLY: never expose client secrets in browsers.
-# - Request minimal scopes; save refresh tokens securely per tenant.
-# - Rotate tokens; handle revocation; log consent time & scopes.
-#
-# UI Flows:
-# - “Connect <Provider>” button → redirect to provider auth → callback to your
-#   server → persist credentials → show “Connected” state with scopes list.
+user_id = "user-123"
+composio = Composio(provider=OpenAIProvider())
+openai = OpenAI()
 
-###############################################################################
-## 5) RUNTIME SAFETY & PERMISSIONS
-###############################################################################
-# - Never send service role keys from your backend to clients or LLMs.
-# - Enforce per-tenant isolation in your DB (e.g., RLS if using Postgres).
-# - Surface “dry-run” preview when possible; ask user confirmation for mutating
-#   actions (delete, send, post, charge).
-# - Guardrails:
-#   - Rate-limiting per user/tenant/provider
-#   - Size caps on payloads and attachment uploads
-#   - Redaction for secrets/PII in logs and prompts
-# - Always record: who initiated, which tool, args, result, latency, errors.
+connection = composio.toolkits.authorize(user_id=user_id, toolkit="gmail")
+print("Authorize at:", connection.redirect_url)
+connection.wait_for_connection()
 
-###############################################################################
-## 6) COST & RATE HINTS
-###############################################################################
-# - Many providers throttle; build exponential backoff with jitter.
-# - Cache idempotent GETs (e.g., metadata, list endpoints).
-# - Batch writes where allowed (e.g., bulk upserts).
-# - Prefer webhooks for high-volume updates instead of polling.
+tools = composio.tools.get(user_id=user_id, toolkits=["GMAIL"])
+completion = openai.chat.completions.create(
+    model="gpt-4o",
+    messages=[{"role": "user", "content": "Send a recap"}],
+    tools=tools,
+)
+result = composio.provider.handle_tool_calls(response=completion, user_id=user_id)
+print(result)
+```
 
-###############################################################################
-## 7) SDK INSTALL (PY & TS)
-###############################################################################
-# Python:
-#   pip install composio
-# TypeScript/Node:
-#   npm i composio
-#
-# Environment:
-#   COMPOSIO_API_KEY=<if applicable>
-#   OAUTH_CLIENT_ID=<per provider>  OAUTH_CLIENT_SECRET=<per provider>
-#   OAUTH_REDIRECT_URI=https://<your-domain>/api/oauth/callback
+### TypeScript Quickstart
+```ts
+import { Composio } from '@composio/core';
+import { OpenAIProvider } from '@composio/openai';
+import OpenAI from 'openai';
 
-###############################################################################
-## 8) QUICKSTART — PYTHON
-###############################################################################
-# Discover + pick a no_auth tool for a quick demo:
-# (Note: API names are representative; adapt to current SDK)
-"""
+const userId = 'user-123';
+const composio = new Composio({
+  apiKey: process.env.COMPOSIO_API_KEY,
+  provider: new OpenAIProvider(),
+});
+const session = composio.createSession({ headers: { 'x-tenant-id': 'tenant-42' } });
+
+const connection = await session.toolkits.authorize(userId, 'GMAIL');
+console.log('Authorize at', connection.redirectUrl);
+await connection.waitForConnection();
+
+const tools = await session.tools.get(userId, { toolkits: ['GMAIL'] });
+const openai = new OpenAI();
+const completion = await openai.chat.completions.create({
+  model: 'gpt-4o',
+  messages: [{ role: 'user', content: 'Schedule a follow-up with the team' }],
+  tools,
+});
+const result = await session.provider.handleToolCalls(userId, completion);
+console.log(result);
+```
+
+### Python Trigger Subscribe + Handle
+```python
 from composio import Composio
 
-c = Composio(api_key=os.environ.get("COMPOSIO_API_KEY"))
+user_id = "user-123"
+composio = Composio()
 
-# 1) Find demo-friendly tools
-toolkits = c.list_toolkits(filters={"no_auth": True})
-# 2) Pick a tool
-tool = c.get_tool("web.search")  # example: a read-only search tool
-# 3) Execute
-resp = tool.invoke({"query": "latest CRM cold outreach tips"})
-print(resp)
-"""
-#
-# OAuth example sketch (server-side):
-"""
-# 1) Create connect URL for a provider toolkit (e.g., 'hubspot')
-url = c.oauth_authorize_url(provider="hubspot", state=session_id, scopes=["crm.objects.contacts.read", "crm.objects.contacts.write"])
+# Create trigger instance for GitHub star events
+trigger = composio.triggers.create(
+    slug="GITHUB_STAR_ADDED_EVENT",
+    user_id=user_id,
+    connected_account_id="github-account-id"
+)
 
-# 2) Redirect user to `url`. After consent, provider calls your redirect URI
-#    with `code` and `state`.
-tokens = c.oauth_exchange_code(provider="hubspot", code=request.args["code"])
-# Persist tokens keyed by user/tenant securely.
-"""
+# Subscribe (long-poll or async loop)
+with composio.triggers.subscribe(timeout=30) as stream:
+    for event in stream:
+        if event.trigger_id == trigger.id:
+            print(f"{event.data['repository_name']} starred by {event.data['starred_by']}")
+```
 
-###############################################################################
-## 9) QUICKSTART — TYPESCRIPT
-###############################################################################
-# Discover + invoke:
-"""
-import { Composio } from "composio";
+### TypeScript Trigger Subscribe + Types
+```ts
+import { Composio } from '@composio/core';
+import type { TriggerEvent } from '@composio/core';
 
-const c = new Composio({ apiKey: process.env.COMPOSIO_API_KEY });
+const composio = new Composio({ apiKey: process.env.COMPOSIO_API_KEY });
 
-// 1) Find a toolkit by tag
-const toolkits = await c.listToolkits({ tags: ["crm"] });
-
-// 2) Inspect its tools
-const tools = await c.listTools({ toolkitId: toolkits[0].id });
-
-// 3) Choose a no-auth tool for demo
-const webSearch = tools.find(t => t.name === "web.search" && t.auth === "no_auth");
-
-// 4) Invoke
-const result = await c.invoke("web.search", { query: "renewal email templates" });
-console.log(result);
-"""
-
-# OAuth (server-side outline):
-"""
-// Step 1: Create connect URL
-const url = c.oauthAuthorizeUrl({
-  provider: "hubspot",
-  scopes: ["crm.objects.contacts.read", "crm.objects.contacts.write"],
-  state: sessionId
+const trigger = await composio.triggers.create({
+  slug: 'GITHUB_STAR_ADDED_EVENT',
+  userId: 'user-123',
+  connectedAccountId: 'github-account-id'
 });
-// Redirect user -> url
 
-// Step 2: Callback
-const tokens = await c.oauthExchangeCode({
-  provider: "hubspot",
-  code: req.query.code as string
-});
-// Save tokens per tenant, encrypted at rest.
-"""
+type GitHubStarPayload = {
+  action: 'created';
+  repository_name: string;
+  starred_by: string;
+};
 
-###############################################################################
-## 10) MCP (MODEL CONTEXT PROTOCOL) USAGE
-###############################################################################
-# Options:
-# - Connect to a Composio-backed MCP server exposing tools to IDEs/agents.
-# - Or build a thin MCP adapter around selected Composio toolkits.
-#
-# Agent guidance:
-# - Discover available MCP tools, then map to Composio execute calls.
-# - Use MCP’s tool signatures when present; otherwise fall back to Composio
-#   schemas. Keep names consistent to help planners.
-#
-# Plan:
-#   - enumerate_mcp_tools()
-#   - map_to_composio(tool_name) -> (toolkit_id, tool_name)
-#   - if oauth_required(tool): ensure credentials exist; else prompt connect
-#   - invoke → verify → log result → handle errors
+for await (const event of composio.triggers.subscribe<GitHubStarPayload>()) {
+  if (event.triggerId === trigger.id) {
+    console.log(`${event.data.repository_name} starred by ${event.data.starred_by}`);
+  }
+}
+```
 
-###############################################################################
-## 11) CAPABILITY SCHEMA (WHAT TO EXPECT)
-###############################################################################
-# Typical tool JSON (illustrative):
-# {
-#   "name": "crm.create_contact",
-#   "description": "Create a contact",
-#   "auth": "oauth",                 # or "no_auth"
-#   "args": {
-#     "type": "object",
-#     "properties": {
-#       "email": {"type":"string"},
-#       "first_name": {"type":"string"},
-#       "last_name": {"type":"string"},
-#       "company": {"type":"string"}
-#     },
-#     "required": ["email"]
-#   },
-#   "rate_notes": "Burst 5 r/s; steady 1 r/s",
-#   "errors": ["invalid_scope", "rate_limited", "conflict_duplicate"]
-# }
+## 6. ROI + Storytelling Anchors
+- **Assista AI:** 90% faster go-to-market via Composio tooling.
+- **Fabrile:** Rapid Google Workspace integrations showcased at conferences.
+- **AgentArena (UC Berkeley Gorilla):** Agent research platform powered by Composio tool breadth.
 
-###############################################################################
-## 12) ERROR HANDLING & RETRIES
-###############################################################################
-# - invalid_scope       : Prompt user to reconnect with broader scopes.
-# - auth_expired        : Refresh token; if fails, re-authorize.
-# - rate_limited / 429  : Backoff + retry with jitter; surface ETA if known.
-# - conflict_duplicate  : Offer upsert or merge guidance.
-# - provider_down       : Queue job, notify user, retry later.
+## 7. Trigger Handling Notes
+- `composio.triggers.list_types()` and `getType()` return metadata (auth requirements, payload schemas) so planners can reason about events conversationally.
+- Use `triggers.create(...)` to instantiate per-user trigger instances; store trigger IDs in Supabase for governance and undo flows.
+- Subscribe via `triggers.subscribe(timeout=...)` for streaming events or `triggers.list_active(...)` for poll-style dashboards.
+- Pause or disable triggers (`triggers.disable(...)`) instead of deleting to preserve audit history.
+- Guardrails treat trigger invocations as mutating actions when downstream workflows execute; log every trigger event into evidence tables.
 
-###############################################################################
-## 13) LOGGING & ANALYTICS (RECOMMENDED TABLES)
-###############################################################################
-# Create tables (or equivalent) in your DB to analyze usage:
-# - tool_calls(id, user_id, tenant_id, provider, tool_name, args_json,
-#              result_json, latency_ms, cost_est_cents, created_at)
-# - oauth_tokens(tenant_id, provider, scopes[], refreshed_at, revoked_at, meta)
-# - errors(id, tool_call_id, provider, code, message, retry_after, created_at)
-
-###############################################################################
-## 14) COMMON RECIPES
-###############################################################################
-# A) Cold Outreach (CRM-first)
-# PLAN:
-#   1) Read prospects from CRM (filters: lifecycle stage, last activity)
-#   2) Generate personalized first-line copy
-#   3) Send sequence via email tool; log results
-# STEPS:
-#   - crm.search_contacts {...}
-#   - email.generate_templates {...}   (no_auth allowed if sandbox)
-#   - email.send {...}                  (oauth typically required)
-#   - crm.log_activity {...}
-#
-# B) Research (Docs/News/Web)
-#   - web.search {...}
-#   - web.fetch_page {...}
-#   - summarize.chunked {...}
-#   - persist to knowledge base (optional)
-#
-# C) Coding (Issues/PRs)
-#   - github.search_issues {...}
-#   - github.create_issue {...}
-#   - github.review_pr {...}
-#
-# D) Meetings/Calendar
-#   - calendar.find_slots {...}
-#   - calendar.create_event {...}
-#   - chat.notify_slack {...}
-
-###############################################################################
-## 15) PLANNING TIPS FOR LLMs
-###############################################################################
-# - Prefer tools with minimal auth first to validate approach.
-# - If a chosen tool needs OAuth, pause and ask the user to connect.
-# - Validate destructive actions by summarizing intent and waiting for “YES”.
-# - After each call, check result shape against args schema expectations.
-# - Keep an execution trace (titles, inputs, outputs) for user review.
-
-###############################################################################
-## 16) SECURITY CHECKLIST (LLM-FACING)
-###############################################################################
-# - Never request or display raw secrets in chat.
-# - Don’t store access tokens in prompts or messages.
-# - Mask PII when echoing tool outputs back to the user (emails, phone numbers).
-# - Use per-tenant encryption at rest for tokens; rotate keys periodically.
-# - Ensure logs exclude token values; store token hashes if you must correlate.
-
-###############################################################################
-## 17) DEMO MODE (NO_AUTH-FIRST)
-###############################################################################
-# - Prefer these for quick trials: web search, public docs fetchers, synthetic
-#   generators (e.g., template generation), sandbox CRMs or demo datasets.
-# - Make it obvious in the UI when a tool is no_auth vs oauth-required.
-# - If a user later connects OAuth, seamlessly upgrade the workflow.
-
-###############################################################################
-## 18) INTEGRATION WITH RAG/DB (OPTIONAL)
-###############################################################################
-# If you store results (e.g., summaries, contacts) in a database:
-# - Create a “tool_calls” table for analytics.
-# - For RAG: save key artifacts (emails sent, research summaries) as documents
-#   with metadata so future queries can cite them.
-# - Add webhooks if providers support change notifications to keep state fresh.
-
-###############################################################################
-## 19) FULL EXAMPLES
-###############################################################################
-# Example 1: Outreach micro-run (Python-ish pseudocode)
-"""
-plan = [
-  {"tool": "crm.search_contacts", "args": {"stage": "lifecycle.lead", "limit": 50}},
-  {"tool": "email.generate_templates", "args": {"style": "concise", "variant_count": 2}},
-  {"tool": "email.send", "args": {"sequence": "intro_a", "rate_limit_rps": 0.5}},
-  {"tool": "crm.log_activity", "args": {"type": "email", "status": "sent"}}
-]
-for step in plan:
-    result = composio.invoke(step["tool"], step["args"])
-    validate(result)
-    save_artifact(step, result)
-"""
-
-# Example 2: Research + summarize (TypeScript-ish pseudocode)
-"""
-const q = "Map canvassing route planners for door-to-door teams";
-const pages = await composio.invoke("web.search", { query: q, topK: 10 });
-const fetched = await Promise.all(pages.map(p => composio.invoke("web.fetch_page", { url: p.url })));
-const chunks  = chunk(fetched.map(f => f.text).join("\n"), 2000);
-const notes   = await Promise.all(chunks.map(c => composio.invoke("summarize.chunked", { text: c })));
-await saveToKB({ topic: q, notes });
-"""
-
-###############################################################################
-## 20) LIMITATIONS & EXPECTATIONS
-###############################################################################
-# - Tool availability varies by region and provider plan.
-# - Some “no_auth” tools are rate-limited or data-capped for abuse prevention.
-# - OAuth scope changes may break flows; design for re-consent.
-# - Provider APIs evolve; periodically refresh tool metadata.
-
-###############################################################################
-## 21) TESTING STRATEGY
-###############################################################################
-# - Mock providers for unit tests; simulate rate-limits and transient 5xx errors.
-# - Run end-to-end tests with a dedicated sandbox tenant and provider sandbox.
-# - Include regression tests for schema drift (args/response fields).
-
-###############################################################################
-## 22) OBSERVABILITY
-###############################################################################
-# - Capture: latency_ms, request/response size, provider code, retries.
-# - Create dashboards per provider + workflow (outreach, research, coding).
-# - Alert on error spikes (auth_failed, rate_limited, provider_down).
-
-###############################################################################
-## 23) MIGRATION NOTES
-###############################################################################
-# - When switching providers (e.g., HubSpot → Salesforce), keep a logical layer
-#   that maps your app’s canonical objects to provider-specific shapes.
-# - For token migrations, rotate gradually and keep both tokens valid briefly.
-
-###############################################################################
-## 24) GLOSSARY
-###############################################################################
-# Provider: External SaaS or API (Google, HubSpot, GitHub, Slack).
-# Toolkit : Group of tools for a Provider (e.g., “hubspot.crm”, “github.issues”).
-# Tool    : A callable capability (create/search/update/send/etc).
-# Scope   : OAuth permission (e.g., contacts.read, contacts.write).
-# no_auth : Tool that requires no user account connection; limited capability.
-
-###############################################################################
-## 25) AGENT PROMPTING HINTS (COPY-PASTE)
-###############################################################################
-# - “Before executing a destructive tool, summarize the action and wait for a
-#    clear user confirmation containing YES.”
-# - “Prefer no_auth tools to validate workflow; if results look correct,
-#    propose connecting OAuth to unlock full features.”
-# - “If a tool returns rate_limited, retry with exponential backoff and
-#    reduce concurrency.”
-# - “Log all tool invocations with name, args (sanitized), result summary,
-#    and latency so the user can audit.”
-
-###############################################################################
-## 26) COMPLIANCE & PRIVACY
-###############################################################################
-# - Respect provider terms; do not scrape or misuse data against ToS.
-# - Provide user data export and deletion options (per tenant).
-# - Minimize prompt inclusion of personal data; prefer transient references.
-
-###############################################################################
-## 27) SUPPORT
-###############################################################################
-# - For operational incidents (tokens failing, API changes), provide a
-#   human-readable status note to the user and queue retries.
-# - Contacts: support@<your-domain> | security@<your-domain>
-
-# END
+## 8. Safety Reminders
+- No service-role keys or OAuth secrets in prompts/logs.
+- Always log undo plans, quiet-hour overrides, scopes, and evidence artifacts.
+- For `rate_limited`/`invalid_scope` events, raise CopilotKit interrupts with remediation options.
