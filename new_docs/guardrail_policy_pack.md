@@ -88,9 +88,9 @@ Guardrail logic must fire in multiple layers to guarantee deterministic behavior
 
 ### 3.1 CopilotKit (Frontend)
 - Persist guardrail metadata in mission state so reviewers see the active policy for each mission.
-- Display guardrail summaries in approval modals and mission briefs.
-- When a violation occurs, render an interrupt modal with: violation type, evidence, and the exact policy clause.
-- All approval decisions must write `approvals.decision` and `approvals.guardrail_violation` in Supabase.
+- Implement the guardrail summary card, approval modal, and override interactions as described in `new_docs/ux.md` to ensure consistent language, layout, and accessibility.
+- When a violation occurs, render an interrupt modal with: violation type, evidence, and the exact policy clause, leveraging the "Approval Required" UX pattern.
+- All approval decisions must write `approvals.decision` and `approvals.guardrail_violation` in Supabase and emit the telemetry events defined in the UX instrumentation catalog (`approval_required`, `approval_decision`, `guardrail_override_requested`).
 
 ### 3.2 Gemini ADK Validator Tree
 - The `ValidatorAgent` reads `ctx.session.state['guardrails']` and returns `validation_passed` or `validation_failed` with `violation_details`.
@@ -111,7 +111,7 @@ Guardrail logic must fire in multiple layers to guarantee deterministic behavior
 - On execute, include guardrail metadata as structured context to the LLM so the agent reasons about constraints before issuing tool calls.
 
 ## 4. Override & Escalation Workflow
-When a user attempts a prohibited action:
+When a user attempts a prohibited action (see override flow visuals in `new_docs/ux.md §7.2`):
 
 1. Validator sets `validation_failed` with violation metadata.
 2. CopilotKit raises an interrupt and displays the violation modal.
@@ -132,7 +132,7 @@ Every guardrail evaluation must produce auditable evidence.
 - `tool_calls.guardrail_snapshot` (jsonb) stores the guardrail payload used at execution time.
 - `guardrail_incidents` table tracks each violation: type, severity, resolution, override token, reviewer.
 - Analytics view `analytics_guardrail_incidents` aggregates incidents per tenant and persona.
-- `docs/readiness/guardrail_reports/<gate>.md` should contain narrative summaries for each checkpoint review.
+- `docs/readiness/guardrail_reports/<gate>.md` should contain narrative summaries for each checkpoint review. Governance dashboards that surface these metrics must follow the layout and filters documented in `new_docs/ux.md §8.3`.
 
 Telemetry metrics (publish via Supabase Realtime and dashboards):
 
@@ -159,6 +159,7 @@ Telemetry metrics (publish via Supabase Realtime and dashboards):
 - `src/app/api/guardrails/validate/route.ts` — request-time enforcement (see architecture.md §4.3).
 - `agent/agents/control_plane.py:ValidatorAgent` — ADK validator logic.
 - `src/app/components/ApprovalModal.tsx` — guardrail interrupts surfaced to reviewers.
+- `new_docs/ux.md §7` — guardrail summary, override, and incident log UX patterns.
 - `supabase/migrations/20250108_guardrails.sql` — application of the schema above.
 
 ## 9. Change Management Checklist
@@ -166,4 +167,4 @@ Telemetry metrics (publish via Supabase Realtime and dashboards):
 - Regenerate `docs/readiness/status_beacon_<gate>.json` with the new guardrail readiness state.
 - Notify GTM and governance stakeholders via weekly ops sync.
 
-This pack must remain in sync with the architecture blueprint and checkpoint control plan. No guardrail relaxations are permitted without Governance Sentinel approval and revised evidence artifacts.
+This pack must remain in sync with the architecture blueprint, UX blueprint, and checkpoint control plan. No guardrail relaxations are permitted without Governance Sentinel approval and revised evidence artifacts.

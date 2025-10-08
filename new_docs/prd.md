@@ -14,7 +14,7 @@ The AI Employee Control Plane transforms high-intent objectives into measurable 
 
 ## Product Vision & Goals
 
-Deliver an objective-first AI employee that plans, executes, and learns like a top operator: capability-aware, reversible, and always accountable. Success looks like every account describing a goal, seeing the smallest effective workflow, and reviewing evidence-backed results in less than 15 minutes, creating a clear path from pilot to scaled adoption.
+Deliver an objective-first AI employee that plans, executes, and learns like a top operator: capability-aware, reversible, and always accountable. Success looks like every account describing a goal, seeing the smallest effective workflow, and reviewing evidence-backed results in less than 15 minutes, creating a clear path from pilot to scaled adoption. The UX blueprint (`new_docs/ux.md`) codifies the mission workspace experience that enables this outcome, emphasizing transparency, progressive trust, and accessibility.
 
 ## Target Customers & Jobs-to-Be-Done
 
@@ -28,27 +28,27 @@ Deliver an objective-first AI employee that plans, executes, and learns like a t
 
 1. **Zero-to-value runway:** Composio’s catalog of 250+ toolkits across CRM, collaboration, finance, e-commerce, and vertical recipes powers artifact-first demos before credentials are shared.
 2. **Proven outcomes:** Case studies such as Assista AI’s 90% reduction in go-to-market time and Fabrile’s rapid Google Workspace integrations validate business impact for stakeholders.
-3. **Human-centered copilot UX:** CopilotKit-driven workspaces keep planners, reviewers, and agents in the same loop with explainable steps and suggested edits.
+3. **Human-centered copilot UX:** CopilotKit-driven workspaces keep planners, reviewers, and agents in the same loop with explainable steps and suggested edits, adhering to the interaction patterns and accessibility guidance captured in `new_docs/ux.md`.
 4. **Governed autonomy:** Role-based approvals, quiet hours, tone constraints, and rollback cues protect brand, compliance, and customer trust.
 5. **Compounding library:** Successful jobs and plays become a private asset catalog, enabling franchises and agencies to scale repeatable services.
 
 ## Product Scope & Key Experiences (Business Lens)
 
-- **Objective intake:** Structured prompts capture goal, audience, timeframe, and guardrails, producing an editable mission brief.
-- **Capability grounding:** The agent surfaces relevant MCP servers and toolkits, highlighting no-auth vs. OAuth requirements for approval.
+- **Objective intake:** Structured prompts capture goal, audience, timeframe, and guardrails, producing an editable mission brief using the copilot-guided modal defined in `new_docs/ux.md`.
+- **Capability grounding:** The agent surfaces relevant MCP servers and toolkits, highlighting no-auth vs. OAuth requirements for approval with toolkit carousels, badges, and "Why this?" tooltips.
 - **Semantic tool search:** Mission planners query the Composio catalog in-context using `tools.get(search=..., limit=...)` and `tools.get_raw_composio_tools(...)`, allowing the workspace (or an upstream LLM) to converse about candidate actions (“hubspot organize contacts”, “repository issues”) before permissions are granted.
 - **Trigger-ready plays:** Planner recommendations include event-driven workflows by querying Composio trigger types; users can opt into MCP-triggered automations (e.g., “GitHub issue created”, “Slack reaction added”) with the same approval rigor.
-- **Plan proposals:** Users receive Top-3 Predicted Jobs and Play candidates with Why, Impact, Risk, Proof, and Undo narratives.
-- **Dry-run proof packs:** Zero-privilege mode generates drafts, lists, and schedules for stakeholder review before live permissions.
-- **Governed activation:** Connected mode executes the same plays through confirmed MCP toolkits with approvals, caps, and quiet hours enforced.
-- **Evidence & coaching:** Dashboards highlight ROI deltas, artifacts, guardrail events, and “next best job” recommendations drawn from the library.
+- **Plan proposals:** Users receive Top-3 Predicted Jobs and Play candidates with Why, Impact, Risk, Proof, and Undo narratives surfaced as selectable play cards with inline metadata.
+- **Dry-run proof packs:** Zero-privilege mode generates drafts, lists, and schedules for stakeholder review before live permissions, presented through artifact preview cards and evidence bundles.
+- **Governed activation:** Connected mode executes the same plays through confirmed MCP toolkits with approvals, caps, and quiet hours enforced, routed through the approval and override flows defined in the UX blueprint.
+- **Evidence & coaching:** Dashboards highlight ROI deltas, artifacts, guardrail events, and “next best job” recommendations drawn from the library, matching the analytics storytelling surfaces described in `new_docs/ux.md`.
 
 ## Detailed Requirements & Acceptance Criteria
 
 ### CopilotKit Experience
-- Mission chat, contextual briefs, approval modals, and artifact previews must all run on CopilotKit CoAgents using shared state; persistence is required via Supabase Postgres tables (CopilotKit message/state storage) so reviewers can reload or transfer conversations without losing context.
+- Mission chat, contextual briefs, approval modals, and artifact previews must all run on CopilotKit CoAgents using shared state; persistence is required via Supabase Postgres tables (CopilotKit message/state storage) so reviewers can reload or transfer conversations without losing context. Layout, navigation, and component behavior should follow the mission workspace anatomy in `new_docs/ux.md` (mission sidebar, streaming status panel, guardrail summary card).
 - Each long-running node (planner ranking, executor synthesis, validator audits) must provide interim feedback through `copilotkit_emit_message`, and successful/aborted runs must call `copilotkit_exit` so routers regain control cleanly.
-- UI components (Agentic Chat, Generative UI, Frontend Actions) expose reviewer levers for edits, approvals, undo, trigger enrollment, and risk acknowledgements. These surfaces must remain accessible on desktop and tablet breakpoints.
+- UI components (Agentic Chat, Generative UI, Frontend Actions) expose reviewer levers for edits, approvals, undo, trigger enrollment, and risk acknowledgements. These surfaces must remain accessible on desktop and tablet breakpoints and comply with the accessibility and keyboard navigation standards in the UX blueprint.
 - Message history hygiene and redaction controls must exist so governance teams can remove sensitive strings while maintaining evidence pointers.
 
 ### Agent Orchestration & ADK Expectations

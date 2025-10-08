@@ -13,8 +13,8 @@ import os
 from dataclasses import asdict, dataclass
 from typing import Any, Dict, List, Optional
 
-from dotenv import load_dotenv
 from ag_ui_adk import ADKAgent
+from dotenv import load_dotenv
 from google.adk.agents import LlmAgent
 from google.adk.agents.callback_context import CallbackContext
 from google.adk.models import LlmRequest, LlmResponse
@@ -49,7 +49,9 @@ class MissionState(BaseModel):
     audience: str = Field(default="", description="Target persona or team")
     timeframe: str = Field(default="", description="Desired completion horizon")
     guardrails: str = Field(default="", description="Constraints, tone, or quiet hours")
-    planner_notes: List[str] = Field(default_factory=list, description="Short bullet notes added by planners")
+    planner_notes: List[str] = Field(
+        default_factory=list, description="Short bullet notes added by planners"
+    )
 
 
 def _ensure_mission_state(storage: Dict[str, Any]) -> MissionState:
@@ -65,7 +67,9 @@ def _ensure_mission_state(storage: Dict[str, Any]) -> MissionState:
 
 def _get_artifact_bucket(storage: Dict[str, Any]) -> Dict[str, Artifact]:
     bucket = storage.get(ARTIFACT_STATE_KEY)
-    if isinstance(bucket, dict) and all(isinstance(v, Artifact) for v in bucket.values()):
+    if isinstance(bucket, dict) and all(
+        isinstance(v, Artifact) for v in bucket.values()
+    ):
         return bucket  # type: ignore[return-value]
     if isinstance(bucket, dict):
         revived: Dict[str, Artifact] = {}
@@ -181,7 +185,6 @@ def before_model_modifier(
 
     mission_json = mission.model_dump()
     artifact_json = {key: asdict(value) for key, value in artifacts.items()}
-    catalog_json = json.dumps(catalog_meta, indent=2)
 
     instruction_header = (
         "You are the foundation control-plane orchestrator. Maintain mission briefs,"

@@ -21,6 +21,7 @@
 - Architecture blueprint: [new_docs/architecture.md](./architecture.md)
 - Business requirements: [new_docs/prd.md](./prd.md)
 - Guardrail policies: [new_docs/guardrail_policy_pack.md](./guardrail_policy_pack.md)
+- UX blueprint: [new_docs/ux.md](./ux.md)
 
 ---
 
@@ -77,10 +78,11 @@ This roadmap governs all implementation work from zero-privilege proofs to gover
 
 #### CopilotKit Workspace Setup
 **Owner:** CopilotKit Squad
-**Reference:** [architecture.md §3.1](./architecture.md#31-presentation--control-plane-nextjs--copilotkit), [prd.md §5](./prd.md#copilotkit-experience)
+**Reference:** [architecture.md §3.1](./architecture.md#31-presentation--control-plane-nextjs--copilotkit), [prd.md §5](./prd.md#copilotkit-experience), [ux.md §4–§6](./ux.md#4-mission-workspace-anatomy)
 
 - [ ] Implement `MissionIntake.tsx` with `useCopilotReadable` for mission objective
 - [ ] Wire `useCopilotAction` for `createMission` handler calling `/api/objectives`
+- [ ] Reproduce mission sidebar, streaming status panel, guardrail summary, and artifact card components per the UX blueprint
 - [ ] Store CopilotKit sessions and messages in Supabase tables (`copilot_sessions`, `copilot_messages`)
 - [ ] Implement retention policy (7-day default per PRD)
 - [ ] Test message management hooks: `copilotkit_emit_message`, `copilotkit_exit`
@@ -160,11 +162,12 @@ This roadmap governs all implementation work from zero-privilege proofs to gover
 
 #### CopilotKit Streaming & Approvals
 **Owner:** CopilotKit Squad
-**Reference:** [architecture.md §3.1](./architecture.md#31-presentation--control-plane-nextjs--copilotkit)
+**Reference:** [architecture.md §3.1](./architecture.md#31-presentation--control-plane-nextjs--copilotkit), [ux.md §5–§8](./ux.md#5-interaction-patterns--ui-components)
 
 - [ ] Implement streaming via `copilotkit_emit_message` in planner and executor agents
 - [ ] Enforce `copilotkit_exit` at mission completion
 - [ ] Create `ApprovalModal.tsx` component rendering guardrail summaries, undo plan, reviewer actions
+- [ ] Confirm modal copy, remediation options, and accessibility behavior match the UX blueprint (guardrail summary card, override flow, keyboard navigation)
 - [ ] Wire approval decisions to `/api/approvals` endpoint
 - [ ] Enable reviewer annotations in CopilotKit workspace
 - [ ] Record QA video showing interim status updates and reviewer edits
@@ -214,6 +217,7 @@ This roadmap governs all implementation work from zero-privilege proofs to gover
 1. **End-to-end dry-run timing:** Run 3 persona scenarios (GTM, support, finance); record start/end timestamps; confirm <15 min
 2. **Evidence hashing:** Compare Evidence agent output hashes to Supabase `artifacts` table records
 3. **Streaming UX QA:** Record video demonstrating interim status updates and reviewer edits
+4. **Telemetry audit:** Verify CopilotKit events (`mission_created`, `play_selected`, `approval_required`, `approval_decision`) fire with payloads defined in `ux.md §10`
 
 **Evidence Artifacts:**
 - `docs/readiness/dry_run_verification.md` with timing table, artifact samples, planner telemetry
@@ -456,6 +460,15 @@ This roadmap governs all implementation work from zero-privilege proofs to gover
 - [ ] Document SOC2-oriented controls in `docs/readiness/security_controls_G-E.md`
 - [ ] Obtain security checklist sign-off with evidence (logs, policies, runbooks)
 - [ ] Export security summary to `docs/readiness/trust_review.pdf`
+
+#### Accessibility & UX Parity
+**Owner:** CopilotKit Squad + Product Design
+**Reference:** [ux.md §9–§10](./ux.md#9-accessibility--inclusive-design)
+
+- [ ] Conduct WCAG 2.1 AA audit covering keyboard navigation, live regions, and contrast
+- [ ] Verify global and component-level shortcuts operate as documented in the UX blueprint
+- [ ] Validate telemetry events against `ux.md §10` catalog and archive audit in `docs/readiness/telemetry_audit_G-E.md`
+- [ ] Capture accessibility audit findings in `docs/readiness/accessibility_audit_G-E.pdf`
 
 #### Performance Load Testing
 **Owner:** Runtime Steward + Data Engineer

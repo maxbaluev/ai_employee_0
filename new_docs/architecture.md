@@ -6,7 +6,7 @@ This blueprint translates the Gate G-A mandate into concrete implementation guid
 - **Frontend:** Next.js 15 app in `src/app` with the CopilotKit workspace at `src/app/(control-plane)` and API routes under `src/app/api`.
 - **Agent Backend:** Gemini ADK-powered FastAPI service at `agent/agent.py` with supporting agents in `agent/agents` and utilities in `agent/tools` & `agent/services`.
 - **Data Plane:** Supabase migrations in `supabase/migrations`, readiness evidence in `docs/readiness`, and pgvector-enabled Postgres for analytics.
-- **Documentation Inputs:** Partner reference packs at `libs_docs/` (Composio, CopilotKit, ADK, Supabase) + new control-plane docs under `new_docs/`.
+- **Documentation Inputs:** Partner reference packs at `libs_docs/` (Composio, CopilotKit, ADK, Supabase) + new control-plane docs under `new_docs/`, including the UX blueprint in `new_docs/ux.md`.
 - **Tooling:** Managed via `mise`. Run `mise run install`, `mise run dev`, `mise run lint`, and `mise run agent` to hydrate deps, start stacks, and lint.
 
 ## 1. Mission & Architectural Tenets
@@ -32,6 +32,7 @@ This blueprint translates the Gate G-A mandate into concrete implementation guid
 
 ### 3.1 Presentation & Control Plane (Next.js + CopilotKit)
 - **Mission Intake (`MissionIntake.tsx`):** Collect goal, audience, timeframe, and guardrails; expose structured state via `useCopilotReadable`. Submit to `/api/objectives`.
+- **Mission workspace alignment:** Implement layout, navigation, and component behavior per the mission workspace anatomy defined in `new_docs/ux.md` (mission sidebar, streaming status panel, guardrail summary, artifact cards). This ensures UI, accessibility, and interaction patterns stay consistent across teams.
 - **Shared State Hooks:** `useCopilotReadable` for mission context, `useCopilotAction` for interactive UI responses, `useCopilotAction.renderAndWaitForResponse` for approval modals.
 - **Persistence:** Store chat history and mission state in Supabase tables (`copilot_sessions`, `copilot_messages`) using CopilotKit persistence utilities.
 - **Example component skeleton:**
@@ -51,6 +52,7 @@ useCopilotAction({
 ```
 - **API scaffolding (`src/app/api/objectives/route.ts`):** Validate session via `createRouteHandlerClient`, insert objective into Supabase with status `draft`, and return the inserted row.
 - **Approval UX:** `ApprovalModal.tsx` renders guardrail summaries, undo plan, and reviewer actions; results persist via `/api/approvals`.
+- **Accessibility & telemetry:** Follow the keyboard navigation, screen reader live regions, and instrumentation catalog defined in `new_docs/ux.md` when implementing CopilotKit components to guarantee compliance with WCAG 2.1 AA and analytics consistency.
 
 ### 3.2 Orchestration (Gemini ADK)
 - **Agent Hierarchy:**
@@ -150,7 +152,7 @@ $$;
   - `analytics_weekly_approved_jobs` — weekly adoption metric.
   - `analytics_guardrail_incidents` — number and severity of guardrail violations.
   - `analytics_library_reuse` — reuse count per persona.
-- **Dashboards:** Build Next.js server components backed by PostgREST to render adoption, ROI, guardrail incidents, undo success, and time-to-proof.
+- **Dashboards:** Build Next.js server components backed by PostgREST to render adoption, ROI, guardrail incidents, undo success, and time-to-proof, following the analytics and governance layouts in `new_docs/ux.md §8`.
 
 ### 3.6 Governance & Guardrails
 - Enforce guardrail configuration per guardrail policy pack.
@@ -274,6 +276,7 @@ Gate promotions must reference the guardrail policy pack, architecture blueprint
 
 ## 7. Observability & Incident Response
 - **Metrics pipeline:** Publish latency, success/error counts, override rate, guardrail incidents, undo success via Supabase Realtime → dashboards.
+- **Instrumentation:** Ensure frontend and agent events match the telemetry catalog in `new_docs/ux.md §10` (e.g., `mission_created`, `play_selected`, `approval_required`, `undo_completed`).
 - **Logging:**
   - Agent backend uses structured logging (mission_id, play_id, tool_call_id) for every ADK event.
   - Supabase triggers populate `tool_call_metrics` aggregates.
@@ -286,6 +289,7 @@ Gate promotions must reference the guardrail policy pack, architecture blueprint
 - **Business PRD:** `new_docs/prd.md`
 - **Guardrail Policy Pack:** `new_docs/guardrail_policy_pack.md`
 - **Checkpoint Control Plan:** `new_docs/todo.md`
+- **UX Blueprint:** `new_docs/ux.md`
 - **Composio Field Guide:** `libs_docs/composio/llms.txt`
 - **CopilotKit Docs:** `libs_docs/copilotkit/llms-full.txt`
 - **Gemini ADK Docs:** `libs_docs/adk/llms-full.txt`

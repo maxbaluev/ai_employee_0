@@ -12,4 +12,7 @@ else
   PYTHON_BIN="$(command -v python)"
 fi
 
-exec "$PYTHON_BIN" -m agent.agent "$@"
+HOST=${HOST:-0.0.0.0}
+PORT=${PORT:-8000}
+
+exec "$PYTHON_BIN" -m uvicorn agent.agent:app --host "$HOST" --port "$PORT" "$@"

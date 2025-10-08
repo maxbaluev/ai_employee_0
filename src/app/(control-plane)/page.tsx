@@ -61,10 +61,15 @@ export default function ControlPlanePage() {
   const agentState = state ?? INITIAL_STATE;
   const mission = agentState.mission_state;
   const [draft, setDraft] = useState<MissionState>(mission);
+  const [isCopilotReady, setIsCopilotReady] = useState(false);
 
   useEffect(() => {
     setDraft(mission);
   }, [mission.objective, mission.audience, mission.timeframe, mission.guardrails, mission.planner_notes.join(",")]);
+
+  useEffect(() => {
+    setIsCopilotReady(true);
+  }, []);
 
   const persistMission = useCallback(() => {
     setState({
@@ -275,16 +280,20 @@ export default function ControlPlanePage() {
         </section>
 
         <section className="relative flex w-80 flex-col bg-slate-950/60">
-          <CopilotSidebar
-            defaultOpen={true}
-            clickOutsideToClose={false}
-            labels={{
-              title: "Mission Copilot",
-              initial:
-                "Use the control plane copilot to propose plays, summarise guardrails, " +
-                "and capture dry-run artifacts before requesting OAuth access.",
-            }}
-          />
+          {isCopilotReady ? (
+            <CopilotSidebar
+              defaultOpen={true}
+              clickOutsideToClose={false}
+              labels={{
+                title: "Mission Copilot",
+                initial:
+                  "Use the control plane copilot to propose plays, summarise guardrails, " +
+                  "and capture dry-run artifacts before requesting OAuth access.",
+              }}
+            />
+          ) : (
+            <CopilotSidebarSkeleton />
+          )}
 
           <div className="mt-auto border-t border-white/10 bg-slate-950/80 p-5 text-xs text-slate-300">
             <h3 className="mb-2 text-sm font-semibold text-white">Catalog Snapshot</h3>
@@ -336,5 +345,25 @@ function MissionField({ label, value, onChange, placeholder, textarea }: Mission
         />
       )}
     </label>
+  );
+}
+
+function CopilotSidebarSkeleton() {
+  return (
+    <div className="flex h-full flex-col justify-between gap-4 border-b border-white/10 bg-slate-950/70 p-5">
+      <div className="space-y-4">
+        <div className="h-3 w-24 rounded-full bg-white/10" />
+        <div className="space-y-2 text-xs text-slate-500">
+          <div className="h-2 w-full rounded bg-white/10" />
+          <div className="h-2 w-3/4 rounded bg-white/10" />
+          <div className="h-2 w-2/3 rounded bg-white/10" />
+        </div>
+        <div className="h-32 rounded-xl border border-dashed border-white/10 bg-slate-900/60" />
+      </div>
+      <div className="space-y-2 text-[10px] uppercase tracking-wide text-slate-500">
+        <div className="h-2 w-1/2 rounded bg-white/10" />
+        <div className="h-2 w-2/3 rounded bg-white/10" />
+      </div>
+    </div>
   );
 }
