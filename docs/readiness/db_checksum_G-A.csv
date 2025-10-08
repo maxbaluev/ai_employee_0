@@ -9,3 +9,6 @@ guardrail_profiles,pending_after_seed
 mission_guardrails,pending_after_seed
 copilot_sessions,pending_after_seed
 copilot_messages,pending_after_seed
+mission_metadata,pending_after_seed
+mission_safeguards,pending_after_seed
+mission_events,pending_after_seed

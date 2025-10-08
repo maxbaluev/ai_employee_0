@@ -157,6 +157,56 @@ create table public.mission_guardrails (
 );
 
 -- ------------------------------------------------------------------
+-- Mission metadata & safeguard hints (Generative intake)
+-- ------------------------------------------------------------------
+
+create table public.mission_metadata (
+  mission_id uuid not null references public.objectives(id) on delete cascade,
+  tenant_id uuid not null references auth.users(id),
+  field text not null,
+  value jsonb not null default '{}'::jsonb,
+  confidence numeric check (confidence >= 0 and confidence <= 1),
+  source text not null default 'generated',
+  regeneration_count integer not null default 0,
+  accepted_at timestamptz,
+  created_at timestamptz not null default timezone('utc', now()),
+  updated_at timestamptz not null default timezone('utc', now()),
+  primary key (mission_id, field)
+);
+
+create trigger trg_mission_metadata_updated_at
+before update on public.mission_metadata
+for each row execute function public.touch_updated_at();
+
+create table public.mission_safeguards (
+  id uuid primary key default gen_random_uuid(),
+  mission_id uuid not null references public.objectives(id) on delete cascade,
+  tenant_id uuid not null references auth.users(id),
+  hint_type text not null,
+  suggested_value jsonb not null default '{}'::jsonb,
+  confidence numeric check (confidence >= 0 and confidence <= 1),
+  status text not null default 'suggested',
+  source text not null default 'generated',
+  generation_count integer not null default 0,
+  accepted_at timestamptz,
+  created_at timestamptz not null default timezone('utc', now()),
+  updated_at timestamptz not null default timezone('utc', now())
+);
+
+create trigger trg_mission_safeguards_updated_at
+before update on public.mission_safeguards
+for each row execute function public.touch_updated_at();
+
+create table public.mission_events (
+  id uuid primary key default gen_random_uuid(),
+  mission_id uuid references public.objectives(id) on delete cascade,
+  tenant_id uuid not null references auth.users(id),
+  event_name text not null,
+  event_data jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default timezone('utc', now())
+);
+
+-- ------------------------------------------------------------------
 -- CopilotKit persistence
 -- ------------------------------------------------------------------
 
@@ -237,6 +287,20 @@ create index guardrail_profiles_tenant_id_idx on public.guardrail_profiles(tenan
 
 create index mission_guardrails_mission_id_idx on public.mission_guardrails(mission_id);
 
+create index mission_metadata_mission_id_idx on public.mission_metadata(mission_id);
+create index mission_metadata_tenant_idx on public.mission_metadata(tenant_id);
+create index mission_metadata_field_idx on public.mission_metadata(field);
+
+create index mission_safeguards_mission_id_idx on public.mission_safeguards(mission_id);
+create index mission_safeguards_tenant_idx on public.mission_safeguards(tenant_id);
+create index mission_safeguards_status_idx on public.mission_safeguards(status);
+create index mission_safeguards_type_idx on public.mission_safeguards(hint_type);
+
+create index mission_events_mission_id_idx on public.mission_events(mission_id);
+create index mission_events_tenant_idx on public.mission_events(tenant_id);
+create index mission_events_name_idx on public.mission_events(event_name);
+create index mission_events_created_at_idx on public.mission_events(created_at desc);
+
 create index copilot_sessions_tenant_agent_idx on public.copilot_sessions(tenant_id, agent_id);
 create index copilot_messages_session_idx on public.copilot_messages(session_id);
 
@@ -254,6 +318,9 @@ alter table public.guardrail_profiles enable row level security;
 alter table public.mission_guardrails enable row level security;
 alter table public.copilot_sessions enable row level security;
 alter table public.copilot_messages enable row level security;
+alter table public.mission_metadata enable row level security;
+alter table public.mission_safeguards enable row level security;
+alter table public.mission_events enable row level security;
 
 create policy "Tenant scoped read" on public.objectives
   for select using (tenant_id = auth.uid());
@@ -334,6 +401,25 @@ create policy "Tenant scoped update" on public.mission_guardrails
         and obj.tenant_id = auth.uid()
     )
   );
+
+create policy "Tenant scoped read" on public.mission_metadata
+  for select using (tenant_id = auth.uid());
+create policy "Tenant scoped write" on public.mission_metadata
+  for insert with check (tenant_id = auth.uid());
+create policy "Tenant scoped update" on public.mission_metadata
+  for update using (tenant_id = auth.uid()) with check (tenant_id = auth.uid());
+
+create policy "Tenant scoped read" on public.mission_safeguards
+  for select using (tenant_id = auth.uid());
+create policy "Tenant scoped insert" on public.mission_safeguards
+  for insert with check (tenant_id = auth.uid());
+create policy "Tenant scoped update" on public.mission_safeguards
+  for update using (tenant_id = auth.uid()) with check (tenant_id = auth.uid());
+
+create policy "Tenant scoped read" on public.mission_events
+  for select using (tenant_id = auth.uid());
+create policy "Tenant scoped insert" on public.mission_events
+  for insert with check (tenant_id = auth.uid());
 
 create policy "Tenant scoped read" on public.copilot_sessions
   for select using (tenant_id = auth.uid());

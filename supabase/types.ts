@@ -273,6 +273,83 @@ export interface Database {
         };
         Update: Partial<Database['public']['Tables']['copilot_messages']['Row']>;
       };
+      mission_metadata: {
+        Row: {
+          mission_id: string;
+          tenant_id: string;
+          field: string;
+          value: Json;
+          confidence: number | null;
+          source: string;
+          regeneration_count: number;
+          accepted_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          mission_id: string;
+          tenant_id: string;
+          field: string;
+          value?: Json;
+          confidence?: number | null;
+          source?: string;
+          regeneration_count?: number;
+          accepted_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database['public']['Tables']['mission_metadata']['Row']>;
+      };
+      mission_safeguards: {
+        Row: {
+          id: string;
+          mission_id: string;
+          tenant_id: string;
+          hint_type: string;
+          suggested_value: Json;
+          confidence: number | null;
+          status: string;
+          source: string;
+          generation_count: number;
+          accepted_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          mission_id: string;
+          tenant_id: string;
+          hint_type: string;
+          suggested_value?: Json;
+          confidence?: number | null;
+          status?: string;
+          source?: string;
+          generation_count?: number;
+          accepted_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database['public']['Tables']['mission_safeguards']['Row']>;
+      };
+      mission_events: {
+        Row: {
+          id: string;
+          mission_id: string | null;
+          tenant_id: string;
+          event_name: string;
+          event_data: Json;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          mission_id?: string | null;
+          tenant_id: string;
+          event_name: string;
+          event_data?: Json;
+          created_at?: string;
+        };
+        Update: Partial<Database['public']['Tables']['mission_events']['Row']>;
+      };
     };
     Functions: {
       match_library_entries: {

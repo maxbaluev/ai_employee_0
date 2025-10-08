@@ -12,6 +12,7 @@ const payloadSchema = z.object({
   guardrails: z.union([z.string(), z.record(z.any())]).default(""),
   metadata: z.record(z.any()).optional(),
   tenantId: z.string().uuid().optional(),
+  objectiveId: z.string().uuid().optional(),
 });
 
 function coerceGuardrails(value: string | Record<string, unknown>) {
@@ -72,38 +73,70 @@ export async function POST(request: NextRequest) {
   }
 
   const serviceClient = getServiceSupabaseClient();
-  const payload: Database["public"]["Tables"]["objectives"]["Insert"] = {
+  const supabaseDb = serviceClient as unknown as {
+    from: typeof serviceClient.from;
+  };
+
+  if (parsed.data.objectiveId) {
+    const { data, error } = await supabaseDb
+      .from('objectives')
+      .update({
+        goal: parsed.data.goal,
+        audience: parsed.data.audience,
+        timeframe: parsed.data.timeframe,
+        guardrails: guardrails as Json,
+        metadata: (parsed.data.metadata ?? {}) as Json,
+      } as Database['public']['Tables']['objectives']['Update'])
+      .eq('id', parsed.data.objectiveId)
+      .eq('tenant_id', tenantId)
+      .select('*')
+      .maybeSingle();
+
+    if (error) {
+      return NextResponse.json(
+        {
+          error: 'Failed to update objective',
+          hint: error.message,
+        },
+        { status: 500 },
+      );
+    }
+
+    return NextResponse.json(
+      { objective: data as Database['public']['Tables']['objectives']['Row'] | null },
+      { status: 200 },
+    );
+  }
+
+  const payload: Database['public']['Tables']['objectives']['Insert'] = {
     tenant_id: tenantId,
     created_by: session?.user?.id ?? null,
     goal: parsed.data.goal,
     audience: parsed.data.audience,
     timeframe: parsed.data.timeframe,
     guardrails: guardrails as Json,
-    status: "draft",
+    status: 'draft',
     metadata: (parsed.data.metadata ?? {}) as Json,
   };
 
-  const supabaseDb = serviceClient as unknown as {
-    from: typeof serviceClient.from;
-  };
-
   const { data, error } = await supabaseDb
-    .from("objectives")
+    .from('objectives')
     .insert(payload)
-    .select("*")
+    .select('*')
     .maybeSingle();
 
   if (error) {
     return NextResponse.json(
       {
-        error: "Failed to create objective",
+        error: 'Failed to create objective',
         hint: error.message,
       },
       { status: 500 },
     );
   }
 
-  const objectiveRow = data as Database["public"]["Tables"]["objectives"]["Row"] | null;
-
-  return NextResponse.json({ objective: objectiveRow }, { status: 201 });
+  return NextResponse.json(
+    { objective: data as Database['public']['Tables']['objectives']['Row'] | null },
+    { status: 201 },
+  );
 }

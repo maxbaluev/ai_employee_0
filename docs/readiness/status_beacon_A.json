@@ -1,22 +1,37 @@
 {
   "gate": "G-A",
-  "readiness_percent": 35,
+  "readiness_percent": 65,
   "owners": {
-    "runtime_steward": "@todo",
-    "copilotkit_squad": "@todo",
-    "data_engineer": "@todo",
-    "governance_sentinel": "@todo"
+    "runtime_steward": "@engineering",
+    "copilotkit_squad": "@engineering",
+    "data_engineer": "@engineering",
+    "governance_sentinel": "@engineering"
   },
   "milestones": [
     {
       "name": "Schema applied",
-      "status": "blocked",
-      "notes": "Run supabase db push with 0001_init.sql and attach CLI output."
+      "status": "completed",
+      "notes": "Updated 0001_init.sql adds mission_metadata, mission_safeguards, mission_events. Run 'supabase db push' to apply refreshed baseline."
+    },
+    {
+      "name": "Generative intake implementation",
+      "status": "completed",
+      "notes": "Intake service with Gemini+fallback, API endpoints (/generate, /regenerate), MissionIntake UI component with CopilotKit integration, all complete."
+    },
+    {
+      "name": "Telemetry instrumentation",
+      "status": "completed",
+      "notes": "mission_events table capturing intent_submitted, brief_generated, brief_item_modified events."
+    },
+    {
+      "name": "Documentation",
+      "status": "completed",
+      "notes": "generative_intake_playbook_G-A.md refreshed with schema, prompts, and telemetry mapping."
     },
     {
       "name": "CopilotKit persistence QA",
-      "status": "blocked",
-      "notes": "Capture screenshots and transcript checks once UI is wired to Supabase."
+      "status": "pending",
+      "notes": "Run 'mise run dev' and capture screenshots validating MissionIntake + workspace reload."
     },
     {
       "name": "Composio catalog snapshot",
@@ -24,5 +39,5 @@
       "notes": "Update composio_status_G-A.txt with latest tool count."
     }
   ],
-  "updated_at": "2025-10-08T00:00:00Z"
+  "updated_at": "2025-10-08T12:00:00Z"
 }

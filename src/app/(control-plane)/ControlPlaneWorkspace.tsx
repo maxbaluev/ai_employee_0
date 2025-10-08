@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useCopilotAction, useCopilotReadable } from "@copilotkit/react-core";
 import { CopilotSidebar, type CopilotKitCSSProperties } from "@copilotkit/react-ui";
+import { MissionIntake } from "@/components/MissionIntake";
 
 type MissionState = {
   objective: string;
@@ -31,6 +32,16 @@ type ControlPlaneWorkspaceProps = {
   initialObjectiveId?: string | null;
   initialArtifacts: Artifact[];
   catalogSummary?: CatalogSummary;
+};
+
+type AcceptedIntakePayload = {
+  missionId: string;
+  objective: string;
+  audience: string;
+  guardrailSummary: string;
+  kpis: Array<{ label: string; target?: string }>;
+  confidence: number;
+  source: 'gemini' | 'fallback';
 };
 
 const AGENT_ID = "control_plane_foundation";
@@ -97,7 +108,7 @@ export function ControlPlaneWorkspace({
   );
 
   const persistObjective = useCallback(
-    async (nextMission: MissionState) => {
+    async (nextMission: MissionState, overrideObjectiveId?: string | null) => {
       setIsSyncing(true);
       try {
         const response = await fetch("/api/objectives", {
@@ -110,6 +121,7 @@ export function ControlPlaneWorkspace({
             guardrails: { notes: nextMission.guardrails },
             metadata: { plannerNotes: nextMission.plannerNotes },
             tenantId,
+            objectiveId: overrideObjectiveId ?? objectiveId ?? undefined,
           }),
         });
 
@@ -127,7 +139,7 @@ export function ControlPlaneWorkspace({
         setIsSyncing(false);
       }
     },
-    [artifacts, syncCopilotSession, tenantId],
+    [artifacts, objectiveId, syncCopilotSession, tenantId],
   );
 
   const handleMissionSync = useCallback(async () => {
@@ -246,6 +258,25 @@ export function ControlPlaneWorkspace({
 
   const guardrailLines = mission.guardrails.split("\n").filter(Boolean);
 
+  const handleIntakeAccept = useCallback(
+    async (payload: AcceptedIntakePayload) => {
+      const updated: MissionState = {
+        objective: payload.objective,
+        audience: payload.audience,
+        timeframe: mission.timeframe,
+        guardrails: payload.guardrailSummary,
+        plannerNotes: mission.plannerNotes,
+      };
+
+      setMission(updated);
+      setDraft(updated);
+      setObjectiveId(payload.missionId);
+
+      await persistObjective(updated, payload.missionId);
+    },
+    [mission.timeframe, mission.plannerNotes, persistObjective],
+  );
+
   return (
     <main
       style={{ "--copilot-kit-primary-color": themeColor } as CopilotKitCSSProperties}
@@ -269,6 +300,9 @@ export function ControlPlaneWorkspace({
           </div>
         </div>
       </header>
+
+      {/* Mission Intake Component */}
+      <MissionIntake tenantId={tenantId} objectiveId={objectiveId ?? null} onAccept={handleIntakeAccept} />
 
       <div className="flex grow flex-col lg:flex-row">
         <section className="flex w-full flex-col border-b border-white/10 px-6 py-8 lg:w-2/5 lg:border-r">
