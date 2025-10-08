@@ -1,0 +1,1 @@
+/code see on all files at /new_docs including new_docs/ux.md after see on all txt filex inside /libs_docs folder, read full txt content. We need fully implement G-A Gate. After be sure that we can run `mise run dev` and after use chrome to test real behaiviour

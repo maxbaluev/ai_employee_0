@@ -91,6 +91,7 @@ Guardrail logic must fire in multiple layers to guarantee deterministic behavior
 - Implement the guardrail summary card, approval modal, and override interactions as described in `new_docs/ux.md` to ensure consistent language, layout, and accessibility.
 - When a violation occurs, render an interrupt modal with: violation type, evidence, and the exact policy clause, leveraging the "Approval Required" UX pattern.
 - All approval decisions must write `approvals.decision` and `approvals.guardrail_violation` in Supabase and emit the telemetry events defined in the UX instrumentation catalog (`approval_required`, `approval_decision`, `guardrail_override_requested`).
+- Generated guardrail suggestions must cite the originating policy clause and include a confidence score; accepting or editing the suggestion logs an entry in `guardrail_suggestions` (see §5).
 
 ### 3.2 Gemini ADK Validator Tree
 - The `ValidatorAgent` reads `ctx.session.state['guardrails']` and returns `validation_passed` or `validation_failed` with `violation_details`.
@@ -132,6 +133,7 @@ Every guardrail evaluation must produce auditable evidence.
 - `tool_calls.guardrail_snapshot` (jsonb) stores the guardrail payload used at execution time.
 - `guardrail_incidents` table tracks each violation: type, severity, resolution, override token, reviewer.
 - Analytics view `analytics_guardrail_incidents` aggregates incidents per tenant and persona.
+- `guardrail_suggestions` table logs every generated recommendation, confidence score, user action (accepted/edited/rejected), and resulting policy diff.
 - `docs/readiness/guardrail_reports/<gate>.md` should contain narrative summaries for each checkpoint review. Governance dashboards that surface these metrics must follow the layout and filters documented in `new_docs/ux.md §8.3`.
 
 Telemetry metrics (publish via Supabase Realtime and dashboards):
@@ -142,11 +144,13 @@ Telemetry metrics (publish via Supabase Realtime and dashboards):
 | `override_rate` | Overrides / total approvals | Approvals table |
 | `mean_time_to_override_close` | Duration between override request and closure | `guardrail_overrides` |
 | `undo_success_rate` | Undo completed / undo initiated | Evidence service logs |
+| `guardrail_suggestion_accept_rate` | Accepted suggestions / total suggestions | `guardrail_suggestions` |
 
 ## 6. Testing & Verification
 - **Unit tests:** Validators must include tests for tone, quiet hour boundaries, rate caps, and undo requirements. Use compiled guardrail fixtures from this doc.
 - **Integration tests:** Simulate mission runs with guardrail edge cases (e.g., tone violation, midnight quiet hours) via `adk eval` scenarios.
 - **UI tests:** Using Playwright or Cypress, confirm CopilotKit modals render guardrail text and that overrides persist to Supabase.
+- **Generative suggestion tests:** Validate that guardrail suggestions include correct policy references, confidence scores, and logging when users accept, edit, or reject them.
 - **Load tests:** Ensure guardrail checks add <200ms p95 latency during governed activation.
 
 ## 7. Incident Response

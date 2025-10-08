@@ -31,11 +31,13 @@ Deliver an objective-first AI employee that plans, executes, and learns like a t
 3. **Human-centered copilot UX:** CopilotKit-driven workspaces keep planners, reviewers, and agents in the same loop with explainable steps and suggested edits, adhering to the interaction patterns and accessibility guidance captured in `new_docs/ux.md`.
 4. **Governed autonomy:** Role-based approvals, quiet hours, tone constraints, and rollback cues protect brand, compliance, and customer trust.
 5. **Compounding library:** Successful jobs and plays become a private asset catalog, enabling franchises and agencies to scale repeatable services.
+6. **Generative scaffolding:** A single freeform input yields complete objectives, audiences, guardrails, toolkits, and plays that are fully editable before execution, accelerating onboarding while preserving oversight.
 
 ## Product Scope & Key Experiences (Business Lens)
 
-- **Objective intake:** Structured prompts capture goal, audience, timeframe, and guardrails, producing an editable mission brief using the copilot-guided modal defined in `new_docs/ux.md`.
-- **Capability grounding:** The agent surfaces relevant MCP servers and toolkits, highlighting no-auth vs. OAuth requirements for approval with toolkit carousels, badges, and "Why this?" tooltips.
+- **Generative intake:** A single freeform input (text + links) is parsed into mission objectives, audiences, KPIs, guardrails, tone guidance, and risk posture, surfaced as editable chips.
+- **Capability grounding:** The agent surfaces relevant MCP servers and toolkits, highlighting no-auth vs. OAuth requirements for approval with toolkit carousels, badges, and "Why this?" tooltips, all pre-populated from the generated brief.
+- **Connection scaffolding:** Recommended OAuth scopes, quiet hours, and authentication paths are generated automatically with confidence scores and can be edited prior to activation.
 - **Semantic tool search:** Mission planners query the Composio catalog in-context using `tools.get(search=..., limit=...)` and `tools.get_raw_composio_tools(...)`, allowing the workspace (or an upstream LLM) to converse about candidate actions (“hubspot organize contacts”, “repository issues”) before permissions are granted.
 - **Trigger-ready plays:** Planner recommendations include event-driven workflows by querying Composio trigger types; users can opt into MCP-triggered automations (e.g., “GitHub issue created”, “Slack reaction added”) with the same approval rigor.
 - **Plan proposals:** Users receive Top-3 Predicted Jobs and Play candidates with Why, Impact, Risk, Proof, and Undo narratives surfaced as selectable play cards with inline metadata.
@@ -46,18 +48,21 @@ Deliver an objective-first AI employee that plans, executes, and learns like a t
 ## Detailed Requirements & Acceptance Criteria
 
 ### CopilotKit Experience
-- Mission chat, contextual briefs, approval modals, and artifact previews must all run on CopilotKit CoAgents using shared state; persistence is required via Supabase Postgres tables (CopilotKit message/state storage) so reviewers can reload or transfer conversations without losing context. Layout, navigation, and component behavior should follow the mission workspace anatomy in `new_docs/ux.md` (mission sidebar, streaming status panel, guardrail summary card).
+- Mission chat, contextual briefs, approval modals, and artifact previews must all run on CopilotKit CoAgents using shared state; persistence is required via Supabase Postgres tables (CopilotKit message/state storage) so reviewers can reload or transfer conversations without losing context. Layout, navigation, and component behavior should follow the mission workspace anatomy in `new_docs/ux.md` (generative intake banner, editable chip stack, mission sidebar, streaming status panel, guardrail summary card).
+- The system must parse a single freeform input into structured mission data (objective, audience, KPIs, guardrails, suggested tools) with confidence scores, expose each element as editable chips, and support regenerate/edit/replace actions without leaving the workspace.
 - Each long-running node (planner ranking, executor synthesis, validator audits) must provide interim feedback through `copilotkit_emit_message`, and successful/aborted runs must call `copilotkit_exit` so routers regain control cleanly.
-- UI components (Agentic Chat, Generative UI, Frontend Actions) expose reviewer levers for edits, approvals, undo, trigger enrollment, and risk acknowledgements. These surfaces must remain accessible on desktop and tablet breakpoints and comply with the accessibility and keyboard navigation standards in the UX blueprint.
+- UI components (Agentic Chat, Generative UI, Frontend Actions) expose reviewer levers for edits, approvals, undo, trigger enrollment, and risk acknowledgements. These surfaces must remain accessible on desktop and tablet breakpoints and comply with the accessibility and keyboard navigation standards in the UX blueprint. Generative outputs require explicit affordances for "Accept", "Edit", "Regenerate", and "Reset to previous".
 - Message history hygiene and redaction controls must exist so governance teams can remove sensitive strings while maintaining evidence pointers.
 
 ### Agent Orchestration & ADK Expectations
 - Coordinator, planner, executor, validator, and evidence agents run on Gemini ADK with deterministic `_run_async_impl` branches for conditional loops (e.g., regenerate plays if tone check fails). Shared state (`ctx.session.state`) stores mission metadata, guardrail flags, and evidence references.
+- Intake orchestration must include a generative parser step that converts the single input into structured mission data, writes confidence scores, and tracks user edits/regenerations for observability.
 - Checkpointed evaluations (`adk eval`) must replay top missions across dry-run and governed modes, confirming stable outcomes before promotion.
 - Orchestration logs capture tool calls, approvals, and undo instructions with IDs that align to Supabase tables and UI events.
 
 ### Tooling & Integrations
 - Composio usage follows the official SDK guidance: limit tool payloads, scope searches, avoid mixing filters, and capture auth evidence (`redirectUrl`, `connectedAccountId`, scopes).
+- Generative recommendations for toolkits and scopes must include rationale and align with Composio's available metadata; suggestions default to `no_auth` where possible and highlight required OAuth upgrades.
 - Trigger lifecycle (list/get/create/subscribe/disable) is first-class; proof packs expose event-based automations with required payload templates and reviewer toggles.
 - Supabase hosts objectives, plays, tool calls, approvals, artifacts, triggers, and library embeddings. Vector search leverages pgvector with indexes sized per tenant. PostgREST and Edge Functions provide the API surfaces consumed by the frontend.
 - Supabase Cron handles analytics rollups; Edge Functions deliver streaming evidence search and ROI calculations without exposing secrets client-side.
@@ -75,6 +80,7 @@ Deliver an objective-first AI employee that plans, executes, and learns like a t
 
 ### Non-Functional Requirements
 - **Latency:** Dry-run loop ≤15 minutes end-to-end; streaming updates surface within 5 seconds of agent emission.
+- **Generative Intake Latency:** Initial mission brief generation ≤3 seconds p95 for 1k-character inputs; regeneration ≤2 seconds p95.
 - **Reliability:** Daily Cron sync success rate ≥99%; trigger subscription health monitored with automated alerts.
 - **Security:** Row Level Security on all Supabase tables; OAuth tokens encrypted, rotated, and never serialized to prompts or logs.
 - **Guardrail Overhead:** Validator checks and interrupt handling add <200ms p95 latency per governed tool call.
@@ -93,6 +99,7 @@ Deliver an objective-first AI employee that plans, executes, and learns like a t
 - **Expansion:** 60% of zero-privilege tenants connect at least two MCP servers within 30 days; average of three plays reused per tenant per month.
 - **Retention & Advocacy:** Library reuse rate, reviewer NPS, and governance satisfaction (caps honored, rollback clarity).
 - **Operational Safety:** Guardrail incident rate <5% of governed runs; override closure time <24 hours; undo success rate ≥95%.
+- **Generative Quality:** ≥80% of generated brief items accepted without regeneration (or edited with <3 interactions); confidence scores align with edit behavior.
 
 ## Go-to-Market & Packaging Outline
 

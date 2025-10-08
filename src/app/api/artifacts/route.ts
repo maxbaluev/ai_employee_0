@@ -52,8 +52,8 @@ export async function POST(request: NextRequest) {
   };
 
   const { data, error } = await serviceClient
-    .from("artifacts")
-    .upsert(payload, { onConflict: "id" })
+    .from<Database["public"]["Tables"]["artifacts"]["Row"]>("artifacts")
+    .upsert<Database["public"]["Tables"]["artifacts"]["Insert"]>(payload, { onConflict: "id" })
     .select("id, title, content, status")
     .maybeSingle();
 

@@ -83,7 +83,11 @@ export async function POST(request: NextRequest) {
     metadata: (parsed.data.metadata ?? {}) as Json,
   };
 
-  const { data, error } = await serviceClient
+  const supabaseDb = serviceClient as unknown as {
+    from: typeof serviceClient.from;
+  };
+
+  const { data, error } = await supabaseDb
     .from("objectives")
     .insert(payload)
     .select("*")
@@ -99,5 +103,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  return NextResponse.json({ objective: data }, { status: 201 });
+  const objectiveRow = data as Database["public"]["Tables"]["objectives"]["Row"] | null;
+
+  return NextResponse.json({ objective: objectiveRow }, { status: 201 });
 }

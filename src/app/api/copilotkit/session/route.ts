@@ -52,8 +52,10 @@ export async function POST(request: NextRequest) {
   };
 
   const { data, error } = await serviceClient
-    .from("copilot_sessions")
-    .upsert(payload, { onConflict: "tenant_id,agent_id,session_identifier" })
+    .from<Database["public"]["Tables"]["copilot_sessions"]["Row"]>("copilot_sessions")
+    .upsert<Database["public"]["Tables"]["copilot_sessions"]["Insert"]>(payload, {
+      onConflict: "tenant_id,agent_id,session_identifier",
+    })
     .select("id")
     .maybeSingle();
 

@@ -231,11 +231,11 @@ Every mutating action includes an undo plan. Users can roll back with confidence
 
 | Stage | User Actions | Agent Actions | UI Touchpoints | Success Criteria |
 |-------|--------------|---------------|----------------|------------------|
-| **1. Dashboard Access** | Navigates to Governance Dashboard | Loads missions, guardrail incidents, override register from Supabase | Dashboard Home: KPI tiles (incident rate, override rate, undo success) | Quick situational awareness |
-| **2. Mission Drill-Down** | Clicks mission ID to view evidence bundle | Retrieves mission brief, tool calls, approvals, guardrail snapshots | Mission Detail Page: timeline, tool call log, guardrail summary | Full audit trail visible |
-| **3. Guardrail Incident Review** | Filters incidents by severity, status | Evidence agent surfaces violation details, override tokens, resolution timestamps | Incident Table: sortable, filterable, exportable | Priya identifies patterns, escalates if needed |
-| **4. Export for External Audit** | Clicks "Export Evidence Bundle (PDF)" | Supabase Edge Function generates redacted report with signatures | Download Modal: "Evidence bundle ready, includes approvals, tool calls, undo logs" | Compliance-ready artifact |
-| **5. Policy Update** | Edits quiet hours or tone policy | Supabase triggers `/api/guardrails/refresh`, notifies active missions | Policy Editor: inline validation, "Changes apply to future missions" warning | Policy updated, missions inherit on next run |
+| **1. Dashboard Access** | Navigates to Governance Dashboard | Generates KPI tiles & summaries from latest runs | Dashboard Home with auto-generated narrative badges ("No critical incidents in 7d") | Quick situational awareness |
+| **2. Mission Drill-Down** | Clicks mission ID to view evidence bundle | Auto-highlights anomalies, policy deviations, override usage | Mission Detail Page with generated callouts ("Tone override requested 1x") | Full audit trail visible + insights |
+| **3. Guardrail Incident Review** | Filters incidents by severity, status | Summarizes clusters, recommends remediation actions | Incident Table + generative sidebar ("Suggested follow-up: tighten quiet hours") | Priya identifies patterns, escalates if needed |
+| **4. Export for External Audit** | Clicks "Export Evidence Bundle (PDF)" | Generates redacted report, auto-includes generative executive summary | Download Modal: "Evidence bundle ready, includes approvals, tool calls, undo logs" | Compliance-ready artifact |
+| **5. Policy Update** | Reviews generative policy recommendations before editing | Suggests guardrail tweaks, impact projections | Policy Editor with "Accept recommendation" + inline diff view | Policy updated with rationale stored |
 
 **Total Time Budget:** 10–15 minutes per audit
 **Key Metrics:** Audit completion time, export download success, policy update adoption
@@ -252,38 +252,41 @@ The mission workspace is a persistent, chat-first interface powered by CopilotKi
 ┌─────────────────────────────────────────────────────────────────────┐
 │ [Global Nav: Logo | Missions | Library | Dashboard | Settings]      │
 ├─────────────────────────────────────────────────────────────────────┤
-│                                                                       │
+│ ┌─────────────────────────────────────────────────────────────────┐ │
+│ │ Generative Intake Banner                                       │ │
+│ │ Paste intent + links → [Generate Mission]                      │ │
+│ │ · Shows token count, privacy notice, sample prompts            │ │
+│ └─────────────────────────────────────────────────────────────────┘ │
 │ ┌──────────────────────┬────────────────────────────────────────┐   │
 │ │  Mission Sidebar     │  Mission Canvas (Primary Workspace)    │   │
 │ │  ─────────────────   │  ──────────────────────────────────    │   │
-│ │                      │                                         │   │
-│ │  Active Missions     │  ┌───────────────────────────────────┐ │   │
-│ │  ─────────────       │  │ Mission Brief (Card)              │ │   │
-│ │  • Mission #42       │  │ Goal: Revive 100 dormant accounts │ │   │
-│ │  • Mission #38       │  │ Audience: Enterprise SaaS          │ │   │
-│ │                      │  │ Timeframe: 2 weeks                 │ │   │
-│ │  Recent              │  │ Status: [Dry-run] [In Progress]   │ │   │
-│ │  ─────────────       │  └───────────────────────────────────┘ │   │
-│ │  • Mission #35       │                                         │   │
-│ │  • Mission #29       │  ┌───────────────────────────────────┐ │   │
-│ │                      │  │ Agent Chat (Streaming)            │ │   │
-│ │  [+ New Mission]     │  │                                   │ │   │
-│ │                      │  │ Agent: Researching accounts…      │ │   │
-│ │                      │  │ User: How many contacts so far?   │ │   │
-│ │                      │  │ Agent: 87 contacts enriched.      │ │   │
+│ │                      │  ┌───────────────────────────────────┐ │   │
+│ │  Active Missions     │  │ Generated Brief Stack             │ │   │
+│ │  ─────────────       │  │ • Objective chip row (editable)  │ │   │
+│ │  • Mission #42       │  │ • Audience chip row (editable)   │ │   │
+│ │  • Mission #38       │  │ • Guardrail suggestions          │ │   │
+│ │                      │  │   [Edit] [Regenerate] [Accept]    │ │   │
+│ │  Recent              │  └───────────────────────────────────┘ │   │
+│ │  ─────────────       │                                         │   │
+│ │  • Mission #35       │  ┌───────────────────────────────────┐ │   │
+│ │  • Mission #29       │  │ Agent Chat (Streaming)            │ │   │
+│ │                      │  │                                   │ │   │
+│ │  [+ New Mission]     │  │ Agent: Generated 3 plays…         │ │   │
+│ │                      │  │ User: Soften tone for execs.      │ │   │
+│ │                      │  │ Agent: Updated preview below.     │ │   │
 │ │                      │  │                                   │ │   │
 │ │                      │  │ [Message Input]                   │ │   │
 │ │                      │  └───────────────────────────────────┘ │   │
 │ │                      │                                         │   │
 │ │                      │  ┌───────────────────────────────────┐ │   │
-│ │                      │  │ Recommended Plays (Cards)         │ │   │
-│ │                      │  │ ─────────────────────────────     │ │   │
-│ │                      │  │ [Play 1] [Play 2] [Play 3]        │ │   │
+│ │                      │  │ Generated Plays (Cards)           │ │   │
+│ │                      │  │ [Play 1] [Play 2] [Regenerate]    │ │   │
 │ │                      │  └───────────────────────────────────┘ │   │
 │ │                      │                                         │   │
 │ │                      │  ┌───────────────────────────────────┐ │   │
-│ │                      │  │ Guardrail Summary (Collapsible)   │ │   │
-│ │                      │  │ Tone: Professional, Rate: 30/hr   │ │   │
+│ │                      │  │ Guardrail & Auth Drawer           │ │   │
+│ │                      │  │ Tone: Professional (edit)        │ │   │
+│ │                      │  │ Scopes: HubSpot read/write (✎)   │ │   │
 │ │                      │  └───────────────────────────────────┘ │   │
 │ │                      │                                         │   │
 │ └──────────────────────┴────────────────────────────────────────┘   │
@@ -296,10 +299,12 @@ The mission workspace is a persistent, chat-first interface powered by CopilotKi
 - **Global Nav:** Persistent access to missions, library, analytics, settings
 - **Mission Sidebar:** Active/recent missions, quick navigation
 - **Mission Canvas:** Primary interaction surface
-  - **Mission Brief Card:** Goal, audience, timeframe, status badges
+- **Generative Intake Banner:** Single text input with sample prompts, privacy note, and generation trigger
+- **Generated Brief Stack:** Goal, audience, timeframe, guardrails surfaced as editable chips with confidence badges
+- **Mission Brief Card:** Persisted version of accepted brief with status badges
   - **Agent Chat Panel:** CopilotKit chat with streaming agent updates
-  - **Play Recommendation Cards:** Top-3 plays with impact/risk/undo metadata
-  - **Guardrail Summary:** Active policies, inline edits
+- **Generated Play Cards:** Auto-ranked plays with impact/risk/undo metadata and regenerate/accept actions
+- **Guardrail & Auth Drawer:** Generated guardrail recommendations, OAuth scope plan, quiet hour suggestions with edit controls
   - **Artifact Previews:** Expandable evidence (drafts, lists, schedules)
   - **Approval Modals:** Overlay for guardrail checks, OAuth, undo confirmations
 
@@ -307,37 +312,34 @@ The mission workspace is a persistent, chat-first interface powered by CopilotKi
 
 ## 5. Interaction Patterns & UI Components
 
-### 5.1 Mission Intake Flow
+### 5.1 Generative Intake Panel
 
-**Pattern:** Conversational + Structured Form Hybrid
+**Pattern:** Single freeform input → generated structured brief
 
-**Why:** Balances flexibility (users describe goals naturally) with structure (agents need goal, audience, timeframe, guardrails).
+**Why:** Minimizes friction; users paste any context (press release, links, OKRs) and the system infers objectives, audiences, guardrails, and KPIs automatically while preserving editability.
 
-**Component:** `<MissionIntakeModal>`
+**Component:** `<GenerativeIntakeBanner>`
 
 **Interaction Steps:**
-1. User clicks "+ New Mission"
-2. Modal appears with structured fields:
-   - **Goal** (textarea, 280 chars): "What outcome do you want?"
-   - **Audience** (text input): "Who is the target?"
-   - **Timeframe** (date range picker): "When do you need this?"
-   - **Guardrails** (multi-select): Tone, quiet hours, rate limits (defaults pre-filled)
-3. User submits; modal closes; Mission Brief appears in canvas
-4. Agent chat activates: "Great! Let me find the best toolkits for this…"
+1. User clicks "+ New Mission" or lands on empty state.
+2. Banner displays a large textarea with placeholder examples and privacy notice.
+3. User pastes text/links and hits "Generate mission" (Enter or button).
+4. System streams generated objective, audience, guardrails, KPIs, and suggested success metrics with confidence badges.
+5. Each generated item appears as an editable chip (e.g., `[Objective ▾ Edit | Regenerate | Replace with template]`).
+6. User accepts all, edits individual chips, or regenerates sections before continuing to play selection.
 
 **Accessibility:**
-- Keyboard navigation: Tab through fields, Enter to submit
-- ARIA labels for all inputs
-- Focus trap inside modal
-- Esc to close
+- Textarea supports paste via keyboard, drag-and-drop, and `Ctrl+Enter` to generate.
+- Generated chips announced via live region with summary ("Objective generated: Re-engage 100 dormant accounts; confidence high").
+- Edit buttons accessible via Tab; `R` key triggers regenerate for focused chip; `Enter` opens inline editor.
 
 ---
 
-### 5.2 Play Selection & Ranking
+### 5.2 Generated Play Selection & Ranking
 
-**Pattern:** Card-Based Selection with Inline Metadata
+**Pattern:** Auto-generated cards with inline metadata + regenerate controls
 
-**Why:** Visual comparison of options; users weigh impact vs. risk vs. complexity.
+**Why:** The system can infer the smallest effective workflows; users confirm or tweak instead of crafting plans manually.
 
 **Component:** `<PlayCard>`
 
@@ -357,10 +359,10 @@ The mission workspace is a persistent, chat-first interface powered by CopilotKi
 ```
 
 **Interaction Steps:**
-1. User reviews 3 cards side-by-side
-2. Hovers "Why This?" → Tooltip: "Library shows 85% success rate for your persona"
-3. Clicks "Select Play" → Agent starts dry-run execution
-4. Card collapses; streaming status panel expands
+1. System renders Top 3 plays with rationale; each card shows a confidence badge (High/Medium) and "Regenerate" pill.
+2. User hovers "Why This?" → Tooltip: "Generated from library match to agencies (success 85%)."
+3. User can inline edit impact or undo plan by clicking chip icons, or press `Shift+R` to regenerate the focused card.
+4. Click "Accept" to lock selected play and proceed (card collapses; streaming status opens). Users can accept multiple plays for sequencing.
 
 **Accessibility:**
 - Arrow keys to navigate cards
@@ -425,9 +427,12 @@ The mission workspace is a persistent, chat-first interface powered by CopilotKi
 │                                                 │
 │ Undo Plan: Delete draft, revert contact status │
 │                                                 │
+│ Suggested Fix: Replace "Reply now" with "We’d    │
+│ love to reconnect" (auto-edit)                 │
 │ Options:                                        │
-│ [Edit Message] [Override (Governance Approval)]│
-│ [Reject] [Reschedule]                          │
+│ [Apply Fix & Approve] [Edit Message]            │
+│ [Override (Governance Approval)] [Reject]       │
+│ [Reschedule]                                   │
 └────────────────────────────────────────────────┘
 ```
 
@@ -514,9 +519,9 @@ The mission workspace is a persistent, chat-first interface powered by CopilotKi
 
 | User Level | Default View | Available Expansions |
 |------------|--------------|----------------------|
-| **Beginner** | Mission brief, chat, top-3 plays | Toolkit details, guardrail editor |
-| **Intermediate** | + Guardrail summaries, artifact previews | Tool call logs, library rankings |
-| **Expert** | + Telemetry panels, approval history | Raw API payloads, embedding vectors |
+| **Beginner** | Single input banner, generated brief, recommended play | Toolkit details, guardrail editor |
+| **Intermediate** | + Guardrail summaries, artifact previews, regenerate controls | Tool call logs, library rankings |
+| **Expert** | + Telemetry panels, approval history, full generation traces | Raw API payloads, embedding vectors |
 
 **Implementation:**
 - **Beginner Mode (default):** Hides "Advanced Options" accordion
@@ -581,11 +586,12 @@ The mission workspace is a persistent, chat-first interface powered by CopilotKi
 ┌────────────────────────────────────────────────┐
 │ Guardrails Active                               │
 │ ────────────────────────────────────            │
-│ Tone: Professional | Quiet Hours: 8pm–7am UTC  │
+│ Suggested Tone: Professional (auto)            │
+│ Suggested Quiet Hours: 8pm–7am UTC (auto)      │
 │ Rate Limit: 30/hr | Budget Cap: $50/day        │
 │ Undo Required: Yes                              │
 │                                                 │
-│ [Edit Policies] [View Incidents]                │
+│ [Accept All] [Edit Individually] [View Incidents]│
 └────────────────────────────────────────────────┘
 ```
 
@@ -644,12 +650,12 @@ The mission workspace is a persistent, chat-first interface powered by CopilotKi
 **Goal:** Package mission outcomes as shareable, auditable artifacts.
 
 **Bundle Contents:**
-- **Mission Brief:** Goal, audience, timeframe, status
-- **Toolkits Used:** Names, scopes, connection IDs
+- **Mission Brief:** Goal, audience, timeframe, status (generated + final edits logged)
+- **Toolkits Used:** Names, scopes, connection IDs (initial suggestion vs. accepted)
 - **Tool Calls:** Hashed arguments, results (redacted if sensitive), latency, undo plans
 - **Artifacts:** Drafts, lists, schedules (downloadable)
 - **Guardrail Snapshots:** Active policies, violations, overrides
-- **ROI Estimates:** Contacts enriched, messages sent, reply rates, time saved
+- **ROI Estimates:** Contacts enriched, messages sent, reply rates, time saved (generated projections vs. actual outcomes)
 - **Telemetry Summary:** Execution time, agent reasoning steps, approval decisions
 
 **Access Paths:**
@@ -699,6 +705,7 @@ The mission workspace is a persistent, chat-first interface powered by CopilotKi
 - **Library Reuse Table:** Top plays ranked by reuse count, success score
 - **Filters:** Persona, date range, mission status
 - **Export:** PDF (for board decks), CSV (for analysis)
+- **Narrative Summary:** Generative paragraph at top ("This week, approved jobs grew 12% driven by outreach play reuse") with edit/regenerate controls
 
 **Accessibility:**
 - Charts include data tables (keyboard-navigable)
@@ -745,6 +752,7 @@ The mission workspace is a persistent, chat-first interface powered by CopilotKi
 - **Incident Table:** Click row → Drill-down with violation details, override justification, reviewer ID
 - **Override Register:** Active overrides with expiry countdown; click to extend or revoke
 - **Export Audit Report:** PDF with signatures, timestamps, evidence pointers (for external audits)
+- **Narrative Insights:** Generative callouts summarizing incident patterns and recommending policy updates, with accept/rewrite options
 
 ---
 
@@ -838,6 +846,10 @@ The mission workspace is a persistent, chat-first interface powered by CopilotKi
 
 | Event Name | Trigger | Payload | Purpose |
 |------------|---------|---------|---------|
+| `intent_submitted` | User clicks "Generate mission" after pasting input | `mission_id`, `input_chars`, `link_count`, `user_id` | Track single-input adoption, detect overlong prompts |
+| `brief_generated` | System produces objective/audience/guardrail set | `mission_id`, `confidence_scores`, `generated_fields` | Measure generation quality, identify low-confidence areas |
+| `brief_item_modified` | User edits/regenerates a generated chip | `mission_id`, `field`, `action` (edit/regenerate/accept), `delta_chars` | Understand where users intervene |
+| `toolkit_suggestion_applied` | User accepts generated toolkit/auth plan | `mission_id`, `toolkit_list`, `scopes`, `edit_count` | Evaluate recommendation usefulness |
 | `mission_created` | User submits mission intake | `mission_id`, `goal`, `audience`, `timeframe`, `user_id` | Adoption funnel, time-to-first-mission |
 | `play_selected` | User clicks "Select Play" | `mission_id`, `play_id`, `play_type`, `toolkit_names` | Play popularity, toolkit adoption |
 | `dry_run_started` | Agent begins execution | `mission_id`, `play_id`, `start_timestamp` | Latency tracking, success rate |
@@ -928,9 +940,10 @@ The mission workspace is a persistent, chat-first interface powered by CopilotKi
 
 ### Appendix A: UI Component Checklist (Gate G-B)
 
-- [ ] `<MissionIntakeModal>` — Structured form with goal, audience, timeframe, guardrails
-- [ ] `<MissionBriefCard>` — Display goal, audience, timeframe, status badges
-- [ ] `<PlayCard>` — Impact, risk, undo, toolkits, "Select Play", "Why This?"
+- [ ] `<GenerativeIntakeBanner>` — Single textarea, sample prompts, privacy note, generate CTA
+- [ ] `<GeneratedChipRow>` — Editable chips for objective, audience, guardrails with confidence badges and regenerate controls
+- [ ] `<MissionBriefCard>` — Display final accepted brief with status badges
+- [ ] `<PlayCard>` — Impact, risk, undo, toolkits, "Accept", "Regenerate", "Why This?"
 - [ ] `<StreamingStatusPanel>` — Live progress, checkmarks, "Expand Details", "Pause", "Cancel"
 - [ ] `<ArtifactCard>` — Preview, Download CSV, Share Link
 - [ ] `<GuardrailSummaryCard>` — Tone, quiet hours, rate limits, "Edit Policies", "View Incidents"
@@ -953,7 +966,7 @@ The mission workspace is a persistent, chat-first interface powered by CopilotKi
 
 ### Appendix C: Instrumentation Verification (Gate G-C)
 
-- [ ] All events in catalog tracked with correct payloads
+- [ ] All events in catalog tracked with correct payloads (including `intent_submitted`, `brief_generated`, `brief_item_modified`, `toolkit_suggestion_applied`)
 - [ ] Supabase Edge Functions log events to analytics tables
 - [ ] Privacy redaction enforced (hashed arguments, PII removed)
 - [ ] Export APIs (`/evidence/:mission_id`, `/analytics/export`) functional
@@ -971,7 +984,7 @@ The design aligns with Gate G-A expectations (dry-run focus) and extends toward 
 
 **Next Steps:**
 1. Review with Product, Design, Governance stakeholders
-2. Validate accessibility commitments with WCAG audit
+2. Validate generative quality metrics (confidence scoring, edit rate) alongside WCAG audit commitments
 3. Build component library (Storybook) per Appendix A checklist
 4. Instrument analytics per Appendix C verification
 5. Iterate based on user testing and Gate promotion feedback
