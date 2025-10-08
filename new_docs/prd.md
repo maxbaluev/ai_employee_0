@@ -10,7 +10,7 @@ The AI Employee Control Plane transforms high-intent objectives into measurable 
 
 - Senior operators are under pressure to scale outreach, service, and internal operations without expanding headcount.
 - Traditional automations demand full credentials up front, while lightweight copilots lack accountability and ROI data.
-- Leadership teams need auditable artifacts, guardrails, and repeatable wins before committing budget to autonomous agents.
+- Leadership teams need auditable artifacts, safeguards, and repeatable wins before committing budget to autonomous agents.
 
 ## Product Vision & Goals
 
@@ -22,40 +22,40 @@ Deliver an objective-first AI employee that plans, executes, and learns like a t
 - **Customer Operations & Support Leaders:** Compress response times, prevent churn, and uphold SLAs using blended human + agent workflows.
 - **Business Operations Owners (SMB to mid-market):** Automate billing nudges, scheduling, and reporting while retaining oversight.
 - **Technical Enablement Teams:** Safeguard code and integrations by routing agent-led changes through a code-only MCP with enforced approvals.
-- **Executive Sponsors & Governance Officers:** Demand transparent evidence, approvals, and guardrail adherence before expanding budgets.
+- **Executive Sponsors & Governance Officers:** Demand transparent evidence, approvals, and safeguard adherence before expanding budgets.
 
 ## Value Proposition & Differentiators
 
 1. **Zero-to-value runway:** Composio’s catalog of 250+ toolkits across CRM, collaboration, finance, e-commerce, and vertical recipes powers artifact-first demos before credentials are shared.
 2. **Proven outcomes:** Case studies such as Assista AI’s 90% reduction in go-to-market time and Fabrile’s rapid Google Workspace integrations validate business impact for stakeholders.
 3. **Human-centered copilot UX:** CopilotKit-driven workspaces keep planners, reviewers, and agents in the same loop with explainable steps and suggested edits, adhering to the interaction patterns and accessibility guidance captured in `new_docs/ux.md`.
-4. **Governed autonomy:** Role-based approvals, quiet hours, tone constraints, and rollback cues protect brand, compliance, and customer trust.
+4. **Adaptive safeguards:** Generative safeguard hints (tone, timing, budget, escalation) accompany every mission, are editable in-place, and keep approvals lightweight instead of relying on static policy manuals.
 5. **Compounding library:** Successful jobs and plays become a private asset catalog, enabling franchises and agencies to scale repeatable services.
-6. **Generative scaffolding:** A single freeform input yields complete objectives, audiences, guardrails, toolkits, and plays that are fully editable before execution, accelerating onboarding while preserving oversight.
+6. **Generative scaffolding:** A single freeform input yields complete objectives, audiences, safeguard hints, toolkits, and plays that are fully editable before execution, accelerating onboarding while preserving oversight.
 
 ## Product Scope & Key Experiences (Business Lens)
 
-- **Generative intake:** A single freeform input (text + links) is parsed into mission objectives, audiences, KPIs, guardrails, tone guidance, and risk posture, surfaced as editable chips.
+- **Generative intake:** A single freeform input (text + links) is parsed into mission objectives, audiences, KPIs, safeguards, tone guidance, and risk posture, surfaced as editable chips.
 - **Capability grounding:** The agent surfaces relevant MCP servers and toolkits, highlighting no-auth vs. OAuth requirements for approval with toolkit carousels, badges, and "Why this?" tooltips, all pre-populated from the generated brief.
 - **Connection scaffolding:** Recommended OAuth scopes, quiet hours, and authentication paths are generated automatically with confidence scores and can be edited prior to activation.
 - **Semantic tool search:** Mission planners query the Composio catalog in-context using `tools.get(search=..., limit=...)` and `tools.get_raw_composio_tools(...)`, allowing the workspace (or an upstream LLM) to converse about candidate actions (“hubspot organize contacts”, “repository issues”) before permissions are granted.
 - **Trigger-ready plays:** Planner recommendations include event-driven workflows by querying Composio trigger types; users can opt into MCP-triggered automations (e.g., “GitHub issue created”, “Slack reaction added”) with the same approval rigor.
 - **Plan proposals:** Users receive Top-3 Predicted Jobs and Play candidates with Why, Impact, Risk, Proof, and Undo narratives surfaced as selectable play cards with inline metadata.
 - **Dry-run proof packs:** Zero-privilege mode generates drafts, lists, and schedules for stakeholder review before live permissions, presented through artifact preview cards and evidence bundles.
-- **Governed activation:** Connected mode executes the same plays through confirmed MCP toolkits with approvals, caps, and quiet hours enforced, routed through the approval and override flows defined in the UX blueprint.
-- **Evidence & coaching:** Dashboards highlight ROI deltas, artifacts, guardrail events, and “next best job” recommendations drawn from the library, matching the analytics storytelling surfaces described in `new_docs/ux.md`.
+- **Governed activation:** Connected mode executes the same plays through confirmed MCP toolkits with reviewer approvals and adaptive safeguards enforced per mission, routed through the approval flows defined in the UX blueprint.
+- **Evidence & coaching:** Dashboards highlight ROI deltas, artifacts, safeguard feedback, and “next best job” recommendations drawn from the library, matching the analytics storytelling surfaces described in `new_docs/ux.md`.
 
 ## Detailed Requirements & Acceptance Criteria
 
 ### CopilotKit Experience
-- Mission chat, contextual briefs, approval modals, and artifact previews must all run on CopilotKit CoAgents using shared state; persistence is required via Supabase Postgres tables (CopilotKit message/state storage) so reviewers can reload or transfer conversations without losing context. Layout, navigation, and component behavior should follow the mission workspace anatomy in `new_docs/ux.md` (generative intake banner, editable chip stack, mission sidebar, streaming status panel, guardrail summary card).
-- The system must parse a single freeform input into structured mission data (objective, audience, KPIs, guardrails, suggested tools) with confidence scores, expose each element as editable chips, and support regenerate/edit/replace actions without leaving the workspace.
+- Mission chat, contextual briefs, approval modals, and artifact previews must all run on CopilotKit CoAgents using shared state; persistence is required via Supabase Postgres tables (CopilotKit message/state storage) so reviewers can reload or transfer conversations without losing context. Layout, navigation, and component behavior should follow the mission workspace anatomy in `new_docs/ux.md` (generative intake banner, editable chip stack, mission sidebar, streaming status panel, safeguard drawer).
+- The system must parse a single freeform input into structured mission data (objective, audience, KPIs, safeguards, suggested tools) with confidence scores, expose each element as editable chips, and support regenerate/edit/replace actions without leaving the workspace.
 - Each long-running node (planner ranking, executor synthesis, validator audits) must provide interim feedback through `copilotkit_emit_message`, and successful/aborted runs must call `copilotkit_exit` so routers regain control cleanly.
 - UI components (Agentic Chat, Generative UI, Frontend Actions) expose reviewer levers for edits, approvals, undo, trigger enrollment, and risk acknowledgements. These surfaces must remain accessible on desktop and tablet breakpoints and comply with the accessibility and keyboard navigation standards in the UX blueprint. Generative outputs require explicit affordances for "Accept", "Edit", "Regenerate", and "Reset to previous".
 - Message history hygiene and redaction controls must exist so governance teams can remove sensitive strings while maintaining evidence pointers.
 
 ### Agent Orchestration & ADK Expectations
-- Coordinator, planner, executor, validator, and evidence agents run on Gemini ADK with deterministic `_run_async_impl` branches for conditional loops (e.g., regenerate plays if tone check fails). Shared state (`ctx.session.state`) stores mission metadata, guardrail flags, and evidence references.
+- Coordinator, planner, executor, validator, and evidence agents run on Gemini ADK with deterministic `_run_async_impl` branches for conditional loops (e.g., regenerate plays if tone check fails). Shared state (`ctx.session.state`) stores mission metadata, safeguard hints, and evidence references.
 - Intake orchestration must include a generative parser step that converts the single input into structured mission data, writes confidence scores, and tracks user edits/regenerations for observability.
 - Checkpointed evaluations (`adk eval`) must replay top missions across dry-run and governed modes, confirming stable outcomes before promotion.
 - Orchestration logs capture tool calls, approvals, and undo instructions with IDs that align to Supabase tables and UI events.
@@ -67,16 +67,16 @@ Deliver an objective-first AI employee that plans, executes, and learns like a t
 - Supabase hosts objectives, plays, tool calls, approvals, artifacts, triggers, and library embeddings. Vector search leverages pgvector with indexes sized per tenant. PostgREST and Edge Functions provide the API surfaces consumed by the frontend.
 - Supabase Cron handles analytics rollups; Edge Functions deliver streaming evidence search and ROI calculations without exposing secrets client-side.
 
-### Guardrail Governance
-- Guardrail profiles, mission overrides, and incident logging must follow `new_docs/guardrail_policy_pack.md`.
-- Validator agents consume a merged guardrail payload and record every evaluation in `tool_calls.guardrail_snapshot` plus the `guardrail_incidents` table.
-- CopilotKit approval modals display active guardrails, violation details, and undo plans; all override decisions persist via `/api/guardrails/override`.
-- Guardrail overrides expire automatically and block gate promotion until resolved; override flow instrumentation is required for incident reports.
+### Adaptive Safeguards
+- Intake must generate safeguard hints (tone guidance, suggested quiet windows, escalation contacts, optional spend caps) with confidence scores; reviewers can accept, edit, or regenerate.
+- Accepted hints are stored alongside the mission and become part of validator context; their adoption rate feeds the analytics views documented in the architecture blueprint.
+- Approvals surface only the safeguards relevant to the pending action, offering one-click fixes where possible (e.g., auto-soften tone, schedule later, request escalation).
+- Safeguard feedback (accepted, edited, rejected, auto-fixed) is logged so product teams can tune prompts and highlight common patterns.
 
 ### Evidence, Analytics & Governance
 - Each mission generates an evidence bundle: mission brief, tool outputs (redacted), ROI estimates, risk notes, undo plan, and telemetry summary. Bundles are reviewable in CopilotKit and exportable via Supabase APIs.
-- Dashboards present dry-run conversion, approval throughput, guardrail exceptions, and library reuse. Data must be filterable by tenant, persona, and checkpoint state.
-- Guardrail telemetry (incidents, overrides, undo outcomes) must sync with Supabase analytics views and appear in weekly governance reports per the guardrail policy pack.
+- Dashboards present dry-run conversion, approval throughput, safeguard feedback, and library reuse. Data must be filterable by tenant, persona, and checkpoint state.
+- Safeguard telemetry (hint adoption, auto-fixes, reviewer overrides, undo outcomes) must sync with Supabase analytics views and appear in weekly governance reports.
 
 ### Non-Functional Requirements
 - **Latency:** Dry-run loop ≤15 minutes end-to-end; streaming updates surface within 5 seconds of agent emission.
@@ -136,9 +136,9 @@ Deliver an objective-first AI employee that plans, executes, and learns like a t
 
 - **Revenue Lead:** As a director of business development, I want to submit a quarterly pipeline goal and receive three ready-to-run outreach plays so I can revive dormant accounts without expanding headcount.
 - **Marketing Ops Manager:** As the owner of lifecycle campaigns, I want zero-privilege plays that return enriched lead lists and draft nurture sequences so I can demonstrate lift before granting send permissions.
-- **Customer Support Leader:** As a head of support, I want guardrailed automations that surface churn-risk cases, propose responses, and log evidence so my team meets SLAs confidently.
+- **Customer Support Leader:** As a head of support, I want safeguarded automations that surface churn-risk cases, propose responses, and log evidence so my team meets SLAs confidently.
 - **Finance & Admin Owner:** As an operations manager, I want approved billing nudges and scheduling workflows so I can reduce manual follow-up and missed payments.
 - **Technical Enablement Lead:** As a platform engineer, I want code changes routed through a code MCP with reviewer checkpoints so I can enable agent-led fixes without compromising repo hygiene.
-- **Executive Sponsor:** As a COO, I want dashboards summarizing ROI, approvals, and guardrail events so I can justify expansion and maintain compliance posture.
+- **Executive Sponsor:** As a COO, I want dashboards summarizing ROI, approvals, and safeguard outcomes so I can justify expansion and maintain compliance posture.
 - **Security & Governance Officer:** As a compliance lead, I want visibility into who approved each automation, what toolkits were used, and how rollback works so I can greenlight broader usage.
 - **Agency Partner:** As a service provider, I want to clone top-performing plays across clients and track performance deltas so I can package AI-led services efficiently.

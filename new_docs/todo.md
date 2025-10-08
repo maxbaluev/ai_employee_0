@@ -21,7 +21,6 @@
 
 - Architecture blueprint: [new_docs/architecture.md](./architecture.md)
 - Business requirements: [new_docs/prd.md](./prd.md)
-- Guardrail policies: [new_docs/guardrail_policy_pack.md](./guardrail_policy_pack.md)
 - UX blueprint: [new_docs/ux.md](./ux.md)
 
 ---
@@ -33,14 +32,14 @@ This roadmap governs all implementation work from zero-privilege proofs to gover
 1. **Actionable checklists** — Discrete tasks with clear done states
 2. **Acceptance criteria** — Instrumentation and verification steps
 3. **Evidence artifacts** — Required outputs for gate promotion
-4. **Cross-doc references** — Links to architecture, PRD, and guardrail specs
+4. **Cross-doc references** — Links to architecture, PRD, and UX specs
 
 **Promotion rules:**
 
 - All checklist items must be complete
 - Evidence artifacts must be present in `docs/readiness/`
 - Supabase migrations must be applied and logged
-- Guardrail policies must be enforced per [guardrail_policy_pack.md](./guardrail_policy_pack.md)
+- Adaptive safeguards must be captured and logged per `architecture.md` and the PRD
 
 ---
 
@@ -63,8 +62,7 @@ This roadmap governs all implementation work from zero-privilege proofs to gover
 **Key References:**
 
 - Architecture §2, §3.1–3.4: [architecture.md](./architecture.md#2-layered-architecture-overview)
-- Guardrail schema: [guardrail_policy_pack.md](./guardrail_policy_pack.md#21-supabase-schema-excerpt)
-- PRD value prop: [prd.md](./prd.md#value-proposition--differentiators))
+- PRD value prop: [prd.md](./prd.md#value-proposition--differentiators)
 
 ### Checklist
 
@@ -74,7 +72,7 @@ This roadmap governs all implementation work from zero-privilege proofs to gover
 **Reference:** [architecture.md §3.4](./architecture.md#34-supabase-data-plane)
 
 - [ ] Apply `supabase/migrations/0001_init.sql` with pgvector extension
-- [ ] Enable Row Level Security on `objectives`, `plays`, `tool_calls`, `approvals`, `artifacts`, `guardrail_profiles`, `mission_guardrails`
+- [ ] Enable Row Level Security on `objectives`, `mission_metadata`, `mission_safeguards`, `plays`, `tool_calls`, `approvals`, `artifacts`
 - [ ] Verify RLS policies allow tenant-scoped access only
 - [ ] Run `supabase db diff` and capture migration hash in `docs/readiness/migration_log_G-A.md`
 - [ ] Test persistence: create objective, reload session, confirm state restored
@@ -87,7 +85,7 @@ This roadmap governs all implementation work from zero-privilege proofs to gover
 
 - [ ] Implement `MissionIntake.tsx` with `useCopilotReadable` for mission objective
 - [ ] Wire `useCopilotAction` for `createMission` handler calling `/api/objectives`
-- [ ] Reproduce mission sidebar, streaming status panel, guardrail summary, and artifact card components per the UX blueprint
+- [ ] Reproduce mission sidebar, streaming status panel, safeguard drawer, and artifact card components per the UX blueprint
 - [ ] Store CopilotKit sessions and messages in Supabase tables (`copilot_sessions`, `copilot_messages`)
 - [ ] Implement retention policy (7-day default per PRD)
 - [ ] Test message management hooks: `copilotkit_emit_message`, `copilotkit_exit`
@@ -99,7 +97,7 @@ This roadmap governs all implementation work from zero-privilege proofs to gover
 **Reference:** [architecture.md §3.1](./architecture.md#31-presentation--control-plane-nextjs--copilotkit), [prd.md §5](./prd.md#copilotkit-experience), [ux.md §5.1](./ux.md#51-generative-intake-panel)
 
 - [ ] Build `/api/intake/generate` and `/api/intake/regenerate` endpoints with redacted logging
-- [ ] Implement `intakeService.generateBrief` to output objective, audience, KPIs, guardrails, tone, and suggested KPIs with confidence scores
+- [ ] Implement `intakeService.generateBrief` to output objective, audience, KPIs, safeguard hints, tone guidance with confidence scores
 - [ ] Persist generated fields and edit metadata to `mission_metadata` table (`source=generated|edited`, `confidence`, `regeneration_count`)
 - [ ] Emit telemetry events `intent_submitted`, `brief_generated`, `brief_item_modified`
 - [ ] Provide UX hooks for "Accept", "Edit", "Regenerate", "Reset to previous" per component library
@@ -112,7 +110,7 @@ This roadmap governs all implementation work from zero-privilege proofs to gover
 
 - [ ] Define `CoordinatorAgent` (SequentialAgent) with planner + conditional executor
 - [ ] Implement `PlannerAgent` (LlmAgent) with deterministic `_run_async_impl` branches
-- [ ] Add `ValidatorAgent` stub that reads `ctx.session.state['guardrails']`
+- [ ] Add `ValidatorAgent` stub that reads `ctx.session.state['safeguards']`
 - [ ] Add `EvidenceAgent` stub for artifact capture
 - [ ] Create `agent/evals/smoke_g_a.yaml` with baseline scenario
 - [ ] Run `adk eval agent/evals/smoke_g_a.yaml` and save pass/fail logs to `docs/readiness/adk_eval_G-A.log`
@@ -127,17 +125,15 @@ This roadmap governs all implementation work from zero-privilege proofs to gover
 - [ ] Document the requirement for `COMPOSIO_API_KEY` in setup guides
 - [ ] Export SDK status output (`python -m agent.tools.composio_client --status`) to `docs/readiness/composio_status_G-A.txt`
 
-#### Guardrail Policy Seeding
+#### Safeguard Hint Seeds
 
-**Owner:** Governance Sentinel
-**Reference:** [guardrail_policy_pack.md §2](./guardrail_policy_pack.md#2-canonical-guardrail-configuration-model)
+**Owner:** Product Design + Runtime Steward
+**Reference:** [architecture.md §3.5](./architecture.md#35-supabase-data-plane), [ux.md §7](./ux.md#7-adaptive-safeguards-ux)
 
-- [ ] Seed `guardrail_profiles` table with base policies (tone, quiet hours, rate limits, budget, undo)
-- [ ] Seed `mission_guardrails` with default profile references
-- [ ] Validate guardrail payload merge: load profile + mission overrides into JSON
-- [ ] Export `guardrail_profiles` to `docs/readiness/guardrail_profiles_seed.csv`
-- [ ] Draft reviewer SOPs for dry-run sign-off in `docs/readiness/reviewer_sop_G-A.md`
-- [ ] Confirm Governance Sentinel approval signature
+- [ ] Populate `mission_safeguards` with starter hints (tone, quiet window, escalation contact) for three personas
+- [ ] Document prompt scaffolds and safety filters in `docs/readiness/generative_intake_playbook_G-A.md`
+- [ ] Validate hints can be accepted, edited, regenerated from the UI without manual DB edits
+- [ ] Log acceptance/rejection events to verify telemetry wiring
 
 ### Acceptance Instrumentation
 
@@ -146,24 +142,23 @@ This roadmap governs all implementation work from zero-privilege proofs to gover
 1. **ADK smoke run:** `adk eval agent/evals/smoke_g_a.yaml` produces pass/fail summary with timestamps
 2. **CopilotKit persistence:** Create mission, refresh session, confirm state restored; log DB row hashes
 3. **SDK connectivity:** Run `python -m agent.tools.composio_client --status`; record toolkit count and categories
-4. **Guardrail seed validation:** Query `guardrail_profiles` table; export CSV; confirm base policies present
-5. **Generative intake QA:** Paste sample intent, verify generated objective/audience/guardrail sets include confidence scores and are editable/regenerable
+4. **Generative intake QA:** Paste sample intent, verify generated objective/audience/safeguard sets include confidence scores and are editable/regenerable
+5. **Safeguard telemetry sanity:** Accept, edit, and reject hints; confirm events land in `mission_safeguards` and telemetry tables
 
 **Evidence Artifacts:**
 
 - `docs/readiness/status_beacon_A.json` with readiness %, owners, blockers
 - `docs/readiness/migration_log_G-A.md` with Supabase migration hash + command output
 - `docs/readiness/composio_status_G-A.txt` with SDK status output
-- `docs/readiness/guardrail_profiles_seed.csv`
 - `docs/readiness/copilotkit_qa_G-A/` (screenshots + console logs)
-- `docs/readiness/generative_intake_samples_G-A.json` capturing input, generated fields, confidence scores, and edit logs
+- `docs/readiness/generative_intake_samples_G-A.json` capturing input, generated fields, safeguard hints, confidence scores, and edit logs
 
 ### Exit Criteria
 
 - [ ] Supabase schema + RLS validated, audit log captured in `docs/readiness/`
 - [ ] CopilotKit persistence + reload verified with evidence screenshots
 - [ ] Nightly Cron job scheduled and monitored
-- [ ] Guardrail policy mapping approved by Governance Sentinel; profiles seeded and exported
+- [ ] Safeguard hints reviewed with governance stakeholders and documented as starter seeds
 
 ### Dependencies & Notes
 
@@ -181,7 +176,7 @@ This roadmap governs all implementation work from zero-privilege proofs to gover
 
 - Architecture §4.1 (Dry-Run Proof Sequence): [architecture.md](./architecture.md#41-dry-run-proof-sequence)
 - PRD dry-run proof packs: [prd.md](./prd.md#product-scope--key-experiences-business-lens)
-- Guardrail enforcement: [guardrail_policy_pack.md §3](./guardrail_policy_pack.md#3-enforcement-surfaces)
+- Adaptive safeguards: [architecture.md §3.7](./architecture.md#37-adaptive-safeguards)
 
 ### Checklist
 
@@ -192,8 +187,8 @@ This roadmap governs all implementation work from zero-privilege proofs to gover
 
 - [ ] Implement streaming via `copilotkit_emit_message` in planner and executor agents
 - [ ] Enforce `copilotkit_exit` at mission completion
-- [ ] Create `ApprovalModal.tsx` component rendering guardrail summaries, undo plan, reviewer actions
-- [ ] Confirm modal copy, remediation options, and accessibility behavior match the UX blueprint (guardrail summary card, override flow, keyboard navigation)
+- [ ] Create `ApprovalModal.tsx` component rendering safeguard hints, suggested fixes, undo plan, reviewer actions
+- [ ] Confirm modal copy, remediation options, and accessibility behavior match the UX blueprint (safeguard feedback modal, keyboard navigation)
 - [ ] Wire approval decisions to `/api/approvals` endpoint
 - [ ] Enable reviewer annotations in CopilotKit workspace
 - [ ] Record QA video showing interim status updates and reviewer edits
@@ -239,7 +234,7 @@ This roadmap governs all implementation work from zero-privilege proofs to gover
 
 - [ ] Analyze edit rates for generated brief fields; ensure ≥70% acceptance without regeneration for pilot tenants
 - [ ] Capture qualitative feedback on generated recommendations (survey + session notes)
-- [ ] Iterate prompt templates and guardrails based on edit telemetry
+- [ ] Iterate prompt templates and safeguards based on edit telemetry
 - [ ] Document findings in `docs/readiness/generative_quality_report_G-B.md`
 
 #### Dry-Run Workflow Documentation
@@ -283,13 +278,13 @@ This roadmap governs all implementation work from zero-privilege proofs to gover
 
 ## Gate G-C — Governed Activation Core
 
-**Mission Question:** Can we execute OAuth-backed plays with approvals, undo, and trigger lifecycle controls while preserving auditability?
+**Mission Question:** Can we execute OAuth-backed plays with adaptive safeguards, approvals, undo, and trigger lifecycle controls while preserving auditability?*
 
 **Key References:**
 
 - Architecture §4.2 (Governed Activation Sequence): [architecture.md](./architecture.md#42-governed-activation-sequence)
 - Architecture §4.3 (Approval & Undo Loop): [architecture.md](./architecture.md#43-approval--undo-loop)
-- Guardrail enforcement: [guardrail_policy_pack.md §3, §4](./guardrail_policy_pack.md#3-enforcement-surfaces)
+- Adaptive safeguards: [architecture.md §3.7](./architecture.md#37-adaptive-safeguards), [ux.md §7](./ux.md#7-adaptive-safeguards-ux)
 - PRD governed activation: [prd.md §5](./prd.md#governed-activation)
 
 ### Checklist
@@ -302,18 +297,18 @@ This roadmap governs all implementation work from zero-privilege proofs to gover
 - [ ] Implement OAuth handshake in `agent/tools/composio_client.py`: `toolkits.authorize`, `waitForConnection`
 - [ ] Store `redirect_url`, `connection_id`, scopes in `oauth_tokens` table with encryption (`ENCRYPTION_KEY` env var)
 - [ ] Log auth evidence (scopes, connection timestamps) to `docs/readiness/oauth_evidence_G-C.csv`
-- [ ] Test OAuth flow: initiate connect, redirect user, capture connection ID, verify token storage
+- [ ] Test OAuth flow end-to-end (connect, consent, token storage, revoke)
 - [ ] Document OAuth rehearsal in `docs/readiness/oauth_rehearsal_G-C.md`
 
 #### Generative Connection Planner
 
 **Owner:** Runtime Steward + CopilotKit Squad
-**Reference:** [prd.md §5](./prd.md#generative-intake), [ux.md §3.2](./ux.md#32-journey-map-governed-activation-gate-g-c-focus)
+**Reference:** [architecture.md §3.4](./architecture.md#34-supabase-data-plane), [ux.md §3.2](./ux.md#32-journey-map-governed-activation-gate-g-c-focus)
 
 - [ ] Generate recommended toolkit & scope plan automatically after mission brief acceptance (e.g., Zendesk triage + Slack digest)
-- [ ] Display confidence scores and rationale for each recommended connection within Guardrail & Auth drawer
+- [ ] Surface hints in the Safeguard & Auth drawer with confidence and rationale chips
 - [ ] Allow inline edit, removal, or regeneration of suggestions before activation
-- [ ] Persist accepted/rejected suggestions to `mission_metadata` (`field='connection_plan'`)
+- [ ] Persist accepted/rejected hints to `mission_safeguards` (status: suggested/accepted/edited/rejected)
 - [ ] Emit telemetry `toolkit_suggestion_applied` with outcome (accepted/edited/rejected)
 
 #### Trigger Lifecycle Management
@@ -326,60 +321,53 @@ This roadmap governs all implementation work from zero-privilege proofs to gover
 - [ ] Test trigger subscription: create synthetic event, verify event logged in Supabase
 - [ ] Export trigger event log to `docs/readiness/trigger_events_G-C.json`
 
-#### Validator Enforcement
+#### Validator & Safeguard Feedback
 
 **Owner:** Runtime Steward
-**Reference:** [architecture.md §3.6](./architecture.md#36-governance--guardrails), [guardrail_policy_pack.md §3.2](./guardrail_policy_pack.md#32-gemini-adk-validator-tree)
+**Reference:** [architecture.md §3.7](./architecture.md#37-adaptive-safeguards), [ux.md §7](./ux.md#7-adaptive-safeguards-ux)
 
-- [ ] Implement validator helpers: `check_tone`, `check_quiet_hours`, `check_rate_limit`, `check_budget`
-- [ ] Integrate LLM-based tone check if regex fails
-- [ ] Enforce validator interrupts: set `validation_failed` with `violation_details`, raise `CopilotInterrupt`
-- [ ] Test negative cases: tone violation, quiet hour breach, rate limit exceeded
-- [ ] Document validator test suite in `agent/evals/validator_g_c.yaml`
-- [ ] Run `adk eval agent/evals/validator_g_c.yaml`, save results to `docs/readiness/validator_eval_G-C.log`
+- [ ] Implement validator helpers that consume accepted safeguard hints (tone, timing, escalation, budget)
+- [ ] Return feedback tiers (auto-fix, ask reviewer, retry later) and log to `safeguard_events`
+- [ ] Test negative cases: tone softening, quiet window breach, escalation required
+- [ ] Capture evaluation logs in `agent/evals/validator_g_c.yaml` and store results in `docs/readiness/validator_eval_G-C.log`
 
-#### Evidence Agent Undo Plans
+#### Evidence & Undo
 
 **Owner:** Runtime Steward
 **Reference:** [architecture.md §3.5](./architecture.md#35-evidence--analytics)
 
 - [ ] Store undo plans for every mutating tool call in `tool_calls.undo_plan`
 - [ ] Implement `execute_undo(tool_call_id)` in `agent/services/evidence_service.py`
-- [ ] Test undo regression: execute undo plan for at least one governed tool call
-- [ ] Verify evidence update in `tool_calls` and `artifacts` tables
-- [ ] Document undo test in `docs/readiness/undo_test_G-C.md`
+- [ ] Execute undo regression covering at least one governed toolkit and log outputs
+- [ ] Document undo regression in `docs/readiness/undo_test_G-C.md`
 
-#### Approval UI & Override Workflow
+#### Approval UX & Safeguard Feedback
 
 **Owner:** CopilotKit Squad
-**Reference:** [architecture.md §3.1](./architecture.md#31-presentation--control-plane-nextjs--copilotkit), [guardrail_policy_pack.md §4](./guardrail_policy_pack.md#4-override--escalation-workflow)
+**Reference:** [architecture.md §3.1](./architecture.md#31-presentation--control-plane-nextjs--copilotkit), [ux.md §7](./ux.md#7-adaptive-safeguards-ux)
 
-- [ ] Implement `ApprovalModal.tsx` with risk, undo, scope preview
-- [ ] Wire undo buttons to Evidence agent `execute_undo` endpoint
-- [ ] Add message pruning for revoked actions
-- [ ] Implement `/api/guardrails/override` endpoint writing to `guardrail_overrides` table
-- [ ] Test override workflow: submit override, verify `guardrail_incidents` capture resolution
-- [ ] Export override register to `docs/readiness/guardrail_override_register_G-C.csv`
+- [ ] Update `ApprovalModal.tsx` to render safeguard hint, suggested fix, send-anyway justification, schedule-later option
+- [ ] Ensure undo buttons call Evidence service and update safeguard feedback stream
+- [ ] Log reviewer actions (`safeguard_hint_applied`, `safeguard_hint_rejected`) with notes
+- [ ] Capture QA session showing safeguard feedback loop end-to-end
 
-#### Supabase RLS & Policies
+#### Supabase Policies
 
 **Owner:** Data Engineer
-**Reference:** [architecture.md §3.4](./architecture.md#34-supabase-data-plane), [guardrail_policy_pack.md §3.3](./guardrail_policy_pack.md#33-supabase-policies--jobs)
+**Reference:** [architecture.md §3.5](./architecture.md#35-supabase-data-plane)
 
-- [ ] Add RLS policies for `approvals`, `tool_calls`, `triggers`, `oauth_tokens` tables
+- [ ] Add RLS policies for `mission_safeguards`, `safeguard_events`, `approvals`, `tool_calls`, `triggers`, `oauth_tokens`
 - [ ] Create PostgREST policies for reviewer and admin personas
-- [ ] Add `pg_cron` job `guardrail_override_expiry` to expire stale override tokens
-- [ ] Test policy enforcement: attempt cross-tenant access, verify rejection
+- [ ] Schedule `safeguard_feedback_rollup` cron job
+- [ ] Test policy enforcement: attempt cross-tenant access to safeguarded missions and ensure rejection
 
-#### Governance SOPs
+#### Governance Enablement
 
 **Owner:** Governance Sentinel
-**Reference:** [guardrail_policy_pack.md §4](./guardrail_policy_pack.md#4-override--escalation-workflow)
 
-- [ ] Publish approval SOP in `docs/readiness/approval_sop_G-C.md`
-- [ ] Publish quiet-hour override policy in `docs/readiness/quiet_hour_override_policy_G-C.md`
-- [ ] Publish rollback checklist in `docs/readiness/rollback_checklist_G-C.md`
-- [ ] Document guardrail override register maintenance process
+- [ ] Publish safeguard reviewer playbook in `docs/readiness/safeguard_reviewer_sop_G-C.md`
+- [ ] Document escalation guidelines (when to pin hints vs. send anyway)
+- [ ] Capture weekly summary template highlighting safeguard adoption trends
 - [ ] Obtain Governance Sentinel sign-off
 
 ### Acceptance Instrumentation
@@ -388,32 +376,31 @@ This roadmap governs all implementation work from zero-privilege proofs to gover
 
 1. **OAuth connection rehearsal:** Record redirect URL, connection ID, scopes; verify token encryption
 2. **Trigger subscription test:** Produce synthetic event; verify event logged in Supabase
-3. **Validator negative-case suite:** Test tone violation, quiet hour breach; confirm halted execution and CopilotKit interrupt
-4. **Override workflow drill:** Submit override via CopilotKit; verify `/api/guardrails/override` writes to `guardrail_overrides` and `guardrail_incidents`
-5. **Generative connection QA:** Accept/reject recommended connection plan; confirm telemetry (`toolkit_suggestion_applied`) and persistence in `mission_metadata`
-6. **Undo regression:** Execute undo plan; confirm evidence update
+3. **Validator feedback suite:** Trigger tone softening, quiet window breach, escalation hint; confirm interrupts and logged feedback
+4. **Safeguard hint QA:** Accept/reject generated hints; confirm telemetry and persistence in `mission_safeguards`
+5. **Undo regression:** Execute undo plan; confirm evidence update
 
 **Evidence Artifacts:**
 
-- `docs/readiness/governed_activation_report.csv` (connections, approvals, undo traces, trigger events)
-- `docs/readiness/approval_feed_export_G-C.json` showing reviewer decisions
+- `docs/readiness/governed_activation_report.csv` (connections, approvals, undo traces, safeguard feedback)
+- `docs/readiness/approval_feed_export_G-C.json` showing reviewer decisions + hint outcomes
 - `docs/readiness/status_beacon_C.json` with risk assessment
 - `docs/readiness/oauth_evidence_G-C.csv`
-- `docs/readiness/guardrail_override_register_G-C.csv`
 - `docs/readiness/generative_connection_plan_G-C.json` (suggested vs. accepted scopes, edits)
+- `docs/readiness/safeguard_feedback_samples_G-C.json`
 
 ### Exit Criteria
 
 - [ ] At least two OAuth toolkits operational with approvals recorded
 - [ ] Trigger lifecycle covered (list/get/create/subscribe/disable) with audit logs
-- [ ] Validator interruptions verified; guardrail overrides closed within SLA
+- [ ] Validator feedback captured for tone/timing/escalation scenarios and surfaced in UI
 - [ ] Undo buttons tested and evidence stored
-- [ ] All governance SOPs published and approved
+- [ ] Governance playbook published and acknowledged
 
 ### Dependencies & Notes
 
 - Coordinate with security for vaulting OAuth secrets
-- Ensure compliance with [guardrail_policy_pack.md](./guardrail_policy_pack.md) for all OAuth scopes
+- Ensure scopes requested by connection planner align with customer contracts and are logged in safeguard hints
 
 ---
 
@@ -425,7 +412,7 @@ This roadmap governs all implementation work from zero-privilege proofs to gover
 
 - Architecture §3.5 (Evidence & Analytics): [architecture.md](./architecture.md#35-evidence--analytics)
 - PRD analytics requirements: [prd.md §5](./prd.md#evidence-analytics--governance)
-- Guardrail telemetry: [guardrail_policy_pack.md §5](./guardrail_policy_pack.md#5-evidence--telemetry-requirements)
+- Safeguard telemetry: [architecture.md §7](./architecture.md#7-observability-metrics--alerts)
 
 ### Checklist
 
@@ -437,7 +424,7 @@ This roadmap governs all implementation work from zero-privilege proofs to gover
 - [ ] Build Next.js server components backed by PostgREST for:
   - Adoption metrics (`analytics_weekly_approved_jobs`)
   - ROI estimates
-  - Guardrail incidents (`analytics_guardrail_incidents`)
+  - Safeguard feedback (`analytics_safeguard_feedback`)
   - Latency percentiles
 - [ ] Implement filters: tenant, persona, mission state
 - [ ] Add dashboard QA checklist: p95 latency < target, filters functioning, data accurate vs sample queries
@@ -483,7 +470,7 @@ This roadmap governs all implementation work from zero-privilege proofs to gover
 - [ ] Create views for generative acceptance metrics (`brief_accept_rate`, `connection_accept_rate`, `average_regenerations_per_field`)
 - [ ] Populate narrative summaries using templated LLM prompts with edit/regenerate controls in dashboard
 - [ ] Log narrative edits (accept vs regenerate) to telemetry for future tuning
-- [ ] Document narrative prompt templates and guardrails in `docs/readiness/generative_narratives_playbook_G-D.md`
+- [ ] Document narrative prompt templates and safeguard guidance in `docs/readiness/generative_narratives_playbook_G-D.md`
 
 #### Edge Functions Deployment
 
@@ -527,7 +514,7 @@ This roadmap governs all implementation work from zero-privilege proofs to gover
 
 ## Gate G-E — Scale Hardening
 
-**Mission Question:** Is the platform ready for broader rollout with enforced security, performance, and enablement guardrails?
+**Mission Question:** Is the platform ready for broader rollout with enforced security, performance, and adaptive safeguard discipline?
 
 **Key References:**
 
@@ -540,11 +527,11 @@ This roadmap governs all implementation work from zero-privilege proofs to gover
 #### Security Hardening
 
 **Owner:** Runtime Steward + Governance Sentinel
-**Reference:** [architecture.md §3.6](./architecture.md#36-governance--guardrails)
+**Reference:** [architecture.md §3.7](./architecture.md#37-adaptive-safeguards)
 
 - [ ] Implement token rotation for OAuth credentials in `oauth_tokens` table
 - [ ] Build PII redaction pipeline: scan `artifacts` and `copilot_messages` for sensitive strings
-- [ ] Audit trigger permissions: verify scopes match guardrail policies
+- [ ] Audit trigger permissions: verify scopes match accepted safeguard hints and customer contracts
 - [ ] Document SOC2-oriented controls in `docs/readiness/security_controls_G-E.md`
 - [ ] Obtain security checklist sign-off with evidence (logs, policies, runbooks)
 - [ ] Export security summary to `docs/readiness/trust_review.pdf`
@@ -627,8 +614,7 @@ This roadmap governs all implementation work from zero-privilege proofs to gover
 
 **Key References:**
 
-- Architecture §7 (Observability & Incident Response): [architecture.md](./architecture.md#7-observability--incident-response)
-- Guardrail incident response: [guardrail_policy_pack.md §7](./guardrail_policy_pack.md#7-incident-response)
+- Architecture §7 (Observability & Incident Response): [architecture.md](./architecture.md#7-observability-metrics--alerts)
 - PRD metrics: [prd.md §6](./prd.md#metrics--success-criteria)
 
 ### Checklist
@@ -641,20 +627,17 @@ This roadmap governs all implementation work from zero-privilege proofs to gover
 - [ ] Collect two reporting cycles of production KPIs:
   - Adoption (weekly approved jobs per account)
   - Approvals (throughput, override rate)
-  - Guardrail incidents (incident rate, mean time to close)
+  - Safeguard feedback (auto-fix rate, send-anyway frequency)
   - ROI (estimated value per mission)
 - [ ] Reconcile KPI exports with Supabase dashboard data
 - [ ] Export KPI data to `docs/readiness/kpi_export_G-F.parquet`
 
 #### Incident Hygiene
 
-**Owner:** Governance Sentinel + Runtime Steward
-**Reference:** [guardrail_policy_pack.md §7](./guardrail_policy_pack.md#7-incident-response)
-
-- [ ] Document all incidents in `guardrail_incidents` table
-- [ ] Write postmortems for incidents with `severity = 'blocking'`
+- [ ] Document all feedback events in `safeguard_events`
+- [ ] Write postmortems for events flagged as `severity = 'blocking'`
 - [ ] Review incident ledger with governance and runtime teams
-- [ ] Store postmortems in `docs/readiness/guardrail_reports/`
+- [ ] Store postmortems in `docs/readiness/safeguard_reports/`
 - [ ] Verify all incidents resolved with documented learnings
 
 #### Next-Phase Roadmap
@@ -709,7 +692,7 @@ This roadmap governs all implementation work from zero-privilege proofs to gover
 
 **Weekly:**
 
-- Review Cron health: `guardrail_override_expiry`
+- Review Cron health: `safeguard_feedback_rollup`
 - Streaming UX QA status: confirm CopilotKit sessions loading without errors
 - Open risks: update risk register in `docs/readiness/risk_register.md`
 - Task progress: update status beacons with blockers and owners
@@ -772,8 +755,8 @@ Maintain dated decisions here during reviews. Include context, decision, owner, 
 
 | Document                                               | Key Sections                                                             | Purpose                                    |
 | ------------------------------------------------------ | ------------------------------------------------------------------------ | ------------------------------------------ |
-| [architecture.md](./architecture.md)                   | §2 (Layered Architecture), §3 (Component Blueprints), §4 (Runtime Flows) | Technical implementation guidance          |
+| [architecture.md](./architecture.md)                   | §2 (Layered Architecture), §3 (Component Blueprints), §4 (Runtime Flows), §7 (Observability) | Technical implementation guidance          |
 | [prd.md](./prd.md)                                     | §5 (Product Scope), §6 (Metrics), §7 (GTM Packaging)                     | Business requirements and success criteria |
-| [guardrail_policy_pack.md](./guardrail_policy_pack.md) | §2 (Guardrail Schema), §3 (Enforcement), §4 (Override Workflow)          | Guardrail policies and incident response   |
+| [ux.md](./ux.md)                                       | §4 (Workspace Anatomy), §5 (Interaction Patterns), §7 (Adaptive Safeguards) | Experience blueprint and interaction cues |
 
 **End of Roadmap**

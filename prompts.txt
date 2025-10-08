@@ -1,1 +1,3 @@
 /code see on all files at /new_docs including new_docs/ux.md after see on all txt filex inside /libs_docs folder, read full txt content. We need fully implement G-A Gate. After be sure that we can run `mise run dev` and after use chrome to test real behaiviour
+
+/code Ok, now think deeper about data structures and data flows, do we need guardrail_policy_pack.md like this ? Can it be more generative?  also think about data flow, users wanna love it, so do we really need things like tonePolicy ? Make overall architecture more code effective and elegant, adapt all documents at /new_docs
