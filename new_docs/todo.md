@@ -127,9 +127,9 @@ This roadmap governs all implementation work from zero-privilege proofs to gover
 - [x] Hash tool arguments before appending to Supabase `tool_calls` and write artifact metadata (`play_id`, `type`, `content_ref`, `hash`) into `artifacts`.
 - [x] Save a sample evidence bundle to `docs/readiness/evidence_stub_output_G-A.json` demonstrating storage schema and undo trace expectations.
 
-- [x] Commit `agent/evals/smoke_g_a.json` placeholder covering intake → planner → validator → evidence happy path.
+- [x] Commit `agent/evals/smoke_g_a_v2.json` placeholder covering intake → planner → validator → evidence happy path.
 - [x] Flesh out the smoke suite with at least three personas (marketing, ops, sales) and safeguard variations aligned with `architecture.md §3.3`.
-- [x] Run `adk eval agent/evals/smoke_g_a.json`; archive verbose output plus pass/fail summary in `docs/readiness/adk_eval_G-A.log`.
+- [x] Run `adk eval agent/evals/smoke_g_a_v2.json`; archive verbose output plus pass/fail summary in `docs/readiness/adk_eval_G-A.log`.
 - [x] Wire `mise run test:agent` (or equivalent) to execute the ADK smoke suite in CI and fail builds on regressions.
 - [x] Verify telemetry counters (`mission_created`, `play_selected`, validator outcomes, safeguard hint adoption) flow into Supabase and log the confirmation in `docs/readiness/status_beacon_A.json`.
 
@@ -157,7 +157,7 @@ This roadmap governs all implementation work from zero-privilege proofs to gover
 
 **Required Tests:**
 
-1. **ADK smoke run:** `adk eval agent/evals/smoke_g_a.json` produces pass/fail summary with timestamps
+1. **ADK smoke run:** `adk eval agent/evals/smoke_g_a_v2.json` produces pass/fail summary with timestamps
 2. **CopilotKit persistence:** Create mission, refresh session, confirm state restored; log DB row hashes
 3. **SDK connectivity:** Run `python -m agent.tools.composio_client --status`; record toolkit count and categories
 4. **Generative intake QA:** Paste sample intent, verify generated objective/audience/safeguard sets include confidence scores and are editable/regenerable
@@ -717,7 +717,7 @@ This roadmap governs all implementation work from zero-privilege proofs to gover
 
 **Bi-Weekly:**
 
-- Run `adk eval` regression suites: `agent/evals/smoke_g_a.json`, `agent/evals/validator_g_c.yaml`
+- Run `adk eval` regression suites: `agent/evals/smoke_g_a_v2.json`, `agent/evals/validator_g_c.yaml`
 - Validate Supabase diffs: `supabase db diff`, confirm no unexpected schema changes
 - Confirm Composio tool coverage: run `python -m agent.tools.composio_client --status` and record toolkit count
 

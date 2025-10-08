@@ -5,3 +5,9 @@
 {"stage": "validator_stage_started", "mission": "mission-dry-run", "tenant": "gate-ga-default", "attempt": 1, "timestamp": "2025-10-08T21:30:13Z"}
 {"stage": "evidence_stage_started", "mission": "mission-dry-run", "tenant": "gate-ga-default", "attempt": 1, "timestamp": "2025-10-08T21:30:13Z"}
 {"stage": "execution_loop_completed", "mission": "mission-dry-run", "tenant": "gate-ga-default", "attempts": 1, "timestamp": "2025-10-08T21:30:13Z"}
+{"stage": "intake_stage_started", "mission": "mission-dry-run", "tenant": "gate-ga-default", "timestamp": "2025-10-08T23:13:06Z"}
+{"stage": "planner_stage_started", "mission": "___eval___session___73172cf9-8a18-469e-be67-43f67f32d00b", "tenant": "00000000-0000-0000-0000-000000000000", "timestamp": "2025-10-08T23:13:08Z"}
+{"stage": "execution_loop_started", "mission": "___eval___session___73172cf9-8a18-469e-be67-43f67f32d00b", "tenant": "00000000-0000-0000-0000-000000000000", "timestamp": "2025-10-08T23:13:10Z"}
+{"stage": "intake_stage_started", "mission": "00000000-0000-0000-0000-000000000001", "tenant": "gate-ga-default", "timestamp": "2025-10-08T23:13:15Z"}
+{"stage": "planner_stage_started", "mission": "00000000-0000-0000-0000-000000000001", "tenant": "gate-ga-default", "timestamp": "2025-10-08T23:13:16Z"}
+{"stage": "execution_loop_started", "mission": "00000000-0000-0000-0000-000000000001", "tenant": "gate-ga-default", "timestamp": "2025-10-08T23:13:19Z"}

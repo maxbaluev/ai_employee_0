@@ -1,5 +1,4 @@
-2025-10-08T21:45:00Z adk eval agent/evals/smoke_g_a.yaml
-✔ intake_initialises_context
-✔ planner_ranks_dry_run_candidates
-✔ validator_and_evidence_stub_outputs
-Summary: 3 passed, 0 failed
+2025-10-08T23:10:08Z adk eval agent/evals/smoke_g_a_v2.json
+✔ gate_g_a_marketing_dry_run
+✔ gate_g_a_default_context
+Summary: 2 passed, 0 failed

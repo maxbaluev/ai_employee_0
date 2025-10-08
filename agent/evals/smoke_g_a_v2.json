@@ -1,0 +1,47 @@
+[
+  {
+    "name": "gate_g_a_marketing_dry_run",
+    "initial_session": {
+      "app_name": "control_plane_foundation",
+      "user_id": "eval_marketing",
+      "state": {
+        "mission_context": {
+          "mission_id": "00000000-0000-0000-0000-000000000001",
+          "tenant_id": "gate-ga-default",
+          "objective": "Launch pilot playbook",
+          "audience": "Marketing operations",
+          "timeframe": "Next 10 days",
+          "guardrails": [
+            "Maintain professional tone",
+            "Respect quiet window 18:00-08:00 tenant local"
+          ],
+          "mode": "dry_run"
+        }
+      }
+    },
+    "data": [
+      {
+        "query": "Run the Gate G-A marketing dry-run orchestrator.",
+        "expected_tool_use": [],
+        "expected_intermediate_agent_responses": [],
+        "reference": "Execution loop completed after 1 attempt(s)."
+      }
+    ]
+  },
+  {
+    "name": "gate_g_a_default_context",
+    "initial_session": {
+      "app_name": "control_plane_foundation",
+      "user_id": "eval_default",
+      "state": {}
+    },
+    "data": [
+      {
+        "query": "Run the Gate G-A smoke checklist with default context.",
+        "expected_tool_use": [],
+        "expected_intermediate_agent_responses": [],
+        "reference": "Execution loop completed after 1 attempt(s)."
+      }
+    ]
+  }
+]
