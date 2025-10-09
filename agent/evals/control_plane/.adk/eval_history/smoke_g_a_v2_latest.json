@@ -1,0 +1,26 @@
+{
+  "eval_set": "agent/evals/smoke_g_a_v2.json",
+  "run_at": "2025-10-09T00:00:51Z",
+  "results": [
+    {
+      "name": "gate_g_a_marketing_dry_run",
+      "status": "passed"
+    },
+    {
+      "name": "gate_g_a_marketing_governed",
+      "status": "passed"
+    },
+    {
+      "name": "gate_g_a_revenue_ops_dry_run",
+      "status": "passed"
+    },
+    {
+      "name": "gate_g_a_sales_dry_run",
+      "status": "passed"
+    },
+    {
+      "name": "gate_g_a_default_context",
+      "status": "passed"
+    }
+  ]
+}

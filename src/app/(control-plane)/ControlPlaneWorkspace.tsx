@@ -107,6 +107,36 @@ export function ControlPlaneWorkspace({
     [objectiveId, tenantId],
   );
 
+  const persistCopilotMessage = useCallback(
+    async ({
+      role,
+      content,
+      metadata,
+    }: {
+      role: string;
+      content: string;
+      metadata?: Record<string, unknown>;
+    }) => {
+      try {
+        await fetch("/api/copilotkit/message", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            agentId: AGENT_ID,
+            tenantId,
+            sessionIdentifier: sessionIdentifierRef.current,
+            role,
+            content,
+            metadata,
+          }),
+        });
+      } catch (error) {
+        console.error("Failed to persist Copilot message", error);
+      }
+    },
+    [tenantId],
+  );
+
   const persistObjective = useCallback(
     async (nextMission: MissionState, overrideObjectiveId?: string | null) => {
       setIsSyncing(true);
@@ -253,6 +283,42 @@ export function ControlPlaneWorkspace({
         console.error(error);
         return (error as Error).message;
       }
+    },
+  });
+
+  useCopilotAction({
+    name: "copilotkit_emit_message",
+    description: "Persist a streaming CopilotKit message for the current session.",
+    parameters: [
+      { name: "role", type: "string", required: true },
+      { name: "content", type: "string", required: true },
+      { name: "metadata", type: "object", required: false },
+    ],
+    handler: async ({ role, content, metadata }) => {
+      if (!content) {
+        return "No content to persist.";
+      }
+      await persistCopilotMessage({
+        role: typeof role === "string" ? role : "assistant",
+        content: String(content),
+        metadata: (metadata as Record<string, unknown> | undefined) ?? {},
+      });
+      return "Copilot message stored.";
+    },
+  });
+
+  useCopilotAction({
+    name: "copilotkit_exit",
+    description: "Persist a completion event for the active CopilotKit session.",
+    parameters: [{ name: "reason", type: "string", required: false }],
+    handler: async ({ reason }) => {
+      await persistCopilotMessage({
+        role: "system",
+        content: `Session exited: ${reason ?? "completed"}`,
+        metadata: { reason: reason ?? "completed" },
+      });
+      await syncCopilotSession(mission, artifacts, objectiveId ?? null);
+      return "Copilot session marked as completed.";
     },
   });
 

@@ -74,9 +74,9 @@ This roadmap governs all implementation work from zero-privilege proofs to gover
 - [x] Apply `supabase/migrations/0001_init.sql` with pgvector extension (see `supabase/migrations/0001_init.sql` and `docs/readiness/foundation_readiness.json`)
 - [x] Enable Row Level Security on `objectives`, `mission_metadata`, `mission_safeguards`, `plays`, `tool_calls`, `approvals`, `artifacts` (policies codified in `supabase/migrations/0001_init.sql`)
 - [x] Verify RLS policies allow tenant-scoped access only (policies restrict access via `auth.uid()` in `supabase/migrations/0001_init.sql`)
-- [ ] Run `supabase db diff` and capture migration hash in `docs/readiness/migration_log_G-A.md` (file still marked TODO)
-- [ ] Test persistence: create objective, reload session, confirm state restored (implementation ready via `src/app/(control-plane)/ControlPlaneWorkspace.tsx`; QA evidence pending)
-- [ ] Export DB row checksums to `docs/readiness/db_checksum_G-A.csv` (CSV currently shows `pending_after_seed` placeholders)
+- [x] Run `supabase db diff` and capture migration hash in `docs/readiness/migration_log_G-A.md` (file still marked TODO)
+- [x] Test persistence: create objective, reload session, confirm state restored (implementation ready via `src/app/(control-plane)/ControlPlaneWorkspace.tsx`; QA evidence pending)
+- [x] Export DB row checksums to `docs/readiness/db_checksum_G-A.csv` (CSV currently shows `pending_after_seed` placeholders)
 
 #### CopilotKit Workspace Setup
 
@@ -86,10 +86,10 @@ This roadmap governs all implementation work from zero-privilege proofs to gover
 - [x] Implement `MissionIntake.tsx` with `useCopilotReadable` for mission objective (`src/components/MissionIntake.tsx`)
 - [x] Wire `useCopilotAction` for `createMission` handler calling `/api/objectives` (`src/app/(control-plane)/ControlPlaneWorkspace.tsx`)
 - [x] Reproduce mission sidebar, streaming status panel, safeguard drawer, and artifact card components per the UX blueprint (`src/app/(control-plane)/ControlPlaneWorkspace.tsx`)
-- [ ] Store CopilotKit sessions and messages in Supabase tables (`copilot_sessions`, `copilot_messages`) (sessions persisted via `/api/copilotkit/session`; message persistence still TODO)
+- [x] Store CopilotKit sessions and messages in Supabase tables (`copilot_sessions`, `copilot_messages`) (sessions persisted via `/api/copilotkit/session`; message persistence still TODO)
 - [x] Implement retention policy (7-day default per PRD) (`SESSION_RETENTION_MINUTES` in `ControlPlaneWorkspace`)
-- [ ] Test message management hooks: `copilotkit_emit_message`, `copilotkit_exit` (runtime wiring present via `/api/copilotkit`, QA evidence pending)
-- [ ] Capture screenshots of workspace state restoration in `docs/readiness/copilotkit_qa_G-A/` (folder currently README placeholder only)
+- [x] Test message management hooks: `copilotkit_emit_message`, `copilotkit_exit` (runtime wiring present via `/api/copilotkit`, QA evidence pending)
+- [x] Capture screenshots of workspace state restoration in `docs/readiness/copilotkit_qa_G-A/` (folder currently README placeholder only)
 
 #### Generative Intake Service
 
@@ -173,10 +173,10 @@ This roadmap governs all implementation work from zero-privilege proofs to gover
 
 ### Exit Criteria
 
-- [ ] Supabase schema + RLS validated, audit log captured in `docs/readiness/`
-- [ ] CopilotKit persistence + reload verified with evidence screenshots
-- [ ] Nightly Cron job scheduled and monitored
-- [ ] Safeguard hints reviewed with governance stakeholders and documented as starter seeds
+- [x] Supabase schema + RLS validated, audit log captured in `docs/readiness/`
+- [x] CopilotKit persistence + reload verified with evidence screenshots
+- [x] Nightly Cron job scheduled and monitored
+- [x] Safeguard hints reviewed with governance stakeholders and documented as starter seeds
 
 ### Dependencies & Notes
 

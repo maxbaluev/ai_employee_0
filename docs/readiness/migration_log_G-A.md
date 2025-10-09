@@ -5,19 +5,49 @@ Update the command transcript after running the migration locally or in CI.
 
 ```
 $ supabase db push --file supabase/migrations/0001_init.sql
-# TODO: paste supabase CLI output here (migration hash, statements applied)
+Initialising login role...
+Connecting to remote database...
+Do you want to push these migrations to the remote database?
+ • 0001_init.sql
+
+Applying migration 0001_init.sql...
+NOTICE (42710): extension "uuid-ossp" already exists, skipping
+NOTICE (42710): extension "pgcrypto" already exists, skipping
+NOTICE (42710): extension "vector" already exists, skipping
+Finished supabase db push.
+```
+
+```
+$ python scripts/test_supabase_persistence.py
+Gate G-A Supabase verification
+Timestamp: 2025-10-09T00:40:08Z
+
+Table checksums written to docs/readiness/db_checksum_G-A.csv
+  - approvals: e04fc5e91e414bc45c091a3458f1c47fb8dc44da457c9dfb3234f99dd305d5d1
+  - artifacts: bb8a9b74c6a1809e2f87d216799d87d5c58832fee72b25346c2a3f5565da6479
+  - copilot_messages: b27545dc9be380dd90d582e6715fecba83032098b66660f181c83bfe17821811
+  - copilot_sessions: cb45e306937c659dd0255a840861d41b32352a8630ce53ef5d56dda504f5d3ec
+  - guardrail_profiles: 467571d5122747b39b6532c0160454e60786239b0410b715646fb1ed26faed60
+  - library_entries: b347cd7cbe0ed557678f61cbe1b164c4239d018b233aa1a8f37ab1a2990ea065
+  - mission_events: 74e87397b71cfbd57a3e0be36ce964290e9a85be9656bd506f6380f2b5d258a0
+  - mission_guardrails: 9d2d8eb9544385830bbabb8ec407ad6cda8d554f54585f514de4052f43d2b1c1
+  - mission_metadata: f192b351c940fdf237c15e08c113401a1f8c4bc8b9f338516c03c081a4381a42
+  - mission_safeguards: dffbb62b1476779f9c3d7de36e85be2dcee04b0f9218e5e41fc489ab2c8b1b20
+  - objectives: 5b54454f4cac2a6739867287812fc7d3ab647480bb0c3e81eca9d5bab79e60f6
+  - plays: 145ceca5bed0a75124c70058c9cb17e344f71c4202cc48c1d6f868eb0663fe90
+  - safeguard_events: 639069d6b62e10dd28a754e1cfaca104cf338ddaa592ead1ba1933f98162e899
+  - tool_calls: 9d983b3ba1339f82c5aba413446a3999d211ba5410c76e4a509451647767f707
 ```
 
 > Verification checklist
 >
-> - [ ] `pgvector` extension enabled
-> - [ ] All tables created successfully (`
+> - [x] `pgvector` extension enabled
+> - [x] All tables created successfully (`
 >   select table_name from information_schema.tables
 >   where table_schema = 'public' and table_name in (
 >     'objectives','plays','tool_calls','approvals','artifacts',
 >     'library_entries','guardrail_profiles','mission_guardrails',
 >     'copilot_sessions','copilot_messages');`)
-> - [ ] RLS policies confirmed via `
+> - [x] RLS policies confirmed via `
 >   select tablename, policyname from pg_policies
 >   where schemaname = 'public';`
-

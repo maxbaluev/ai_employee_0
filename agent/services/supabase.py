@@ -204,6 +204,34 @@ class SupabaseClient:
             return
         self._write("mission_events", [event])
 
+    def upsert_copilot_session(self, session: Dict[str, Any]) -> None:
+        payload = {key: value for key, value in session.items() if value is not None}
+        if not payload:
+            return
+        tenant_id = payload.get("tenant_id")
+        agent_id = payload.get("agent_id")
+        session_identifier = payload.get("session_identifier")
+        if not (self._is_uuid(tenant_id) and agent_id and session_identifier):
+            self._buffer_offline("copilot_sessions", [payload])
+            return
+        self._write(
+            "copilot_sessions",
+            [payload],
+            prefer="resolution=merge-duplicates",
+        )
+
+    def insert_copilot_messages(self, messages: Iterable[Dict[str, Any]]) -> None:
+        payload = [row for row in messages if row]
+        if not payload:
+            return
+        if not all(self._is_uuid(row.get("tenant_id")) for row in payload):
+            self._buffer_offline("copilot_messages", payload)
+            return
+        if not all(self._is_uuid(row.get("session_id")) for row in payload):
+            self._buffer_offline("copilot_messages", payload)
+            return
+        self._write("copilot_messages", payload)
+
     def last_offline_payload(self, table: str) -> List[Dict[str, Any]]:
         return self._offline_buffer.get(table, [])
 

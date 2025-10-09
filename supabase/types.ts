@@ -48,6 +48,7 @@ export interface Database {
           impact_estimate: string | null;
           risk_profile: string | null;
           undo_plan: string | null;
+          confidence: number | null;
           telemetry: Json;
           created_at: string;
           updated_at: string;
@@ -61,6 +62,7 @@ export interface Database {
           impact_estimate?: string | null;
           risk_profile?: string | null;
           undo_plan?: string | null;
+          confidence?: number | null;
           telemetry?: Json;
           created_at?: string;
           updated_at?: string;
@@ -137,6 +139,7 @@ export interface Database {
           content_ref: string | null;
           content: Json | null;
           status: string;
+          hash: string | null;
           checksum: string | null;
           created_at: string;
           updated_at: string;
@@ -150,6 +153,7 @@ export interface Database {
           content_ref?: string | null;
           content?: Json | null;
           status?: string;
+          hash?: string | null;
           checksum?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -337,7 +341,7 @@ export interface Database {
           mission_id: string | null;
           tenant_id: string;
           event_name: string;
-          event_data: Json;
+          event_payload: Json;
           created_at: string;
         };
         Insert: {
@@ -345,10 +349,29 @@ export interface Database {
           mission_id?: string | null;
           tenant_id: string;
           event_name: string;
-          event_data?: Json;
+          event_payload?: Json;
           created_at?: string;
         };
         Update: Partial<Database['public']['Tables']['mission_events']['Row']>;
+      };
+      safeguard_events: {
+        Row: {
+          id: string;
+          mission_id: string | null;
+          tenant_id: string;
+          event_type: string;
+          details: Json;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          mission_id?: string | null;
+          tenant_id: string;
+          event_type: string;
+          details?: Json;
+          created_at?: string;
+        };
+        Update: Partial<Database['public']['Tables']['safeguard_events']['Row']>;
       };
     };
     Functions: {

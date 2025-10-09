@@ -7,6 +7,7 @@ This repository hosts the Gate G-A foundation for the AI Employee Control Plane.
 - Frontend packages use **pnpm**. Avoid generating lockfiles with other package managers.
 - Python services live under `agent/`. Install deps with `uv pip install -r agent/requirements.txt` (fast) or a virtualenv activated via `mise exec python -- -m venv .venv`.
 - Environment variables: configure `GOOGLE_API_KEY`, `COMPOSIO_API_KEY`, Supabase keys (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`), `GATE_GA_DEFAULT_TENANT_ID`, and Copilot settings (`NEXT_PUBLIC_COPILOT_RUNTIME_URL`, `NEXT_PUBLIC_COPILOT_AGENT_ID`, `AGENT_HTTP_URL`). Keep secrets out of committed files.
+- Supabase writes run in read-only fallback by default. Set `SUPABASE_ALLOW_WRITES=true` locally only when you need to persist artifacts/tool calls; otherwise the agents buffer payloads offline for eval runs.
 
 ## Setup Commands
 - Install frontend deps: `mise run install` (wraps `pnpm install`)
@@ -20,6 +21,9 @@ This repository hosts the Gate G-A foundation for the AI Employee Control Plane.
 - UI lint/type checks: `mise run lint`
 - (Future) add unit tests under `agent/tests/` and run via `pnpm test` / `pytest`; keep placeholders updated as testing harness lands.
 - Smoke-check the Python package after edits: `mise exec python -- -m compileall agent`
+- Run the Gemini ADK smoke suite before PRs: `mise run test-agent` should exit with 5/5 passing scenarios and zero Supabase HTTP warnings.
+- Supabase schema verification lives in `scripts/test_supabase_persistence.py`; execute it whenever `supabase/migrations/0001_init.sql` changes to refresh the checksum inventory.
+- CopilotKit persistence QA is automated by `scripts/test_copilotkit_persistence.py`; pipe the output into `docs/readiness/copilotkit_qa_G-A/test_results.txt` when regenerating evidence.
 
 ## Code Style & Patterns
 - **TypeScript**: stick to strict mode defaults (`tsconfig`), use single quotes and trailing commas, no implicit `any`. Favor functional React patterns and avoid class components.
