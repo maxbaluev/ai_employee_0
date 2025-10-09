@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict
-from typing import AsyncGenerator, Dict, List, Optional
+from typing import Any, AsyncGenerator, Dict, List, Optional
 
 from google.adk.agents.base_agent import BaseAgent
 from google.adk.agents.invocation_context import InvocationContext
@@ -12,7 +12,7 @@ from google.genai import types
 
 from pydantic import Field
 
-from ..services import SupabaseClient, TelemetryEmitter
+from ..services import CopilotKitStreamer, SupabaseClient, TelemetryEmitter
 from .state import (
     MissionContext,
     SafeguardHint,
@@ -29,6 +29,7 @@ class ValidatorAgent(BaseAgent):
 
     supabase: Optional[SupabaseClient] = Field(default=None, exclude=True)
     telemetry: Optional[TelemetryEmitter] = Field(default=None, exclude=True)
+    streamer: Optional[CopilotKitStreamer] = Field(default=None, exclude=True)
 
     def __init__(
         self,
@@ -36,12 +37,20 @@ class ValidatorAgent(BaseAgent):
         name: str = "ValidatorAgent",
         supabase: Optional[SupabaseClient] = None,
         telemetry: Optional[TelemetryEmitter] = None,
+        streamer: Optional[CopilotKitStreamer] = None,
     ) -> None:
-        super().__init__(name=name, supabase=supabase, telemetry=telemetry)
+        super().__init__(
+            name=name,
+            supabase=supabase,
+            telemetry=telemetry,
+            streamer=streamer,
+        )
         if self.supabase is None:
             object.__setattr__(self, "supabase", SupabaseClient.from_env())
         if self.telemetry is None:
             object.__setattr__(self, "telemetry", TelemetryEmitter(self.supabase))
+        if self.streamer is None:
+            object.__setattr__(self, "streamer", CopilotKitStreamer())
 
     async def _run_async_impl(
         self, ctx: InvocationContext
@@ -62,6 +71,11 @@ class ValidatorAgent(BaseAgent):
                 "status": result.status,
                 "violations": result.violations,
             },
+        )
+
+        self._emit_stream(
+            mission_context,
+            result,
         )
 
         summary = (
@@ -183,3 +197,33 @@ class ValidatorAgent(BaseAgent):
             },
         }
         self.supabase.insert_safeguard_event(event)
+
+    def _session_identifier(self, context: MissionContext) -> str:
+        metadata = context.metadata or {}
+        identifier = metadata.get("session_identifier") if isinstance(metadata, dict) else None
+        return str(identifier) if identifier else context.mission_id
+
+    def _emit_stream(
+        self,
+        context: MissionContext,
+        result: ValidationResult,
+    ) -> None:
+        if not self.streamer:
+            return
+        message = (
+            f"Validator outcome {result.status}; violations="
+            f"{len(result.violations)}"
+        )
+        metadata: Dict[str, Any] = {
+            "stage": "validator_stage_completed",
+            "status": result.status,
+            "violations": result.violations,
+            "reviewer_required": result.reviewer_required,
+        }
+        self.streamer.emit_message(
+            tenant_id=context.tenant_id,
+            session_identifier=self._session_identifier(context),
+            role="assistant",
+            content=message,
+            metadata=metadata,
+        )

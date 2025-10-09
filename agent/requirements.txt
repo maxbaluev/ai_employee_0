@@ -6,3 +6,4 @@ google-adk
 google-genai
 ag-ui-adk
 composio>=0.5.0
+httpx

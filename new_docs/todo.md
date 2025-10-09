@@ -192,105 +192,148 @@ This roadmap governs all implementation work from zero-privilege proofs to gover
 
 **Key References:**
 
-- Architecture §4.1 (Dry-Run Proof Sequence): [architecture.md](./architecture.md#41-dry-run-proof-sequence)
-- PRD dry-run proof packs: [prd.md](./prd.md#product-scope--key-experiences-business-lens)
-- Adaptive safeguards: [architecture.md §3.7](./architecture.md#37-adaptive-safeguards)
+- Architecture §3.1 (workspace), §3.2 (orchestration), §3.5 (evidence), §4.1 (dry-run flow): [architecture.md](./architecture.md)
+- PRD §5 (Dry-run proof packs), §6 (metrics), §7 (operational safety): [prd.md](./prd.md)
+- UX blueprint §§4–8 (workspace anatomy, approvals, safeguards), §10 (telemetry): [ux.md](./ux.md)
+- Partner packs: CopilotKit streaming + interrupt docs (`libs_docs/copilotkit/llms-full.txt`), Composio discovery guidance (`libs_docs/composio/llms.txt`), ADK evaluation patterns (`libs_docs/adk/llms-full.txt`), Supabase retention guidance (`libs_docs/supabase/llms_docs.txt`)
+
+**Gate Barometer:** 0 → 1 for **zero-privilege mission proof of value** (drafts + telemetry) prior to Gate G-C activation work.
 
 ### Checklist
 
-#### CopilotKit Streaming & Approvals
+#### CopilotKit Streaming & Approvals UX
 
-**Owner:** CopilotKit Squad
-**Reference:** [architecture.md §3.1](./architecture.md#31-presentation--control-plane-nextjs--copilotkit), [ux.md §5–§8](./ux.md#5-interaction-patterns--ui-components)
+**Owner:** CopilotKit Squad  
+**References:** [architecture.md §3.1](./architecture.md#31-presentation--control-plane-nextjs--copilotkit), [ux.md §§5–7](./ux.md#5-interaction-patterns--ui-components), [libs_docs/copilotkit/llms-full.txt](../libs_docs/copilotkit/llms-full.txt)
 
-- [ ] Implement streaming via `copilotkit_emit_message` in planner and executor agents
-- [ ] Enforce `copilotkit_exit` at mission completion
-- [ ] Create `ApprovalModal.tsx` component rendering safeguard hints, suggested fixes, undo plan, reviewer actions
-- [ ] Confirm modal copy, remediation options, and accessibility behavior match the UX blueprint (safeguard feedback modal, keyboard navigation)
-- [ ] Wire approval decisions to `/api/approvals` endpoint
-- [ ] Enable reviewer annotations in CopilotKit workspace
-- [ ] Record QA video showing interim status updates and reviewer edits
-- [ ] Save video to `docs/readiness/copilotkit_session_G-B.mp4`
+- [ ] Emit mission lifecycle updates (`planner_stage_started`, `planner_status`, `executor_status`, `validator_feedback`) via `copilotkit_emit_message` in `agent/agents/planner.py` and `agent/agents/executor.py` with payload contracts documented in `docs/readiness/copilotkit_stream_contract_G-B.md`.
+- [ ] Call `copilotkit_exit` from `agent/agents/coordinator.py` with final `mission_status` block so routers recover deterministically; verify exit always fires (including error paths) via integration test.
+- [ ] Ship `src/components/ApprovalModal.tsx` with safeguard chips, undo summary, impact/effort meter, reviewer annotation composer, and CTA hierarchy matching UX blueprint; implement focus trap, ARIA labelling, Esc/Enter shortcuts, and screen reader narration for undo plans.
+- [ ] Wire `/api/approvals` mutations (create/update) and optimistic UI state, including conflict handling when multiple reviewers act concurrently.
+- [ ] Surface streaming timeline in `ControlPlaneWorkspace` status rail with latency indicators (target p95 stream heartbeat <5s) and "Why waiting" copy for validator pauses.
+- [ ] Instrument telemetry events (`approval_required`, `approval_decision`, `reviewer_annotation_created`, `undo_requested`) using `emitTelemetry` helper and persist to Supabase `telemetry_events` table.
+- [ ] Capture QA evidence: 3-mission video (GTM, Support, Finance) showing streaming updates, approvals, annotations, undo preview → save to `docs/readiness/copilotkit_session_G-B.mp4` with accompanying console logs.
 
-#### Planner Ranking Logic
+#### Planner Ranking & Library Intelligence
 
-**Owner:** Runtime Steward
-**Reference:** [architecture.md §3.2](./architecture.md#32-orchestration-gemini-adk), [prd.md §5](./prd.md#plan-proposals)
+**Owner:** Runtime Steward  
+**References:** [architecture.md §3.2](./architecture.md#32-orchestration-gemini-adk), [prd.md "Plan proposals"](./prd.md#plan-proposals), [libs_docs/composio/llms.txt](../libs_docs/composio/llms.txt), [libs_docs/adk/llms-full.txt](../libs_docs/adk/llms-full.txt)
 
-- [ ] Implement planner ranking using PRD recipes + Composio search + Supabase embeddings
-- [ ] Integrate `tools.get(search=…)` filters for persona-relevant no-auth toolkits
-- [ ] Log tool selection rationale in planner output
-- [ ] Store Top-3 plays in `plays` table with `mode=dry_run`, impact estimates, risk profiles
-- [ ] Add planner telemetry (latency, tool count, embedding similarity) to `ctx.session.state`
+- [ ] Implement hybrid ranking pipeline combining Supabase pgvector similarity (`plays.embedding`) with Composio `tools.get(search=…, limit=5)` persona filters; enforce "no mixed filters" rule and capture raw tool metadata for rationale.
+- [ ] Seed library with at least 5 plays × 5 personas via `scripts/seed_library.py`; persist provenance to `library_entries` (`persona`, `source`, `success_score`) and archive command output in `docs/readiness/library_seed_log_G-B.md`.
+- [ ] Persist `PlannerCandidate` structures (reason, expected impact, required toolkits, undo plan sketch, similarity score, confidence) to Supabase `plays` table and `ctx.session.state['ranked_plays']`.
+- [ ] Emit "Why this" tooltips to UI by storing `reason_markdown` for each candidate; ensure markdown sanitized before render.
+- [ ] Add ADK eval `agent/evals/dry_run_ranking_G-B.json` covering GTM/support/ops personas; integrate into `mise run test-agent` and ensure pass/fail gating in CI.
+- [ ] Log planner telemetry (`planner_latency_ms`, `primary_toolkits`, `embedding_similarity_avg`, `candidate_count`) to Supabase via new `planner_runs` table; verify p95 latency ≤2.5s and top-3 similarity ≥0.62 using `scripts/validate_planner_metrics.py`.
+- [ ] Store evaluation results in `docs/readiness/planner_eval_G-B.json` including similarity histograms and failure cases with remediation notes.
 
-#### Evidence Agent Implementation
+#### Evidence Service & Proof Pack
 
-**Owner:** Runtime Steward
-**Reference:** [architecture.md §3.5](./architecture.md#35-evidence--analytics)
+**Owner:** Runtime Steward  
+**References:** [architecture.md §3.5](./architecture.md#35-evidence--analytics), [prd.md "Evidence & coaching"](./prd.md#evidence-analytics--governance)
 
-- [ ] Implement `agent/services/evidence_service.py` with artifact hashing
-- [ ] Upload large outputs to Supabase Storage bucket `evidence-artifacts`
-- [ ] Append undo plans to each tool call record
-- [ ] Hash arguments before logging to `tool_calls` table
-- [ ] Store artifact metadata in `artifacts` table with `play_id`, `type`, `title`, `content_ref`
-- [ ] Verify Evidence agent output hashes match Supabase artifact storage records
+- [ ] Stand up `agent/services/evidence_service.py` with `hash_tool_args`, `bundle_proof_pack`, and `store_artifact` helpers; hash inputs using SHA-256 with deterministic JSON canonicalization and redact PII fields before hashing.
+- [ ] Upload payloads >200 KB to Supabase Storage bucket `evidence-artifacts`; persist `content_ref`, `hash`, `size_bytes` to `artifacts` table and link to `tool_calls` via `tool_call_id`.
+- [ ] Append undo plans (`undo_plan_json`) to every `tool_calls` record and expose Undo CTA in UI; include validator-generated precautions when present.
+- [ ] Generate human-readable summary (`docs/readiness/evidence_bundle_sample_G-B.json`) combining mission brief, ranked plays, execution transcript, and safeguard feedback; confirm schema validated against TypeScript types.
+- [ ] Ship verification script `scripts/verify_artifact_hashes.py` and run after dry-run scenarios to ensure 100% hash parity between storage and DB.
+- [ ] Produce undo smoke log (`docs/readiness/undo_trace_G-B.md`) showing executed undo with timestamps, evidence updates, and telemetry alignment.
 
-#### Mission Transcript Persistence
+#### Mission Transcript Persistence & Telemetry Retention
 
-**Owner:** Data Engineer
-**Reference:** [architecture.md §3.4](./architecture.md#34-supabase-data-plane)
+**Owner:** Data Engineer  
+**References:** [architecture.md §3.4](./architecture.md#34-supabase-data-plane), [ux.md §10](./ux.md#10-instrumentation--telemetry-touchpoints), [libs_docs/supabase/llms_docs.txt](../libs_docs/supabase/llms_docs.txt)
 
-- [ ] Persist mission transcripts in `copilot_messages` with retention policy (7 days)
-- [ ] Store artifact metadata in `artifacts` table with reviewer edit tracking
-- [ ] Add telemetry to `plays` table: `latency_ms`, `success_score`, `tool_count`
-- [ ] Verify retention: query messages older than 7 days, confirm auto-deletion
+- [ ] Persist streaming chat + annotation records to `copilot_messages` with `mission_id`, `sender_role`, `payload_type`, `latency_ms`, `telemetry_event_ids`.
+- [ ] Add telemetry fields to `plays` (`latency_ms`, `success_score`, `tool_count`, `evidence_hash`) and backfill existing rows with defaults.
+- [ ] Implement 7-day retention via scheduled job (`supabase/functions/cron/copilot_message_cleanup.sql`) and confirm job registered in `supabase/config.toml`.
+- [ ] Build SQL audit (`scripts/sql/cp_messages_retention.sql`) to prove soft-deletions of >7 day records and log output to `docs/readiness/message_retention_G-B.csv`.
+- [ ] Ensure Supabase RLS allows owner + governance read-only access; add policy tests using `scripts/test_supabase_persistence.py --gate G-B` and archive results.
 
-#### Generative Quality Review
+#### Generative Quality & Prompt Calibration
 
-**Owner:** Product Design + Runtime Steward
-**Reference:** [ux.md §5.1](./ux.md#51-generative-intake-panel), [ux.md §10](./ux.md#10-instrumentation--telemetry-touchpoints)
+**Owner:** Product Design + Runtime Steward  
+**References:** [ux.md §5.1](./ux.md#51-generative-intake-panel), [prd.md §6](./prd.md#metrics--success-criteria)
 
-- [ ] Analyze edit rates for generated brief fields; ensure ≥70% acceptance without regeneration for pilot tenants
-- [ ] Capture qualitative feedback on generated recommendations (survey + session notes)
-- [ ] Iterate prompt templates and safeguards based on edit telemetry
-- [ ] Document findings in `docs/readiness/generative_quality_report_G-B.md`
+- [ ] Create analytics job `scripts/analyze_edit_rates.py` that reads `mission_metadata` edits + confidence, outputs acceptance %, regeneration counts, guardrail adjustments segmented by persona.
+- [ ] Establish baseline with ≥3 pilot tenants (10 missions each) and capture report `docs/readiness/generative_quality_report_G-B.md` including confidence vs. edit scatter plots.
+- [ ] Tune intake prompts + safeguard templates; version control prompt changes in `docs/prompts/intake/` with change log noting rationale and observed impact.
+- [ ] Validate acceptance threshold ≥70% per brief field and ≤3 regenerations median; raise alert if confidence <0.55 but acceptance >80% (calibration drift) via dashboard update.
+- [ ] Gather qualitative feedback: run 3 moderated sessions, log quotes + insights to `docs/readiness/generative_quality_notes_G-B.md` and push follow-up actions to backlog.
 
-#### Dry-Run Workflow Documentation
+#### Dry-Run Governance Playbook
 
-**Owner:** Governance Sentinel
-**Reference:** [prd.md §5](./prd.md#evidence-analytics--governance)
+**Owner:** Governance Sentinel  
+**References:** [prd.md §5](./prd.md#evidence-analytics--governance), [architecture.md §3.7](./architecture.md#37-adaptive-safeguards), [ux.md §7](./ux.md#7-adaptive-safeguards-ux)
 
-- [ ] Document reviewer workflow for dry-run sign-off in `docs/readiness/reviewer_workflow_G-B.md`
-- [ ] Include undo narrative requirements and approval SOP
-- [ ] Obtain Governance Sentinel sign-off
+- [ ] Draft reviewer SOP `docs/readiness/reviewer_workflow_G-B.md` covering decision tree (accept ↔ request changes ↔ escalate), safeguard interpretation, and undo expectations; include flowchart exported as SVG.
+- [ ] Add template for ROI + risk notes appended to evidence bundle (`docs/readiness/undo_narrative_template_G-B.md`) with guidance on quiet-window overrides and escalation contacts.
+- [ ] Conduct tabletop review with Governance Sentinel + Runtime Steward; record meeting notes + sign-off in `docs/readiness/governance_signoff_G-B.md`.
+- [ ] Update `docs/readiness/status_beacon_B.json` format to capture percentage completion per checklist, owner, blockers, and link to risk register.
+- [ ] Maintain risk register `docs/readiness/risk_register_G-B.json` noting mitigation owners for streaming regressions, telemetry gaps, storage failures, prompt drift, and reviewer backlog.
 
 ### Acceptance Instrumentation
 
-**Required Tests:**
+**Required Tests & Audits:**
 
-1. **End-to-end dry-run timing:** Run 3 persona scenarios (GTM, support, finance); record start/end timestamps; confirm <15 min
-2. **Evidence hashing:** Compare Evidence agent output hashes to Supabase `artifacts` table records
-3. **Streaming UX QA:** Record video demonstrating interim status updates and reviewer edits
-4. **Telemetry audit:** Verify CopilotKit events (`mission_created`, `play_selected`, `approval_required`, `approval_decision`) fire with payloads defined in `ux.md §10`
+1. **Dry-run stopwatch:** Execute 3 persona scenarios (Revenue, Support, Finance) using seeded missions; record timestamps from intent submission to evidence bundle creation; verify <15 minutes per run; archive in `docs/readiness/dry_run_verification.md`.
+2. **Streaming resilience QA:** Cypress or Playwright run (`pnpm test:streaming`) that asserts timeline updates every ≤5 s, approval modal interaction, and `copilotkit_exit` event; attach console log + video to `docs/readiness/copilotkit_session_G-B.mp4`.
+3. **Evidence hash parity:** Run `python scripts/verify_artifact_hashes.py` and ensure 100% match between Supabase Storage and `artifacts` table; output saved to `docs/readiness/evidence_hash_report_G-B.json`.
+4. **Telemetry audit:** Use `scripts/audit_telemetry_events.py --gate G-B` to confirm events per UX telemetry catalog (mission_created, planner_stage_started, approval_required, approval_decision, undo_requested, undo_completed); export results to `docs/readiness/telemetry_audit_G-B.csv`.
+5. **Retention enforcement:** Execute `python scripts/check_retention.py --table copilot_messages --ttl-days 7`; confirm deletion of aged rows and log to `docs/readiness/message_retention_G-B.csv` (same file as checklist output).
+6. **Planner eval suite:** `mise run test-agent` (wraps `adk eval agent/evals/dry_run_ranking_G-B.json`) – ensure pass rate ≥90% and log summary to `docs/readiness/planner_eval_G-B.json`.
 
-**Evidence Artifacts:**
+### Evidence Artifacts (Required for Promotion)
 
-- `docs/readiness/dry_run_verification.md` with timing table, artifact samples, planner telemetry
-- `docs/readiness/copilotkit_session_G-B.mp4` (session recording + console logs)
-- `docs/readiness/generative_quality_report_G-B.md` (edit rates, confidence calibration)
-- `docs/readiness/status_beacon_B.json` with gate readiness score
+- `docs/readiness/copilotkit_stream_contract_G-B.md`
+- `docs/readiness/copilotkit_session_G-B.mp4` + console logs
+- `docs/readiness/library_seed_log_G-B.md`
+- `docs/readiness/planner_eval_G-B.json`
+- `docs/readiness/evidence_bundle_sample_G-B.json`
+- `docs/readiness/evidence_hash_report_G-B.json`
+- `docs/readiness/undo_trace_G-B.md`
+- `docs/readiness/message_retention_G-B.csv`
+- `docs/readiness/generative_quality_report_G-B.md`
+- `docs/readiness/generative_quality_notes_G-B.md`
+- `docs/readiness/reviewer_workflow_G-B.md`
+- `docs/readiness/status_beacon_B.json`
+- `docs/readiness/risk_register_G-B.json`
+
+### Gate KPIs & Metrics
+
+- Dry-run cycle time <15 min (p95) from intent to artifact for each primary persona.
+- Streaming heartbeat latency ≤5 s p95 from planner/executor to UI event receipt.
+- Planner ranking latency ≤2.5 s p95; ≥85% of accepted plays drawn from Top-3 recommendations.
+- Evidence hash parity 100%; undo plan success rate ≥95% in dry-run verification.
+- Mission transcript retention: zero records older than 7 days unless flagged exempt (governance override).
+- Generative acceptance ≥70% per brief field with ≤3 regenerations median; safeguard hint adoption ≥60%.
 
 ### Exit Criteria
 
-- [ ] Dry-run latency KPI met (<15 min) across 3 persona scenarios
-- [ ] Streaming status + exit hooks validated with video evidence
-- [ ] Mission transcript retention confirmed for 7-day window
-- [ ] Reviewer workflow documented and approved by Governance Sentinel
+- [ ] All checklist items above checked with linked evidence artifacts.
+- [ ] Required tests (1–6) executed with passing status and stored outputs.
+- [ ] `status_beacon_B.json` reports ≥95% readiness and zero critical blockers.
+- [ ] Governance Sentinel + Runtime Steward sign-off documented in `governance_signoff_G-B.md`.
+- [ ] Updated risk register shows mitigations for all High risks with target owners.
 
-### Dependencies & Notes
+### Dependencies & Risk Mitigation
 
-- Requires curated library seeds from [architecture.md §4.1](./architecture.md#41-dry-run-proof-sequence) + [prd.md play library](./prd.md#product-scope--key-experiences-business-lens)
-- Library embeddings must be seeded before planner ranking can surface recommendations
+- **Upstream:** Gate G-A evidence bundle + Supabase schema must remain stable; any migration deltas require re-running `scripts/test_supabase_persistence.py`.
+- **Runtime:** Composio API quota and tool catalog freshness; schedule nightly `catalog-sync` Edge Function prior to planner evals.
+- **UX/Frontend:** Next.js streaming reliability; include feature flag fallback to disable timeline if regressions detected.
+- **Risks:**
+  - Streaming regression → Mitigate with Playwright smoke + observability dashboards.
+  - Telemetry drops → Implement retry + dead-letter queue for Supabase inserts; alert if drop rate >2%.
+  - Evidence storage failure → Monitor Supabase Storage quotas; replicate bundles to local cache.
+  - Prompt drift → Compare acceptance metrics weekly; revert prompt version if acceptance <65%.
+  - Reviewer backlog → Add reminder emails via Supabase function if approval pending >4 hrs.
+
+### Rollout & Post-Gate Tasks
+
+- Publish Gate G-B retrospective and archive evidences in `docs/readiness/archive/2025-10-G-B/`.
+- Socialize KPI improvements with GTM enablement; refresh enablement decks.
+- Prepare Gate G-C kick-off: inventory OAuth-enabled missions, pre-seed safeguard lessons, schedule governance workshop.
+- Ensure monitoring dashboards (Supabase telemetry + CopilotKit streaming) are linked in `docs/readiness/status_beacon_B.json` for ongoing visibility.
 
 ---
 

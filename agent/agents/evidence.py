@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import asdict
-from typing import AsyncGenerator, List, Optional
+from typing import Any, AsyncGenerator, Dict, List, Optional
 
 from google.adk.agents.base_agent import BaseAgent
 from google.adk.agents.invocation_context import InvocationContext
@@ -13,7 +13,7 @@ from google.adk.events.event import Event
 from google.genai import types
 from pydantic import Field
 
-from ..services import SupabaseClient, TelemetryEmitter
+from ..services import CopilotKitStreamer, SupabaseClient, TelemetryEmitter
 from .state import (
     EVIDENCE_BUNDLE_KEY,
     LATEST_ARTIFACT_KEY,
@@ -32,6 +32,7 @@ class EvidenceAgent(BaseAgent):
 
     supabase: Optional[SupabaseClient] = Field(default=None, exclude=True)
     telemetry: Optional[TelemetryEmitter] = Field(default=None, exclude=True)
+    streamer: Optional[CopilotKitStreamer] = Field(default=None, exclude=True)
 
     def __init__(
         self,
@@ -39,12 +40,20 @@ class EvidenceAgent(BaseAgent):
         name: str = "EvidenceAgent",
         supabase: Optional[SupabaseClient] = None,
         telemetry: Optional[TelemetryEmitter] = None,
+        streamer: Optional[CopilotKitStreamer] = None,
     ) -> None:
-        super().__init__(name=name, supabase=supabase, telemetry=telemetry)
+        super().__init__(
+            name=name,
+            supabase=supabase,
+            telemetry=telemetry,
+            streamer=streamer,
+        )
         if self.supabase is None:
             object.__setattr__(self, "supabase", SupabaseClient.from_env())
         if self.telemetry is None:
             object.__setattr__(self, "telemetry", TelemetryEmitter(self.supabase))
+        if self.streamer is None:
+            object.__setattr__(self, "streamer", CopilotKitStreamer())
 
     async def _run_async_impl(
         self, ctx: InvocationContext
@@ -78,6 +87,11 @@ class EvidenceAgent(BaseAgent):
                 "artifact_id": bundle.artifact_id,
                 "play_title": bundle.play_title,
             },
+        )
+
+        self._emit_stream(
+            mission_context,
+            bundle,
         )
 
         text = (
@@ -156,3 +170,29 @@ class EvidenceAgent(BaseAgent):
             "checksum": checksum,
         }
         self.supabase.insert_artifacts([record])
+
+    def _session_identifier(self, context: MissionContext) -> str:
+        metadata = context.metadata or {}
+        identifier = metadata.get("session_identifier") if isinstance(metadata, dict) else None
+        return str(identifier) if identifier else context.mission_id
+
+    def _emit_stream(
+        self,
+        context: MissionContext,
+        bundle: EvidenceBundle,
+    ) -> None:
+        if not self.streamer:
+            return
+        metadata: Dict[str, Any] = {
+            "stage": "evidence_bundle_created",
+            "artifact_id": bundle.artifact_id,
+            "play_title": bundle.play_title,
+        }
+        message = f"Evidence bundle created for {bundle.play_title}"
+        self.streamer.emit_message(
+            tenant_id=context.tenant_id,
+            session_identifier=self._session_identifier(context),
+            role="assistant",
+            content=message,
+            metadata=metadata,
+        )

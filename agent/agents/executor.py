@@ -15,7 +15,7 @@ from google.adk.tools import ToolContext
 from google.genai import types
 from pydantic import BaseModel, Field
 
-from ..services import SupabaseClient, TelemetryEmitter
+from ..services import CopilotKitStreamer, SupabaseClient, TelemetryEmitter
 from .state import (
     Artifact,
     MissionContext,
@@ -149,6 +149,7 @@ class DryRunExecutorAgent(BaseAgent):
 
     supabase: Optional[SupabaseClient] = Field(default=None, exclude=True)
     telemetry: Optional[TelemetryEmitter] = Field(default=None, exclude=True)
+    streamer: Optional[CopilotKitStreamer] = Field(default=None, exclude=True)
 
     def __init__(
         self,
@@ -156,12 +157,20 @@ class DryRunExecutorAgent(BaseAgent):
         name: str = "ExecutionAgent",
         supabase: Optional[SupabaseClient] = None,
         telemetry: Optional[TelemetryEmitter] = None,
+        streamer: Optional[CopilotKitStreamer] = None,
     ) -> None:
-        super().__init__(name=name, supabase=supabase, telemetry=telemetry)
+        super().__init__(
+            name=name,
+            supabase=supabase,
+            telemetry=telemetry,
+            streamer=streamer,
+        )
         if self.supabase is None:
             object.__setattr__(self, "supabase", SupabaseClient.from_env())
         if self.telemetry is None:
             object.__setattr__(self, "telemetry", TelemetryEmitter(self.supabase))
+        if self.streamer is None:
+            object.__setattr__(self, "streamer", CopilotKitStreamer())
 
     async def _run_async_impl(
         self, ctx: InvocationContext
@@ -187,6 +196,12 @@ class DryRunExecutorAgent(BaseAgent):
                 "artifact_id": artifact.artifact_id,
                 "play_title": selected_play.get("title"),
             },
+        )
+
+        self._emit_stream_event(
+            mission_context,
+            artifact,
+            selected_play,
         )
 
         message = (
@@ -340,6 +355,37 @@ class DryRunExecutorAgent(BaseAgent):
             )
         if tool_calls:
             self.supabase.insert_tool_calls(tool_calls)
+
+    def _session_identifier(self, context: MissionContext) -> str:
+        metadata = context.metadata or {}
+        candidate = metadata.get("session_identifier") if isinstance(metadata, dict) else None
+        return str(candidate) if candidate else context.mission_id
+
+    def _emit_stream_event(
+        self,
+        context: MissionContext,
+        artifact: Artifact,
+        play: Dict[str, Any],
+    ) -> None:
+        if not self.streamer:
+            return
+        metadata = {
+            "stage": "executor_artifact_created",
+            "artifact_id": artifact.artifact_id,
+            "play_title": play.get("title"),
+            "status": artifact.status,
+        }
+        message = (
+            f"Draft artifact {artifact.artifact_id} ready for review "
+            f"({play.get('title', 'unnamed play')})."
+        )
+        self.streamer.emit_message(
+            tenant_id=context.tenant_id,
+            session_identifier=self._session_identifier(context),
+            role="assistant",
+            content=message,
+            metadata=metadata,
+        )
 
     @staticmethod
     def _slugify(value: str) -> str:

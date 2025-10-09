@@ -11,7 +11,7 @@ from google.adk.agents import SequentialAgent
 from google.adk.agents.callback_context import CallbackContext
 from pydantic import Field
 
-from ..services import SupabaseClient, TelemetryEmitter
+from ..services import CopilotKitStreamer, SupabaseClient, TelemetryEmitter
 from ..tools.composio_client import ComposioCatalogClient
 from .evidence import EvidenceAgent
 from .execution_loop import ExecutionLoopAgent
@@ -29,6 +29,7 @@ class CoordinatorAgent(SequentialAgent):
 
     supabase: Optional[SupabaseClient] = Field(default=None, exclude=True)
     telemetry: Optional[TelemetryEmitter] = Field(default=None, exclude=True)
+    streamer: CopilotKitStreamer = Field(default_factory=CopilotKitStreamer, exclude=True)
     max_retries: int = Field(default=3, exclude=True)
 
     def __init__(
@@ -37,28 +38,46 @@ class CoordinatorAgent(SequentialAgent):
         supabase: Optional[SupabaseClient] = None,
         telemetry: Optional[TelemetryEmitter] = None,
         composio: Optional[ComposioCatalogClient] = None,
+        streamer: Optional[CopilotKitStreamer] = None,
         max_retries: int = 3,
     ) -> None:
         shared_supabase = supabase or SupabaseClient.from_env()
         shared_telemetry = telemetry or TelemetryEmitter(shared_supabase)
         composio_client = composio or ComposioCatalogClient.from_env()
+        shared_streamer = streamer or CopilotKitStreamer()
 
-        intake = IntakeAgent(supabase=shared_supabase, telemetry=shared_telemetry)
+        intake = IntakeAgent(
+            supabase=shared_supabase,
+            telemetry=shared_telemetry,
+            streamer=shared_streamer,
+        )
         planner = PlannerAgent(
             supabase=shared_supabase,
             telemetry=shared_telemetry,
             composio=composio_client,
+            streamer=shared_streamer,
         )
         executor = DryRunExecutorAgent(
-            supabase=shared_supabase, telemetry=shared_telemetry
+            supabase=shared_supabase,
+            telemetry=shared_telemetry,
+            streamer=shared_streamer,
         )
-        validator = ValidatorAgent(supabase=shared_supabase, telemetry=shared_telemetry)
-        evidence = EvidenceAgent(supabase=shared_supabase, telemetry=shared_telemetry)
+        validator = ValidatorAgent(
+            supabase=shared_supabase,
+            telemetry=shared_telemetry,
+            streamer=shared_streamer,
+        )
+        evidence = EvidenceAgent(
+            supabase=shared_supabase,
+            telemetry=shared_telemetry,
+            streamer=shared_streamer,
+        )
         execution_loop = ExecutionLoopAgent(
             executor=executor,
             validator=validator,
             evidence=evidence,
             telemetry=shared_telemetry,
+            streamer=shared_streamer,
             max_retries=max_retries,
         )
 
@@ -78,6 +97,7 @@ class CoordinatorAgent(SequentialAgent):
 
         object.__setattr__(self, "supabase", shared_supabase)
         object.__setattr__(self, "telemetry", shared_telemetry)
+        object.__setattr__(self, "streamer", shared_streamer)
         object.__setattr__(self, "max_retries", max(1, max_retries))
 
     def _stage_callback(self, stage_name: str):
@@ -99,6 +119,16 @@ class CoordinatorAgent(SequentialAgent):
                 payload=payload,
             )
             self._append_trace(payload)
+            try:
+                self.streamer.emit_message(
+                    tenant_id=tenant_id,
+                    session_identifier=mission_id,
+                    role="assistant",
+                    content=f"{stage_name.replace('_', ' ')}",
+                    metadata=payload,
+                )
+            except Exception:  # pragma: no cover - streaming best effort
+                pass
 
         return _callback
 
