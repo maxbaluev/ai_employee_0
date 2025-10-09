@@ -207,11 +207,11 @@ This roadmap governs all implementation work from zero-privilege proofs to gover
 **References:** [architecture.md §3.1](./architecture.md#31-presentation--control-plane-nextjs--copilotkit), [ux.md §§5–7](./ux.md#5-interaction-patterns--ui-components), [libs_docs/copilotkit/llms-full.txt](../libs_docs/copilotkit/llms-full.txt)
 
 - [ ] Emit mission lifecycle updates (`planner_stage_started`, `planner_status`, `executor_status`, `validator_feedback`) via `copilotkit_emit_message` in `agent/agents/planner.py` and `agent/agents/executor.py` with payload contracts documented in `docs/readiness/copilotkit_stream_contract_G-B.md`.
-- [ ] Call `copilotkit_exit` from `agent/agents/coordinator.py` with final `mission_status` block so routers recover deterministically; verify exit always fires (including error paths) via integration test.
-- [ ] Ship `src/components/ApprovalModal.tsx` with safeguard chips, undo summary, impact/effort meter, reviewer annotation composer, and CTA hierarchy matching UX blueprint; implement focus trap, ARIA labelling, Esc/Enter shortcuts, and screen reader narration for undo plans.
+- [x] Call `copilotkit_exit` from `agent/agents/coordinator.py` with final `mission_status` block so routers recover deterministically; verify exit always fires (including error paths) via integration test.
+- [x] Ship `src/components/ApprovalModal.tsx` with safeguard chips, undo summary, impact/effort meter, reviewer annotation composer, and CTA hierarchy matching UX blueprint; implement focus trap, ARIA labelling, Esc/Enter shortcuts, and screen reader narration for undo plans.
 - [ ] Wire `/api/approvals` mutations (create/update) and optimistic UI state, including conflict handling when multiple reviewers act concurrently.
-- [ ] Surface streaming timeline in `ControlPlaneWorkspace` status rail with latency indicators (target p95 stream heartbeat <5s) and "Why waiting" copy for validator pauses.
-- [ ] Instrument telemetry events (`approval_required`, `approval_decision`, `reviewer_annotation_created`, `undo_requested`) using `emitTelemetry` helper and persist to Supabase `telemetry_events` table.
+- [x] Surface streaming timeline in `ControlPlaneWorkspace` status rail with latency indicators (target p95 stream heartbeat <5s) and "Why waiting" copy for validator pauses.
+- [x] Instrument telemetry events (`approval_required`, `approval_decision`, `reviewer_annotation_created`, `undo_requested`) using `emitTelemetry` helper and persist to Supabase `mission_events` table.
 - [ ] Capture QA evidence: 3-mission video (GTM, Support, Finance) showing streaming updates, approvals, annotations, undo preview → save to `docs/readiness/copilotkit_session_G-B.mp4` with accompanying console logs.
 
 #### Planner Ranking & Library Intelligence

@@ -4,6 +4,8 @@ import { useCallback, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { useCopilotAction, useCopilotReadable } from '@copilotkit/react-core';
 
+import { sendTelemetryEvent } from '@/lib/telemetry/client';
+
 import type { GeneratedSafeguard, IntakeChips, KPI } from '@/lib/intake/service';
 
 type SafeguardStatus = GeneratedSafeguard['status'];
@@ -201,7 +203,7 @@ export function MissionIntake({ tenantId, objectiveId, onAccept }: MissionIntake
       setEditingField(null);
       setEditDraft('');
 
-      await sendTelemetry(tenantId, {
+      await sendTelemetryEvent(tenantId, {
         eventName: 'brief_item_modified',
         missionId: intakeState.missionId,
         eventData: { field, action: 'edit' },
@@ -277,7 +279,7 @@ export function MissionIntake({ tenantId, objectiveId, onAccept }: MissionIntake
     setEditDraft('');
     setErrorMessage(null);
 
-    await sendTelemetry(tenantId, {
+    await sendTelemetryEvent(tenantId, {
       eventName: 'brief_item_modified',
       missionId: intakeState?.missionId,
       eventData: { action: 'reset' },
@@ -717,24 +719,4 @@ function extractLinks(value: string): string[] {
   const matches = value.match(pattern);
   if (!matches) return [];
   return Array.from(new Set(matches));
-}
-
-async function sendTelemetry(
-  tenantId: string,
-  payload: { eventName: string; missionId?: string | null; eventData?: Record<string, unknown> },
-) {
-  try {
-    await fetch('/api/intake/events', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        tenantId,
-        eventName: payload.eventName,
-        missionId: payload.missionId ?? undefined,
-        eventData: payload.eventData ?? {},
-      }),
-    });
-  } catch (error) {
-    console.warn('[MissionIntake] telemetry failed', error);
-  }
 }

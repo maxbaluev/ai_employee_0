@@ -12,7 +12,8 @@
     "lint": "next lint",
     "install:agent": "./scripts/setup-agent.sh || scripts\\setup-agent.bat",
     "postinstall": "npm run install:agent",
-    "test:agent": "mise run test-agent"
+    "test:agent": "mise run test-agent",
+    "test:ui": "vitest run"
   },
   "dependencies": {
     "@ag-ui/client": "^0.0.39",
@@ -33,12 +34,17 @@
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.0.1",
+    "@testing-library/user-event": "^14.6.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "concurrently": "^9.1.2",
     "eslint": "^9",
     "eslint-config-next": "15.3.2",
+    "jsdom": "^25.0.1",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^2.1.1"
   }
 }

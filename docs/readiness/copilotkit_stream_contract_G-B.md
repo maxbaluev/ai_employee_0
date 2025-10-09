@@ -80,7 +80,7 @@ Metadata contains `artifact_id` and `play_title` for linking to Supabase artifac
 
 ## Exit Events
 
-The coordinator emits a final `system` message when the sequential run completes or aborts:
+The coordinator guarantees a final `system` message when the sequential run completes, pauses for review, exhausts retries, or aborts with an error. The payload now includes a `mission_status` field so the UI can close the timeline intelligently:
 
 ```json
 {
@@ -89,10 +89,21 @@ The coordinator emits a final `system` message when the sequential run completes
   "metadata": {
     "event": "copilotkit_exit",
     "reason": "completed",
-    "stage": "execution_loop_completed"
+    "mission_status": "completed",
+    "stage": "execution_loop_completed",
+    "attempts": 1
   }
 }
 ```
+
+`mission_status` values:
+
+- `completed` — dry-run loop produced an evidence bundle.
+- `needs_reviewer` — validator escalated; timeline pauses until reviewers act.
+- `exhausted` — retry budget consumed without passing safeguards.
+- `error` — unexpected exception during executor/validator/evidence stages.
+
+The same payload is emitted even when retries are paused (`stage=validator_reviewer_requested`) so the front-end can surface “Why waiting?” hints.
 
 ## Observability
 

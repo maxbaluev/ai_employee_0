@@ -3,7 +3,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useCopilotAction, useCopilotReadable } from "@copilotkit/react-core";
 import { CopilotSidebar, type CopilotKitCSSProperties } from "@copilotkit/react-ui";
+
+import { ApprovalModal } from "@/components/ApprovalModal";
 import { MissionIntake } from "@/components/MissionIntake";
+import { StreamingStatusPanel } from "@/components/StreamingStatusPanel";
+import type { TimelineMessage } from "@/hooks/useTimelineEvents";
+import { useApprovalFlow } from "@/hooks/useApprovalFlow";
+import type { ApprovalSubmission } from "@/hooks/useApprovalFlow";
+import { useUndoFlow } from "@/hooks/useUndoFlow";
 
 type Artifact = {
   artifact_id: string;
@@ -48,12 +55,16 @@ export function ControlPlaneWorkspace({
   const [artifacts, setArtifacts] = useState<Artifact[]>(initialArtifacts);
   const [objectiveId, setObjectiveId] = useState<string | undefined | null>(initialObjectiveId);
   const [isSidebarReady, setIsSidebarReady] = useState(false);
+  const [workspaceAlert, setWorkspaceAlert] = useState<
+    { tone: "success" | "error" | "info"; message: string } | null
+  >(null);
 
   const sessionIdentifierRef = useRef<string>(
     typeof crypto !== "undefined" && "randomUUID" in crypto
       ? crypto.randomUUID()
       : `mission-${Date.now()}`,
   );
+  const sessionIdentifier = sessionIdentifierRef.current;
 
   const readableState = useMemo(
     () => ({
@@ -66,6 +77,32 @@ export function ControlPlaneWorkspace({
   useCopilotReadable({
     description: "Evidence artifacts tracked in the Gate G-A dry-run workspace",
     value: readableState,
+  });
+
+  const approvalFlow = useApprovalFlow({
+    tenantId,
+    missionId: objectiveId ?? null,
+    onSuccess: ({ decision }) => {
+      const label = decision.replace(/_/g, " ");
+      setWorkspaceAlert({
+        tone: "success",
+        message: `Reviewer decision recorded (${label}).`,
+      });
+    },
+  });
+
+  const undoFlow = useUndoFlow({
+    tenantId,
+    missionId: objectiveId ?? null,
+    onCompleted: (status) => {
+      setWorkspaceAlert({
+        tone: "success",
+        message:
+          status === "completed"
+            ? "Undo executed for the selected artifact."
+            : "Undo request queued for evidence service.",
+      });
+    },
   });
 
   const syncCopilotSession = useCallback(
@@ -264,6 +301,59 @@ export function ControlPlaneWorkspace({
   }, []);
 
   useEffect(() => {
+    if (!workspaceAlert) {
+      return undefined;
+    }
+    const timer = setTimeout(() => setWorkspaceAlert(null), 6000);
+    return () => clearTimeout(timer);
+  }, [workspaceAlert]);
+
+  useEffect(() => {
+    if (!undoFlow.error) {
+      return;
+    }
+    setWorkspaceAlert({
+      tone: "error",
+      message: undoFlow.error,
+    });
+  }, [undoFlow.error]);
+
+  const handleReviewerRequested = useCallback(
+    (message: TimelineMessage) => {
+      const resolvedToolCall =
+        (message.metadata?.tool_call_id as string | undefined) ??
+        (message.metadata?.toolCallId as string | undefined) ??
+        null;
+
+      if (!resolvedToolCall) {
+        setWorkspaceAlert({
+          tone: "error",
+          message:
+            "Validator requested a reviewer decision but the tool call identifier was not provided.",
+        });
+        return;
+      }
+
+      approvalFlow.openApproval({
+        toolCallId: resolvedToolCall,
+        missionId: objectiveId ?? null,
+        stage: message.stage ?? null,
+        attempt:
+          typeof message.metadata?.attempt === "number"
+            ? (message.metadata.attempt as number)
+            : null,
+        metadata: message.metadata,
+      });
+    },
+    [approvalFlow, objectiveId],
+  );
+
+  const submitApproval = useCallback(
+    (submission: ApprovalSubmission) => approvalFlow.submitApproval(submission),
+    [approvalFlow],
+  );
+
+  useEffect(() => {
     void syncCopilotSession(artifacts, objectiveId ?? null);
   }, [artifacts, objectiveId, syncCopilotSession]);
 
@@ -298,6 +388,22 @@ export function ControlPlaneWorkspace({
           </div>
         </div>
       </header>
+
+      {workspaceAlert && (
+        <div className="mx-auto mt-4 w-full max-w-6xl px-6">
+          <div
+            className={`rounded-lg border px-4 py-3 text-sm ${
+              workspaceAlert.tone === "success"
+                ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-200"
+                : workspaceAlert.tone === "error"
+                  ? "border-red-500/40 bg-red-500/10 text-red-200"
+                  : "border-slate-400/30 bg-slate-500/10 text-slate-200"
+            }`}
+          >
+            {workspaceAlert.message}
+          </div>
+        </div>
+      )}
 
       <MissionIntake tenantId={tenantId} objectiveId={objectiveId ?? null} onAccept={handleIntakeAccept} />
 
@@ -359,6 +465,21 @@ export function ControlPlaneWorkspace({
                     </span>
                   </div>
                   <p className="text-sm text-slate-300">{artifact.summary}</p>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        void undoFlow.requestUndo({
+                          toolCallId: artifact.artifact_id,
+                          reason: "User requested dry-run rollback",
+                        })
+                      }
+                      disabled={undoFlow.isRequesting}
+                      className="inline-flex items-center gap-2 rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-emerald-200 transition enabled:hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {undoFlow.isRequesting ? "Undoing…" : "Undo draft"}
+                    </button>
+                  </div>
                 </article>
               ))
             ) : (
@@ -368,6 +489,14 @@ export function ControlPlaneWorkspace({
             )}
           </div>
         </section>
+
+        <StreamingStatusPanel
+          tenantId={tenantId}
+          agentId={AGENT_ID}
+          sessionIdentifier={sessionIdentifier}
+          pollIntervalMs={5000}
+          onReviewerRequested={handleReviewerRequested}
+        />
 
         <section className="flex w-full flex-col bg-slate-950/70 lg:w-1/5">
           {isSidebarReady ? (
@@ -398,6 +527,15 @@ export function ControlPlaneWorkspace({
           </div>
         </section>
       </div>
+
+      <ApprovalModal
+        isOpen={approvalFlow.isOpen}
+        isSubmitting={approvalFlow.isSubmitting}
+        error={approvalFlow.error}
+        onClose={approvalFlow.closeApproval}
+        onSubmit={submitApproval}
+        request={approvalFlow.currentRequest}
+      />
     </main>
   );
 }
