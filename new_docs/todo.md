@@ -143,8 +143,8 @@ This roadmap governs all implementation work from zero-privilege proofs to gover
 - [x] Call `Composio.tools.get` with no-auth filter and log toolkit metadata (`ComposioCatalogClient.get_tools` and CLI status output)
 - [x] Document the requirement for `COMPOSIO_API_KEY` in setup guides (see `AGENTS.md`, `README.md`, `new_docs/architecture.md`)
 - [x] Export SDK status output (`python -m agent.tools.composio_client --status`) to `docs/readiness/composio_status_G-A.txt` (captured 5 toolkit snapshot on 2025-10-08)
-- [ ] Wire planner telemetry to capture recommended palette impressions (`toolkit_recommendation_viewed`, `toolkit_selected`) and align payloads with analytics schema.
-- [ ] Add MCP inspection step post-selection that fetches sample data outputs in draft mode and streams summary back to CopilotKit for user validation.
+- [x] Wire planner telemetry to capture recommended palette impressions (`toolkit_recommendation_viewed`, `toolkit_selected`) and align payloads with analytics schema.
+- [x] Add MCP inspection step post-selection that fetches sample data outputs in draft mode and streams summary back to CopilotKit for user validation.
 
 #### Safeguard Hint Seeds
 

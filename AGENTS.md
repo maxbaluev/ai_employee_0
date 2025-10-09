@@ -18,7 +18,7 @@ This repository hosts the Gate G-A foundation for the AI Employee Control Plane.
 - Apply Supabase schema locally: `supabase start && supabase db push --file supabase/migrations/0001_init.sql`
 
 ## Build & Test
-- UI lint/type checks: `mise run lint`
+- UI lint/type checks: `mise run lint` (calls `pnpm lint`). If you run lint directly, use `pnpm lint` — Next.js does **not** support a `--dry-run` flag and the command will fail if you append it.
 - (Future) add unit tests under `agent/tests/` and run via `pnpm test` / `pytest`; keep placeholders updated as testing harness lands.
 - Smoke-check the Python package after edits: `mise exec python -- -m compileall agent`
 - Run the Gemini ADK smoke suite before PRs: `mise run test-agent` should exit with 5/5 passing scenarios and zero Supabase HTTP warnings.
@@ -35,6 +35,7 @@ This repository hosts the Gate G-A foundation for the AI Employee Control Plane.
 - Use `new_docs/architecture.md` and `guardrail_policy_pack.md` to validate new planner/validator behavior. Gate G-A assumes dry-run only (no OAuth sends).
 - Composio catalog metadata is sourced via the Composio SDK. Keep the SDK pinned, ensure `COMPOSIO_API_KEY` is configured, and rerun your chosen validation workflow so planners see the latest catalogue state.
 - Supabase schema changes must retain RLS. Update `supabase/migrations/` and refresh readiness artifacts (`docs/readiness/migration_log_G-A.md`, `db_checksum_G-A.csv`, and guardrail seeds) whenever tables or policies change.
+- Gate G-A palette telemetry & inspection preview details live in `docs/readiness/gate_g_a_palette_telemetry.md`. Review it before touching `src/app/api/*/toolkits` or `agent/agents/planner.py` so emitted payloads stay analytics-compatible.
 
 ## When Editing
 - Keep any gate-specific evidence assets up to date as they are introduced by future milestones.

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 type TimelineStageStatus = 'pending' | 'in_progress' | 'complete' | 'warning';
 
@@ -365,7 +365,9 @@ export function useTimelineEvents(options: UseTimelineEventsOptions): UseTimelin
     }, pollIntervalMs);
 
     return () => {
-      timerRef.current && clearInterval(timerRef.current);
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
       timerRef.current = null;
       abortControllerRef.current?.abort();
     };
@@ -381,7 +383,7 @@ export function useTimelineEvents(options: UseTimelineEventsOptions): UseTimelin
     }
   }, [sessionIdentifier]);
 
-  const lastUpdated = useMemo(() => lastUpdatedRef.current, [events.length, lastUpdatedRef.current]);
+  const lastUpdated = lastUpdatedRef.current;
 
   return {
     events,

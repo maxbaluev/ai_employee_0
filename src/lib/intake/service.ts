@@ -439,7 +439,7 @@ async function emitTelemetry(
     tenant_id: tenantId,
     mission_id: missionId ?? null,
     event_name: eventName,
-    event_data: eventData as Json,
+    event_payload: eventData as Json,
   } as Database['public']['Tables']['mission_events']['Insert']);
 }
 
@@ -581,6 +581,7 @@ Respond with strictly valid JSON using this schema:
 Do not add commentary.`;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Gemini SDK response lacks official typings.
 function extractGeminiText(response: any): string | null {
   const candidates = response?.candidates;
   if (!Array.isArray(candidates) || !candidates[0]) {
@@ -593,6 +594,7 @@ function extractGeminiText(response: any): string | null {
   }
 
   const text = parts
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Part shape controlled by Gemini runtime, not typed in SDK.
     .map((part: any) => (typeof part?.text === 'string' ? part.text : ''))
     .join('')
     .trim();

@@ -1,4 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createHash } from "crypto";
+
+import type { Database } from "@supabase/types";
 import { getRouteHandlerSupabaseClient } from "@/lib/supabase/server";
 
 type ToolkitMetadata = {
@@ -164,6 +167,18 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    try {
+      await emitToolkitPaletteTelemetry({
+        supabase,
+        tenantId,
+        missionId,
+        toolkits,
+        selectedSlugs,
+      });
+    } catch (telemetryError) {
+      console.warn("Failed to emit toolkit_recommendation_viewed telemetry", telemetryError);
+    }
+
     return NextResponse.json({
       toolkits,
       selected: selectedSlugs,
@@ -175,4 +190,69 @@ export async function GET(req: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+function isUuid(value: string | null | undefined) {
+  if (!value) {
+    return false;
+  }
+  return /^[0-9a-fA-F-]{36}$/.test(value);
+}
+
+async function emitToolkitPaletteTelemetry({
+  supabase,
+  tenantId,
+  missionId,
+  toolkits,
+  selectedSlugs,
+}: {
+  supabase: Awaited<ReturnType<typeof getRouteHandlerSupabaseClient>>;
+  tenantId: string;
+  missionId: string | null;
+  toolkits: ToolkitMetadata[];
+  selectedSlugs: string[];
+}) {
+  if (!isUuid(tenantId) || toolkits.length === 0) {
+    return;
+  }
+
+  const palette = toolkits.map((toolkit, index) => ({
+    slug: toolkit.slug,
+    name: toolkit.name,
+    category: toolkit.category,
+    auth_type: toolkit.no_auth ? "none" : toolkit.auth_schemes[0] ?? "oauth",
+    no_auth: toolkit.no_auth,
+    position: index + 1,
+  }));
+
+  const breakdown = palette.reduce(
+    (acc, item) => {
+      if (item.no_auth) {
+        acc.no_auth += 1;
+      } else {
+        acc.oauth += 1;
+      }
+      return acc;
+    },
+    { no_auth: 0, oauth: 0 },
+  );
+
+  const requestId = createHash("sha1")
+    .update(`${tenantId}|${missionId ?? ""}|${palette.map((item) => item.slug).join(",")}`)
+    .digest("hex");
+
+  await supabase.from("mission_events").insert({
+    tenant_id: tenantId,
+    mission_id: isUuid(missionId ?? undefined) ? missionId : null,
+    event_name: "toolkit_recommendation_viewed",
+    event_payload: {
+      request_id: requestId,
+      total_toolkits: palette.length,
+      auth_breakdown: breakdown,
+      selected_count: selectedSlugs.length,
+      selected_slugs: selectedSlugs,
+      palette,
+      source: "planner",
+    },
+  } as Database["public"]["Tables"]["mission_events"]["Insert"]);
 }

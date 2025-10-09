@@ -1,4 +1,6 @@
-/code see on all files at /new_docs after see on all txt filex inside /libs_docs folder, read full txt content. Implement source code of next todo: `Introduce "Recommended tools" carousel that reads Composio metadata, highlights no-auth vs OAuth, and lets users multi-select toolkits before planner execution (store choices in `mission_safeguards`).`
+/plan see on all files at /new_docs after see on all txt filex inside /libs_docs folder, read full txt content. After plan next steps for Gate G-B source code implementation
+
+/code see on all files at /new_docs after see on all txt filex inside /libs_docs folder, read full txt content. 
 
 /code Ok, now think deeper about data structures and data flows, do we need guardrail_policy_pack.md like this ? Can it be more generative?  also think about data flow, users wanna love it, so do we really need things like tonePolicy ? Make overall architecture more code effective and elegant, adapt all documents at /new_docs
 

@@ -24,6 +24,7 @@ const serviceAdapter = new GoogleGenerativeAIAdapter({
 const httpAgent = new HttpAgent({ url: agentUrl });
 const runtime = new CopilotRuntime({
   agents: {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- CopilotRuntime expects a union of agent types; HttpAgent matches shape but lacks exact typing.
     [agentId]: httpAgent as any, // Type assertion needed for dynamic key
   },
 });

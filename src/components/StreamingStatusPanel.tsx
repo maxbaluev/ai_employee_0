@@ -31,7 +31,7 @@ function formatTimestamp(value: string) {
       minute: '2-digit',
       second: '2-digit',
     }).format(date);
-  } catch (error) {
+  } catch {
     return value;
   }
 }

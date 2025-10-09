@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getRouteHandlerSupabaseClient } from "@/lib/supabase/server";
+import { createHash } from "crypto";
+
 import type { Database } from "@supabase/types";
+import { getRouteHandlerSupabaseClient } from "@/lib/supabase/server";
 
 type ToolkitSelection = {
   slug: string;
@@ -66,6 +68,16 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const { data: existingRows } = await supabase
+      .from("mission_safeguards")
+      .select("suggested_value")
+      .eq("mission_id", missionId)
+      .eq("tenant_id", tenantId)
+      .eq("hint_type", "toolkit_recommendation")
+      .eq("status", "accepted");
+
+    const previousSelections = normaliseSelections(existingRows ?? []);
+
     // Delete existing toolkit_recommendation rows for this mission
     await supabase
       .from("mission_safeguards")
@@ -104,20 +116,77 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Emit telemetry event
-    try {
-      await supabase.from("mission_events").insert({
-        mission_id: missionId,
-        tenant_id: tenantId,
-        event_name: "toolkit_suggestion_applied",
-        event_payload: {
-          selections: selections.map((s) => s.slug),
-          count: selections.length,
-        },
-      });
-    } catch (telemetryError) {
-      // Non-critical: log but don't fail the request
-      console.warn("Failed to emit telemetry:", telemetryError);
+    const appliedSelections = selections.map((sel) => ({
+      slug: sel.slug,
+      name: sel.name,
+      auth_type: sel.noAuth ? "none" : sel.authType || "oauth",
+      category: sel.category,
+      no_auth: sel.noAuth,
+    }));
+
+    const added = appliedSelections.filter(
+      (item) => !previousSelections.some((prev) => prev.slug === item.slug),
+    );
+    const removed = previousSelections.filter(
+      (item) => !appliedSelections.some((current) => current.slug === item.slug),
+    );
+
+    const authBreakdown = appliedSelections.reduce(
+      (acc, item) => {
+        if (item.no_auth) {
+          acc.no_auth += 1;
+        } else {
+          acc.oauth += 1;
+        }
+        return acc;
+      },
+      { no_auth: 0, oauth: 0 },
+    );
+
+    const requestId = createHash("sha1")
+      .update(
+        `${tenantId}|${missionId}|${appliedSelections
+          .map((item) => item.slug)
+          .sort()
+          .join(",")}`,
+      )
+      .digest("hex");
+
+    if (isUuid(tenantId)) {
+      const payload = {
+        request_id: requestId,
+        applied_count: appliedSelections.length,
+        selections: appliedSelections,
+        added,
+        removed,
+        auth_breakdown: authBreakdown,
+        selected_slugs: appliedSelections.map((item) => item.slug),
+      };
+
+      const missionValue = isUuid(missionId) ? missionId : null;
+
+      try {
+        await supabase.from("mission_events").insert([
+          {
+            tenant_id: tenantId,
+            mission_id: missionValue,
+            event_name: "toolkit_selected",
+            event_payload: {
+              ...payload,
+              total_selected: appliedSelections.length,
+              timestamp: new Date().toISOString(),
+            },
+          },
+          {
+            tenant_id: tenantId,
+            mission_id: missionValue,
+            event_name: "toolkit_suggestion_applied",
+            event_payload: payload,
+          },
+        ] as Database["public"]["Tables"]["mission_events"]["Insert"][]);
+      } catch (telemetryError) {
+        console.warn("Failed to emit toolkit selection telemetry", telemetryError);
+      }
     }
 
     return NextResponse.json({
@@ -131,4 +200,50 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+function normaliseSelections(rows: Array<{ suggested_value: unknown }>): Array<{
+  slug: string;
+  name: string;
+  auth_type: string;
+  category: string;
+  no_auth: boolean;
+}> {
+  const fallback = [] as Array<{
+    slug: string;
+    name: string;
+    auth_type: string;
+    category: string;
+    no_auth: boolean;
+  }>;
+
+  return rows.reduce((acc, row) => {
+    const value = row.suggested_value as Record<string, unknown> | null;
+    if (!value) {
+      return acc;
+    }
+    const slug = typeof value.slug === "string" ? value.slug : undefined;
+    const name = typeof value.name === "string" ? value.name : slug;
+    if (!slug || !name) {
+      return acc;
+    }
+    const authType = typeof value.authType === "string" ? value.authType : "oauth";
+    const category = typeof value.category === "string" ? value.category : "general";
+    const noAuth = typeof value.noAuth === "boolean" ? value.noAuth : authType === "none";
+    acc.push({
+      slug,
+      name,
+      auth_type: noAuth ? "none" : authType,
+      category,
+      no_auth: noAuth,
+    });
+    return acc;
+  }, fallback);
+}
+
+function isUuid(value: string | null | undefined): value is string {
+  if (!value) {
+    return false;
+  }
+  return /^[0-9a-fA-F-]{36}$/.test(value);
 }

@@ -16,6 +16,7 @@ SELECTED_PLAY_KEY = "selected_play"
 LATEST_ARTIFACT_KEY = "latest_artifact"
 LATEST_VALIDATION_KEY = "latest_validation"
 EVIDENCE_BUNDLE_KEY = "evidence_bundle"
+INSPECTION_PREVIEW_KEY = "inspection_preview"
 
 
 # ---------------------------------------------------------------------------
@@ -99,3 +100,16 @@ class EvidenceBundle:
     undo_plan: str
     safeguards: List[SafeguardHint]
     telemetry: Dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
+class InspectionPreview:
+    """Draft MCP inspection output shared with CopilotKit."""
+
+    slug: str
+    name: str
+    auth_type: str
+    sample_rows: List[str]
+    sample_count: int
+    no_auth: bool = False
+    category: str = "general"

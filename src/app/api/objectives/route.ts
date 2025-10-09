@@ -19,7 +19,7 @@ function coerceGuardrails(value: string | Record<string, unknown>) {
   if (typeof value === "string") {
     try {
       return value ? JSON.parse(value) : {};
-    } catch (error) {
+    } catch {
       throw new Error("Guardrails must be valid JSON");
     }
   }

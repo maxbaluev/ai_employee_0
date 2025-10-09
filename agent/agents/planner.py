@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import time
 from dataclasses import asdict
 from typing import Any, AsyncGenerator, Dict, List, Optional
 
@@ -15,8 +17,10 @@ from pydantic import Field
 from ..services import CopilotKitStreamer, SupabaseClient, TelemetryEmitter
 from ..tools.composio_client import ComposioCatalogClient
 from .state import (
+    InspectionPreview,
     MissionContext,
     RankedPlay,
+    INSPECTION_PREVIEW_KEY,
     MISSION_CONTEXT_KEY,
     RANKED_PLAYS_KEY,
     SELECTED_PLAY_KEY,
@@ -97,6 +101,8 @@ class PlannerAgent(LlmAgent):
                 "toolkits": self._toolkit_counts(ranked),
             },
         )
+
+        self._emit_inspection_preview(ctx, mission_context, mission_mode)
 
         description = self._render_summary(mission_context, ranked)
         content = types.Content(role="system", parts=[types.Part(text=description)])
@@ -311,4 +317,110 @@ class PlannerAgent(LlmAgent):
         return (
             f"Planner completed for mission {mission_context.mission_id}. "
             f"{details}"
+        )
+
+    # ------------------------------------------------------------------
+    # Inspection preview
+    # ------------------------------------------------------------------
+    def _emit_inspection_preview(
+        self,
+        ctx: InvocationContext,
+        mission_context: MissionContext,
+        mission_mode: str,
+    ) -> None:
+        previews = self._build_inspection_preview(mission_context)
+        if not previews:
+            return
+
+        payload = [asdict(item) for item in previews]
+        ctx.session.state[INSPECTION_PREVIEW_KEY] = {
+            "generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "toolkits": payload,
+        }
+
+        self.telemetry.emit(
+            "inspection_preview_rendered",
+            tenant_id=mission_context.tenant_id,
+            mission_id=mission_context.mission_id,
+            payload={
+                "selected_count": len(previews),
+                "toolkits": payload,
+                "mode": mission_mode,
+            },
+        )
+
+        self._stream_inspection_preview(mission_context, previews)
+
+    def _build_inspection_preview(
+        self, mission_context: MissionContext
+    ) -> List[InspectionPreview]:
+        rows = self.supabase.fetch_safeguards(
+            mission_id=mission_context.mission_id,
+            tenant_id=mission_context.tenant_id,
+            limit=20,
+        )
+
+        previews: List[InspectionPreview] = []
+        for row in rows:
+            if row.get("hint_type") != "toolkit_recommendation":
+                continue
+            suggested = row.get("suggested_value")
+            if not isinstance(suggested, dict):
+                continue
+
+            slug = str(suggested.get("slug") or "").strip()
+            if not slug:
+                continue
+
+            name = str(suggested.get("name") or slug).strip()
+            auth_type = str(suggested.get("authType") or "oauth").strip() or "oauth"
+            category = str(suggested.get("category") or "general").strip() or "general"
+            no_auth = bool(suggested.get("noAuth", auth_type == "none"))
+
+            sample_count = self._sample_count(slug)
+            sample_rows = [
+                f"{name} sample #{index + 1} (draft preview)"
+                for index in range(sample_count)
+            ]
+
+            previews.append(
+                InspectionPreview(
+                    slug=slug,
+                    name=name,
+                    auth_type="none" if no_auth else auth_type,
+                    sample_rows=sample_rows,
+                    sample_count=sample_count,
+                    no_auth=no_auth,
+                    category=category,
+                )
+            )
+
+        return previews
+
+    @staticmethod
+    def _sample_count(slug: str) -> int:
+        digest = hashlib.sha1(slug.encode("utf-8")).hexdigest()
+        return 2 + (int(digest[:2], 16) % 3)
+
+    def _stream_inspection_preview(
+        self, context: MissionContext, previews: List[InspectionPreview]
+    ) -> None:
+        if not self.streamer:
+            return
+
+        summary = ", ".join(
+            f"{preview.name} ({preview.sample_count} sample{'s' if preview.sample_count != 1 else ''})"
+            for preview in previews
+        )
+        metadata = {
+            "stage": "inspection_preview_rendered",
+            "toolkits": [asdict(item) for item in previews],
+        }
+        message = f"Inspection preview ready: {summary}."
+        self.streamer.emit_message(
+            tenant_id=context.tenant_id,
+            session_identifier=self._session_identifier(context),
+            role="assistant",
+            content=message,
+            metadata=metadata,
         )

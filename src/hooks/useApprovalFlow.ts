@@ -35,6 +35,7 @@ export type SubmitResult =
   | { ok: false; error: string };
 
 export function useApprovalFlow(options: UseApprovalFlowOptions) {
+  const { tenantId, missionId: defaultMissionId = null, defaultReviewerId, onSuccess } = options;
   const [isOpen, setIsOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -42,18 +43,18 @@ export function useApprovalFlow(options: UseApprovalFlowOptions) {
   const [latestDecision, setLatestDecision] = useState<ApprovalDecision | null>(null);
 
   const missionId = useMemo(
-    () => currentRequest?.missionId ?? options.missionId ?? null,
-    [currentRequest?.missionId, options.missionId],
+    () => currentRequest?.missionId ?? defaultMissionId ?? null,
+    [currentRequest?.missionId, defaultMissionId],
   );
 
   const openApproval = useCallback(
     (request: ApprovalRequest) => {
-      const missionContext = request.missionId ?? options.missionId ?? null;
+      const missionContext = request.missionId ?? defaultMissionId ?? null;
       setCurrentRequest({ ...request, missionId: missionContext });
       setError(null);
       setIsOpen(true);
 
-      void sendTelemetryEvent(options.tenantId, {
+      void sendTelemetryEvent(tenantId, {
         eventName: 'approval_required',
         missionId: missionContext,
         eventData: {
@@ -63,7 +64,7 @@ export function useApprovalFlow(options: UseApprovalFlowOptions) {
         },
       });
     },
-    [options.missionId, options.tenantId],
+    [defaultMissionId, tenantId],
   );
 
   const closeApproval = useCallback(() => {
@@ -82,10 +83,10 @@ export function useApprovalFlow(options: UseApprovalFlowOptions) {
       setError(null);
 
       const payload = {
-        tenantId: options.tenantId,
+        tenantId,
         missionId,
         toolCallId: currentRequest.toolCallId,
-        reviewerId: options.defaultReviewerId ?? undefined,
+        reviewerId: defaultReviewerId ?? undefined,
         decision: submission.decision,
         justification: submission.justification?.trim() || undefined,
         metadata: currentRequest.metadata ?? {},
@@ -109,7 +110,7 @@ export function useApprovalFlow(options: UseApprovalFlowOptions) {
         const body = (await response.json()) as { approval?: { id?: string | null } | null };
         const approvalId = body.approval?.id ?? null;
 
-        await sendTelemetryEvent(options.tenantId, {
+        await sendTelemetryEvent(tenantId, {
           eventName: 'approval_decision',
           missionId,
           eventData: {
@@ -122,7 +123,7 @@ export function useApprovalFlow(options: UseApprovalFlowOptions) {
         const trimmedJustification = submission.justification?.trim();
         const violationNotes = submission.guardrailViolation?.notes?.trim();
         if (trimmedJustification || violationNotes) {
-          await sendTelemetryEvent(options.tenantId, {
+          await sendTelemetryEvent(tenantId, {
             eventName: 'reviewer_annotation_created',
             missionId,
             eventData: {
@@ -135,7 +136,7 @@ export function useApprovalFlow(options: UseApprovalFlowOptions) {
 
         setIsOpen(false);
         setLatestDecision(submission.decision);
-        options.onSuccess?.({ decision: submission.decision, approvalId });
+        onSuccess?.({ decision: submission.decision, approvalId });
 
         return { ok: true, approvalId };
       } catch (requestError) {
@@ -146,7 +147,7 @@ export function useApprovalFlow(options: UseApprovalFlowOptions) {
         setIsSubmitting(false);
       }
     },
-    [currentRequest, missionId, options.defaultReviewerId, options.onSuccess, options.tenantId],
+    [currentRequest, defaultReviewerId, missionId, onSuccess, tenantId],
   );
 
   return {
