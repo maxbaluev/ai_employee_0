@@ -132,7 +132,7 @@ class ComposioCatalogClient:
 
         LOGGER.info("Fetching Composio toolkit catalogue via SDK")
         try:
-            toolkits_raw = self._sdk_client.toolkits.list()
+            response = self._sdk_client.toolkits.list(limit=50, sort_by="usage")
         except Exception as exc:  # pragma: no cover - defensive
             LOGGER.error("Composio SDK error: %s", exc)
             return CatalogSummary(
@@ -145,16 +145,71 @@ class ComposioCatalogClient:
         toolkits: List[Dict[str, Any]] = []
         categories: set[str] = set()
 
-        for record in toolkits_raw:
+        raw_records: Any = getattr(response, "items", response)
+
+        # Normalise to a list of items regardless of SDK return type.
+        if raw_records is None:
+            iterable: List[Any] = []
+        elif isinstance(raw_records, list):
+            iterable = raw_records
+        else:
+            try:
+                iterable = list(raw_records)
+            except TypeError:  # pragma: no cover - defensive
+                iterable = [raw_records]
+
+        for record in iterable:
+            name = getattr(record, "name", None) or "unknown"
+            slug = getattr(record, "slug", None) or name
+
+            meta_obj = getattr(record, "meta", None)
+            if hasattr(meta_obj, "model_dump"):
+                meta = meta_obj.model_dump()
+            elif hasattr(meta_obj, "dict"):
+                meta = meta_obj.dict()
+            elif isinstance(meta_obj, dict):
+                meta = meta_obj
+            elif hasattr(meta_obj, "__dict__"):
+                meta = dict(meta_obj.__dict__)
+            else:
+                meta = {}
+
+            raw_categories = []
+            if isinstance(meta, dict):
+                raw_categories = meta.get("categories", []) or []
+
+            resolved_category = getattr(record, "category", None)
+            for cat in raw_categories:
+                if isinstance(cat, dict):
+                    candidate = cat.get("name") or cat.get("id")
+                else:
+                    candidate = getattr(cat, "name", None) or getattr(cat, "id", None)
+                if candidate:
+                    categories.add(candidate)
+                    if not resolved_category:
+                        resolved_category = candidate
+
+            if not resolved_category:
+                resolved_category = "general"
+
+            raw_auth = getattr(record, "auth_schemes", [])
+            if isinstance(raw_auth, (list, tuple)):
+                auth_schemes = [str(scheme) for scheme in raw_auth if scheme]
+            else:
+                auth_schemes = []
+
             item = {
-                "name": getattr(record, "name", "unknown"),
-                "slug": getattr(record, "slug", getattr(record, "name", "unknown")),
-                "description": getattr(record, "description", ""),
-                "category": getattr(record, "category", "general"),
+                "name": name,
+                "slug": slug,
+                "description": meta.get("description") if isinstance(meta, dict) else getattr(record, "description", ""),
+                "category": resolved_category,
+                "no_auth": bool(getattr(record, "no_auth", False)),
+                "auth_schemes": auth_schemes,
+                "logo": meta.get("logo") if isinstance(meta, dict) else None,
             }
+
             toolkits.append(item)
-            if item["category"]:
-                categories.add(item["category"])
+            categories.add(resolved_category)
 
         return CatalogSummary(
             total_entries=len(toolkits),

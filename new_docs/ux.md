@@ -18,6 +18,7 @@ The experience prioritizes:
 - **Continuous visibility** — streaming agent reasoning, safeguard feedback, evidence trails
 - **Human-centered approvals** — collaborative decision points, not gatekeeping friction
 - **Accessibility & inclusion** — WCAG 2.1 AA compliance, keyboard navigation, screen reader support
+- **Curated tool orchestration** — the workspace recommends Composio toolkits (no-auth first, OAuth-ready second) with rationale tags so users can co-author the plan before execution
 
 ---
 
@@ -335,7 +336,36 @@ The mission workspace is a persistent, chat-first interface powered by CopilotKi
 
 ---
 
-### 5.2 Generated Play Selection & Ranking
+### 5.2 Recommended Tool Palette
+
+**Pattern:** Curated Composio tool cards with auth badges and precedent cues guide users toward the best toolkit mix before MCP planning begins.
+
+**Why:** Users stay in control by deciding which integrations the AI employee can touch. Presenting no-auth options first helps pilots stay credential-light, while clearly labeled OAuth-ready tools accelerate trust once value is proven.
+
+**Component:** `<RecommendedToolStrip>` + `<ToolCard>`
+
+**Interaction Steps:**
+1. Planner responds to mission brief by streaming a row of tool cards sourced from `Composio.tools.get` and `toolkits.list` (see `libs_docs/composio/llms.txt`).
+2. Each card displays: toolkit logo, short description, badge for `No credentials needed` / `Requires OAuth`, impact estimate, precedent missions, and undo confidence.
+3. Users toggle cards on/off or expand to adjust optional parameters (scope, sandbox, sample size). Multi-select is supported with keyboard and pointer.
+4. Selections persist immediately to Supabase (`mission_safeguards` with `hint_type='toolkit_recommendation'`) and drive a draft MCP inspection pass.
+5. CopilotKit shows inspection results inline (e.g., "Fetched 5 sample contacts"), highlighting any guardrail mismatches before the plan crystalizes.
+6. Users can regenerate suggestions, pin favorites, or request alternatives ("Show me finance tools") via quick actions.
+
+**Accessibility:**
+- Cards are rendered as ARIA radio/checkbox hybrids with full keyboard support (`Space` toggles selection, `Shift+Arrow` multi-select).
+- Auth badges include text + icon pairings, announced to screen readers ("Requires OAuth scope: hubspot.crm.write").
+- Live region announces inspection results and validation checklist status.
+
+**Empty States:**
+- If no matching toolkits, display "No tools yet" message with quick actions: `Broaden search`, `Use library-only plan`, `Request human guidance`.
+- Provide learn-more link to partner docs and reason codes from Composio for transparency.
+
+**Telemetry:** `toolkit_recommendation_viewed`, `toolkit_selected`, `toolkit_deselected`, `inspection_preview_rendered`, `plan_validated`.
+
+---
+
+### 5.3 Generated Play Selection & Ranking
 
 **Pattern:** Auto-generated cards with inline metadata + regenerate controls
 
@@ -371,7 +401,7 @@ The mission workspace is a persistent, chat-first interface powered by CopilotKi
 
 ---
 
-### 5.3 Streaming Status Panel
+### 5.4 Streaming Status Panel
 
 **Pattern:** Live Progress Narration with Collapsible Steps
 
@@ -405,7 +435,7 @@ The mission workspace is a persistent, chat-first interface powered by CopilotKi
 
 ---
 
-### 5.4 Approval Modal (Safeguard Checkpoint)
+### 5.5 Approval Modal (Safeguard Checkpoint)
 
 **Pattern:** Interrupt-Driven Decision Point with Contextual Remediation
 
@@ -451,7 +481,7 @@ The mission workspace is a persistent, chat-first interface powered by CopilotKi
 
 ---
 
-### 5.5 Artifact Preview Cards
+### 5.6 Artifact Preview Cards
 
 **Pattern:** Expandable Evidence with Download/Share Actions
 
@@ -481,7 +511,7 @@ The mission workspace is a persistent, chat-first interface powered by CopilotKi
 
 ---
 
-### 5.6 Undo Button (Rollback Safety Net)
+### 5.7 Undo Button (Rollback Safety Net)
 
 **Pattern:** Persistent Action with Confirmation
 

@@ -32,6 +32,7 @@ Deliver an objective-first AI employee that plans, executes, and learns like a t
 4. **Adaptive safeguards:** Generative safeguard hints (tone, timing, budget, escalation) accompany every mission, are editable in-place, and keep approvals lightweight instead of relying on static policy manuals.
 5. **Compounding library:** Successful jobs and plays become a private asset catalog, enabling franchises and agencies to scale repeatable services.
 6. **Generative scaffolding:** A single freeform input yields complete objectives, audiences, safeguard hints, toolkits, and plays that are fully editable before execution, accelerating onboarding while preserving oversight.
+7. **Curated tool orchestration:** Users receive a visually ranked palette of Composio toolkits (no-auth first, OAuth-ready second) with impact and precedent signals, select the set they trust, and watch the AI employee validate data via MCP before any live action runs.
 
 ## Product Scope & Key Experiences (Business Lens)
 
@@ -41,6 +42,7 @@ Deliver an objective-first AI employee that plans, executes, and learns like a t
 - **Semantic tool search:** Mission planners query the Composio catalog in-context using `tools.get(search=..., limit=...)` and `tools.get_raw_composio_tools(...)`, allowing the workspace (or an upstream LLM) to converse about candidate actions (“hubspot organize contacts”, “repository issues”) before permissions are granted.
 - **Trigger-ready plays:** Planner recommendations include event-driven workflows by querying Composio trigger types; users can opt into MCP-triggered automations (e.g., “GitHub issue created”, “Slack reaction added”) with the same approval rigor.
 - **Plan proposals:** Users receive Top-3 Predicted Jobs and Play candidates with Why, Impact, Risk, Proof, and Undo narratives surfaced as selectable play cards with inline metadata.
+- **Collaborative tool palette:** Recommended toolkits appear as a generative carousel with badges for auth state, expected impact, and precedent missions. Users can multi-select to shape the MCP plan, preview inspection results, and iterate before approving execution.
 - **Dry-run proof packs:** Zero-privilege mode generates drafts, lists, and schedules for stakeholder review before live permissions, presented through artifact preview cards and evidence bundles.
 - **Governed activation:** Connected mode executes the same plays through confirmed MCP toolkits with reviewer approvals and adaptive safeguards enforced per mission, routed through the approval flows defined in the UX blueprint.
 - **Evidence & coaching:** Dashboards highlight ROI deltas, artifacts, safeguard feedback, and “next best job” recommendations drawn from the library, matching the analytics storytelling surfaces described in `new_docs/ux.md`.
@@ -50,6 +52,7 @@ Deliver an objective-first AI employee that plans, executes, and learns like a t
 ### CopilotKit Experience
 - Mission chat, contextual briefs, approval modals, and artifact previews must all run on CopilotKit CoAgents using shared state; persistence is required via Supabase Postgres tables (CopilotKit message/state storage) so reviewers can reload or transfer conversations without losing context. Layout, navigation, and component behavior should follow the mission workspace anatomy in `new_docs/ux.md` (generative intake banner, editable chip stack, mission sidebar, streaming status panel, safeguard drawer).
 - The system must parse a single freeform input into structured mission data (objective, audience, KPIs, safeguards, suggested tools) with confidence scores, expose each element as editable chips, and support regenerate/edit/replace actions without leaving the workspace.
+- The workspace must render a recommended tool palette that pairs Composio metadata (auth status, scopes, impact heuristics) with narrative summaries so users can curate the toolkit mix before the planner locks a mission plan.
 - Each long-running node (planner ranking, executor synthesis, validator audits) must provide interim feedback through `copilotkit_emit_message`, and successful/aborted runs must call `copilotkit_exit` so routers regain control cleanly.
 - UI components (Agentic Chat, Generative UI, Frontend Actions) expose reviewer levers for edits, approvals, undo, trigger enrollment, and risk acknowledgements. These surfaces must remain accessible on desktop and tablet breakpoints and comply with the accessibility and keyboard navigation standards in the UX blueprint. Generative outputs require explicit affordances for "Accept", "Edit", "Regenerate", and "Reset to previous".
 - Message history hygiene and redaction controls must exist so governance teams can remove sensitive strings while maintaining evidence pointers.
@@ -63,6 +66,7 @@ Deliver an objective-first AI employee that plans, executes, and learns like a t
 ### Tooling & Integrations
 - Composio usage follows the official SDK guidance: limit tool payloads, scope searches, avoid mixing filters, and capture auth evidence (`redirectUrl`, `connectedAccountId`, scopes).
 - Generative recommendations for toolkits and scopes must include rationale and align with Composio's available metadata; suggestions default to `no_auth` where possible and highlight required OAuth upgrades.
+- MCP inspection passes must run after tool selection and before live execution so users can validate sample data and safeguard implications without committing credentials.
 - Trigger lifecycle (list/get/create/subscribe/disable) is first-class; proof packs expose event-based automations with required payload templates and reviewer toggles.
 - Supabase hosts objectives, plays, tool calls, approvals, artifacts, triggers, and library embeddings. Vector search leverages pgvector with indexes sized per tenant. PostgREST and Edge Functions provide the API surfaces consumed by the frontend.
 - Supabase Cron handles analytics rollups; Edge Functions deliver streaming evidence search and ROI calculations without exposing secrets client-side.

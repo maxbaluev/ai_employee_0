@@ -6,6 +6,7 @@ import { CopilotSidebar, type CopilotKitCSSProperties } from "@copilotkit/react-
 
 import { ApprovalModal } from "@/components/ApprovalModal";
 import { MissionIntake } from "@/components/MissionIntake";
+import { RecommendedToolkits } from "@/components/RecommendedToolkits";
 import { StreamingStatusPanel } from "@/components/StreamingStatusPanel";
 import type { TimelineMessage } from "@/hooks/useTimelineEvents";
 import { useApprovalFlow } from "@/hooks/useApprovalFlow";
@@ -406,6 +407,12 @@ export function ControlPlaneWorkspace({
       )}
 
       <MissionIntake tenantId={tenantId} objectiveId={objectiveId ?? null} onAccept={handleIntakeAccept} />
+
+      <RecommendedToolkits
+        tenantId={tenantId}
+        missionId={objectiveId ?? null}
+        onAlert={setWorkspaceAlert}
+      />
 
       <div className="flex grow flex-col lg:flex-row">
         <section className="flex w-full flex-col gap-6 border-b border-white/10 px-6 py-8 lg:w-2/5 lg:border-r lg:border-b-0">

@@ -113,3 +113,6 @@
 {"stage": "intake_stage_started", "mission": "00000000-0000-0000-0000-000000000002", "tenant": "00000000-0000-0000-0000-000000000000", "timestamp": "2025-10-09T10:40:00Z"}
 {"stage": "planner_stage_started", "mission": "00000000-0000-0000-0000-000000000002", "tenant": "00000000-0000-0000-0000-000000000000", "timestamp": "2025-10-09T10:40:00Z"}
 {"stage": "execution_loop_started", "mission": "00000000-0000-0000-0000-000000000002", "tenant": "00000000-0000-0000-0000-000000000000", "timestamp": "2025-10-09T10:40:02Z"}
+{"stage": "intake_stage_started", "mission": "mission-dry-run", "tenant": "gate-ga-default", "timestamp": "2025-10-09T12:51:40Z"}
+{"stage": "planner_stage_started", "mission": "2596ddda-52aa-45b0-a141-7840355a0814", "tenant": "00000000-0000-0000-0000-000000000000", "timestamp": "2025-10-09T12:51:42Z"}
+{"stage": "execution_loop_started", "mission": "2596ddda-52aa-45b0-a141-7840355a0814", "tenant": "00000000-0000-0000-0000-000000000000", "timestamp": "2025-10-09T12:51:46Z"}

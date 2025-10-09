@@ -86,6 +86,7 @@ This roadmap governs all implementation work from zero-privilege proofs to gover
 - [x] Implement `MissionIntake.tsx` with `useCopilotReadable` for mission objective (`src/components/MissionIntake.tsx`)
 - [x] Wire `useCopilotAction` for `createMission` handler calling `/api/objectives` (`src/app/(control-plane)/ControlPlaneWorkspace.tsx`)
 - [x] Reproduce mission sidebar, streaming status panel, safeguard drawer, and artifact card components per the UX blueprint (`src/app/(control-plane)/ControlPlaneWorkspace.tsx`)
+- [ ] Introduce "Recommended tools" carousel that reads Composio metadata, highlights no-auth vs OAuth, and lets users multi-select toolkits before planner execution (store choices in `mission_safeguards`).
 - [x] Store CopilotKit sessions and messages in Supabase tables (`copilot_sessions`, `copilot_messages`) (sessions persisted via `/api/copilotkit/session`; message persistence still TODO)
 - [x] Implement retention policy (7-day default per PRD) (`SESSION_RETENTION_MINUTES` in `ControlPlaneWorkspace`)
 - [x] Test message management hooks: `copilotkit_emit_message`, `copilotkit_exit` (runtime wiring present via `/api/copilotkit`, QA evidence pending)
@@ -142,6 +143,8 @@ This roadmap governs all implementation work from zero-privilege proofs to gover
 - [x] Call `Composio.tools.get` with no-auth filter and log toolkit metadata (`ComposioCatalogClient.get_tools` and CLI status output)
 - [x] Document the requirement for `COMPOSIO_API_KEY` in setup guides (see `AGENTS.md`, `README.md`, `new_docs/architecture.md`)
 - [x] Export SDK status output (`python -m agent.tools.composio_client --status`) to `docs/readiness/composio_status_G-A.txt` (captured 5 toolkit snapshot on 2025-10-08)
+- [ ] Wire planner telemetry to capture recommended palette impressions (`toolkit_recommendation_viewed`, `toolkit_selected`) and align payloads with analytics schema.
+- [ ] Add MCP inspection step post-selection that fetches sample data outputs in draft mode and streams summary back to CopilotKit for user validation.
 
 #### Safeguard Hint Seeds
 
@@ -162,6 +165,7 @@ This roadmap governs all implementation work from zero-privilege proofs to gover
 3. **SDK connectivity:** Run `python -m agent.tools.composio_client --status`; record toolkit count and categories
 4. **Generative intake QA:** Paste sample intent, verify generated objective/audience/safeguard sets include confidence scores and are editable/regenerable
 5. **Safeguard telemetry sanity:** Accept, edit, and reject hints; confirm events land in `mission_safeguards` and telemetry tables
+6. **Tool palette validation:** Select mixed no-auth and OAuth toolkits, confirm selections persist, MCP inspection runs, and validation checklist renders before execution.
 
 **Evidence Artifacts:**
 

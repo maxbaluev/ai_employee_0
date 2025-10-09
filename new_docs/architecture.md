@@ -17,10 +17,11 @@ This blueprint describes the generative-first architecture that powers Gates G-A
 1. **Single-input generative onboarding:** A single freeform input (objective text, links, tone hints) produces the mission brief, suggested audiences, KPIs, success metrics, and adaptive safeguards in seconds.
 2. **Adaptive safeguards, not policy manuals:** Safeguard hints are generated per mission (e.g., tone, quiet windows, escalation contacts) and can be accepted, edited, or regenerated. No static policy pack is required.
 3. **Objective-first execution:** Capability grounding, play ranking, and connection plans precede any tool call. Undo paths are attached to each mutating step.
-4. **Evidence by design:** Every action logs artefacts, telemetry, and optional rollback data to Supabase for replay and analytics.
-5. **Composable agents:** Planner, Validator, Evidence, and Coordinator agents remain observable, replayable, and evaluable through `adk eval` suites.
-6. **Delightful performance:** Generative intake ≤3 s p95 (1 k char input), regeneration ≤2 s p95, dry-run loop ≤15 min, governed validation overhead <200 ms p95.
-7. **Explainable recommendations:** Plays, connection plans, and safeguard hints include rationales derived from library embeddings, historical outcomes, and persona context.
+4. **User-curated tool orchestration:** The workspace recommends Composio toolkits (no-auth first, OAuth-ready second) with rationale cards, but the user always locks selections before any MCP plan executes.
+5. **Evidence by design:** Every action logs artefacts, telemetry, and optional rollback data to Supabase for replay and analytics.
+6. **Composable agents:** Planner, Validator, Evidence, and Coordinator agents remain observable, replayable, and evaluable through `adk eval` suites.
+7. **Delightful performance:** Generative intake ≤3 s p95 (1 k char input), regeneration ≤2 s p95, dry-run loop ≤15 min, governed validation overhead <200 ms p95.
+8. **Explainable recommendations:** Plays, connection plans, and safeguard hints include rationales derived from library embeddings, historical outcomes, and persona context.
 
 ---
 
@@ -107,9 +108,45 @@ Supporting infrastructure:
 - Validators reference accepted hints when deciding whether to auto-fix, request reviewer input, or halt execution. Feedback is logged in `safeguard_events`.
 - Reviewers can pin hints as defaults for future missions; pinned hints become seed prompts for subsequent intake generations.
 
+### 3.8 Collaborative Tool Selection & Plan Validation
+- **Recommended palette:** Planner surfaces a ranked strip of Composio toolkits with badges for **no-auth**, **OAuth-ready**, expected impact, and precedent missions. Cards cite data from `Composio.tools.get` and `toolkits.list` (see `libs_docs/composio/llms.txt §3–§5`).
+- **Selection workflow:** Users curate one or multiple tools directly in the generative UI. Each selection writes to `mission_safeguards` (`hint_type='toolkit_recommendation'`) and adds structured intent for the MCP plan.
+- **Plan preview:** After curation, the ADK planner composes a data inspection pass via MCP (e.g., summarise CRM snapshot) before issuing actions. CopilotKit renders the reasoning chain so the user can approve or adjust inputs prior to execution.
+- **Validation gate:** The validator cross-checks chosen toolkits, accepted safeguards, and the data inspection results. If mismatches arise (missing scope, stale data), the loop returns to the user with fixes or alternative suggestions rather than auto-executing.
+- **Telemetry:** `toolkit_recommendation_viewed`, `toolkit_selected`, and `plan_validated` events feed analytics to confirm the co-planning experience remains fast (<2 minutes from suggestion to approval) and trusted.
+- **Outcome:** Only after the collaborative validation passes does the executor branch to dry-run or governed mode, ensuring users feel the AI employee is co-authored, not opaque.
+
 ---
 
 ## 4. Runtime Flows
+
+### 4.0 Tool Curation & Plan Validation
+```mermaid
+sequenceDiagram
+    participant User
+    participant CopilotKit
+    participant Planner
+    participant Composio
+    participant Validator
+    participant MCP
+
+    User->>CopilotKit: Submit objective
+    CopilotKit->>Planner: Request toolkit recommendations
+    Planner->>Composio: tools.get(search, toolkit scopes)
+    Planner-->>CopilotKit: Stream recommended cards (impact, auth badge)
+    User->>CopilotKit: Select toolkits + adjust parameters
+    CopilotKit->>Planner: Persist selections to mission_safeguards
+    Planner->>MCP: Inspect data via MCP tool (draft mode)
+    MCP-->>Planner: Inspection summary + guardrail hints
+    Planner->>Validator: Provide selections + inspection report
+    Validator-->>CopilotKit: Display validation checklist
+    alt Fix required
+        User->>CopilotKit: Apply fix or request alternative
+        CopilotKit->>Planner: Loop recommendation pass
+    else Pass
+        CopilotKit->>User: Confirm plan ready for execution
+    end
+```
 
 ### 4.1 Generative Intake & Mission Capture
 ```mermaid
