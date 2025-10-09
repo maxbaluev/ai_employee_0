@@ -319,7 +319,10 @@ export function MissionIntake({ tenantId, objectiveId, onAccept }: MissionIntake
   });
 
   return (
-    <section className="border-b border-white/10 bg-gradient-to-br from-slate-950 via-slate-950/90 to-violet-950/40 px-6 py-8">
+    <section
+      className="border-b border-white/10 bg-gradient-to-br from-slate-950 via-slate-950/90 to-violet-950/40 px-6 py-8"
+      suppressHydrationWarning
+    >
       <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
         <header className="flex flex-wrap items-start justify-between gap-4">
           <div>
@@ -337,10 +340,13 @@ export function MissionIntake({ tenantId, objectiveId, onAccept }: MissionIntake
           )}
         </header>
 
-        <div className="space-y-3">
-          <label className="flex flex-col gap-2">
+        <div className="space-y-3" suppressHydrationWarning>
+          <label className="flex flex-col gap-2" suppressHydrationWarning>
             <span className="text-xs font-medium uppercase tracking-wide text-slate-400">Mission context</span>
             <textarea
+              suppressHydrationWarning
+              data-form-type="other"
+              autoComplete="off"
               value={rawInput}
               onChange={(event) => setRawInput(event.target.value)}
               onKeyDown={(event) => {
@@ -496,9 +502,12 @@ function MissionChip({
         )}
       </div>
       {isEditing ? (
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2" suppressHydrationWarning>
           <input
             type="text"
+            suppressHydrationWarning
+            data-form-type="other"
+            autoComplete="off"
             value={editValue}
             onChange={(event) => onChange(event.target.value)}
             onKeyDown={(event) => {
@@ -530,7 +539,7 @@ function MissionChip({
           </button>
         </div>
       ) : (
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2" suppressHydrationWarning>
           <p className="min-w-[200px] flex-1 rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-sm leading-relaxed text-slate-100">
             {value}
           </p>

@@ -4,37 +4,6 @@ import { ControlPlaneWorkspace } from "./ControlPlaneWorkspace";
 import { getServiceSupabaseClient } from "@/lib/supabase/service";
 import type { Database } from "@supabase/types";
 
-type MissionState = {
-  objective: string;
-  audience: string;
-  timeframe: string;
-  guardrails: string;
-  plannerNotes: string[];
-};
-
-const DEFAULT_MISSION: MissionState = {
-  objective: "Prove value in dry-run mode",
-  audience: "Pilot revenue team",
-  timeframe: "Next 14 days",
-  guardrails: "Follow quiet hours, tone policy, undo-first mindset",
-  plannerNotes: ["Gate G-A baseline initialised"],
-};
-
-function normaliseGuardrails(guardrails: unknown): string {
-  if (!guardrails) {
-    return DEFAULT_MISSION.guardrails;
-  }
-  if (typeof guardrails === "string") {
-    return guardrails;
-  }
-  try {
-    return JSON.stringify(guardrails, null, 2);
-  } catch (error) {
-    console.warn("Unable to serialise guardrails payload", error);
-    return DEFAULT_MISSION.guardrails;
-  }
-}
-
 type ObjectiveRow = Database["public"]["Tables"]["objectives"]["Row"];
 type ArtifactRow = Database["public"]["Tables"]["artifacts"]["Row"];
 
@@ -43,7 +12,7 @@ export default async function ControlPlanePage() {
 
   const { data: objectiveRecord } = await supabase
     .from("objectives")
-    .select("id, tenant_id, goal, audience, timeframe, guardrails, metadata")
+    .select("id, tenant_id")
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -52,24 +21,6 @@ export default async function ControlPlanePage() {
 
   const defaultTenant = process.env.GATE_GA_DEFAULT_TENANT_ID ?? "00000000-0000-0000-0000-000000000000";
   const tenantId = objective?.tenant_id ?? defaultTenant;
-
-  const metadata = (objective?.metadata ?? {}) as Record<string, unknown>;
-
-  const mission: MissionState = {
-    objective: objective?.goal ?? DEFAULT_MISSION.objective,
-    audience: objective?.audience ?? DEFAULT_MISSION.audience,
-    timeframe: objective?.timeframe ?? DEFAULT_MISSION.timeframe,
-    guardrails: normaliseGuardrails(objective?.guardrails),
-    plannerNotes: DEFAULT_MISSION.plannerNotes,
-  };
-
-  const maybeNotes = metadata?.plannerNotes;
-  if (Array.isArray(maybeNotes)) {
-    const cleanedNotes = maybeNotes.filter((note): note is string => typeof note === "string");
-    if (cleanedNotes.length) {
-      mission.plannerNotes = cleanedNotes;
-    }
-  }
 
   const artifactsQuery = supabase
     .from("artifacts")
@@ -122,7 +73,6 @@ export default async function ControlPlanePage() {
   return (
     <ControlPlaneWorkspace
       tenantId={tenantId}
-      initialMission={mission}
       initialObjectiveId={objective?.id ?? null}
       initialArtifacts={initialArtifacts}
       catalogSummary={catalogSummary}

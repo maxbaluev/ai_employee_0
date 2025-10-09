@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import os
 import pathlib
 import time
 from typing import Optional
@@ -14,14 +13,13 @@ from pydantic import Field
 
 from ..services import SupabaseClient, TelemetryEmitter
 from ..tools.composio_client import ComposioCatalogClient
+from .evidence import EvidenceAgent
 from .execution_loop import ExecutionLoopAgent
 from .executor import DryRunExecutorAgent
 from .intake import IntakeAgent
 from .planner import PlannerAgent
 from .state import MISSION_CONTEXT_KEY
 from .validator import ValidatorAgent
-from .evidence import EvidenceAgent
-
 
 TRACE_PATH = pathlib.Path("docs/readiness/coordinator_trace_G-A.log")
 
@@ -54,12 +52,8 @@ class CoordinatorAgent(SequentialAgent):
         executor = DryRunExecutorAgent(
             supabase=shared_supabase, telemetry=shared_telemetry
         )
-        validator = ValidatorAgent(
-            supabase=shared_supabase, telemetry=shared_telemetry
-        )
-        evidence = EvidenceAgent(
-            supabase=shared_supabase, telemetry=shared_telemetry
-        )
+        validator = ValidatorAgent(supabase=shared_supabase, telemetry=shared_telemetry)
+        evidence = EvidenceAgent(supabase=shared_supabase, telemetry=shared_telemetry)
         execution_loop = ExecutionLoopAgent(
             executor=executor,
             validator=validator,

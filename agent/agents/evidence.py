@@ -5,26 +5,25 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import asdict
-from typing import AsyncGenerator, Dict, List, Optional
+from typing import AsyncGenerator, List, Optional
 
 from google.adk.agents.base_agent import BaseAgent
 from google.adk.agents.invocation_context import InvocationContext
 from google.adk.events.event import Event
 from google.genai import types
-
 from pydantic import Field
 
 from ..services import SupabaseClient, TelemetryEmitter
 from .state import (
-    EvidenceBundle,
-    MissionContext,
-    SafeguardHint,
+    EVIDENCE_BUNDLE_KEY,
+    LATEST_ARTIFACT_KEY,
+    LATEST_VALIDATION_KEY,
     MISSION_CONTEXT_KEY,
     SAFEGUARDS_KEY,
     SELECTED_PLAY_KEY,
-    LATEST_ARTIFACT_KEY,
-    LATEST_VALIDATION_KEY,
-    EVIDENCE_BUNDLE_KEY,
+    EvidenceBundle,
+    MissionContext,
+    SafeguardHint,
 )
 
 
@@ -85,7 +84,10 @@ class EvidenceAgent(BaseAgent):
             f"Evidence bundle captured for play '{bundle.play_title}' "
             f"(artifact={bundle.artifact_id})."
         )
-        yield Event(author=self.name, content=types.Content(role="system", parts=[types.Part(text=text)]))
+        yield Event(
+            author=self.name,
+            content=types.Content(role="system", parts=[types.Part(text=text)]),
+        )
 
     # ------------------------------------------------------------------
     # Helpers
@@ -124,7 +126,9 @@ class EvidenceAgent(BaseAgent):
                 if isinstance(item, dict):
                     results.append(
                         SafeguardHint(
-                            mission_id=item.get("mission_id", mission_context.mission_id),
+                            mission_id=item.get(
+                                "mission_id", mission_context.mission_id
+                            ),
                             hint_type=item.get("hint_type", "tone"),
                             suggested_value=item.get("suggested_value", ""),
                             status=item.get("status", "suggested"),
@@ -134,7 +138,9 @@ class EvidenceAgent(BaseAgent):
                     )
         return results
 
-    def _persist_bundle(self, mission_context: MissionContext, bundle: EvidenceBundle) -> None:
+    def _persist_bundle(
+        self, mission_context: MissionContext, bundle: EvidenceBundle
+    ) -> None:
         payload = asdict(bundle)
         checksum = hashlib.sha256(
             json.dumps(payload, sort_keys=True).encode("utf-8")

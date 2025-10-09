@@ -5,14 +5,6 @@ import { useCopilotAction, useCopilotReadable } from "@copilotkit/react-core";
 import { CopilotSidebar, type CopilotKitCSSProperties } from "@copilotkit/react-ui";
 import { MissionIntake } from "@/components/MissionIntake";
 
-type MissionState = {
-  objective: string;
-  audience: string;
-  timeframe: string;
-  guardrails: string;
-  plannerNotes: string[];
-};
-
 type Artifact = {
   artifact_id: string;
   title: string;
@@ -28,7 +20,6 @@ type CatalogSummary = {
 
 type ControlPlaneWorkspaceProps = {
   tenantId: string;
-  initialMission: MissionState;
   initialObjectiveId?: string | null;
   initialArtifacts: Artifact[];
   catalogSummary?: CatalogSummary;
@@ -36,12 +27,12 @@ type ControlPlaneWorkspaceProps = {
 
 type AcceptedIntakePayload = {
   missionId: string;
-  objective: string;
-  audience: string;
-  guardrailSummary: string;
-  kpis: Array<{ label: string; target?: string }>;
-  confidence: number;
-  source: 'gemini' | 'fallback';
+  objective?: string;
+  audience?: string;
+  guardrailSummary?: string;
+  kpis?: Array<{ label: string; target?: string }>;
+  confidence?: number;
+  source?: "gemini" | "fallback";
 };
 
 const AGENT_ID = "control_plane_foundation";
@@ -49,17 +40,13 @@ const SESSION_RETENTION_MINUTES = 60 * 24 * 7; // 7 days
 
 export function ControlPlaneWorkspace({
   tenantId,
-  initialMission,
   initialObjectiveId,
   initialArtifacts,
   catalogSummary,
 }: ControlPlaneWorkspaceProps) {
   const [themeColor, setThemeColor] = useState("#4f46e5");
-  const [mission, setMission] = useState<MissionState>(initialMission);
-  const [draft, setDraft] = useState<MissionState>(initialMission);
   const [artifacts, setArtifacts] = useState<Artifact[]>(initialArtifacts);
   const [objectiveId, setObjectiveId] = useState<string | undefined | null>(initialObjectiveId);
-  const [isSyncing, setIsSyncing] = useState(false);
   const [isSidebarReady, setIsSidebarReady] = useState(false);
 
   const sessionIdentifierRef = useRef<string>(
@@ -68,22 +55,21 @@ export function ControlPlaneWorkspace({
       : `mission-${Date.now()}`,
   );
 
-  const copilotSnapshot = useMemo(
+  const readableState = useMemo(
     () => ({
-      mission,
       artifacts,
-      guardrails: mission.guardrails,
+      objectiveId: objectiveId ?? null,
     }),
-    [mission, artifacts],
+    [artifacts, objectiveId],
   );
 
   useCopilotReadable({
-    description: "Mission brief, guardrails, and artifacts for Gate G-A dry-run workspace",
-    value: copilotSnapshot,
+    description: "Evidence artifacts tracked in the Gate G-A dry-run workspace",
+    value: readableState,
   });
 
   const syncCopilotSession = useCallback(
-    async (nextMission: MissionState, nextArtifacts: Artifact[], newObjectiveId?: string | null) => {
+    async (nextArtifacts: Artifact[], newObjectiveId?: string | null) => {
       try {
         await fetch("/api/copilotkit/session", {
           method: "POST",
@@ -93,7 +79,6 @@ export function ControlPlaneWorkspace({
             sessionIdentifier: sessionIdentifierRef.current,
             tenantId,
             state: {
-              mission: nextMission,
               artifacts: nextArtifacts,
               objectiveId: newObjectiveId ?? objectiveId ?? null,
             },
@@ -137,166 +122,17 @@ export function ControlPlaneWorkspace({
     [tenantId],
   );
 
-  const persistObjective = useCallback(
-    async (nextMission: MissionState, overrideObjectiveId?: string | null) => {
-      setIsSyncing(true);
-      try {
-        const response = await fetch("/api/objectives", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            goal: nextMission.objective,
-            audience: nextMission.audience,
-            timeframe: nextMission.timeframe,
-            guardrails: { notes: nextMission.guardrails },
-            metadata: { plannerNotes: nextMission.plannerNotes },
-            tenantId,
-            objectiveId: overrideObjectiveId ?? objectiveId ?? undefined,
-          }),
-        });
-
-        if (!response.ok) {
-          const payload = await response.json().catch(() => ({}));
-          throw new Error(payload.error ?? "Failed to create objective");
-        }
-
-        const payload = (await response.json()) as { objective: { id: string } };
-        setObjectiveId(payload.objective?.id);
-        await syncCopilotSession(nextMission, artifacts, payload.objective?.id ?? null);
-      } catch (error) {
-        console.error(error);
-      } finally {
-        setIsSyncing(false);
-      }
-    },
-    [artifacts, objectiveId, syncCopilotSession, tenantId],
-  );
-
-  const handleMissionSync = useCallback(async () => {
-    setMission(draft);
-    await persistObjective(draft);
-  }, [draft, persistObjective]);
-
-  useEffect(() => {
-    setIsSidebarReady(true);
-    void syncCopilotSession(mission, artifacts, objectiveId ?? null);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  useCopilotAction({
-    name: "setMissionDetails",
-    description: "Update the mission objective, audience, timeframe, and guardrails.",
-    parameters: [
-      { name: "objective", type: "string", required: true },
-      { name: "audience", type: "string", required: true },
-      { name: "timeframe", type: "string", required: true },
-      { name: "guardrails", type: "string", required: true },
-    ],
-    handler: async ({ objective, audience, timeframe, guardrails }) => {
-      const updated: MissionState = {
-        objective,
-        audience,
-        timeframe,
-        guardrails,
-        plannerNotes: mission.plannerNotes,
-      };
-      setDraft(updated);
-      setMission(updated);
-      await persistObjective(updated);
-      return `Mission details updated for tenant ${tenantId}`;
-    },
-  });
-
-  useCopilotAction({
-    name: "appendPlannerNote",
-    description: "Attach a short planner note to the workspace sidebar.",
-    parameters: [{ name: "note", type: "string", required: true }],
-    handler: async ({ note }) => {
-      if (!note) {
-        return "No note provided.";
-      }
-      const updated: MissionState = {
-        ...mission,
-        plannerNotes: [...new Set([...mission.plannerNotes, note.trim()])],
-      };
-      setMission(updated);
-      setDraft(updated);
-      await persistObjective(updated);
-      return "Planner note recorded.";
-    },
-  });
-
-  useCopilotAction({
-    name: "registerArtifactPreview",
-    description: "Publish or update an artifact card for the current mission.",
-    parameters: [
-      { name: "artifactId", type: "string", required: true },
-      { name: "title", type: "string", required: true },
-      { name: "summary", type: "string", required: true },
-      { name: "status", type: "string", required: false },
-    ],
-    handler: async ({ artifactId, title, summary, status }) => {
-      const candidateId = artifactId || (typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `artifact-${Date.now()}`);
-
-      try {
-        const response = await fetch("/api/artifacts", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            artifactId,
-            title,
-            summary,
-            status,
-            tenantId,
-            playId: objectiveId ?? undefined,
-          }),
-        });
-
-        if (!response.ok) {
-          const payload = await response.json().catch(() => ({}));
-          throw new Error(payload.error ?? "Artifact persistence failed");
-        }
-
-        const payload = (await response.json()) as { artifact: { id: string; title: string; content: { summary?: string } | null; status?: string | null } };
-        const storedId = payload.artifact?.id ?? candidateId;
-        const storedSummary = payload.artifact?.content && typeof payload.artifact.content === "object"
-          ? (payload.artifact.content.summary ?? summary)
-          : summary;
-
-        const nextArtifacts = {
-          ...artifacts.reduce<Record<string, Artifact>>((acc, artifact) => {
-            acc[artifact.artifact_id] = artifact;
-            return acc;
-          }, {}),
-          [storedId]: {
-            artifact_id: storedId,
-            title,
-            summary: storedSummary,
-            status: payload.artifact?.status ?? status ?? "draft",
-          },
-        };
-
-        const artifactList = Object.values(nextArtifacts).sort((a, b) => a.title.localeCompare(b.title));
-        setArtifacts(artifactList);
-        await syncCopilotSession(mission, artifactList, objectiveId ?? null);
-        return `Artifact ${storedId} registered.`;
-      } catch (error) {
-        console.error(error);
-        return (error as Error).message;
-      }
-    },
-  });
-
   useCopilotAction({
     name: "copilotkit_emit_message",
-    description: "Persist a streaming CopilotKit message for the current session.",
+    description: "Persist a message from the Copilot runloop",
     parameters: [
       { name: "role", type: "string", required: true },
       { name: "content", type: "string", required: true },
       { name: "metadata", type: "object", required: false },
     ],
     handler: async ({ role, content, metadata }) => {
-      if (!content) {
-        return "No content to persist.";
+      if (!role || !content) {
+        return "Missing role or content";
       }
       await persistCopilotMessage({
         role: typeof role === "string" ? role : "assistant",
@@ -317,30 +153,126 @@ export function ControlPlaneWorkspace({
         content: `Session exited: ${reason ?? "completed"}`,
         metadata: { reason: reason ?? "completed" },
       });
-      await syncCopilotSession(mission, artifacts, objectiveId ?? null);
+      await syncCopilotSession(artifacts, objectiveId ?? null);
       return "Copilot session marked as completed.";
     },
   });
 
-  const guardrailLines = mission.guardrails.split("\n").filter(Boolean);
+  useCopilotAction({
+    name: "copilotkit_clear_session",
+    description: "Clear all persisted CopilotKit messages for this session.",
+    parameters: [],
+    handler: async () => {
+      try {
+        await fetch("/api/copilotkit/message", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            agentId: AGENT_ID,
+            tenantId,
+            sessionIdentifier: sessionIdentifierRef.current,
+          }),
+        });
+      } catch (error) {
+        console.error("Failed to clear Copilot messages", error);
+      }
+      await syncCopilotSession([], objectiveId ?? null);
+      return "Copilot session cleared.";
+    },
+  });
+
+  useCopilotAction({
+    name: "registerArtifactPreview",
+    description: "Publish or update an artifact card for the current mission.",
+    parameters: [
+      { name: "artifactId", type: "string", required: false },
+      { name: "title", type: "string", required: true },
+      { name: "summary", type: "string", required: true },
+      { name: "status", type: "string", required: false },
+    ],
+    handler: async ({ artifactId, title, summary, status }) => {
+      if (!title || !summary) {
+        return "Title and summary are required.";
+      }
+
+      const candidateId =
+        typeof artifactId === "string" && artifactId.trim()
+          ? artifactId
+          : typeof crypto !== "undefined" && "randomUUID" in crypto
+            ? crypto.randomUUID()
+            : `artifact-${Date.now()}`;
+
+      try {
+        const response = await fetch("/api/artifacts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            artifactId: candidateId,
+            title,
+            summary,
+            status,
+            tenantId,
+            playId: objectiveId ?? undefined,
+          }),
+        });
+
+        if (!response.ok) {
+          const payload = await response.json().catch(() => ({}));
+          throw new Error(payload.error ?? "Artifact persistence failed");
+        }
+
+        const payload = (await response.json()) as {
+          artifact?: {
+            id?: string | null;
+            title?: string | null;
+            content?: { summary?: string } | null;
+            status?: string | null;
+          } | null;
+        };
+
+        const storedId = payload.artifact?.id ?? candidateId;
+        const storedSummary =
+          payload.artifact?.content && typeof payload.artifact.content === "object"
+            ? payload.artifact.content.summary ?? summary
+            : summary;
+
+        const nextArtifact: Artifact = {
+          artifact_id: storedId,
+          title: payload.artifact?.title ?? title,
+          summary: storedSummary,
+          status: payload.artifact?.status ?? (typeof status === "string" ? status : "draft"),
+        };
+
+        const merged = [
+          nextArtifact,
+          ...artifacts.filter((artifact) => artifact.artifact_id !== storedId),
+        ].sort((a, b) => a.title.localeCompare(b.title));
+
+        setArtifacts(merged);
+        await syncCopilotSession(merged, objectiveId ?? null);
+
+        return `Artifact ${storedId} registered.`;
+      } catch (error) {
+        console.error(error);
+        return error instanceof Error ? error.message : "Failed to register artifact.";
+      }
+    },
+  });
+
+  useEffect(() => {
+    setIsSidebarReady(true);
+  }, []);
+
+  useEffect(() => {
+    void syncCopilotSession(artifacts, objectiveId ?? null);
+  }, [artifacts, objectiveId, syncCopilotSession]);
 
   const handleIntakeAccept = useCallback(
-    async (payload: AcceptedIntakePayload) => {
-      const updated: MissionState = {
-        objective: payload.objective,
-        audience: payload.audience,
-        timeframe: mission.timeframe,
-        guardrails: payload.guardrailSummary,
-        plannerNotes: mission.plannerNotes,
-      };
-
-      setMission(updated);
-      setDraft(updated);
-      setObjectiveId(payload.missionId);
-
-      await persistObjective(updated, payload.missionId);
+    async ({ missionId }: AcceptedIntakePayload) => {
+      setObjectiveId(missionId);
+      await syncCopilotSession(artifacts, missionId);
     },
-    [mission.timeframe, mission.plannerNotes, persistObjective],
+    [artifacts, syncCopilotSession],
   );
 
   return (
@@ -367,82 +299,9 @@ export function ControlPlaneWorkspace({
         </div>
       </header>
 
-      {/* Mission Intake Component */}
       <MissionIntake tenantId={tenantId} objectiveId={objectiveId ?? null} onAccept={handleIntakeAccept} />
 
       <div className="flex grow flex-col lg:flex-row">
-        <section className="flex w-full flex-col border-b border-white/10 px-6 py-8 lg:w-2/5 lg:border-r">
-          <h2 className="text-lg font-semibold">Mission Brief</h2>
-          <p className="mb-6 text-sm text-slate-300">
-            Capture the objective, audience, timeframe, and guardrails to keep the dry-run proof aligned with governance policy.
-          </p>
-
-          <MissionField
-            label="Objective"
-            value={draft.objective}
-            placeholder="Revive dormant accounts with a no-auth play"
-            onChange={(value) => setDraft((prev) => ({ ...prev, objective: value }))}
-          />
-          <MissionField
-            label="Audience"
-            value={draft.audience}
-            placeholder="Pilot revenue pod or cohort"
-            onChange={(value) => setDraft((prev) => ({ ...prev, audience: value }))}
-          />
-          <MissionField
-            label="Timeframe"
-            value={draft.timeframe}
-            placeholder="Next 2 weeks / by Oct 21"
-            onChange={(value) => setDraft((prev) => ({ ...prev, timeframe: value }))}
-          />
-          <MissionField
-            label="Guardrails"
-            value={draft.guardrails}
-            textarea
-            placeholder="Respect quiet hours 22:00-06:00, tone = professional"
-            onChange={(value) => setDraft((prev) => ({ ...prev, guardrails: value }))}
-          />
-          <button
-            className="mt-4 inline-flex w-fit items-center gap-2 rounded-md bg-violet-500 px-4 py-2 text-sm font-medium text-white shadow transition hover:bg-violet-400"
-            onClick={handleMissionSync}
-            disabled={isSyncing}
-          >
-            {isSyncing ? "Syncing…" : "Sync with Agent"}
-          </button>
-
-          <div className="mt-8 rounded-xl border border-white/10 bg-white/5 p-6">
-            <h3 className="text-base font-semibold">Guardrail Summary</h3>
-            {guardrailLines.length ? (
-              <ul className="mt-4 space-y-2 text-sm text-slate-200">
-                {guardrailLines.map((line, index) => (
-                  <li key={`${line}-${index}`} className="flex items-start gap-2">
-                    <span className="mt-1 h-2 w-2 flex-shrink-0 rounded-full bg-violet-400" />
-                    <span>{line}</span>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="mt-3 text-sm text-slate-400">Add guardrail bullet points to surface governance policies.</p>
-            )}
-          </div>
-
-          <div className="mt-6 rounded-xl border border-white/10 bg-white/5 p-6">
-            <h3 className="text-base font-semibold">Planner Notes</h3>
-            {mission.plannerNotes.length ? (
-              <ul className="mt-4 space-y-2 text-sm text-slate-200">
-                {mission.plannerNotes.map((note, index) => (
-                  <li key={`${note}-${index}`} className="flex items-start gap-2">
-                    <span className="mt-1 h-2 w-2 flex-shrink-0 rounded-full bg-emerald-400" />
-                    <span>{note}</span>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="mt-3 text-sm text-slate-400">No notes yet. Ask the agent to suggest discovery checkpoints.</p>
-            )}
-          </div>
-        </section>
-
         <section className="flex w-full flex-col gap-6 border-b border-white/10 px-6 py-8 lg:w-2/5 lg:border-r lg:border-b-0">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold">Evidence Gallery</h2>
@@ -475,7 +334,7 @@ export function ControlPlaneWorkspace({
                   } catch (error) {
                     console.error("Failed to persist placeholder artifact", error);
                   }
-                  await syncCopilotSession(mission, nextArtifacts, objectiveId ?? null);
+                  await syncCopilotSession(nextArtifacts, objectiveId ?? null);
                 })();
               }}
             >
@@ -540,41 +399,6 @@ export function ControlPlaneWorkspace({
         </section>
       </div>
     </main>
-  );
-}
-
-type MissionFieldProps = {
-  label: string;
-  value: string;
-  placeholder?: string;
-  textarea?: boolean;
-  onChange: (value: string) => void;
-};
-
-function MissionField({ label, value, placeholder, textarea, onChange }: MissionFieldProps) {
-  const classes =
-    "mt-1 w-full rounded-lg border border-white/10 bg-slate-900/70 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-500 focus:border-violet-400 focus:outline-none";
-
-  return (
-    <label className="mb-4 block text-sm font-medium text-slate-200">
-      <span>{label}</span>
-      {textarea ? (
-        <textarea
-          rows={4}
-          value={value}
-          placeholder={placeholder}
-          className={classes}
-          onChange={(event) => onChange(event.target.value)}
-        />
-      ) : (
-        <input
-          value={value}
-          placeholder={placeholder}
-          className={classes}
-          onChange={(event) => onChange(event.target.value)}
-        />
-      )}
-    </label>
   );
 }
 
