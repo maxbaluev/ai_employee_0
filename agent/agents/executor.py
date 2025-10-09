@@ -15,8 +15,6 @@ from google.adk.tools import ToolContext
 from google.genai import types
 from pydantic import BaseModel, Field
 
-from pydantic import Field
-
 from ..services import SupabaseClient, TelemetryEmitter
 from .state import (
     Artifact,
@@ -24,6 +22,7 @@ from .state import (
     MISSION_CONTEXT_KEY,
     RANKED_PLAYS_KEY,
     SELECTED_PLAY_KEY,
+    SAFEGUARDS_KEY,
     LATEST_ARTIFACT_KEY,
 )
 
@@ -169,7 +168,8 @@ class DryRunExecutorAgent(BaseAgent):
     ) -> AsyncGenerator[Event, None]:
         mission_context = self._mission_context(ctx)
         selected_play = self._selected_play(ctx)
-        artifact = self._generate_artifact(mission_context, selected_play)
+        safeguards = self._safeguards(ctx, mission_context)
+        artifact = self._generate_artifact(mission_context, selected_play, safeguards)
 
         artifacts_bucket = ctx.session.state.get(ARTIFACT_STATE_KEY, {})
         if not isinstance(artifacts_bucket, dict):
@@ -241,17 +241,38 @@ class DryRunExecutorAgent(BaseAgent):
         }
 
     def _generate_artifact(
-        self, mission_context: MissionContext, selected_play: Dict[str, Any]
+        self,
+        mission_context: MissionContext,
+        selected_play: Dict[str, Any],
+        safeguards: List[Dict[str, Any]],
     ) -> Artifact:
         title = selected_play.get("title", "Dry-run Plan")
         artifact_id = self._slugify(
             f"{mission_context.mission_id}-{title}".replace(" ", "-")
         )
         guardrail_summary = ", ".join(mission_context.guardrails[:3]) or "None"
-        summary = (
-            f"Outline for {mission_context.objective} targeting {mission_context.audience}. "
-            f"Impact: {selected_play.get('impact', 'Medium')}. Guardrails: {guardrail_summary}."
-        )
+        def _render(value: Any) -> str:
+            if isinstance(value, str):
+                return value
+            if isinstance(value, (list, tuple, set)):
+                return ", ".join(str(v) for v in value if v)
+            if isinstance(value, dict):
+                return ", ".join(f"{k}: {v}" for k, v in value.items())
+            return str(value)
+
+        safeguard_summary = ", ".join(
+            _render(hint.get("suggested_value") or hint.get("hint_type", ""))
+            for hint in safeguards
+            if isinstance(hint, dict)
+        ).strip().strip(',')
+        summary_parts = [
+            f"Outline for {mission_context.objective} targeting {mission_context.audience}.",
+            f"Impact: {selected_play.get('impact', 'Medium')}.",
+            f"Guardrails: {guardrail_summary}.",
+        ]
+        if safeguard_summary:
+            summary_parts.append(f"Safeguards: {safeguard_summary}.")
+        summary = " ".join(summary_parts)
         return Artifact(
             artifact_id=artifact_id,
             title=f"Dry-run: {title}",
@@ -261,33 +282,60 @@ class DryRunExecutorAgent(BaseAgent):
             mission_id=mission_context.mission_id,
         )
 
+    def _safeguards(
+        self, ctx: InvocationContext, mission_context: MissionContext
+    ) -> List[Dict[str, Any]]:
+        raw = ctx.session.state.get(SAFEGUARDS_KEY, [])
+        results: List[Dict[str, Any]] = []
+        if isinstance(raw, list):
+            for item in raw:
+                if isinstance(item, dict):
+                    results.append(item)
+        return results
+
     def _persist_artifact(
         self,
         mission_context: MissionContext,
         selected_play: Dict[str, Any],
         artifact: Artifact,
     ) -> None:
-        artifact_record = {
-            "mission_id": mission_context.mission_id,
-            "play_title": selected_play.get("title"),
+        artifact_payload = {
+            "tenant_id": mission_context.tenant_id,
+            "play_id": selected_play.get("play_id"),
             "type": "dry_run_outline",
             "title": artifact.title,
-            "content_ref": json.dumps(asdict(artifact)),
+            "content": asdict(artifact),
+            "status": artifact.status,
             "hash": hashlib.sha256(artifact.summary.encode("utf-8")).hexdigest(),
+            "checksum": hashlib.sha256(
+                json.dumps(asdict(artifact), sort_keys=True).encode("utf-8")
+            ).hexdigest(),
         }
-        self.supabase.insert_artifacts([artifact_record])
+        self.supabase.insert_artifacts([artifact_payload])
 
         tool_calls = []
         for toolkit in selected_play.get("toolkit_refs", []):
             if not toolkit:
                 continue
+            arguments = {
+                "artifact_id": artifact.artifact_id,
+                "mission_id": mission_context.mission_id,
+                "toolkit": toolkit,
+            }
             tool_calls.append(
                 {
-                    "mission_id": mission_context.mission_id,
+                    "tenant_id": mission_context.tenant_id,
+                    "play_id": selected_play.get("play_id"),
                     "toolkit": toolkit,
                     "tool_name": "dry_run_stub",
+                    "arguments": arguments,
+                    "arguments_hash": hashlib.sha256(
+                        json.dumps(arguments, sort_keys=True).encode("utf-8")
+                    ).hexdigest(),
                     "undo_plan": selected_play.get("undo_plan", ""),
-                    "args_hash": hashlib.sha256(toolkit.encode("utf-8")).hexdigest(),
+                    "guardrail_snapshot": {
+                        "guardrails": mission_context.guardrails,
+                    },
                 }
             )
         if tool_calls:

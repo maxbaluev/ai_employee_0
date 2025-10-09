@@ -61,6 +61,7 @@ class RankedPlay:
     mission_id: str
     tenant_id: str
     mode: str = "dry_run"
+    play_id: Optional[str] = None
     rationale: str = ""
     telemetry: Dict[str, Any] = field(default_factory=dict)
 

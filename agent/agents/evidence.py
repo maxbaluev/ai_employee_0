@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 from dataclasses import asdict
 from typing import AsyncGenerator, Dict, List, Optional
@@ -68,7 +69,7 @@ class EvidenceAgent(BaseAgent):
         )
 
         ctx.session.state[EVIDENCE_BUNDLE_KEY] = asdict(bundle)
-        self._persist_bundle(bundle)
+        self._persist_bundle(mission_context, bundle)
 
         self.telemetry.emit(
             "evidence_bundle_created",
@@ -133,13 +134,19 @@ class EvidenceAgent(BaseAgent):
                     )
         return results
 
-    def _persist_bundle(self, bundle: EvidenceBundle) -> None:
+    def _persist_bundle(self, mission_context: MissionContext, bundle: EvidenceBundle) -> None:
+        payload = asdict(bundle)
+        checksum = hashlib.sha256(
+            json.dumps(payload, sort_keys=True).encode("utf-8")
+        ).hexdigest()
         record = {
-            "mission_id": bundle.mission_id,
-            "play_title": bundle.play_title,
+            "tenant_id": mission_context.tenant_id,
+            "play_id": None,
             "type": "evidence_bundle",
             "title": f"Evidence bundle for {bundle.play_title}",
-            "content_ref": json.dumps(asdict(bundle)),
-            "hash": bundle.artifact_id,
+            "content": payload,
+            "status": "draft",
+            "hash": checksum,
+            "checksum": checksum,
         }
         self.supabase.insert_artifacts([record])

@@ -42,9 +42,13 @@ class TelemetryEmitter:
             "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         }
 
-        if self.supabase.enabled:
+        if (
+            self.supabase.enabled
+            and self.supabase._is_uuid(tenant_id)
+            and self.supabase._is_uuid(mission_id)
+            and not self.supabase._degraded
+        ):
             self.supabase.insert_event(event)
         else:
             self.offline_events.append(event)
             LOGGER.info("[telemetry] %s %s", event_name, payload)
-

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 from dataclasses import asdict
 from typing import AsyncGenerator, Dict, List, Optional
 
@@ -175,11 +174,12 @@ class ValidatorAgent(BaseAgent):
     ) -> None:
         event = {
             "mission_id": mission_context.mission_id,
+            "tenant_id": mission_context.tenant_id,
             "event_type": result.status,
-            "details": json.dumps({
+            "details": {
                 "notes": result.notes,
                 "violations": result.violations,
                 "safeguards": [asdict(hint) for hint in safeguards],
-            }),
+            },
         }
         self.supabase.insert_safeguard_event(event)

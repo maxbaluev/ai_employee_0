@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 from dataclasses import asdict
 from typing import AsyncGenerator, Dict, List, Optional
 
@@ -78,6 +77,9 @@ class PlannerAgent(LlmAgent):
                 "mode": mission_mode,
                 "candidate_count": len(ranked),
                 "toolkits": self._toolkit_counts(ranked),
+                "library_entries": [
+                    play.telemetry.get("library_entry_id") for play in ranked
+                ],
             },
         )
 
@@ -116,41 +118,79 @@ class PlannerAgent(LlmAgent):
     def _rank_plays(
         self, mission_context: MissionContext, mission_mode: str
     ) -> List[RankedPlay]:
-        tools = self.composio.get_tools(search=mission_context.audience)[:5]
-        toolkit_refs = [tool.get("toolkit", "") for tool in tools if tool]
+        audience = mission_context.audience or "Pilot revenue team"
+        library_rows = self.supabase.search_library_plays(
+            tenant_id=mission_context.tenant_id,
+            mission_id=mission_context.mission_id,
+            objective=mission_context.objective,
+            audience=audience,
+            guardrails=mission_context.guardrails,
+            limit=3,
+        )
 
+        toolkit_refs = self._toolkit_refs(audience)
         candidates: List[RankedPlay] = []
-        base_confidence = 0.68 if mission_mode == "dry_run" else 0.55
-        for idx in range(3):
-            impact = ["High", "Medium", "Medium"][idx % 3]
-            risk = ["Low", "Moderate", "Low"][idx % 3]
-            confidence = round(base_confidence + (0.08 - idx * 0.07), 2)
+
+        for index, row in enumerate(library_rows):
+            metadata = row.get("metadata", {}) or {}
+            impact = metadata.get("impact") or self._impact_scale(index)
+            risk = metadata.get("risk") or self._risk_scale(index)
+            undo_plan = metadata.get("undo_plan") or "Document undo path via evidence service"
+            similarity = float(row.get("_similarity", 0.6))
+            confidence = self._confidence(similarity, mission_mode, index)
+            toolkit_slice = toolkit_refs[index * 2 : index * 2 + 2] or toolkit_refs[:2]
+
             rationale = (
-                f"Ranked #{idx + 1} for mission '{mission_context.objective}' using "
-                f"{len(toolkit_refs)} Composio toolkits and guardrails"
+                f"Ranked #{index + 1} using library entry '{row.get('title', 'Unnamed play')}' "
+                f"(similarity={similarity:.2f}) with {len(toolkit_slice)} toolkit refs"
             )
+
             candidates.append(
                 RankedPlay(
-                    title=f"Play {idx + 1}: {mission_context.objective[:32]}",
-                    description=(
-                        f"Target {mission_context.audience} with a dry-run artifact "
-                        f"emphasising guardrails {mission_context.guardrails[:2]}"
+                    title=row.get("title", f"Play {index + 1}"),
+                    description=row.get(
+                        "description",
+                        f"Tailor artifact for {audience} respecting mission guardrails",
                     ),
                     impact=impact,
                     risk=risk,
-                    undo_plan="Document undo path via evidence service",
-                    toolkit_refs=toolkit_refs[:3],
-                    confidence=max(min(confidence, 0.95), 0.4),
+                    undo_plan=undo_plan,
+                    toolkit_refs=toolkit_slice,
+                    confidence=confidence,
                     mission_id=mission_context.mission_id,
                     tenant_id=mission_context.tenant_id,
                     mode=mission_mode,
+                    play_id=str(row.get("id")) if row.get("id") else None,
                     rationale=rationale,
                     telemetry={
-                        "tool_count": len(toolkit_refs),
-                        "guardrail_count": len(mission_context.guardrails),
+                        "library_entry_id": row.get("id"),
+                        "similarity": similarity,
+                        "success_score": row.get("success_score"),
+                        "persona": row.get("persona"),
                     },
                 )
             )
+
+        if not candidates:
+            fallback = RankedPlay(
+                title=f"Dry-run scaffolding for {audience}",
+                description=(
+                    "Generate baseline artifact demonstrating guardrail adherence "
+                    "while awaiting curated library plays."
+                ),
+                impact="Medium",
+                risk="Low",
+                undo_plan="Manual review only",
+                toolkit_refs=toolkit_refs[:2],
+                confidence=self._confidence(0.5, mission_mode, 0),
+                mission_id=mission_context.mission_id,
+                tenant_id=mission_context.tenant_id,
+                mode=mission_mode,
+                rationale="Fallback play generated due to missing library entries",
+                telemetry={"fallback": True},
+            )
+            candidates.append(fallback)
+
         return candidates
 
     def _persist_rankings(
@@ -161,20 +201,48 @@ class PlannerAgent(LlmAgent):
             play_dict = asdict(play)
             payload.append(
                 {
-                    "mission_id": mission_context.mission_id,
+                    "objective_id": mission_context.mission_id,
                     "tenant_id": play.tenant_id,
-                    "position": position,
                     "mode": play.mode,
                     "title": play.title,
                     "impact_estimate": play.impact,
                     "risk_profile": play.risk,
                     "undo_plan": play.undo_plan,
                     "confidence": play.confidence,
-                    "plan_json": json.dumps(play_dict),
+                    "plan_json": play_dict,
+                    "telemetry": {
+                        "position": position,
+                        "tool_count": len(play.toolkit_refs),
+                        **play.telemetry,
+                    },
                 }
             )
 
         self.supabase.upsert_plays(payload)
+
+    def _toolkit_refs(self, audience: str) -> List[str]:
+        tools = self.composio.get_tools(search=audience)[:6]
+        refs = [tool.get("toolkit") or tool.get("slug", "") for tool in tools]
+        cleaned = [ref for ref in refs if ref]
+        if not cleaned:
+            cleaned = ["google_docs", "sheets", "gmail"]
+        return cleaned
+
+    @staticmethod
+    def _impact_scale(index: int) -> str:
+        return ["High", "Medium", "Medium"][index % 3]
+
+    @staticmethod
+    def _risk_scale(index: int) -> str:
+        return ["Low", "Moderate", "Low"][index % 3]
+
+    @staticmethod
+    def _confidence(similarity: float, mission_mode: str, index: int) -> float:
+        base = 0.65 if mission_mode == "dry_run" else 0.55
+        adjustment = min(max(similarity, 0.0), 1.0) * 0.25
+        rank_penalty = 0.06 * index
+        confidence = base + adjustment - rank_penalty
+        return round(max(min(confidence, 0.95), 0.4), 2)
 
     @staticmethod
     def _toolkit_counts(ranked: List[RankedPlay]) -> Dict[str, int]:
