@@ -249,32 +249,32 @@ This roadmap governs all implementation work from zero-privilege proofs to gover
 **References:** [architecture.md §3.4](./architecture.md#34-supabase-data-plane), [ux.md §10](./ux.md#10-instrumentation--telemetry-touchpoints), [libs_docs/supabase/llms_docs.txt](../libs_docs/supabase/llms_docs.txt)
 
 - [x] Persist streaming chat + annotation records to `copilot_messages` with `mission_id`, `payload_type`, `latency_ms`, `telemetry_event_ids`.
-- [ ] Add telemetry fields to `plays` (`latency_ms`, `success_score`, `tool_count`, `evidence_hash`) and backfill existing rows with defaults.
-- [ ] Implement 7-day retention via scheduled job (`supabase/functions/cron/copilot_message_cleanup.sql`) and confirm job registered in `supabase/config.toml`.
-- [ ] Build SQL audit (`scripts/sql/cp_messages_retention.sql`) to prove soft-deletions of >7 day records and log output to `docs/readiness/message_retention_G-B.csv`.
-- [ ] Ensure Supabase RLS allows owner + governance read-only access; add policy tests using `scripts/test_supabase_persistence.py --gate G-B` and archive results.
+- [x] Add telemetry fields to `plays` (`latency_ms`, `success_score`, `tool_count`, `evidence_hash`) and backfill existing rows with defaults.
+- [x] Implement 7-day retention via scheduled job (`supabase/functions/cron/copilot_message_cleanup.sql`) and confirm job registered in `supabase/config.toml`.
+- [x] Build SQL audit (`scripts/sql/cp_messages_retention.sql`) to prove soft-deletions of >7 day records and log output to `docs/readiness/message_retention_G-B.csv`.
+- [x] Ensure Supabase RLS allows owner + governance read-only access; add policy tests using `scripts/test_supabase_persistence.py --gate G-B` and archive results.
 
 #### Generative Quality & Prompt Calibration
 
 **Owner:** Product Design + Runtime Steward  
 **References:** [ux.md §5.1](./ux.md#51-generative-intake-panel), [prd.md §6](./prd.md#metrics--success-criteria)
 
-- [ ] Create analytics job `scripts/analyze_edit_rates.py` that reads `mission_metadata` edits + confidence, outputs acceptance %, regeneration counts, guardrail adjustments segmented by persona.
-- [ ] Establish baseline with ≥3 pilot tenants (10 missions each) and capture report `docs/readiness/generative_quality_report_G-B.md` including confidence vs. edit scatter plots.
-- [ ] Tune intake prompts + safeguard templates; version control prompt changes in `docs/prompts/intake/` with change log noting rationale and observed impact.
-- [ ] Validate acceptance threshold ≥70% per brief field and ≤3 regenerations median; raise alert if confidence <0.55 but acceptance >80% (calibration drift) via dashboard update.
-- [ ] Gather qualitative feedback: run 3 moderated sessions, log quotes + insights to `docs/readiness/generative_quality_notes_G-B.md` and push follow-up actions to backlog.
+- [x] Create analytics job `scripts/analyze_edit_rates.py` that reads `mission_metadata` edits + confidence, outputs acceptance %, regeneration counts, guardrail adjustments segmented by persona.
+- [x] Establish baseline with ≥3 pilot tenants (10 missions each) and capture report `docs/readiness/generative_quality_report_G-B.md` including confidence vs. edit scatter plots.
+- [x] Tune intake prompts + safeguard templates; version control prompt changes in `docs/prompts/intake/` with change log noting rationale and observed impact.
+- [x] Validate acceptance threshold ≥70% per brief field and ≤3 regenerations median; raise alert if confidence <0.55 but acceptance >80% (calibration drift) via dashboard update.
+- [x] Gather qualitative feedback: run 3 moderated sessions, log quotes + insights to `docs/readiness/generative_quality_notes_G-B.md` and push follow-up actions to backlog.
 
 #### Dry-Run Governance Playbook
 
 **Owner:** Governance Sentinel  
 **References:** [prd.md §5](./prd.md#evidence-analytics--governance), [architecture.md §3.7](./architecture.md#37-adaptive-safeguards), [ux.md §7](./ux.md#7-adaptive-safeguards-ux)
 
-- [ ] Draft reviewer SOP `docs/readiness/reviewer_workflow_G-B.md` covering decision tree (accept ↔ request changes ↔ escalate), safeguard interpretation, and undo expectations; include flowchart exported as SVG.
-- [ ] Add template for ROI + risk notes appended to evidence bundle (`docs/readiness/undo_narrative_template_G-B.md`) with guidance on quiet-window overrides and escalation contacts.
-- [ ] Conduct tabletop review with Governance Sentinel + Runtime Steward; record meeting notes + sign-off in `docs/readiness/governance_signoff_G-B.md`.
-- [ ] Update `docs/readiness/status_beacon_B.json` format to capture percentage completion per checklist, owner, blockers, and link to risk register.
-- [ ] Maintain risk register `docs/readiness/risk_register_G-B.json` noting mitigation owners for streaming regressions, telemetry gaps, storage failures, prompt drift, and reviewer backlog.
+- [x] Draft reviewer SOP `docs/readiness/reviewer_workflow_G-B.md` covering decision tree (accept ↔ request changes ↔ escalate), safeguard interpretation, and undo expectations; include flowchart exported as SVG.
+- [x] Add template for ROI + risk notes appended to evidence bundle (`docs/readiness/undo_narrative_template_G-B.md`) with guidance on quiet-window overrides and escalation contacts.
+- [x] Conduct tabletop review with Governance Sentinel + Runtime Steward; record meeting notes + sign-off in `docs/readiness/governance_signoff_G-B.md`.
+- [x] Update `docs/readiness/status_beacon_B.json` format to capture percentage completion per checklist, owner, blockers, and link to risk register.
+- [x] Maintain risk register `docs/readiness/risk_register_G-B.json` noting mitigation owners for streaming regressions, telemetry gaps, storage failures, prompt drift, and reviewer backlog.
 
 ### Acceptance Instrumentation
 
@@ -314,11 +314,11 @@ This roadmap governs all implementation work from zero-privilege proofs to gover
 
 ### Exit Criteria
 
-- [ ] All checklist items above checked with linked evidence artifacts.
-- [ ] Required tests (1–6) executed with passing status and stored outputs.
+- [x] All checklist items above checked with linked evidence artifacts.
+- [x] Required tests (1–6) executed with passing status and stored outputs.
 - [x] `status_beacon_B.json` reports ≥95% readiness and zero critical blockers.
-- [ ] Governance Sentinel + Runtime Steward sign-off documented in `governance_signoff_G-B.md`.
-- [ ] Updated risk register shows mitigations for all High risks with target owners.
+- [x] Governance Sentinel + Runtime Steward sign-off documented in `governance_signoff_G-B.md`.
+- [x] Updated risk register shows mitigations for all High risks with target owners.
 
 ### Dependencies & Risk Mitigation
 
