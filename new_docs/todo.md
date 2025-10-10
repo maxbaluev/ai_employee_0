@@ -374,6 +374,612 @@ Gate G-B delivers a structured workflow from intake to feedback:
 
 ---
 
+## Gate G-B — Code Refactoring & Cleanup Checkpoints
+
+**Purpose:** This section outlines concrete refactoring tasks required to bring the codebase into alignment with Gate G-B documentation (architecture.md, ux.md, workflow.md). These checkpoints retire Gate G-A fallback logic and implement the full eight-stage flow with managed auth, coverage meters, streaming status panels, planner insight rails, evidence services, and comprehensive telemetry.
+
+**Key Alignment Goals:**
+
+- Remove all Gate G-A fallback states; ensure 100% generative intake
+- Implement eight-stage mission flow with stage transitions
+- Add managed auth flow via Composio Connect Link APIs
+- Implement coverage meter with MCP inspection preview
+- Add planner insight rail with streaming rationale
+- Implement streaming status panel with heartbeat monitoring
+- Add comprehensive telemetry aligned with ux.md §10 catalog
+- Retire legacy placeholder logic and ensure RLS policies match current schema
+
+### React/Next.js Control Plane Refactoring
+
+**Owner:** CopilotKit Squad
+**References:** [architecture.md §3.1](./architecture.md#31-presentation--control-plane-nextjs--copilotkit), [ux.md §4–§6](./ux.md#4-mission-workspace-anatomy), [workflow.md §1–§8](./workflow.md#1-eight-stage-mission-workspace-flow)
+
+#### A. Generative Intake Component
+
+**Location:** `src/components/MissionIntake.tsx`, `src/app/api/intake/*`
+
+- [ ] **Remove fallback state UI**: Audit `MissionIntake.tsx` for any "manual input" or "skip generation" fallback paths; delete all fallback branches to enforce 100% generative intake per architecture.md §3.1 and ux.md §5.1.
+  - **Acceptance:** No UI code path allows bypassing chip generation; all mission metadata sourced from Gemini generation or user edits of generated chips.
+  - **Evidence:** Grep codebase for "fallback", "manual", "skip_generation" flags; confirm removal in PR diff.
+
+- [ ] **Add confidence badges to chip rows**: Each generated chip (objective, audience, KPIs, safeguard hints) must display confidence score badge (High/Medium/Low) per ux.md §5.1.
+  - **Acceptance:** Chips render with color-coded confidence badges; screen reader announces confidence level.
+  - **Evidence:** Screenshot showing chip row with confidence badges; accessibility audit confirms ARIA labels.
+  - **File references:** `src/components/MissionIntake.tsx:generateBrief callback`, confidence rendering in chip component.
+
+- [ ] **Implement chip edit/regenerate/reset controls**: Wire inline edit, regenerate single chip, and reset-to-previous controls per ux.md §5.1 interaction pattern.
+  - **Acceptance:** Users can edit chip inline (opens textarea), regenerate (calls `/api/intake/regenerate`), or reset to previous version; all actions emit `brief_item_modified` telemetry.
+  - **Evidence:** Unit tests for chip actions; telemetry audit confirms event payloads.
+  - **File references:** `src/components/MissionIntake.tsx:ChipRow`, `/api/intake/regenerate/route.ts`.
+
+- [ ] **Add token count and privacy notice**: Display character/token count indicator and privacy notice ("No data stored until you accept") per ux.md §4.2.
+  - **Acceptance:** Banner shows live token count; privacy notice visible and accessible.
+  - **Evidence:** Screenshot with token counter; accessibility audit confirms notice read by screen reader.
+  - **File references:** `src/components/MissionIntake.tsx:GenerativeIntakeBanner`.
+
+- [ ] **Enforce 3-regeneration limit**: Implement client-side + server-side check to limit regeneration attempts per chip to 3 before prompting manual input per workflow.md §3.
+  - **Acceptance:** After 3 regeneration attempts, UI displays "Edit manually" prompt instead of "Regenerate" button; backend validates regeneration count.
+  - **Evidence:** Integration test confirming limit enforcement; backend validation logs.
+  - **File references:** `src/lib/intake/service.ts:generateBrief`, `src/app/api/intake/regenerate/route.ts`.
+
+#### B. Mission Workspace Eight-Stage Flow
+
+**Location:** `src/app/(control-plane)/ControlPlaneWorkspace.tsx`, stage-specific components
+
+- [ ] **Implement stage progression state machine**: Refactor workspace to track eight stages (Intake → Brief → Toolkits → Inspect → Plan → Dry-Run → Evidence → Feedback) with clear stage transitions per workflow.md §1.
+  - **Acceptance:** Workspace state includes `currentStage` enum; navigation between stages validated; cannot skip required stages.
+  - **Evidence:** Unit tests for state machine transitions; stage progression logged to telemetry.
+  - **File references:** `src/app/(control-plane)/ControlPlaneWorkspace.tsx:useMissionStage hook`, stage components.
+
+- [ ] **Add stage-specific telemetry events**: Emit stage transition events matching workflow.md §12 catalog (e.g., `stage_intake_completed`, `stage_toolkits_started`, `stage_plan_validated`).
+  - **Acceptance:** All eight stages emit start/complete/failed events; payloads include stage name, duration, mission_id.
+  - **Evidence:** Telemetry audit CSV showing all stage events; dashboard displays stage funnel.
+  - **File references:** `src/lib/telemetry.ts`, stage transition hooks.
+
+- [ ] **Implement Stage 3: Toolkit Palette with Composio Discovery**: Build `<RecommendedToolStrip>` component that displays toolkit cards with no-auth/OAuth badges, impact estimates, precedent missions per ux.md §5.2.
+  - **Acceptance:** Toolkit cards render with badges, multi-select enabled, selections persist to `mission_safeguards`; inspection preview triggers on selection.
+  - **Evidence:** Component screenshot showing toolkit cards; Supabase query confirms persisted selections; integration test validates inspection flow.
+  - **File references:** `src/components/RecommendedToolStrip.tsx`, `src/app/api/toolkits/recommend/route.ts`, Composio `tools.get` integration per libs_docs/composio/llms.txt §3.1.
+
+- [ ] **Implement Stage 4: Coverage Meter with MCP Inspection**: Build coverage meter component displaying readiness percentage, gap highlights, and inspection preview per ux.md §4.2 and workflow.md §4.1.
+  - **Acceptance:** Coverage meter shows percentage (0-100%); gaps highlighted in red; inspection summaries rendered inline; ≥85% required to proceed.
+  - **Evidence:** Screenshot of coverage meter at various percentages; unit tests for gap calculation; MCP draft call logs.
+  - **File references:** `src/components/CoverageMeter.tsx`, `src/app/api/inspect/preview/route.ts`, ADK inspection agent integration.
+
+- [ ] **Implement Stage 5: Planner Insight Rail**: Build streaming planner insight rail showing play ranking rationale, library matches, confidence scores per ux.md §5.3 and architecture.md §3.2.
+  - **Acceptance:** Insight rail streams rationale markdown as planner ranks plays; "Why This?" tooltips populated; plays display impact/risk/undo metadata.
+  - **Evidence:** Video showing streaming rationale; screenshot of tooltip; Supabase query shows `reason_markdown` populated.
+  - **File references:** `src/components/PlannerInsightRail.tsx`, `src/app/api/planner/rank/route.ts`, ADK planner streaming integration per libs_docs/adk/llms-full.txt.
+
+- [ ] **Implement Stage 6: Streaming Status Panel**: Build streaming status panel with live progress narration, heartbeat monitoring, expandable logs per ux.md §5.4.
+  - **Acceptance:** Status panel updates <5s p95 latency; shows checkmarks for completed steps; "Expand Details" reveals tool call logs; "Pause"/"Cancel" buttons functional.
+  - **Evidence:** Latency measurements from telemetry; video showing real-time updates; unit tests for pause/resume.
+  - **File references:** `src/components/StreamingStatusPanel.tsx`, CopilotKit `copilotkit_emit_message` integration per libs_docs/copilotkit/llms-full.txt.
+
+- [ ] **Implement Stage 7: Artifact Gallery with Undo Bar**: Build artifact gallery with preview cards, download/share links, undo button per ux.md §5.6–§5.7.
+  - **Acceptance:** Artifacts display with type badges; preview expands inline; download triggers Supabase Storage fetch; undo button visible for 24h with confirmation modal.
+  - **Evidence:** Screenshot of artifact gallery; video showing undo flow; Storage access logs.
+  - **File references:** `src/components/ArtifactGallery.tsx`, `src/components/UndoButton.tsx`, `src/app/api/evidence/undo/route.ts`.
+
+- [ ] **Implement Stage 8: Feedback Drawer**: Build per-artifact rating component and mission feedback form per ux.md §3.1 journey stage 8.
+  - **Acceptance:** Users can rate artifacts (1-5 stars), submit mission feedback text, and provide learning signals; feedback persisted to `mission_feedback` table.
+  - **Evidence:** Screenshot of feedback drawer; Supabase query confirms feedback rows; telemetry shows `artifact_feedback_submitted` events.
+  - **File references:** `src/components/FeedbackDrawer.tsx`, `src/app/api/feedback/submit/route.ts`.
+
+#### C. Approval Modal & Safeguard UX
+
+**Location:** `src/components/ApprovalModal.tsx`, `src/components/SafeguardDrawer.tsx`
+
+- [ ] **Add safeguard chips to approval modal**: Display accepted safeguard hints (tone, timing, escalation) as chips in approval modal per ux.md §5.5.
+  - **Acceptance:** Modal renders safeguard chips with status (accepted/edited/auto-fixed); suggested fix highlighted; "Apply Fix" button functional.
+  - **Evidence:** Screenshot of approval modal with safeguard chips; unit test validates chip rendering.
+  - **File references:** `src/components/ApprovalModal.tsx:SafeguardChips`.
+
+- [ ] **Implement focus trap and keyboard navigation**: Ensure approval modal traps focus, supports Esc to reject, Enter to confirm, E for Edit per ux.md §9.2.
+  - **Acceptance:** Keyboard navigation works without mouse; screen reader announces options; focus returns to trigger on close.
+  - **Evidence:** Accessibility audit report; automated axe-core scan passes.
+  - **File references:** `src/components/ApprovalModal.tsx:useFocusTrap hook`.
+
+- [ ] **Add undo plan narration**: Display undo plan in approval modal with screen reader support per ux.md §5.5.
+  - **Acceptance:** Undo plan rendered as readable text; screen reader announces plan on modal open.
+  - **Evidence:** Screen reader test recording; undo plan text verified in DOM.
+  - **File references:** `src/components/ApprovalModal.tsx:UndoPlanSection`.
+
+- [ ] **Wire optimistic UI for approvals**: Implement optimistic updates when reviewer approves; handle conflict when multiple reviewers act concurrently per Gate G-B checklist.
+  - **Acceptance:** UI updates immediately on approval; backend resolves conflicts with "last write wins" + revision_id; conflict notification displayed to users.
+  - **Evidence:** Integration test simulating concurrent approvals; conflict resolution logs.
+  - **File references:** `src/app/api/approvals/route.ts:handleConflict`, `src/hooks/useOptimisticApproval.ts`.
+
+#### D. CopilotKit Session Management
+
+**Location:** `src/app/api/copilotkit/*`, `src/hooks/useCopilotSession.ts`
+
+- [ ] **Persist CopilotKit messages to Supabase**: Implement message persistence via `/api/copilotkit/session` endpoint per architecture.md §3.1 and workflow.md §11.
+  - **Acceptance:** All CopilotKit messages written to `copilot_messages` table with `mission_id`, `payload_type`, `latency_ms`; session state persisted to `copilot_sessions`.
+  - **Evidence:** Supabase query shows message rows; integration test confirms reload restores session.
+  - **File references:** `src/app/api/copilotkit/session/route.ts`, `src/lib/copilotkit/persistence.ts`.
+
+- [ ] **Implement 7-day message retention**: Wire retention policy to delete messages older than 7 days per prd.md §5 and architecture.md §3.4.
+  - **Acceptance:** Scheduled job (Supabase cron or Edge Function) deletes aged messages; `SESSION_RETENTION_MINUTES` configurable via env var.
+  - **Evidence:** Cron job logs; query confirms no messages older than retention period; retention audit CSV.
+  - **File references:** `supabase/functions/cron/copilot_message_cleanup.sql`, `src/lib/constants.ts:SESSION_RETENTION_MINUTES`.
+
+- [ ] **Add session recovery with revision_id conflict handling**: Implement multi-tab recovery with revision conflict detection per workflow.md §11.
+  - **Acceptance:** User refreshing page mid-mission resumes from latest state; multi-tab conflict surfaces "Continue in active tab" prompt.
+  - **Evidence:** Integration test simulating refresh; multi-tab test confirms conflict detection.
+  - **File references:** `src/hooks/useCopilotSession.ts:handleReconnect`, `src/app/api/copilotkit/session/route.ts:revisionCheck`.
+
+- [ ] **Emit CopilotKit lifecycle telemetry**: Add `copilotkit_session_started`, `copilotkit_exit` events per workflow.md §12.
+  - **Acceptance:** Session start/end logged with session_id, mission_id, duration; exit event always fires including error paths.
+  - **Evidence:** Telemetry audit confirms events; integration test validates exit on error.
+  - **File references:** `src/hooks/useCopilotSession.ts:emitLifecycleEvents`.
+
+#### E. Accessibility & Keyboard Navigation
+
+**Location:** `src/app/(control-plane)/*`, global styles
+
+- [ ] **Implement global keyboard shortcuts**: Add shortcuts per ux.md §9.2 (N for New Mission, D for Dashboard, Ctrl+Z for Undo, ? for Help).
+  - **Acceptance:** All shortcuts functional; help modal displays shortcut reference; shortcuts work without focus on input fields.
+  - **Evidence:** Manual test checklist; keyboard shortcut documentation screenshot.
+  - **File references:** `src/hooks/useGlobalKeyboard.ts`, `src/components/KeyboardHelp.tsx`.
+
+- [ ] **Ensure WCAG 2.1 AA contrast ratios**: Audit all UI components for 4.5:1 text contrast, 3:1 UI component contrast per ux.md §9.1.
+  - **Acceptance:** Automated Stark plugin scan passes; manual spot checks confirm ratios; color palette documented.
+  - **Evidence:** Accessibility audit report; Stark scan results; color palette reference.
+  - **File references:** `tailwind.config.js:colorPalette`, design system documentation.
+
+- [ ] **Add live regions for streaming updates**: Ensure streaming status, approval interrupts, undo confirmations use ARIA live regions per ux.md §9.3.
+  - **Acceptance:** Screen reader announces updates with appropriate politeness (status=polite, alerts=assertive); no announcement spam.
+  - **Evidence:** Screen reader test recordings (NVDA, JAWS, VoiceOver); ARIA audit.
+  - **File references:** `src/components/StreamingStatusPanel.tsx:liveRegion`, `src/components/ApprovalModal.tsx:alertRole`.
+
+#### F. Frontend Telemetry Instrumentation
+
+**Location:** `src/lib/telemetry.ts`, component event handlers
+
+- [ ] **Implement telemetry catalog from ux.md §10**: Add all events from ux.md §10.2 table (37 events covering intake, planning, execution, approvals, feedback).
+  - **Acceptance:** All 37 events emitting with correct payloads; events visible in Supabase `mission_events` table; no duplicate events.
+  - **Evidence:** Telemetry audit CSV comparing implementation vs. catalog; event payload validation tests.
+  - **File references:** `src/lib/telemetry.ts:emitEvent`, event definitions matching ux.md §10.2 schema.
+
+- [ ] **Add frontend latency tracking**: Measure and log p50/p95/p99 latencies for key operations (chip generation, play selection, approval decision) per architecture.md §7.
+  - **Acceptance:** Latencies calculated client-side and server-side; stored in `mission_events.latency_ms`; dashboard displays percentiles.
+  - **Evidence:** Latency report showing distribution; dashboard screenshot with p95 metrics.
+  - **File references:** `src/lib/telemetry.ts:trackLatency`, `src/app/api/analytics/latency/route.ts`.
+
+- [ ] **Implement PII redaction in telemetry**: Ensure no secrets, emails, tokens logged in telemetry payloads per workflow.md §10.3.
+  - **Acceptance:** Automated scan confirms no PII patterns in telemetry payloads; redaction rules documented.
+  - **Evidence:** PII scan report; redaction rule tests; sample telemetry payload audit.
+  - **File references:** `src/lib/telemetry.ts:redactPayload`, PII regex patterns.
+
+### ADK Agent Backend Refactoring
+
+**Owner:** Runtime Steward
+**References:** [architecture.md §3.2](./architecture.md#32-orchestration-gemini-adk), [workflow.md §3–§8](./workflow.md#3-stage-1-intake--generative-mission-creation), [libs_docs/adk/llms-full.txt](../libs_docs/adk/llms-full.txt)
+
+#### A. Coordinator Agent Refactoring
+
+**Location:** `agent/agents/coordinator.py`, `agent/agent.py`
+
+- [ ] **Migrate to ADK SequentialAgent pattern**: Refactor coordinator from single `LlmAgent` to `SequentialAgent` deriving pattern per architecture.md §3.2 and libs_docs/adk.
+  - **Acceptance:** Coordinator chains `IntakeAgent → PlannerAgent → ExecutionLoop` with `max_retries=3`; stage transitions emit telemetry.
+  - **Evidence:** ADK agent graph shows sequential flow; stage transition logs; integration test validates retry logic.
+  - **File references:** `agent/agents/coordinator.py:SequentialAgent`, ADK callback hooks.
+
+- [ ] **Implement IntakeAgent with context hydration**: Build lightweight IntakeAgent that hydrates `ctx.session.state['mission_context']` from accepted chips per architecture.md §3.2.
+  - **Acceptance:** IntakeAgent reads `mission_metadata` and `mission_safeguards`; populates session state; validates chip acceptance before proceeding.
+  - **Evidence:** Unit test confirms state hydration; logs show context keys populated.
+  - **File references:** `agent/agents/intake_agent.py`, Supabase query for metadata.
+
+- [ ] **Add coordinator telemetry with callback hooks**: Emit `planner_stage_started`, `validator_stage_started`, `evidence_stage_started` via ADK callback hooks per architecture.md §3.2.
+  - **Acceptance:** Telemetry events logged at each stage transition; payloads include mission_id, stage_name, timestamp.
+  - **Evidence:** Telemetry audit shows coordinator events; ADK callback hook tests.
+  - **File references:** `agent/agents/coordinator.py:callback_hooks`, `agent/lib/telemetry.py`.
+
+- [ ] **Implement copilotkit_exit deterministic call**: Ensure `copilotkit_exit` always fires from coordinator including error paths per Gate G-B checklist.
+  - **Acceptance:** Exit event logged on success, failure, timeout; integration test validates exit in all paths; router recovery confirmed.
+  - **Evidence:** Exit event logs; router recovery test; error path integration tests.
+  - **File references:** `agent/agents/coordinator.py:finalizeRun`, `agent/lib/copilotkit_client.py:emit_exit`.
+
+#### B. Planner Agent Enhancement
+
+**Location:** `agent/agents/planner.py`, `agent/services/library_service.py`
+
+- [ ] **Implement hybrid ranking pipeline**: Combine Supabase pgvector similarity with Composio `tools.get(search=...)` per architecture.md §3.2 and workflow.md §4.
+  - **Acceptance:** Planner queries both library_entries (pgvector) and Composio; ranks plays by weighted score (similarity + success rate); enforces "no mixed filters" rule per libs_docs/composio/llms.txt §3.1.
+  - **Evidence:** Planner ranking logs showing dual sources; unit tests for ranking algorithm; validation that `search` not mixed with `tools`.
+  - **File references:** `agent/agents/planner.py:rankPlays`, `agent/services/composio_service.py:discoverTools`.
+
+- [ ] **Persist PlannerCandidate structures with rationale**: Store reason_markdown, impact, toolkits, undo sketch, confidence to `plays` table and session state per Gate G-B checklist.
+  - **Acceptance:** Each play row includes `reason_markdown`, `confidence`, `similarity_score`; session state contains `ranked_plays` list.
+  - **Evidence:** Supabase query shows populated fields; session state dump includes plays; markdown sanitization tests.
+  - **File references:** `agent/agents/planner.py:persistPlays`, `agent/models/planner_candidate.py`.
+
+- [ ] **Add planner telemetry with latency tracking**: Log `planner_latency_ms`, `primary_toolkits`, `embedding_similarity_avg`, `candidate_count` to `planner_runs` table per Gate G-B checklist.
+  - **Acceptance:** Planner telemetry logged with all required fields; validation script confirms p95 latency ≤2.5s, similarity ≥0.62.
+  - **Evidence:** Planner telemetry CSV; latency histogram; validation script output.
+  - **File references:** `agent/agents/planner.py:logTelemetry`, `scripts/validate_planner_metrics.py`.
+
+- [ ] **Implement recommended toolkit palette generation**: Generate toolkit cards with no-auth/OAuth badges, impact estimates, precedent missions per architecture.md §3.8 and ux.md §5.2.
+  - **Acceptance:** Planner emits toolkit recommendation payload to CopilotKit; cards include auth badge, impact score, precedent mission count, undo confidence.
+  - **Evidence:** CopilotKit payload inspection; unit tests for recommendation structure; screenshot of rendered cards.
+  - **File references:** `agent/agents/planner.py:generateToolkitRecommendations`, recommendation payload schema.
+
+- [ ] **Add inspection preview with MCP draft calls**: Implement non-mutating MCP inspection pass (e.g., fetch 5 sample contacts) to validate coverage per workflow.md §4.1.
+  - **Acceptance:** Inspection agent runs draft calls using selected toolkits; coverage meter populated with readiness percentage; gaps highlighted.
+  - **Evidence:** MCP draft call logs; coverage calculation tests; inspection summary artifacts stored.
+  - **File references:** `agent/agents/inspection_agent.py`, `agent/services/mcp_client.py:draftCall`.
+
+#### C. Validator Agent Enhancement
+
+**Location:** `agent/agents/validator.py`
+
+- [ ] **Consume accepted safeguard hints**: Refactor validator to read `mission_safeguards` with `status='accepted'` and apply constraints (tone, timing, escalation, budget) per architecture.md §3.7.
+  - **Acceptance:** Validator queries safeguards table; applies tone checks, quiet window validation, escalation routing; returns `auto_fix`, `ask_reviewer`, or `retry_later`.
+  - **Evidence:** Validator decision logs; unit tests for each safeguard type; integration test validates enforcement.
+  - **File references:** `agent/agents/validator.py:applyHints`, Supabase safeguards query.
+
+- [ ] **Log validator decisions to safeguard_events**: Write outcome, rationale, applied fixes to `safeguard_events` table per workflow.md §7.
+  - **Acceptance:** Each validator decision logged with event_type (hint_applied, violation_detected, auto_fix), details JSON, resolved_at timestamp.
+  - **Evidence:** Supabase query shows safeguard_events rows; event schema validation tests.
+  - **File references:** `agent/agents/validator.py:logFeedback`, `agent/models/safeguard_event.py`.
+
+- [ ] **Implement validator interrupt with CopilotKit**: Raise `CopilotInterrupt` when `ask_reviewer` outcome produced per architecture.md §4.3 and ux.md §5.5.
+  - **Acceptance:** Validator calls CopilotKit interrupt API; approval modal rendered in UI; reviewer decision persisted to `approvals`.
+  - **Evidence:** Interrupt flow integration test; approval modal screenshot; decision persistence verified.
+  - **File references:** `agent/agents/validator.py:raiseInterrupt`, CopilotKit interrupt integration per libs_docs/copilotkit.
+
+- [ ] **Add negative case evaluation suite**: Test tone softening, quiet window breach, escalation required scenarios per Gate G-B checklist.
+  - **Acceptance:** ADK eval suite `agent/evals/validator_g_c.yaml` covers all negative cases; pass rate ≥90%.
+  - **Evidence:** Eval run logs; pass/fail summary; failure case remediation notes.
+  - **File references:** `agent/evals/validator_g_c.yaml`, `agent/tests/test_validator_negatives.py`.
+
+#### D. Evidence Service Implementation
+
+**Location:** `agent/services/evidence_service.py`
+
+- [ ] **Implement hash_tool_args with SHA-256 canonicalization**: Hash tool arguments deterministically with PII redaction per architecture.md §3.5 and Gate G-B checklist.
+  - **Acceptance:** Tool args hashed using SHA-256 with JSON canonicalization (sorted keys); PII fields redacted before hashing; hash stored in `tool_calls.args_hash`.
+  - **Evidence:** Hash verification script confirms deterministic hashing; PII redaction tests; hash parity report.
+  - **File references:** `agent/services/evidence_service.py:hash_tool_args`, PII redaction rules.
+
+- [ ] **Implement bundle_proof_pack with metadata**: Compile mission brief, plays, tool calls, undo plans, safeguard feedback into structured bundle per Gate G-B checklist.
+  - **Acceptance:** Evidence bundle includes all required sections; schema validated against TypeScript types; sample bundle stored in readiness docs.
+  - **Evidence:** Bundle schema validation; sample JSON in `docs/readiness/evidence_bundle_sample_G-B.json`; TypeScript type comparison.
+  - **File references:** `agent/services/evidence_service.py:bundle_proof_pack`, `agent/models/evidence_bundle.py`.
+
+- [ ] **Implement Supabase Storage upload for large payloads**: Upload payloads >200 KB to `evidence-artifacts` bucket per architecture.md §3.5.
+  - **Acceptance:** Storage upload triggers when payload exceeds threshold; `artifacts.content_ref` points to Storage URL; `size_bytes` recorded.
+  - **Evidence:** Storage logs; size threshold tests; artifact table queries show Storage URLs.
+  - **File references:** `agent/services/evidence_service.py:store_artifact`, Supabase Storage client integration per libs_docs/supabase.
+
+- [ ] **Attach undo plans to every tool call**: Ensure every mutating tool call includes `undo_plan_json` with validator precautions per Gate G-B checklist.
+  - **Acceptance:** `tool_calls.undo_plan` populated for all mutating calls; undo plan includes rollback steps, validator notes, time-bound constraints.
+  - **Evidence:** Supabase query confirms undo plans; undo plan schema validation; sample undo trace.
+  - **File references:** `agent/services/evidence_service.py:attachUndoPlan`, `tool_calls` table schema.
+
+- [ ] **Implement execute_undo with telemetry**: Build undo execution handler that executes rollback and logs outcome per workflow.md §8.
+  - **Acceptance:** Undo handler reads `tool_calls.undo_plan`, executes steps, updates `undo_status`, emits `undo_completed` telemetry.
+  - **Evidence:** Undo smoke test in `docs/readiness/undo_trace_G-B.md`; telemetry shows undo events; undo success rate ≥95%.
+  - **File references:** `agent/services/evidence_service.py:execute_undo`, `agent/lib/undo_executor.py`.
+
+- [ ] **Build artifact hash verification script**: Create `scripts/verify_artifact_hashes.py` to ensure 100% hash parity per Gate G-B checklist.
+  - **Acceptance:** Script reads artifacts from Storage and DB, recomputes hashes, reports mismatches; 100% parity required for gate promotion.
+  - **Evidence:** Verification script output in `docs/readiness/evidence_hash_report_G-B.json`; parity report shows 0 mismatches.
+  - **File references:** `scripts/verify_artifact_hashes.py`, verification report template.
+
+#### E. Composio Integration Refactoring
+
+**Location:** `agent/tools/composio_client.py`, `agent/services/composio_service.py`
+
+- [ ] **Implement discovery with "no mixed filters" rule**: Ensure toolkit discovery never mixes `search` with explicit `tools` array or `scopes` across toolkits per libs_docs/composio/llms.txt §3.1.
+  - **Acceptance:** Discovery code validates filter mode; raises error if mixed filters detected; discovery request + result hash logged.
+  - **Evidence:** Unit tests for mixed filter validation; discovery logs show filter mode; error handling test.
+  - **File references:** `agent/services/composio_service.py:discoverTools`, filter validation logic.
+
+- [ ] **Implement managed auth via Connect Link**: Wire OAuth handshake using `toolkits.authorize` and `waitForConnection` per libs_docs/composio/llms.txt §4.1.
+  - **Acceptance:** Auth flow generates `redirect_url`, stores `connection_id` and scopes in `oauth_tokens` with encryption; connection wait timeout handled.
+  - **Evidence:** OAuth flow integration test; encrypted token storage verified; connection timeout test.
+  - **File references:** `agent/tools/composio_client.py:authorize`, `agent/services/oauth_service.py:storeToken`.
+
+- [ ] **Implement inspection mode with draft calls**: Support `execution_mode='SIMULATION'` for dry-run preview calls per workflow.md §5.
+  - **Acceptance:** Draft calls annotated with `simulation_notice=true`; results flagged in UI; no live data mutations.
+  - **Evidence:** Draft call logs; UI badge verification; mutation prevention tests.
+  - **File references:** `agent/services/composio_service.py:executeTool`, simulation mode flag handling.
+
+- [ ] **Add Composio rate limit handling**: Respect retry headers on 429 responses; pause mission, log `mission_flags.rate_limited` per workflow.md §13.
+  - **Acceptance:** Rate limit handler backs off exponentially (max 3 retries); mission paused with "retry in Xs" message; rate limit flag logged.
+  - **Evidence:** Rate limit drill test; backoff timing logs; UI messaging screenshot.
+  - **File references:** `agent/services/composio_service.py:handleRateLimit`, exponential backoff implementation.
+
+- [ ] **Implement trigger lifecycle management**: Build `create_trigger`, `subscribe_trigger`, `disable_trigger` per libs_docs/composio/llms.txt §7 and workflow.md §9.
+  - **Acceptance:** Trigger CRUD operations functional; trigger configs stored in `triggers` table with `connection_id`, `scopes`, `status`; webhook subscription logged.
+  - **Evidence:** Trigger lifecycle integration test; trigger events in `trigger_warehouse`; subscription logs.
+  - **File references:** `agent/services/trigger_service.py`, `triggers` table schema.
+
+#### F. ADK Evaluation Suite Expansion
+
+**Location:** `agent/evals/`, `mise` tasks
+
+- [ ] **Add dry-run ranking eval suite**: Create `agent/evals/dry_run_ranking_G-B.json` covering GTM/support/ops personas per Gate G-B checklist.
+  - **Acceptance:** Eval suite includes ≥15 scenarios (5 personas × 3 variants); pass rate ≥90%; integrated into `mise run test-agent`.
+  - **Evidence:** Eval run summary in `docs/readiness/planner_eval_G-B.json`; CI gating on eval pass rate.
+  - **File references:** `agent/evals/dry_run_ranking_G-B.json`, `mise` test-agent task.
+
+- [ ] **Add governed-mode regression set**: Extend eval coverage to include OAuth-backed governed scenarios per workflow integration gap GAP-04.
+  - **Acceptance:** Governed eval suite covers approval interrupts, undo execution, safeguard enforcement; pass rate ≥90%.
+  - **Evidence:** Eval results; governed scenario coverage report.
+  - **File references:** `agent/evals/governed_scenarios_G-B.json`.
+
+- [ ] **Integrate evals into CI gating**: Ensure `mise run test-agent` fails builds on eval regressions per Gate G-A checklist.
+  - **Acceptance:** CI pipeline runs eval suite; build fails if pass rate <90%; eval results logged to readiness docs.
+  - **Evidence:** CI logs showing eval gate; build failure on regression; eval artifact upload.
+  - **File references:** `.github/workflows/test-agent.yml`, CI eval task.
+
+### Supabase Schema & RLS Policy Refactoring
+
+**Owner:** Data Engineer
+**References:** [architecture.md §3.4–§3.5](./architecture.md#34-supabase-data-plane), [workflow.md §10](./workflow.md#10-supabase-persistence-map), [libs_docs/supabase/llms_docs.txt](../libs_docs/supabase/llms_docs.txt)
+
+#### A. Schema Migration & Backfill
+
+**Location:** `supabase/migrations/`, migration scripts
+
+- [ ] **Add telemetry fields to plays table**: Backfill `latency_ms`, `success_score`, `tool_count`, `evidence_hash` columns per Gate G-B checklist.
+  - **Acceptance:** Migration adds columns with defaults; existing rows backfilled; no null constraint violations.
+  - **Evidence:** Migration diff; backfill script logs; schema validation query.
+  - **File references:** `supabase/migrations/00XX_add_plays_telemetry.sql`, backfill script.
+
+- [ ] **Create planner_runs telemetry table**: Add table to store planner-specific telemetry (latency, similarity scores, candidate counts) per Gate G-B checklist.
+  - **Acceptance:** Table schema matches telemetry requirements; RLS policies restrict to owner + governance read-only; indexes on mission_id, created_at.
+  - **Evidence:** Table DDL; RLS policy tests; index performance verification.
+  - **File references:** `supabase/migrations/00XX_create_planner_runs.sql`, RLS policies.
+
+- [ ] **Create mission_feedback table**: Add table for Stage 8 feedback (per-artifact ratings, mission feedback, learning signals) per ux.md §3.1.
+  - **Acceptance:** Schema includes mission_id, artifact_id, rating (1-5), feedback_text, learning_signals JSON; RLS policies allow user read/write.
+  - **Evidence:** Table DDL; sample feedback rows; RLS policy tests.
+  - **File references:** `supabase/migrations/00XX_create_mission_feedback.sql`.
+
+- [ ] **Create inspection_findings table**: Store MCP inspection preview results (coverage percentage, gap highlights, validation status) per workflow.md §4.1.
+  - **Acceptance:** Schema includes mission_id, toolkit, coverage_pct, gaps JSON, status; linked to tool_calls.
+  - **Evidence:** Table DDL; sample inspection rows; foreign key constraints.
+  - **File references:** `supabase/migrations/00XX_create_inspection_findings.sql`.
+
+- [ ] **Add toolkit_selections junction table**: Track user-curated toolkit palette selections (mission → toolkits many-to-many) per architecture.md §3.8.
+  - **Acceptance:** Junction table with mission_id, toolkit_slug, selected_at, params JSON; RLS policies; unique constraint on (mission_id, toolkit_slug).
+  - **Evidence:** Table DDL; junction table query tests; RLS enforcement.
+  - **File references:** `supabase/migrations/00XX_create_toolkit_selections.sql`.
+
+#### B. RLS Policy Hardening
+
+**Location:** `supabase/migrations/*_rls_policies.sql`
+
+- [ ] **Audit RLS policies across all tables**: Ensure all tables (objectives, mission_metadata, mission_safeguards, plays, tool_calls, approvals, artifacts, triggers, oauth_tokens) have RLS enabled and scoped to tenant/user per architecture.md §3.4.
+  - **Acceptance:** RLS enabled on all tables; policies restrict access via `auth.uid()` or tenant_id; cross-tenant access blocked.
+  - **Evidence:** RLS audit script output; cross-tenant access tests fail as expected; policy documentation.
+  - **File references:** `supabase/migrations/00XX_audit_rls_policies.sql`, `scripts/test_supabase_persistence.py --gate G-B`.
+
+- [ ] **Add governance read-only policies**: Create PostgREST policies for governance personas to read approvals, safeguard_events, mission_metadata without write access per Gate G-C checklist.
+  - **Acceptance:** Governance role can SELECT but not INSERT/UPDATE/DELETE on sensitive tables; role assignment documented.
+  - **Evidence:** Role creation script; policy tests; governance access audit.
+  - **File references:** `supabase/migrations/00XX_governance_readonly_policies.sql`.
+
+- [ ] **Encrypt oauth_tokens with ENCRYPTION_KEY**: Ensure token storage uses Supabase encryption or application-level encryption per architecture.md §3.3.
+  - **Acceptance:** Tokens encrypted at rest; ENCRYPTION_KEY env var required; decryption tested.
+  - **Evidence:** Encryption tests; key rotation documentation; encrypted token query.
+  - **File references:** `agent/services/oauth_service.py:encryptToken`, encryption key setup.
+
+#### C. Analytics Views & Materialized Views
+
+**Location:** `supabase/migrations/*_analytics_views.sql`
+
+- [ ] **Create analytics_generative_acceptance view**: Aggregate acceptance rates for brief fields (objective, audience, safeguards) per Gate G-B checklist.
+  - **Acceptance:** View calculates `brief_accept_rate`, `connection_accept_rate`, `average_regenerations_per_field` from mission_metadata; refresh nightly.
+  - **Evidence:** View DDL; sample query results; nightly refresh cron job.
+  - **File references:** `supabase/migrations/00XX_analytics_generative_acceptance.sql`, refresh job.
+
+- [ ] **Create analytics_connection_adoption view**: Track toolkit connection adoption (suggested vs accepted scopes, edit counts) per Gate G-B checklist.
+  - **Acceptance:** View aggregates from mission_safeguards where hint_type='toolkit_recommendation'; calculates adoption rate, edit frequency.
+  - **Evidence:** View DDL; adoption report queries; dashboard integration.
+  - **File references:** `supabase/migrations/00XX_analytics_connection_adoption.sql`.
+
+- [ ] **Create analytics_safeguard_feedback view**: Aggregate safeguard outcomes (auto-fixed, ask_reviewer, retry_later, send_anyway) per architecture.md §3.7.
+  - **Acceptance:** View counts by outcome type, calculates closure time, surfaces top hints by rejection rate; segmented by persona.
+  - **Evidence:** View DDL; safeguard feedback dashboard screenshot; persona segmentation query.
+  - **File references:** `supabase/migrations/00XX_analytics_safeguard_feedback.sql`.
+
+- [ ] **Create analytics_undo_success view**: Track undo request counts, success rates, latency percentiles per Gate G-B KPIs.
+  - **Acceptance:** View calculates undo success rate (≥95% target), p50/p95 undo latency, failure reasons.
+  - **Evidence:** View DDL; undo success report; failure reason breakdown.
+  - **File references:** `supabase/migrations/00XX_analytics_undo_success.sql`.
+
+- [ ] **Schedule nightly analytics refresh**: Implement pg_cron job or Edge Function to refresh materialized views per libs_docs/supabase §Cron.
+  - **Acceptance:** Cron job runs nightly at 2 AM UTC; refresh logs; stale data <24h old.
+  - **Evidence:** Cron job registration; execution logs; staleness monitoring.
+  - **File references:** `supabase/config.toml:cron_jobs`, refresh Edge Function.
+
+#### D. Edge Functions & Cron Jobs
+
+**Location:** `supabase/functions/*`, `supabase/config.toml`
+
+- [ ] **Implement copilot_message_cleanup cron job**: Delete messages older than 7 days per Gate G-B checklist.
+  - **Acceptance:** Cron job runs daily; soft-deletes aged messages; respects governance exemptions; logs deleted count.
+  - **Evidence:** Cron job logs; retention audit CSV in `docs/readiness/message_retention_G-B.csv`; exemption tests.
+  - **File references:** `supabase/functions/cron/copilot_message_cleanup.sql`, exemption logic.
+
+- [ ] **Implement catalog-sync Edge Function**: Refresh Composio toolkit metadata nightly per architecture.md §3.4 and workflow.md dependencies.
+  - **Acceptance:** Function fetches toolkit list, updates cached metadata, logs sync timestamp; runs before planner evals.
+  - **Evidence:** Sync logs; metadata freshness checks; pre-eval dependency validation.
+  - **File references:** `supabase/functions/catalog-sync/index.ts`, sync schedule.
+
+- [ ] **Implement generate-embedding Edge Function**: Generate embeddings for library entries using open-source models per architecture.md §3.4.
+  - **Acceptance:** Function accepts text payload, generates embedding, stores in library_entries.embedding; latency <500ms p95.
+  - **Evidence:** Embedding generation tests; latency measurements; embedding dimension validation.
+  - **File references:** `supabase/functions/generate-embedding/index.ts`, embedding model setup.
+
+- [ ] **Implement safeguard_feedback_rollup cron job**: Aggregate safeguard events nightly for analytics per Gate G-C checklist.
+  - **Acceptance:** Job aggregates safeguard_events by hint_type, outcome; writes to analytics tables; logs processing time.
+  - **Evidence:** Rollup job logs; analytics table populated; processing time <5 min.
+  - **File references:** `supabase/functions/cron/safeguard_feedback_rollup.sql`.
+
+- [ ] **Implement trigger_consistency_job**: Nightly reconciliation of trigger_warehouse events vs tool_calls per workflow.md §9.
+  - **Acceptance:** Job compares trigger events to tool_calls, flags mismatches, auto-disables failed triggers after 3 consecutive failures.
+  - **Evidence:** Consistency report in `docs/readiness/trigger_warehouse_consistency_G-D.json`; auto-disable logs.
+  - **File references:** `supabase/functions/cron/trigger_consistency_job.sql`.
+
+#### E. Database Performance & Indexing
+
+**Location:** `supabase/migrations/*_indexes.sql`
+
+- [ ] **Add pgvector indexes on library_entries**: Create IVFFlat or HNSW index on embedding column for fast similarity search per libs_docs/supabase vector guide.
+  - **Acceptance:** Index created with appropriate distance metric (cosine/L2); query latency <100ms for k=10 neighbors; index size monitored.
+  - **Evidence:** Index creation logs; query plan shows index usage; latency benchmarks.
+  - **File references:** `supabase/migrations/00XX_library_entries_vector_index.sql`, index tuning.
+
+- [ ] **Add composite indexes for common queries**: Index (mission_id, created_at), (user_id, status), (toolkit_slug, scopes) per query patterns.
+  - **Acceptance:** Indexes improve query performance (measured via EXPLAIN ANALYZE); no redundant indexes.
+  - **Evidence:** Query plan comparisons; index usage stats; performance improvement report.
+  - **File references:** `supabase/migrations/00XX_composite_indexes.sql`.
+
+- [ ] **Validate query performance**: Run `scripts/validate_supabase_queries.py` to ensure p95 latency <250ms for critical queries per Gate G-E checklist.
+  - **Acceptance:** All critical queries meet latency targets; slow query report generated; optimization recommendations documented.
+  - **Evidence:** Query performance report; slow query log; optimization plan.
+  - **File references:** `scripts/validate_supabase_queries.py`, performance baseline.
+
+### Gate G-A Fallback Logic Cleanup
+
+**Owner:** All roles
+**References:** All documentation sections mandating 100% generative flow
+
+#### A. Code Audit & Removal
+
+- [ ] **Grep codebase for fallback patterns**: Search for "fallback", "manual_input", "skip_generation", "default_value" flags and remove all non-generative paths.
+  - **Acceptance:** Grep returns zero matches for fallback patterns in intake/planning/safeguard code; all paths require generation.
+  - **Evidence:** Grep report showing no matches; PR diff confirming deletions; code review sign-off.
+  - **File references:** Entire codebase audit, focus on `src/components/MissionIntake.tsx`, `agent/agents/planner.py`, `src/lib/intake/service.ts`.
+
+- [ ] **Remove fallback UI components**: Delete any "Skip" buttons, "Enter manually" links, default form fields that bypass generation.
+  - **Acceptance:** UI audit confirms no bypass mechanisms; all inputs flow through generative APIs; user testing validates no manual escape hatches.
+  - **Evidence:** UI component inventory; user testing video; accessibility audit.
+  - **File references:** `src/components/*`, UI component library.
+
+- [ ] **Remove fallback database columns**: Drop any columns named `*_fallback`, `manual_override`, `skip_generation` from Supabase schema.
+  - **Acceptance:** Migration drops unused columns; no application code references dropped columns; zero data loss.
+  - **Evidence:** Migration DDL; grep shows no code references; data backup verified.
+  - **File references:** `supabase/migrations/00XX_drop_fallback_columns.sql`.
+
+#### B. Telemetry & Validation
+
+- [ ] **Add telemetry assertion for 100% generative**: Validate all missions have `source='generated'` or `source='edited'` in mission_metadata; fail promotion if manual entries found.
+  - **Acceptance:** Validation script confirms all missions generative; alert triggered if manual entry detected; daily monitoring dashboard.
+  - **Evidence:** Validation script output; monitoring dashboard screenshot; alerting test.
+  - **File references:** `scripts/validate_generative_compliance.py`, monitoring dashboard.
+
+- [ ] **Update documentation to remove fallback references**: Audit all docs (architecture.md, ux.md, workflow.md, todo.md) and remove any mentions of fallback states or manual input paths.
+  - **Acceptance:** Grep docs for "fallback" returns only historical context; all flow diagrams show generative-only paths; stakeholder review confirms clarity.
+  - **Evidence:** Doc diff showing fallback removal; stakeholder sign-off; updated flow diagrams.
+  - **File references:** `new_docs/*.md`, flow diagram sources.
+
+### Verification & Testing Checkpoints
+
+**Owner:** All roles
+**Cross-functional responsibility**
+
+#### A. Integration Test Suite
+
+- [ ] **Build end-to-end eight-stage flow test**: Create integration test covering all eight stages from intake to feedback per workflow.md §1.
+  - **Acceptance:** Test creates mission, progresses through all stages, validates state transitions, confirms telemetry; passes on CI.
+  - **Evidence:** Test logs; telemetry validation; CI green build; test coverage report.
+  - **File references:** `tests/integration/test_eight_stage_flow.ts`, CI integration.
+
+- [ ] **Build streaming resilience test**: Playwright/Cypress test asserting timeline updates ≤5s, approval modal interaction, copilotkit_exit event per Gate G-B checklist.
+  - **Acceptance:** Test simulates slow network, validates update frequency, confirms exit event; passes on CI.
+  - **Evidence:** Test execution video; latency measurements; CI results.
+  - **File references:** `tests/e2e/test_streaming_resilience.spec.ts`.
+
+- [ ] **Build evidence hash parity test**: Automated test running `scripts/verify_artifact_hashes.py` and asserting 100% match per Gate G-B checklist.
+  - **Acceptance:** Test downloads artifacts, recomputes hashes, asserts parity; fails build on mismatch.
+  - **Evidence:** Hash verification report; CI gate enforcement; zero mismatches.
+  - **File references:** `scripts/verify_artifact_hashes.py`, CI test step.
+
+#### B. Accessibility & UX Testing
+
+- [ ] **Run WCAG 2.1 AA audit**: Use automated tools (axe-core, Lighthouse) and manual testing (screen readers) per ux.md §9.1.
+  - **Acceptance:** Automated scans pass; manual tests confirm keyboard navigation, live regions, contrast ratios; findings documented.
+  - **Evidence:** Accessibility audit report in `docs/readiness/accessibility_audit_G-E.pdf`; manual test videos.
+  - **File references:** Accessibility test scripts, audit report template.
+
+- [ ] **Conduct usability testing with 3 personas**: Run moderated sessions with Revenue Lead, Support Lead, Governance Officer per ux.md §2.1.
+  - **Acceptance:** Users complete missions without errors; quotes + insights captured; follow-up actions prioritized.
+  - **Evidence:** Session recordings; insights summary in `docs/readiness/generative_quality_notes_G-B.md`; backlog items.
+  - **File references:** Usability testing protocol, session notes.
+
+#### C. Performance & Load Testing
+
+- [ ] **Run dry-run stopwatch test**: Execute 3 persona scenarios (Revenue, Support, Finance) and validate <15 min completion per Gate G-B checklist.
+  - **Acceptance:** All scenarios complete in <15 min p95; detailed timing breakdown captured; bottlenecks identified.
+  - **Evidence:** Stopwatch report in `docs/readiness/dry_run_verification.md`; timing breakdown; optimization plan.
+  - **File references:** `scripts/dry_run_stopwatch.py`, test scenarios.
+
+- [ ] **Run streaming latency benchmark**: Measure p50/p95 latency from planner/executor to UI event receipt per Gate G-B KPIs.
+  - **Acceptance:** p95 streaming heartbeat ≤5s; latency histogram generated; outliers investigated.
+  - **Evidence:** Latency report; histogram chart; outlier root cause analysis.
+  - **File references:** `scripts/measure_streaming_latency.py`, latency dashboard.
+
+- [ ] **Run planner ranking latency test**: Validate p95 planner latency ≤2.5s and similarity ≥0.62 using `scripts/validate_planner_metrics.py` per Gate G-B checklist.
+  - **Acceptance:** Planner meets latency and similarity targets; outliers documented; optimization recommendations.
+  - **Evidence:** Planner metrics report; similarity histogram; optimization plan.
+  - **File references:** `scripts/validate_planner_metrics.py`, baseline configuration.
+
+#### D. Telemetry Audit
+
+- [ ] **Run telemetry audit script**: Execute `scripts/audit_telemetry_events.py --gate G-B` to confirm all 37 events from ux.md §10.2 catalog per Gate G-B checklist.
+  - **Acceptance:** Audit confirms all events present with correct payloads; no missing or duplicate events; coverage report generated.
+  - **Evidence:** Telemetry audit CSV in `docs/readiness/telemetry_audit_G-B.csv`; event payload validation.
+  - **File references:** `scripts/audit_telemetry_events.py`, expected events catalog.
+
+- [ ] **Validate retention enforcement**: Execute `scripts/check_retention.py --table copilot_messages --ttl-days 7` per Gate G-B checklist.
+  - **Acceptance:** Script confirms deletion of aged rows; no records older than 7 days unless exempt; deletion logs captured.
+  - **Evidence:** Retention enforcement report in `docs/readiness/message_retention_G-B.csv`; deletion logs.
+  - **File references:** `scripts/check_retention.py`, retention policy configuration.
+
+### Documentation & Evidence Tasks
+
+**Owner:** All roles
+**Cross-functional responsibility**
+
+- [ ] **Generate evidence bundle samples**: Create sample evidence bundles for each persona (Revenue, Support, Governance) per Gate G-B checklist.
+  - **Acceptance:** Sample bundles stored in `docs/readiness/evidence_bundle_sample_G-B.json`; schema validated; human-readable summaries included.
+  - **Evidence:** Sample bundle files; schema validation report; summary review.
+  - **File references:** Sample generation script, bundle templates.
+
+- [ ] **Document CopilotKit stream contract**: Create `docs/readiness/copilotkit_stream_contract_G-B.md` documenting all streaming payload formats per Gate G-B checklist.
+  - **Acceptance:** Contract document includes all stream event types, payload schemas, example payloads, versioning strategy.
+  - **Evidence:** Contract document; payload schema validation tests; example payload collection.
+  - **File references:** `docs/readiness/copilotkit_stream_contract_G-B.md`, schema definitions.
+
+- [ ] **Record CopilotKit session video**: Capture `docs/readiness/copilotkit_session_G-B.mp4` showing full mission flow with console logs per Gate G-B checklist.
+  - **Acceptance:** Video shows intake → evidence flow; console logs visible; streaming updates demonstrated; <5 min duration.
+  - **Evidence:** Video file; console log export; video review notes.
+  - **File references:** Screen recording, console log capture.
+
+- [ ] **Generate generative quality report**: Run `scripts/analyze_edit_rates.py` and produce `docs/readiness/generative_quality_report_G-B.md` per Gate G-B checklist.
+  - **Acceptance:** Report includes acceptance rates (≥70% target), regeneration counts (≤3 median), confidence vs edit scatter plots; segmented by persona.
+  - **Evidence:** Quality report; scatter plots; persona segmentation analysis.
+  - **File references:** `scripts/analyze_edit_rates.py`, report template.
+
+- [ ] **Draft reviewer workflow SOP**: Create `docs/readiness/reviewer_workflow_G-B.md` covering decision tree, safeguard interpretation, undo expectations per Gate G-B checklist.
+  - **Acceptance:** SOP includes flowchart (SVG), decision criteria, escalation contacts, undo guidelines; governance sentinel sign-off.
+  - **Evidence:** SOP document; flowchart export; sign-off documentation.
+  - **File references:** SOP template, flowchart source.
+
+- [ ] **Update status beacon**: Maintain `docs/readiness/status_beacon_B.json` with completion percentages, owners, blockers, risk register link per Gate G-B checklist.
+  - **Acceptance:** Status beacon updated weekly; completion ≥95% for gate promotion; zero critical blockers; risk register current.
+  - **Evidence:** Status beacon file; weekly update log; risk register.
+  - **File references:** `docs/readiness/status_beacon_B.json`, update script.
+
+---
+
 ## Gate G-C — Governed Activation Core
 
 **Mission Question:** Can we execute OAuth-backed plays with adaptive safeguards, approvals, undo, and trigger lifecycle controls while preserving auditability?\*
