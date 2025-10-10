@@ -1,0 +1,20 @@
+{
+  "generated_at": "2025-10-10T07:50:58Z",
+  "command": "mise run test-agent",
+  "runs": [
+    {
+      "eval_set": "agent/evals/smoke_g_a_v2.json",
+      "tests_passed": 5,
+      "tests_failed": 0
+    },
+    {
+      "eval_set": "agent/evals/dry_run_ranking_G-B.json",
+      "tests_passed": 1,
+      "tests_failed": 0
+    }
+  ],
+  "summary": {
+    "total_passed": 6,
+    "total_failed": 0
+  }
+}
