@@ -15,9 +15,6 @@ export default defineConfig({
   esbuild: {
     jsx: 'automatic',
   },
-  css: {
-    postcss: null,
-  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, 'src'),

@@ -497,22 +497,30 @@ async function generateWithGemini(input: IntakeInput): Promise<IntakeChips | nul
 
     const kpis = Array.isArray(structured.kpis)
       ? structured.kpis
-          .map((item) =>
-            typeof item === 'object' && item
-              ? {
-                  label: String((item as Record<string, unknown>).label ?? '').trim(),
-                  target: optionalString((item as Record<string, unknown>).target),
-                }
-              : null,
-          )
-          .filter((item): item is KPI => !!item && !!item.label)
+          .map((item): KPI | null => {
+            if (!item || typeof item !== 'object') {
+              return null;
+            }
+
+            const record = item as Record<string, unknown>;
+            const label = String(record.label ?? '').trim();
+            if (!label) {
+              return null;
+            }
+
+            return {
+              label,
+              target: optionalString(record.target),
+            };
+          })
+          .filter((item): item is KPI => item !== null)
       : [];
 
     const safeguardsRaw = Array.isArray(structured.safeguardHints)
       ? structured.safeguardHints
       : [];
 
-    const safeguardHints: GeneratedSafeguard[] = safeguardsRaw
+    const safeguardHints = safeguardsRaw
       .map((item) => {
         if (!item || typeof item !== 'object') {
           return null;
@@ -536,7 +544,7 @@ async function generateWithGemini(input: IntakeInput): Promise<IntakeChips | nul
           text: textValue,
           confidence: clampConfidence((item as Record<string, unknown>).confidence),
           status: 'suggested',
-        } satisfies GeneratedSafeguard;
+        } as GeneratedSafeguard;
       })
       .filter((item): item is GeneratedSafeguard => Boolean(item));
 

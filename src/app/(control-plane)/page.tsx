@@ -4,6 +4,8 @@ import { ControlPlaneWorkspace } from "./ControlPlaneWorkspace";
 import { getServiceSupabaseClient } from "@/lib/supabase/service";
 import type { Database } from "@supabase/types";
 
+export const dynamic = "force-dynamic";
+
 type ObjectiveRow = Database["public"]["Tables"]["objectives"]["Row"];
 type ArtifactRow = Database["public"]["Tables"]["artifacts"]["Row"];
 

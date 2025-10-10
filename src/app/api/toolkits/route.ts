@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createHash } from "crypto";
 
+import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@supabase/types";
 import { getRouteHandlerSupabaseClient } from "@/lib/supabase/server";
 
@@ -49,6 +50,7 @@ function resolveTenantId(candidate: string | null, sessionTenantId: string | und
 export async function GET(req: NextRequest) {
   const searchParams = req.nextUrl.searchParams;
   const supabase = await getRouteHandlerSupabaseClient();
+  const dbClient = supabase as unknown as SupabaseClient<Database, "public">;
   const {
     data: { session },
   } = await supabase.auth.getSession();
@@ -147,20 +149,26 @@ export async function GET(req: NextRequest) {
     // Fetch existing selections if missionId provided
     let selectedSlugs: string[] = [];
     if (missionId) {
-      const { data: safeguards } = await supabase
+      type MissionSafeguardSuggestion = Pick<
+        Database["public"]["Tables"]["mission_safeguards"]["Row"],
+        "suggested_value"
+      >;
+
+      const { data: safeguardRows } = await dbClient
         .from("mission_safeguards")
-        .select(
-          "suggested_value" as const,
-        )
+        .select("suggested_value")
         .eq("mission_id", missionId)
         .eq("tenant_id", tenantId)
         .eq("hint_type", "toolkit_recommendation")
         .eq("status", "accepted");
 
-      if (safeguards) {
-        selectedSlugs = safeguards
-          .map((s) => {
-            const value = s.suggested_value as { slug?: unknown } | null;
+      // Supabase's current type inference widens single-column selects to never; cast to the generated row type.
+      const suggestions = (safeguardRows ?? []) as MissionSafeguardSuggestion[];
+
+      if (suggestions.length > 0) {
+        selectedSlugs = suggestions
+          .map((row) => {
+            const value = row.suggested_value as { slug?: unknown } | null;
             return typeof value?.slug === "string" ? value.slug : undefined;
           })
           .filter((slug): slug is string => typeof slug === "string" && slug.length > 0);
@@ -216,6 +224,8 @@ async function emitToolkitPaletteTelemetry({
     return;
   }
 
+  const dbClient = supabase as unknown as SupabaseClient<Database, "public">;
+
   const palette = toolkits.map((toolkit, index) => ({
     slug: toolkit.slug,
     name: toolkit.name,
@@ -241,7 +251,7 @@ async function emitToolkitPaletteTelemetry({
     .update(`${tenantId}|${missionId ?? ""}|${palette.map((item) => item.slug).join(",")}`)
     .digest("hex");
 
-  await supabase.from("mission_events").insert({
+  await dbClient.from("mission_events").insert({
     tenant_id: tenantId,
     mission_id: isUuid(missionId ?? undefined) ? missionId : null,
     event_name: "toolkit_recommendation_viewed",
