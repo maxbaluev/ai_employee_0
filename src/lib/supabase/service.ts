@@ -5,9 +5,11 @@ import type { Database } from "@supabase/types";
 const supabaseUrl = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-let cachedClient: SupabaseClient<Database> | null = null;
+type PublicClient = SupabaseClient<Database, "public">;
 
-export function getServiceSupabaseClient() {
+let cachedClient: PublicClient | null = null;
+
+export function getServiceSupabaseClient(): PublicClient {
   if (cachedClient) {
     return cachedClient;
   }
@@ -20,7 +22,7 @@ export function getServiceSupabaseClient() {
     throw new Error("Missing SUPABASE_SERVICE_ROLE_KEY environment variable");
   }
 
-  cachedClient = createClient<Database>(supabaseUrl, serviceRoleKey, {
+  cachedClient = createClient<Database, "public">(supabaseUrl, serviceRoleKey, {
     auth: {
       autoRefreshToken: false,
       persistSession: false,

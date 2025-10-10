@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { ReactNode } from 'react';
 
 import type { TimelineMessage } from '@/hooks/useTimelineEvents';
 import { useTimelineEvents } from '@/hooks/useTimelineEvents';
@@ -26,6 +27,75 @@ const HEARTBEAT_CLASSES: Record<string, string> = {
   alert: 'bg-rose-500/20 text-rose-200',
   idle: 'bg-slate-600/40 text-slate-200',
 };
+
+function renderMarkdownInline(text: string): ReactNode[] {
+  const nodes: ReactNode[] = [];
+  const pattern = /(?:\*\*([^*]+)\*\*)|(?:`([^`]+)`)/g;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+  let tokenIndex = 0;
+
+  while ((match = pattern.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      nodes.push(text.slice(lastIndex, match.index));
+    }
+    if (match[1]) {
+      nodes.push(
+        <strong key={`md-strong-${tokenIndex}`}>{match[1]}</strong>,
+      );
+    } else if (match[2]) {
+      nodes.push(
+        <code key={`md-code-${tokenIndex}`}>{match[2]}</code>,
+      );
+    }
+    tokenIndex += 1;
+    lastIndex = pattern.lastIndex;
+  }
+
+  if (lastIndex < text.length) {
+    nodes.push(text.slice(lastIndex));
+  }
+
+  return nodes;
+}
+
+function ReasonMarkdown({ markdown }: { markdown: string }) {
+  const lines = markdown
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+
+  const headingLine = lines.find((line) => line.startsWith('### ')) ?? null;
+  const heading = headingLine ? headingLine.replace(/^###\s*/, '') : null;
+  const bulletLines = lines
+    .filter((line) => line.startsWith('- '))
+    .map((line) => line.replace(/^-\s*/, ''));
+  const paragraphs = lines.filter(
+    (line) => line !== headingLine && !line.startsWith('- '),
+  );
+
+  return (
+    <div className="space-y-2">
+      {heading && (
+        <p className="font-semibold text-slate-100">
+          {renderMarkdownInline(heading)}
+        </p>
+      )}
+      {bulletLines.length > 0 && (
+        <ul className="list-disc space-y-1 pl-5 text-slate-100">
+          {bulletLines.map((line, index) => (
+            <li key={`reason-bullet-${index}`}>{renderMarkdownInline(line)}</li>
+          ))}
+        </ul>
+      )}
+      {paragraphs.map((line, index) => (
+        <p key={`reason-paragraph-${index}`} className="text-slate-100">
+          {renderMarkdownInline(line)}
+        </p>
+      ))}
+    </div>
+  );
+}
 
 function formatTimestamp(value: string) {
   try {
@@ -343,14 +413,29 @@ export function StreamingStatusPanel({
                           id={detailId}
                           className="grid gap-3 rounded-lg border border-white/10 bg-slate-950/60 p-3 text-left text-xs text-slate-200 sm:grid-cols-2"
                         >
-                          {detailEntries.map(([key, value]) => (
-                            <div key={`${event.id}-${key}`} className="space-y-1 break-words">
-                              <dt className="text-[10px] font-semibold uppercase tracking-[0.15em] text-slate-400">
-                                {key.replace(/_/g, ' ')}
-                              </dt>
-                              <dd className="text-slate-100">{formatMetadataValue(value)}</dd>
-                            </div>
-                          ))}
+                          {detailEntries.map(([key, value]) => {
+                            if (key === 'reason_markdown' && typeof value === 'string') {
+                              return (
+                                <div key={`${event.id}-${key}`} className="space-y-1 break-words">
+                                  <dt className="text-[10px] font-semibold uppercase tracking-[0.15em] text-slate-400">
+                                    why this
+                                  </dt>
+                                  <dd className="text-slate-100">
+                                    <ReasonMarkdown markdown={value} />
+                                  </dd>
+                                </div>
+                              );
+                            }
+
+                            return (
+                              <div key={`${event.id}-${key}`} className="space-y-1 break-words">
+                                <dt className="text-[10px] font-semibold uppercase tracking-[0.15em] text-slate-400">
+                                  {key.replace(/_/g, ' ')}
+                                </dt>
+                                <dd className="text-slate-100">{formatMetadataValue(value)}</dd>
+                              </div>
+                            );
+                          })}
                         </dl>
                       )}
                     </div>

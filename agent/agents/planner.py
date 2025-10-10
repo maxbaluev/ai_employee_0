@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import logging
 import time
 from dataclasses import asdict
 from typing import Any, AsyncGenerator, Dict, List, Optional
@@ -25,6 +26,7 @@ from .state import (
     RANKED_PLAYS_KEY,
     SELECTED_PLAY_KEY,
 )
+LOGGER = logging.getLogger(__name__)
 
 
 class PlannerAgent(LlmAgent):
@@ -75,7 +77,10 @@ class PlannerAgent(LlmAgent):
         # Emit planner_stage_started
         self._emit_stage_started(mission_context, mission_mode)
 
+        rank_started_at = time.perf_counter()
+
         ranked = self._rank_plays(mission_context, mission_mode)
+        latency_ms = int((time.perf_counter() - rank_started_at) * 1000)
 
         ctx.session.state[RANKED_PLAYS_KEY] = [asdict(play) for play in ranked]
         if ranked:
@@ -95,6 +100,15 @@ class PlannerAgent(LlmAgent):
             ranked[0].reason_markdown[:200] if ranked and ranked[0].reason_markdown else ""
         )
 
+        self._record_planner_run(
+            context=mission_context,
+            mission_mode=mission_mode,
+            ranked=ranked,
+            latency_ms=latency_ms,
+            avg_similarity=avg_similarity,
+            toolkit_counts=toolkit_counts,
+        )
+
         self.telemetry.emit(
             "planner_rank_complete",
             tenant_id=mission_context.tenant_id,
@@ -109,6 +123,7 @@ class PlannerAgent(LlmAgent):
                 "average_similarity": round(avg_similarity, 4),
                 "top_confidence": top_confidence,
                 "top_reason_preview": top_reason,
+                "latency_ms": latency_ms,
             },
         )
 
@@ -116,6 +131,9 @@ class PlannerAgent(LlmAgent):
             mission_context,
             mission_mode,
             ranked,
+            latency_ms=latency_ms,
+            avg_similarity=avg_similarity,
+            toolkit_counts=toolkit_counts,
         )
 
         self._emit_candidate_summary(
@@ -389,16 +407,13 @@ class PlannerAgent(LlmAgent):
         context: MissionContext,
         mission_mode: str,
         ranked: List[RankedPlay],
+        *,
+        latency_ms: int,
+        avg_similarity: float,
+        toolkit_counts: Dict[str, int],
     ) -> None:
         if not self.streamer:
             return
-        toolkit_counts = self._toolkit_counts(ranked)
-        similarities = [
-            float(play.telemetry.get("similarity", 0.0) or 0.0)
-            for play in ranked
-            if isinstance(play.telemetry, dict)
-        ]
-        avg_similarity = sum(similarities) / max(len(similarities), 1)
         primary_toolkits = sorted(toolkit_counts.items(), key=lambda x: x[1], reverse=True)[:3]
 
         self.streamer.emit_stage(
@@ -415,6 +430,7 @@ class PlannerAgent(LlmAgent):
                 "average_similarity": round(avg_similarity, 2),
                 "primary_toolkits": [tk[0] for tk in primary_toolkits],
                 "toolkit_counts": toolkit_counts,
+                "latency_ms": latency_ms,
             },
         )
 
@@ -505,6 +521,48 @@ class PlannerAgent(LlmAgent):
                     continue
                 counts[ref] = counts.get(ref, 0) + 1
         return counts
+
+    def _record_planner_run(
+        self,
+        *,
+        context: MissionContext,
+        mission_mode: str,
+        ranked: List[RankedPlay],
+        latency_ms: int,
+        avg_similarity: float,
+        toolkit_counts: Dict[str, int],
+    ) -> None:
+        if not self.supabase or not self.supabase.enabled:
+            return
+
+        primary_toolkits = [
+            toolkit
+            for toolkit, _ in sorted(
+                toolkit_counts.items(), key=lambda item: item[1], reverse=True
+            )[:3]
+        ]
+
+        try:
+            self.supabase.insert_planner_run(
+                {
+                    "tenant_id": context.tenant_id,
+                    "mission_id": context.mission_id,
+                    "latency_ms": latency_ms,
+                    "candidate_count": len(ranked),
+                    "embedding_similarity_avg": round(avg_similarity, 4)
+                    if ranked
+                    else None,
+                    "primary_toolkits": primary_toolkits or None,
+                    "mode": mission_mode,
+                    "metadata": {
+                        "objective": context.objective[:120],
+                        "audience": context.audience,
+                        "guardrails": context.guardrails[:5],
+                    },
+                }
+            )
+        except Exception:  # pragma: no cover - defensive in offline/dev mode
+            LOGGER.debug("Skipping planner_runs insert due to Supabase error", exc_info=True)
 
     @staticmethod
     def _render_summary(

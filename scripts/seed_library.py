@@ -522,6 +522,11 @@ def main() -> int:
         default=os.getenv("DEFAULT_TENANT_ID", str(uuid.uuid4())),
         help="Tenant UUID for library entries",
     )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Preview library plays without inserting into Supabase",
+    )
     args = parser.parse_args()
 
     try:

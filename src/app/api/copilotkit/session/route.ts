@@ -3,6 +3,12 @@ import { z } from "zod";
 
 import { getServiceSupabaseClient } from "@/lib/supabase/service";
 import type { Database, Json } from "@supabase/types";
+import type { PostgrestError } from "@supabase/supabase-js";
+
+type SessionUpsertResult = {
+  data: Pick<Database["public"]["Tables"]["copilot_sessions"]["Row"], "id"> | null;
+  error: PostgrestError | null;
+};
 
 const payloadSchema = z.object({
   agentId: z.string().min(1),
@@ -51,13 +57,13 @@ export async function POST(request: NextRequest) {
     expires_at: expiresAt,
   };
 
-  const { data, error } = await serviceClient
-    .from<Database["public"]["Tables"]["copilot_sessions"]["Row"]>("copilot_sessions")
-    .upsert<Database["public"]["Tables"]["copilot_sessions"]["Insert"]>(payload, {
+  const { data, error } = (await serviceClient
+    .from("copilot_sessions")
+    .upsert(payload as never, {
       onConflict: "tenant_id,agent_id,session_identifier",
     })
     .select("id")
-    .maybeSingle();
+    .maybeSingle()) as SessionUpsertResult;
 
   if (error) {
     return NextResponse.json(

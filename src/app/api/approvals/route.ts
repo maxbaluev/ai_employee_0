@@ -4,6 +4,17 @@ import { z } from 'zod';
 import { logTelemetryEvent } from '@/lib/intake/service';
 import { getServiceSupabaseClient } from '@/lib/supabase/service';
 import type { Database, Json } from '@supabase/types';
+import type { PostgrestError } from '@supabase/supabase-js';
+
+type ApprovalSummary = Pick<
+  Database['public']['Tables']['approvals']['Row'],
+  'id' | 'decision' | 'decision_at' | 'reviewer_id' | 'justification'
+>;
+
+type ApprovalQueryResult = {
+  data: ApprovalSummary | null;
+  error: PostgrestError | null;
+};
 
 const payloadSchema = z.object({
   tenantId: z.string().uuid().optional(),
@@ -50,18 +61,21 @@ export async function POST(request: NextRequest) {
 
   const supabase = getServiceSupabaseClient();
 
-  const { data: existing, error: fetchError } = await supabase
-    .from<Database['public']['Tables']['approvals']['Row']>('approvals')
-    .select('id, decision, decision_at, reviewer_id, justification')
+  const { data: existingData, error: fetchError } = (await supabase
+    .from('approvals')
+    .select('id,decision,decision_at,reviewer_id,justification')
     .eq('tenant_id', tenantId)
     .eq('tool_call_id', parsed.data.toolCallId)
-    .maybeSingle();
+    .maybeSingle()) as ApprovalQueryResult;
 
-  if (fetchError) {
+  const existing = existingData as ApprovalSummary | null;
+  const fetchErrorTyped = fetchError as PostgrestError | null;
+
+  if (fetchErrorTyped) {
     return NextResponse.json(
       {
         error: 'Failed to evaluate approval state',
-        hint: fetchError.message,
+        hint: fetchErrorTyped.message,
       },
       { status: 500 },
     );
@@ -82,7 +96,7 @@ export async function POST(request: NextRequest) {
     reviewer_id: parsed.data.reviewerId ?? null,
   } satisfies Partial<Database['public']['Tables']['approvals']['Insert']>;
 
-  let approvalRow: Pick<Database['public']['Tables']['approvals']['Row'], 'id' | 'decision' | 'decision_at' | 'justification'> | null = null;
+  let approvalRow: ApprovalSummary | null = null;
 
   if (existing) {
     const sameReviewer = !existing.reviewer_id || !parsed.data.reviewerId
@@ -104,18 +118,25 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { data: updated, error: updateError } = await supabase
-      .from<Database['public']['Tables']['approvals']['Row']>('approvals')
-      .update(basePayload)
-      .eq('id', existing.id)
-      .select('id, decision, decision_at, justification')
-      .maybeSingle();
+    const updatePayload: Database['public']['Tables']['approvals']['Update'] = {
+      ...basePayload,
+    };
 
-    if (updateError) {
+    const { data: updatedData, error: updateError } = (await supabase
+      .from('approvals')
+      .update(updatePayload as never)
+      .eq('id', existing.id)
+      .select('id,decision,decision_at,justification')
+      .maybeSingle()) as ApprovalQueryResult;
+
+    const updated = updatedData as ApprovalSummary | null;
+    const updateErrorTyped = updateError as PostgrestError | null;
+
+    if (updateErrorTyped) {
       return NextResponse.json(
         {
           error: 'Failed to update approval decision',
-          hint: updateError.message,
+          hint: updateErrorTyped.message,
         },
         { status: 500 },
       );
@@ -133,23 +154,26 @@ export async function POST(request: NextRequest) {
       metadata: basePayload.metadata as Json,
     };
 
-    const { data, error } = await supabase
-      .from<Database['public']['Tables']['approvals']['Row']>('approvals')
-      .insert(insertPayload)
-      .select('id, decision, decision_at, justification')
-      .maybeSingle();
+    const { data: insertedData, error } = (await supabase
+      .from('approvals')
+      .insert(insertPayload as never)
+      .select('id,decision,decision_at,justification')
+      .maybeSingle()) as ApprovalQueryResult;
 
-    if (error) {
+    const inserted = insertedData as ApprovalSummary | null;
+    const insertError = error as PostgrestError | null;
+
+    if (insertError) {
       return NextResponse.json(
         {
           error: 'Failed to persist approval decision',
-          hint: error.message,
+          hint: insertError.message,
         },
         { status: 500 },
       );
     }
 
-    approvalRow = data ?? null;
+    approvalRow = inserted ?? null;
   }
 
   try {

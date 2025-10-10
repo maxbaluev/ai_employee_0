@@ -37,6 +37,7 @@ export interface Database {
           updated_at?: string;
         };
         Update: Partial<Database['public']['Tables']['objectives']['Row']>;
+        Relationships: [];
       };
       plays: {
         Row: {
@@ -76,6 +77,7 @@ export interface Database {
           updated_at?: string;
         };
         Update: Partial<Database['public']['Tables']['plays']['Row']>;
+        Relationships: [];
       };
       tool_calls: {
         Row: {
@@ -113,6 +115,7 @@ export interface Database {
           executed_at?: string;
         };
         Update: Partial<Database['public']['Tables']['tool_calls']['Row']>;
+        Relationships: [];
       };
       approvals: {
         Row: {
@@ -138,6 +141,7 @@ export interface Database {
           metadata?: Json;
         };
         Update: Partial<Database['public']['Tables']['approvals']['Row']>;
+        Relationships: [];
       };
       artifacts: {
         Row: {
@@ -173,6 +177,7 @@ export interface Database {
           updated_at?: string;
         };
         Update: Partial<Database['public']['Tables']['artifacts']['Row']>;
+        Relationships: [];
       };
       library_entries: {
         Row: {
@@ -202,6 +207,7 @@ export interface Database {
           updated_at?: string;
         };
         Update: Partial<Database['public']['Tables']['library_entries']['Row']>;
+        Relationships: [];
       };
       guardrail_profiles: {
         Row: {
@@ -231,6 +237,7 @@ export interface Database {
           updated_at?: string;
         };
         Update: Partial<Database['public']['Tables']['guardrail_profiles']['Row']>;
+        Relationships: [];
       };
       mission_guardrails: {
         Row: {
@@ -246,6 +253,7 @@ export interface Database {
           effective_at?: string;
         };
         Update: Partial<Database['public']['Tables']['mission_guardrails']['Row']>;
+        Relationships: [];
       };
       copilot_sessions: {
         Row: {
@@ -269,6 +277,7 @@ export interface Database {
           updated_at?: string;
         };
         Update: Partial<Database['public']['Tables']['copilot_sessions']['Row']>;
+        Relationships: [];
       };
       copilot_messages: {
         Row: {
@@ -300,6 +309,7 @@ export interface Database {
           soft_deleted_at?: string | null;
         };
         Update: Partial<Database['public']['Tables']['copilot_messages']['Row']>;
+        Relationships: [];
       };
       mission_metadata: {
         Row: {
@@ -327,6 +337,7 @@ export interface Database {
           updated_at?: string;
         };
         Update: Partial<Database['public']['Tables']['mission_metadata']['Row']>;
+        Relationships: [];
       };
       mission_safeguards: {
         Row: {
@@ -358,6 +369,7 @@ export interface Database {
           updated_at?: string;
         };
         Update: Partial<Database['public']['Tables']['mission_safeguards']['Row']>;
+        Relationships: [];
       };
       mission_events: {
         Row: {
@@ -377,6 +389,7 @@ export interface Database {
           created_at?: string;
         };
         Update: Partial<Database['public']['Tables']['mission_events']['Row']>;
+        Relationships: [];
       };
       planner_runs: {
         Row: {
@@ -404,6 +417,7 @@ export interface Database {
           created_at?: string;
         };
         Update: Partial<Database['public']['Tables']['planner_runs']['Row']>;
+        Relationships: [];
       };
       safeguard_events: {
         Row: {
@@ -423,8 +437,10 @@ export interface Database {
           created_at?: string;
         };
         Update: Partial<Database['public']['Tables']['safeguard_events']['Row']>;
+        Relationships: [];
       };
     };
+    Views: Record<string, never>;
     Functions: {
       match_library_entries: {
         Args: {
@@ -443,5 +459,7 @@ export interface Database {
         Returns: number;
       };
     };
+    Enums: Record<string, never>;
+    CompositeTypes: Record<string, never>;
   };
 }

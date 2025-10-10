@@ -3,6 +3,17 @@ import { z } from "zod";
 
 import { getServiceSupabaseClient } from "@/lib/supabase/service";
 import type { Database, Json } from "@supabase/types";
+import type { PostgrestError } from "@supabase/supabase-js";
+
+type ArtifactSummary = Pick<
+  Database["public"]["Tables"]["artifacts"]["Row"],
+  "id" | "title" | "content" | "status"
+>;
+
+type ArtifactQueryResult = {
+  data: ArtifactSummary | null;
+  error: PostgrestError | null;
+};
 
 const payloadSchema = z.object({
   artifactId: z.string().optional(),
@@ -51,11 +62,11 @@ export async function POST(request: NextRequest) {
     status: parsed.data.status ?? "draft",
   };
 
-  const { data, error } = await serviceClient
-    .from<Database["public"]["Tables"]["artifacts"]["Row"]>("artifacts")
-    .upsert<Database["public"]["Tables"]["artifacts"]["Insert"]>(payload, { onConflict: "id" })
+  const { data, error } = (await serviceClient
+    .from("artifacts")
+    .upsert(payload as never, { onConflict: "id" })
     .select("id, title, content, status")
-    .maybeSingle();
+    .maybeSingle()) as ArtifactQueryResult;
 
   if (error) {
     return NextResponse.json(

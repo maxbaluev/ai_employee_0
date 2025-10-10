@@ -253,6 +253,19 @@ class SupabaseClient:
             return
         self._write("mission_events", [event])
 
+    def insert_planner_run(self, run: Dict[str, Any]) -> None:
+        payload = {key: value for key, value in (run or {}).items() if value is not None}
+        if not payload:
+            return
+
+        tenant_id = payload.get("tenant_id")
+        mission_id = payload.get("mission_id")
+        if not self._is_uuid(tenant_id) or not self._is_uuid(mission_id):
+            self._buffer_offline("planner_runs", [payload])
+            return
+
+        self._write("planner_runs", [payload])
+
     def upsert_copilot_session(self, session: Dict[str, Any]) -> None:
         payload = {key: value for key, value in session.items() if value is not None}
         if not payload:

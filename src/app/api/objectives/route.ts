@@ -78,15 +78,17 @@ export async function POST(request: NextRequest) {
   };
 
   if (parsed.data.objectiveId) {
+    const updatePayload: Database['public']['Tables']['objectives']['Update'] = {
+      goal: parsed.data.goal,
+      audience: parsed.data.audience,
+      timeframe: parsed.data.timeframe,
+      guardrails: guardrails as Json,
+      metadata: (parsed.data.metadata ?? {}) as Json,
+    };
+
     const { data, error } = await supabaseDb
       .from('objectives')
-      .update({
-        goal: parsed.data.goal,
-        audience: parsed.data.audience,
-        timeframe: parsed.data.timeframe,
-        guardrails: guardrails as Json,
-        metadata: (parsed.data.metadata ?? {}) as Json,
-      } as Database['public']['Tables']['objectives']['Update'])
+      .update(updatePayload as never)
       .eq('id', parsed.data.objectiveId)
       .eq('tenant_id', tenantId)
       .select('*')
@@ -121,7 +123,7 @@ export async function POST(request: NextRequest) {
 
   const { data, error } = await supabaseDb
     .from('objectives')
-    .insert(payload)
+    .insert(payload as never)
     .select('*')
     .maybeSingle();
 

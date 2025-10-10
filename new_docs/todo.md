@@ -223,13 +223,13 @@ This roadmap governs all implementation work from zero-privilege proofs to gover
 **Owner:** Runtime Steward  
 **References:** [architecture.md §3.2](./architecture.md#32-orchestration-gemini-adk), [prd.md "Plan proposals"](./prd.md#plan-proposals), [libs_docs/composio/llms.txt](../libs_docs/composio/llms.txt), [libs_docs/adk/llms-full.txt](../libs_docs/adk/llms-full.txt)
 
-- [ ] Implement hybrid ranking pipeline combining Supabase pgvector similarity (`plays.embedding`) with Composio `tools.get(search=…, limit=5)` persona filters; enforce "no mixed filters" rule and capture raw tool metadata for rationale.
-- [ ] Seed library with at least 5 plays × 5 personas via `scripts/seed_library.py`; persist provenance to `library_entries` (`persona`, `source`, `success_score`) and archive command output in `docs/readiness/library_seed_log_G-B.md`.
+- [x] Implement hybrid ranking pipeline combining Supabase pgvector similarity (`plays.embedding`) with Composio `tools.get(search=…, limit=5)` persona filters; enforce "no mixed filters" rule and capture raw tool metadata for rationale.
+- [x] Seed library with at least 5 plays × 5 personas via `scripts/seed_library.py`; persist provenance to `library_entries` (`persona`, `source`, `success_score`) and archive command output in `docs/readiness/library_seed_log_G-B.md`.
 - [x] Persist `PlannerCandidate` structures (reason, expected impact, required toolkits, undo plan sketch, similarity score, confidence) to Supabase `plays` table and `ctx.session.state['ranked_plays']`.
-- [ ] Emit "Why this" tooltips to UI by storing `reason_markdown` for each candidate; ensure markdown sanitized before render.
+- [x] Emit "Why this" tooltips to UI by storing `reason_markdown` for each candidate; ensure markdown sanitized before render.
 - [x] Add ADK eval `agent/evals/dry_run_ranking_G-B.json` covering GTM/support/ops personas; integrate into `mise run test-agent` and ensure pass/fail gating in CI.
-- [ ] Log planner telemetry (`planner_latency_ms`, `primary_toolkits`, `embedding_similarity_avg`, `candidate_count`) to Supabase via new `planner_runs` table; verify p95 latency ≤2.5s and top-3 similarity ≥0.62 using `scripts/validate_planner_metrics.py`.
-- [ ] Store evaluation results in `docs/readiness/planner_eval_G-B.json` including similarity histograms and failure cases with remediation notes.
+- [x] Log planner telemetry (`planner_latency_ms`, `primary_toolkits`, `embedding_similarity_avg`, `candidate_count`) to Supabase via new `planner_runs` table; verify p95 latency ≤2.5s and top-3 similarity ≥0.62 using `scripts/validate_planner_metrics.py`.
+- [x] Store evaluation results in `docs/readiness/planner_eval_G-B.json` including similarity histograms and failure cases with remediation notes.
 
 #### Evidence Service & Proof Pack
 
@@ -237,11 +237,11 @@ This roadmap governs all implementation work from zero-privilege proofs to gover
 **References:** [architecture.md §3.5](./architecture.md#35-evidence--analytics), [prd.md "Evidence & coaching"](./prd.md#evidence-analytics--governance)
 
 - [x] Stand up `agent/services/evidence_service.py` with `hash_tool_args`, `bundle_proof_pack`, and `store_artifact` helpers; hash inputs using SHA-256 with deterministic JSON canonicalization and redact PII fields before hashing.
-- [ ] Upload payloads >200 KB to Supabase Storage bucket `evidence-artifacts`; persist `content_ref`, `hash`, `size_bytes` to `artifacts` table and link to `tool_calls` via `tool_call_id`.
-- [ ] Append undo plans (`undo_plan_json`) to every `tool_calls` record and expose Undo CTA in UI; include validator-generated precautions when present.
+- [x] Upload payloads >200 KB to Supabase Storage bucket `evidence-artifacts`; persist `content_ref`, `hash`, `size_bytes` to `artifacts` table and link to `tool_calls` via `tool_call_id`.
+- [x] Append undo plans (`undo_plan_json`) to every `tool_calls` record and expose Undo CTA in UI; include validator-generated precautions when present.
 - [x] Generate human-readable summary (`docs/readiness/evidence_bundle_sample_G-B.json`) combining mission brief, ranked plays, execution transcript, and safeguard feedback; confirm schema validated against TypeScript types.
 - [x] Ship verification script `scripts/verify_artifact_hashes.py` and run after dry-run scenarios to ensure 100% hash parity between storage and DB.
-- [ ] Produce undo smoke log (`docs/readiness/undo_trace_G-B.md`) showing executed undo with timestamps, evidence updates, and telemetry alignment.
+- [x] Produce undo smoke log (`docs/readiness/undo_trace_G-B.md`) showing executed undo with timestamps, evidence updates, and telemetry alignment.
 
 #### Mission Transcript Persistence & Telemetry Retention
 

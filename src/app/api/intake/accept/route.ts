@@ -57,12 +57,12 @@ export async function POST(request: NextRequest) {
       ? body.safeguards
           .filter((candidate: unknown): candidate is SafeguardStatusPayload => {
             return (
-              candidate &&
+              candidate != null &&
               typeof candidate === 'object' &&
               typeof (candidate as SafeguardStatusPayload).id === 'string'
             );
           })
-          .map((entry) => ({
+          .map((entry: SafeguardStatusPayload) => ({
             id: entry.id,
             status: entry.status,
           }))

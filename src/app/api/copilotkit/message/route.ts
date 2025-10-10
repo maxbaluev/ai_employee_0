@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { getServiceSupabaseClient } from "@/lib/supabase/service";
 import type { Database, Json } from "@supabase/types";
+import type { PostgrestError } from "@supabase/supabase-js";
 
 const payloadSchema = z.object({
   agentId: z.string().min(1).default("control_plane_foundation"),
@@ -28,13 +29,18 @@ async function resolveSessionId(
 ) {
   if (!sessionIdentifier) return null;
 
-  const { data, error } = await supabase
-    .from<Database["public"]["Tables"]["copilot_sessions"]["Row"]>("copilot_sessions")
+  type SessionLookupResult = {
+    data: Pick<Database["public"]["Tables"]["copilot_sessions"]["Row"], "id"> | null;
+    error: PostgrestError | null;
+  };
+
+  const { data, error } = (await supabase
+    .from("copilot_sessions")
     .select("id")
     .eq("tenant_id", tenantId)
     .eq("agent_id", agentId)
     .eq("session_identifier", sessionIdentifier)
-    .maybeSingle();
+    .maybeSingle()) as SessionLookupResult;
 
   if (error) {
     throw new Error(error.message);
@@ -125,11 +131,16 @@ export async function POST(request: NextRequest) {
     telemetry_event_ids: parsed.data.telemetryEventIds ?? null,
   };
 
-  const { data, error } = await supabase
-    .from<Database["public"]["Tables"]["copilot_messages"]["Row"]>("copilot_messages")
-    .insert(messagePayload)
+  type MessageInsertResult = {
+    data: Pick<Database["public"]["Tables"]["copilot_messages"]["Row"], "id" | "created_at"> | null;
+    error: PostgrestError | null;
+  };
+
+  const { data, error } = (await supabase
+    .from("copilot_messages")
+    .insert(messagePayload as never)
     .select("id, created_at")
-    .maybeSingle();
+    .maybeSingle()) as MessageInsertResult;
 
   if (error) {
     return NextResponse.json(
@@ -198,20 +209,30 @@ export async function GET(request: NextRequest) {
   }
 
   let query = supabase
-    .from<Database["public"]["Tables"]["copilot_messages"]["Row"]>("copilot_messages")
+    .from("copilot_messages")
     .select("id, role, content, metadata, created_at")
     .eq("tenant_id", tenantId)
     .eq("session_id", sessionId);
 
   if (stageFilter) {
-    query = query.contains("metadata", { stage: stageFilter } as unknown as Json);
+    query = query.contains("metadata", { stage: stageFilter } as Record<string, unknown>);
   }
 
   if (since) {
     query = query.gt("created_at", since);
   }
 
-  const { data, error } = await query.order("created_at", { ascending }).limit(limit);
+  type MessageListRow = Pick<
+    Database["public"]["Tables"]["copilot_messages"]["Row"],
+    "id" | "role" | "content" | "metadata" | "created_at"
+  >;
+
+  type MessageListResult = {
+    data: MessageListRow[] | null;
+    error: PostgrestError | null;
+  };
+
+  const { data, error } = (await query.order("created_at", { ascending }).limit(limit)) as MessageListResult;
 
   if (error) {
     return NextResponse.json(
