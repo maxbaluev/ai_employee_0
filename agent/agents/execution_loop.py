@@ -106,11 +106,6 @@ class ExecutionLoopAgent(BaseAgent):
                 status = validation.get("status", "auto_fix")
 
                 if status == "retry_later":
-                    self._emit_stream(
-                        play,
-                        "validator_retry",
-                        {"attempt": attempts, "status": status},
-                    )
                     continue
                 if status == "ask_reviewer":
                     exit_status = "needs_reviewer"
@@ -118,11 +113,6 @@ class ExecutionLoopAgent(BaseAgent):
                     exit_metadata = {"attempts": attempts, "status": status}
                     yield self._text_event(
                         "Validator requested reviewer intervention; halting execution."
-                    )
-                    self._emit_stream(
-                        play,
-                        "validator_reviewer_requested",
-                        {"attempt": attempts, "status": status},
                     )
                     break
 

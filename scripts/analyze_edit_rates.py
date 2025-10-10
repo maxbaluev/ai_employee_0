@@ -247,6 +247,26 @@ def analyze_edit_rates(
         else 0.0
     )
 
+    # Calculate summary metrics first
+    overall_acceptance_rate = (
+        sum(m.accepted_count for m in edit_metrics)
+        / sum(m.total_generated for m in edit_metrics)
+        if edit_metrics
+        else 0.0
+    )
+    overall_edit_rate = (
+        sum(m.edited_count for m in edit_metrics)
+        / sum(m.total_generated for m in edit_metrics)
+        if edit_metrics
+        else 0.0
+    )
+    median_regenerations = (
+        sum(m.regenerated_count for m in edit_metrics)
+        / len(edit_metrics)
+        if edit_metrics
+        else 0.0
+    )
+
     # Generate report
     report = {
         "gate": "G-B",
@@ -255,24 +275,9 @@ def analyze_edit_rates(
         "summary": {
             "total_missions": len(mission_fields),
             "total_fields_generated": sum(m.total_generated for m in edit_metrics),
-            "overall_acceptance_rate": (
-                sum(m.accepted_count for m in edit_metrics)
-                / sum(m.total_generated for m in edit_metrics)
-                if edit_metrics
-                else 0.0
-            ),
-            "overall_edit_rate": (
-                sum(m.edited_count for m in edit_metrics)
-                / sum(m.total_generated for m in edit_metrics)
-                if edit_metrics
-                else 0.0
-            ),
-            "median_regenerations": (
-                sum(m.regenerated_count for m in edit_metrics)
-                / len(edit_metrics)
-                if edit_metrics
-                else 0.0
-            ),
+            "overall_acceptance_rate": overall_acceptance_rate,
+            "overall_edit_rate": overall_edit_rate,
+            "median_regenerations": median_regenerations,
             "safeguard_adoption_rate": safeguard_adoption_rate,
         },
         "field_metrics": [
@@ -293,27 +298,11 @@ def analyze_edit_rates(
             "min_safeguard_adoption": 0.60,
         },
         "compliance": {
-            "acceptance_threshold_met": (
-                report["summary"]["overall_acceptance_rate"] >= 0.70
-                if "summary" in report
-                else False
-            ),
-            "regeneration_threshold_met": (
-                report["summary"]["median_regenerations"] <= 3.0
-                if "summary" in report
-                else False
-            ),
+            "acceptance_threshold_met": overall_acceptance_rate >= 0.70,
+            "regeneration_threshold_met": median_regenerations <= 3.0,
             "safeguard_threshold_met": safeguard_adoption_rate >= 0.60,
         },
     }
-
-    # Update compliance status
-    report["compliance"]["acceptance_threshold_met"] = (
-        report["summary"]["overall_acceptance_rate"] >= 0.70
-    )
-    report["compliance"]["regeneration_threshold_met"] = (
-        report["summary"]["median_regenerations"] <= 3.0
-    )
 
     # Print summary
     print("\n" + "=" * 70)

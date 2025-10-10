@@ -120,6 +120,23 @@ const STAGE_DESCRIPTORS: Record<string, StageDescriptor> = {
       return `${base}${similarityCopy}${toolkitCopy}`.trim();
     },
   },
+  planner_candidate_summary: {
+    label: 'Top play rationale',
+    status: 'complete',
+    description: (metadata) => {
+      const title = typeof metadata.title === 'string' ? metadata.title : 'Top-ranked play';
+      const confidence = typeof metadata.confidence === 'number' ? metadata.confidence : null;
+      const impact = typeof metadata.impact === 'string' ? metadata.impact : null;
+      const pieces = [title];
+      if (impact) {
+        pieces.push(`impact ${impact}`);
+      }
+      if (confidence !== null) {
+        pieces.push(`confidence ${confidence.toFixed(2)}`);
+      }
+      return pieces.join(' · ');
+    },
+  },
   executor_stage_started: {
     label: 'Execution loop',
     status: 'in_progress',

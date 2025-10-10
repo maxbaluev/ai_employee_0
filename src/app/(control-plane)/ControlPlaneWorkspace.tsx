@@ -542,6 +542,7 @@ export function ControlPlaneWorkspace({
         onClose={approvalFlow.closeApproval}
         onSubmit={submitApproval}
         request={approvalFlow.currentRequest}
+        latestDecision={approvalFlow.latestDecision}
       />
     </main>
   );

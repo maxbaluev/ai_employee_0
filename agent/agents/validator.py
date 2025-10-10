@@ -247,6 +247,14 @@ class ValidatorAgent(BaseAgent):
     ) -> None:
         if not self.streamer:
             return
+        metadata: Dict[str, Any] = {
+            "status": result.status,
+            "attempt": attempt,
+            "violations": result.violations,
+            "reviewer_required": result.reviewer_required,
+            "notes": result.notes,
+        }
+
         self.streamer.emit_stage(
             tenant_id=context.tenant_id,
             session_identifier=self._session_identifier(context),
@@ -258,11 +266,54 @@ class ValidatorAgent(BaseAgent):
             ),
             mission_id=context.mission_id,
             mission_status="in_progress",
+            metadata=metadata,
+        )
+
+        if result.status == "retry_later":
+            self._emit_retry(context, attempt, metadata)
+        elif result.status == "ask_reviewer":
+            self._emit_reviewer_request(context, attempt, metadata)
+
+    def _emit_retry(
+        self,
+        context: MissionContext,
+        attempt: int,
+        metadata: Dict[str, Any],
+    ) -> None:
+        if not self.streamer:
+            return
+        self.streamer.emit_stage(
+            tenant_id=context.tenant_id,
+            session_identifier=self._session_identifier(context),
+            stage="validator_retry",
+            event="retry",
+            content=f"Validator scheduled retry after attempt {attempt}",
+            mission_id=context.mission_id,
+            mission_status="in_progress",
             metadata={
-                "status": result.status,
-                "attempt": attempt,
-                "violations": result.violations,
-                "reviewer_required": result.reviewer_required,
-                "notes": result.notes,
+                **metadata,
+                "status": "retry_later",
+            },
+        )
+
+    def _emit_reviewer_request(
+        self,
+        context: MissionContext,
+        attempt: int,
+        metadata: Dict[str, Any],
+    ) -> None:
+        if not self.streamer:
+            return
+        self.streamer.emit_stage(
+            tenant_id=context.tenant_id,
+            session_identifier=self._session_identifier(context),
+            stage="validator_reviewer_requested",
+            event="reviewer_requested",
+            content=f"Validator escalated to reviewer on attempt {attempt}",
+            mission_id=context.mission_id,
+            mission_status="needs_reviewer",
+            metadata={
+                **metadata,
+                "status": "ask_reviewer",
             },
         )

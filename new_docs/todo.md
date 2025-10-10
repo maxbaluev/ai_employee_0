@@ -211,7 +211,7 @@ This roadmap governs all implementation work from zero-privilege proofs to gover
 **Owner:** CopilotKit Squad  
 **References:** [architecture.md §3.1](./architecture.md#31-presentation--control-plane-nextjs--copilotkit), [ux.md §§5–7](./ux.md#5-interaction-patterns--ui-components), [libs_docs/copilotkit/llms-full.txt](../libs_docs/copilotkit/llms-full.txt)
 
-- [ ] Emit mission lifecycle updates (`planner_stage_started`, `planner_status`, `executor_status`, `validator_feedback`) via `copilotkit_emit_message` in `agent/agents/planner.py` and `agent/agents/executor.py` with payload contracts documented in `docs/readiness/copilotkit_stream_contract_G-B.md`.
+- [x] Emit mission lifecycle updates (`planner_stage_started`, `planner_status`, `executor_status`, `validator_feedback`) via `copilotkit_emit_message` in `agent/agents/planner.py` and `agent/agents/executor.py` with payload contracts documented in `docs/readiness/copilotkit_stream_contract_G-B.md`.
 - [x] Call `copilotkit_exit` from `agent/agents/coordinator.py` with final `mission_status` block so routers recover deterministically; verify exit always fires (including error paths) via integration test.
 - [x] Ship `src/components/ApprovalModal.tsx` with safeguard chips, undo summary, impact/effort meter, reviewer annotation composer, and CTA hierarchy matching UX blueprint; implement focus trap, ARIA labelling, Esc/Enter shortcuts, and screen reader narration for undo plans.
 - [x] Wire `/api/approvals` mutations (create/update) and optimistic UI state, including conflict handling when multiple reviewers act concurrently.
@@ -225,9 +225,9 @@ This roadmap governs all implementation work from zero-privilege proofs to gover
 
 - [ ] Implement hybrid ranking pipeline combining Supabase pgvector similarity (`plays.embedding`) with Composio `tools.get(search=…, limit=5)` persona filters; enforce "no mixed filters" rule and capture raw tool metadata for rationale.
 - [ ] Seed library with at least 5 plays × 5 personas via `scripts/seed_library.py`; persist provenance to `library_entries` (`persona`, `source`, `success_score`) and archive command output in `docs/readiness/library_seed_log_G-B.md`.
-- [ ] Persist `PlannerCandidate` structures (reason, expected impact, required toolkits, undo plan sketch, similarity score, confidence) to Supabase `plays` table and `ctx.session.state['ranked_plays']`.
+- [x] Persist `PlannerCandidate` structures (reason, expected impact, required toolkits, undo plan sketch, similarity score, confidence) to Supabase `plays` table and `ctx.session.state['ranked_plays']`.
 - [ ] Emit "Why this" tooltips to UI by storing `reason_markdown` for each candidate; ensure markdown sanitized before render.
-- [ ] Add ADK eval `agent/evals/dry_run_ranking_G-B.json` covering GTM/support/ops personas; integrate into `mise run test-agent` and ensure pass/fail gating in CI.
+- [x] Add ADK eval `agent/evals/dry_run_ranking_G-B.json` covering GTM/support/ops personas; integrate into `mise run test-agent` and ensure pass/fail gating in CI.
 - [ ] Log planner telemetry (`planner_latency_ms`, `primary_toolkits`, `embedding_similarity_avg`, `candidate_count`) to Supabase via new `planner_runs` table; verify p95 latency ≤2.5s and top-3 similarity ≥0.62 using `scripts/validate_planner_metrics.py`.
 - [ ] Store evaluation results in `docs/readiness/planner_eval_G-B.json` including similarity histograms and failure cases with remediation notes.
 
@@ -236,11 +236,11 @@ This roadmap governs all implementation work from zero-privilege proofs to gover
 **Owner:** Runtime Steward  
 **References:** [architecture.md §3.5](./architecture.md#35-evidence--analytics), [prd.md "Evidence & coaching"](./prd.md#evidence-analytics--governance)
 
-- [ ] Stand up `agent/services/evidence_service.py` with `hash_tool_args`, `bundle_proof_pack`, and `store_artifact` helpers; hash inputs using SHA-256 with deterministic JSON canonicalization and redact PII fields before hashing.
+- [x] Stand up `agent/services/evidence_service.py` with `hash_tool_args`, `bundle_proof_pack`, and `store_artifact` helpers; hash inputs using SHA-256 with deterministic JSON canonicalization and redact PII fields before hashing.
 - [ ] Upload payloads >200 KB to Supabase Storage bucket `evidence-artifacts`; persist `content_ref`, `hash`, `size_bytes` to `artifacts` table and link to `tool_calls` via `tool_call_id`.
 - [ ] Append undo plans (`undo_plan_json`) to every `tool_calls` record and expose Undo CTA in UI; include validator-generated precautions when present.
-- [ ] Generate human-readable summary (`docs/readiness/evidence_bundle_sample_G-B.json`) combining mission brief, ranked plays, execution transcript, and safeguard feedback; confirm schema validated against TypeScript types.
-- [ ] Ship verification script `scripts/verify_artifact_hashes.py` and run after dry-run scenarios to ensure 100% hash parity between storage and DB.
+- [x] Generate human-readable summary (`docs/readiness/evidence_bundle_sample_G-B.json`) combining mission brief, ranked plays, execution transcript, and safeguard feedback; confirm schema validated against TypeScript types.
+- [x] Ship verification script `scripts/verify_artifact_hashes.py` and run after dry-run scenarios to ensure 100% hash parity between storage and DB.
 - [ ] Produce undo smoke log (`docs/readiness/undo_trace_G-B.md`) showing executed undo with timestamps, evidence updates, and telemetry alignment.
 
 #### Mission Transcript Persistence & Telemetry Retention
@@ -316,7 +316,7 @@ This roadmap governs all implementation work from zero-privilege proofs to gover
 
 - [ ] All checklist items above checked with linked evidence artifacts.
 - [ ] Required tests (1–6) executed with passing status and stored outputs.
-- [ ] `status_beacon_B.json` reports ≥95% readiness and zero critical blockers.
+- [x] `status_beacon_B.json` reports ≥95% readiness and zero critical blockers.
 - [ ] Governance Sentinel + Runtime Steward sign-off documented in `governance_signoff_G-B.md`.
 - [ ] Updated risk register shows mitigations for all High risks with target owners.
 

@@ -46,6 +46,7 @@ Each lifecycle event is recorded with `role="assistant"` (system exit events use
 | `planner_stage_started` | `stage_started` | Planner begins ranking candidates. | `mode`, `objective`, `audience` |
 | `planner_status` | `status_update` | Progress updates (library query, Composio discovery, candidate ranked, fallback). | `status_type`, `toolkit_count`, `toolkits`, `position`, `similarity`, `confidence` |
 | `planner_rank_complete` | `rank_complete` | Ranking completed with summary stats. | `candidate_count`, `average_similarity`, `primary_toolkits`, `toolkit_counts` |
+| `planner_candidate_summary` | `candidate_summary` | Markdown rationale for the top-ranked play. | `title`, `impact`, `risk`, `confidence`, `toolkits`, `reason_markdown` |
 
 Example rank complete payload:
 

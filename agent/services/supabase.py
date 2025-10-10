@@ -196,6 +196,55 @@ class SupabaseClient:
             return
         self._write("tool_calls", payload)
 
+    def upload_storage_object(
+        self,
+        bucket: str,
+        path: str,
+        data: bytes,
+        *,
+        content_type: str = "application/octet-stream",
+    ) -> Optional[str]:
+        """Upload raw bytes to Supabase Storage; returns object path when successful."""
+
+        digest = hashlib.sha256(data).hexdigest()
+        if not bucket or not path or not self.api_key:
+            return None
+        offline_record = {"bucket": bucket, "path": path, "digest": digest}
+
+        if not self.enabled or not self.allow_writes:
+            self._buffer_offline(f"storage:{bucket}", [offline_record])
+            return None
+
+        object_url = f"{self.url}/storage/v1/object/{bucket}/{urllib.parse.quote(path)}"
+        request = urllib.request.Request(object_url, method="PUT", data=data)
+        request.add_header("Authorization", f"Bearer {self.api_key}")
+        request.add_header("apikey", self.api_key)
+        request.add_header("Content-Type", content_type)
+        request.add_header("x-upsert", "true")
+
+        try:
+            with urllib.request.urlopen(request, timeout=15) as response:
+                if response.status not in (200, 201, 204):
+                    raise urllib.error.HTTPError(
+                        object_url,
+                        response.status,
+                        response.read(),
+                        response.headers,
+                        None,
+                    )
+            return path
+        except urllib.error.HTTPError as error:
+            LOGGER.warning(
+                "Supabase storage upload failed (%s): %s",
+                error.code,
+                error.read().decode("utf-8", errors="ignore") if error.fp else error.reason,
+            )
+        except Exception as exc:  # pragma: no cover - defensive fallback
+            LOGGER.warning("Supabase storage upload error: %s", exc)
+
+        self._buffer_offline(f"storage:{bucket}", [offline_record])
+        return None
+
     def insert_event(self, event: Dict[str, Any]) -> None:
         tenant_id = event.get("tenant_id")
         mission_id = event.get("mission_id")

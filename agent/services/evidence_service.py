@@ -136,25 +136,28 @@ class EvidenceService:
         Store artifact metadata and optionally upload payload to Supabase Storage
         for artifacts >200 KB.
         """
+        # Normalise content for storage
+        if isinstance(content, (dict, list)):
+            serialised = json.dumps(content, sort_keys=True)
+            content_bytes = serialised.encode("utf-8")
+            content_payload: Any = content
+            content_type = "application/json"
+        else:
+            text_value = str(content) if content is not None else ""
+            content_bytes = text_value.encode("utf-8")
+            content_payload = text_value
+            content_type = "text/plain"
+
         # Compute hash if not provided
         if hash_value is None:
-            if isinstance(content, (dict, list)):
-                hash_value = self._hash_payload(content)
-            elif isinstance(content, str):
-                hash_value = hashlib.sha256(content.encode("utf-8")).hexdigest()
-            else:
-                hash_value = hashlib.sha256(str(content).encode("utf-8")).hexdigest()
+            hash_value = hashlib.sha256(content_bytes).hexdigest()
 
         # Compute size if not provided
         if size_bytes is None:
-            if isinstance(content, (dict, list)):
-                size_bytes = len(json.dumps(content).encode("utf-8"))
-            elif isinstance(content, str):
-                size_bytes = len(content.encode("utf-8"))
-            else:
-                size_bytes = len(str(content).encode("utf-8"))
+            size_bytes = len(content_bytes)
 
         # Prepare artifact record
+        metadata_payload = metadata.copy() if metadata else {}
         artifact_data = {
             "tenant_id": tenant_id,
             "play_id": play_id,
@@ -164,12 +167,31 @@ class EvidenceService:
             "hash": hash_value,
             "checksum": hash_value,
             "status": "draft",
-            "content": content if size_bytes < 200_000 else None,
+            "content": content_payload if size_bytes < 200_000 else None,
         }
 
         # Add metadata
         if metadata:
-            artifact_data["metadata"] = metadata
+            artifact_data["metadata"] = metadata_payload
+
+        # Upload large artifacts to Supabase Storage when possible
+        if size_bytes >= 200_000:
+            storage_path = None
+            try:
+                storage_path = self.supabase.upload_storage_object(
+                    "evidence-artifacts",
+                    f"{tenant_id}/{(play_id or 'mission')}-{hash_value}.json",
+                    content_bytes,
+                    content_type=content_type,
+                )
+            except Exception:  # pragma: no cover - defensive logging
+                LOGGER.exception("Failed to upload artifact to storage")
+
+            if storage_path:
+                artifact_data["content_ref"] = f"evidence-artifacts/{storage_path}"
+                artifact_data["content"] = None
+                metadata_payload.setdefault("stored_externally", True)
+                artifact_data["metadata"] = metadata_payload
 
         # Store in Supabase artifacts table
         self.supabase.insert_artifacts([artifact_data])
@@ -186,6 +208,7 @@ class EvidenceService:
         *,
         tool_call_id: str,
         tenant_id: str,
+        mission_id: Optional[str] = None,
         undo_plan: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
@@ -209,6 +232,7 @@ class EvidenceService:
         undo_event = {
             "tool_call_id": tool_call_id,
             "tenant_id": tenant_id,
+            "mission_id": mission_id,
             "undo_plan": undo_plan,
             "status": "logged",
             "notes": "Gate G-B undo logging; full reversal in Gate G-C",
@@ -219,6 +243,18 @@ class EvidenceService:
             tool_call_id,
             undo_event["status"],
         )
+
+        try:
+            self.supabase.insert_event(
+                {
+                    "tenant_id": tenant_id,
+                    "mission_id": mission_id or "00000000-0000-0000-0000-000000000000",
+                    "event_type": "undo_logged",
+                    "details": undo_event,
+                }
+            )
+        except Exception:  # pragma: no cover - defensive log
+            LOGGER.debug("Supabase mission_events logging skipped for undo %s", tool_call_id)
 
         return {
             "success": True,

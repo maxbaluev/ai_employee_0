@@ -123,8 +123,18 @@
       "summary": "Outline for Analyze Q4 paid campaign performance and identify top-converting channels targeting Marketing team. Impact: High. Guardrails: Maintain professional tone, Include attribution data, Respect quiet hours 20:00-07:00 local. Safeguards: Keep tone warm-professional, Respect quiet hours 20:00-07:00 tenant local.",
       "status": "draft",
       "undo_plan": "Revert to previous reporting template and restore baseline metrics snapshot",
-      "size_bytes": 1248,
-      "hash": "1a2b3c4d5e6f7g8h9i0j1k2l3m4n5o6p7q8r9s0t1u2v3w4x5y6z"
+      "content": {
+        "body": "Outline for Analyze Q4 paid campaign performance and identify top-converting channels targeting Marketing team.",
+        "status": "draft",
+        "sections": [
+          "Executive summary",
+          "Channel performance",
+          "Undo guidance"
+        ]
+      },
+      "size_bytes": 210,
+      "hash": "dd1e943de902491a776e0bc23df2dd4ffdde5e9f00c900da7a46961e953c52ac",
+      "checksum": "dd1e943de902491a776e0bc23df2dd4ffdde5e9f00c900da7a46961e953c52ac"
     }
   ],
   "telemetry": {

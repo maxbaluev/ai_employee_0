@@ -82,6 +82,19 @@ class PlannerAgent(LlmAgent):
             ctx.session.state[SELECTED_PLAY_KEY] = asdict(ranked[0])
 
         self._persist_rankings(mission_context, ranked)
+
+        toolkit_counts = self._toolkit_counts(ranked)
+        similarities = [
+            float(play.telemetry.get("similarity", 0.0) or 0.0)
+            for play in ranked
+            if isinstance(play.telemetry, dict)
+        ]
+        avg_similarity = sum(similarities) / max(len(similarities), 1)
+        top_confidence = ranked[0].confidence if ranked else None
+        top_reason = (
+            ranked[0].reason_markdown[:200] if ranked and ranked[0].reason_markdown else ""
+        )
+
         self.telemetry.emit(
             "planner_rank_complete",
             tenant_id=mission_context.tenant_id,
@@ -89,14 +102,23 @@ class PlannerAgent(LlmAgent):
             payload={
                 "mode": mission_mode,
                 "candidate_count": len(ranked),
-                "toolkits": self._toolkit_counts(ranked),
+                "toolkits": toolkit_counts,
                 "library_entries": [
                     play.telemetry.get("library_entry_id") for play in ranked
                 ],
+                "average_similarity": round(avg_similarity, 4),
+                "top_confidence": top_confidence,
+                "top_reason_preview": top_reason,
             },
         )
 
         self._emit_rank_complete(
+            mission_context,
+            mission_mode,
+            ranked,
+        )
+
+        self._emit_candidate_summary(
             mission_context,
             mission_mode,
             ranked,
@@ -188,6 +210,15 @@ class PlannerAgent(LlmAgent):
                 f"Ranked #{index + 1} using library entry '{row.get('title', 'Unnamed play')}' "
                 f"(similarity={similarity:.2f}) with {len(toolkit_slice)} toolkit refs"
             )
+            reason_markdown = self._build_reason_markdown(
+                title=row.get("title"),
+                similarity=similarity,
+                toolkit_refs=toolkit_slice,
+                impact=impact,
+                risk=risk,
+                undo_plan=undo_plan,
+                guardrails=mission_context.guardrails,
+            )
 
             candidates.append(
                 RankedPlay(
@@ -206,11 +237,13 @@ class PlannerAgent(LlmAgent):
                     mode=mission_mode,
                     play_id=str(row.get("id")) if row.get("id") else None,
                     rationale=rationale,
+                    reason_markdown=reason_markdown,
                     telemetry={
                         "library_entry_id": row.get("id"),
                         "similarity": similarity,
                         "success_score": row.get("success_score"),
                         "persona": row.get("persona"),
+                        "reason_excerpt": reason_markdown[:200],
                     },
                 )
             )
@@ -227,6 +260,7 @@ class PlannerAgent(LlmAgent):
                     "confidence": confidence,
                     "toolkit_count": len(toolkit_slice),
                     "play_id": row.get("id"),
+                    "reason_markdown": reason_markdown,
                 },
             )
 
@@ -246,6 +280,15 @@ class PlannerAgent(LlmAgent):
                 tenant_id=mission_context.tenant_id,
                 mode=mission_mode,
                 rationale="Fallback play generated due to missing library entries",
+                reason_markdown=self._build_reason_markdown(
+                    title="Baseline dry-run proof",
+                    similarity=0.5,
+                    toolkit_refs=toolkit_refs[:2],
+                    impact="Medium",
+                    risk="Low",
+                    undo_plan="Manual review only",
+                    guardrails=mission_context.guardrails,
+                ),
                 telemetry={"fallback": True},
             )
             candidates.append(fallback)
@@ -375,6 +418,35 @@ class PlannerAgent(LlmAgent):
             },
         )
 
+    def _emit_candidate_summary(
+        self,
+        context: MissionContext,
+        mission_mode: str,
+        ranked: List[RankedPlay],
+    ) -> None:
+        if not self.streamer or not ranked:
+            return
+
+        top = ranked[0]
+        self.streamer.emit_stage(
+            tenant_id=context.tenant_id,
+            session_identifier=self._session_identifier(context),
+            stage="planner_candidate_summary",
+            event="candidate_summary",
+            content=f"Top candidate: {top.title} ({top.impact} impact)",
+            mission_id=context.mission_id,
+            mission_status="in_progress",
+            metadata={
+                "title": top.title,
+                "impact": top.impact,
+                "risk": top.risk,
+                "confidence": top.confidence,
+                "toolkits": top.toolkit_refs,
+                "reason_markdown": top.reason_markdown,
+                "mode": mission_mode,
+            },
+        )
+
     def _toolkit_refs(self, audience: str) -> List[str]:
         tools = self.composio.get_tools(search=audience)[:6]
         refs = [tool.get("toolkit") or tool.get("slug", "") for tool in tools]
@@ -382,6 +454,31 @@ class PlannerAgent(LlmAgent):
         if not cleaned:
             cleaned = ["google_docs", "sheets", "gmail"]
         return cleaned
+
+    def _build_reason_markdown(
+        self,
+        *,
+        title: Optional[str],
+        similarity: float,
+        toolkit_refs: List[str],
+        impact: str,
+        risk: str,
+        undo_plan: str,
+        guardrails: List[str],
+    ) -> str:
+        name = title or "Recommended play"
+        toolkits = ", ".join(toolkit_refs) if toolkit_refs else "—"
+        guardrail_summary = ", ".join(guardrails[:3]) if guardrails else "—"
+        lines = [
+            f"### Why “{name}”",
+            f"- **Similarity**: {similarity:.2f} match to the mission objective",
+            f"- **Toolkits**: {toolkits}",
+            f"- **Impact**: {impact}",
+            f"- **Risk**: {risk}",
+            f"- **Undo plan**: {undo_plan}",
+            f"- **Guardrail focus**: {guardrail_summary}",
+        ]
+        return "\n".join(lines)
 
     @staticmethod
     def _impact_scale(index: int) -> str:

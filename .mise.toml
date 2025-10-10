@@ -18,4 +18,4 @@ run = "pnpm run dev:agent"
 run = "pnpm lint"
 
 [tasks.test-agent]
-run = "PYTHONPATH=. adk eval agent/evals/control_plane agent/evals/smoke_g_a_v2.json"
+run = "PYTHONPATH=. adk eval agent/evals/control_plane agent/evals/smoke_g_a_v2.json agent/evals/dry_run_ranking_G-B.json"

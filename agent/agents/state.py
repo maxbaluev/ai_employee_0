@@ -64,6 +64,7 @@ class RankedPlay:
     mode: str = "dry_run"
     play_id: Optional[str] = None
     rationale: str = ""
+    reason_markdown: str = ""
     telemetry: Dict[str, Any] = field(default_factory=dict)
 
 
