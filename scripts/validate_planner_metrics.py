@@ -45,11 +45,15 @@ class SupabaseClient:
             or os.getenv("SUPABASE_ANON_KEY")
         )
         if not url or not key:
-            raise ValueError("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be configured")
+            raise ValueError(
+                "SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be configured"
+            )
         return cls(url, key)
 
     def fetch_planner_runs(self, *, limit: int = 100) -> List[Dict[str, Any]]:
-        params = urllib.parse.urlencode({"order": "created_at.desc", "limit": str(limit)})
+        params = urllib.parse.urlencode(
+            {"order": "created_at.desc", "limit": str(limit)}
+        )
         request = urllib.request.Request(
             f"{self._rest_url}/planner_runs?{params}",
             method="GET",
@@ -57,7 +61,7 @@ class SupabaseClient:
                 "apikey": self._api_key,
                 "Authorization": f"Bearer {self._api_key}",
                 "Cache-Control": "no-cache",
-            },  q 
+            },
         )
         try:
             with urllib.request.urlopen(request, timeout=10) as response:
