@@ -30,6 +30,16 @@ type AcceptedIntakePayload = {
   source: 'gemini' | 'fallback';
 };
 
+type RegenerationField = 'objective' | 'audience' | 'kpis' | 'safeguards';
+
+const MAX_REGENERATIONS = 3;
+const INITIAL_REGEN_COUNTS: Record<RegenerationField, number> = {
+  objective: 0,
+  audience: 0,
+  kpis: 0,
+  safeguards: 0,
+};
+
 type MissionIntakeProps = {
   tenantId: string;
   objectiveId?: string | null;
@@ -45,8 +55,15 @@ export function MissionIntake({ tenantId, objectiveId, onAccept, onStageAdvance 
   const [editingField, setEditingField] = useState<'objective' | 'audience' | null>(null);
   const [editDraft, setEditDraft] = useState('');
   const [localEdits, setLocalEdits] = useState<Set<'objective' | 'audience'>>(() => new Set());
+  const [regenerationCounts, setRegenerationCounts] = useState<Record<RegenerationField, number>>(INITIAL_REGEN_COUNTS);
 
   const links = useMemo(() => extractLinks(rawInput), [rawInput]);
+  const approximateTokens = useMemo(() => {
+    if (!rawInput.trim()) {
+      return 0;
+    }
+    return Math.max(1, Math.ceil(rawInput.length / 4));
+  }, [rawInput]);
 
   useCopilotReadable({
     description: 'Mission intake workspace state',
@@ -119,6 +136,7 @@ export function MissionIntake({ tenantId, objectiveId, onAccept, onStageAdvance 
 
       setIntakeState(nextState);
       setLocalEdits(new Set());
+      setRegenerationCounts({ ...INITIAL_REGEN_COUNTS });
     } catch (error) {
       console.error('[MissionIntake] generate failed', error);
       setErrorMessage(error instanceof Error ? error.message : 'Generation failed');
@@ -128,8 +146,13 @@ export function MissionIntake({ tenantId, objectiveId, onAccept, onStageAdvance 
   }, [rawInput, links, intakeState?.missionId, objectiveId, tenantId]);
 
   const handleRegenerateField = useCallback(
-    async (field: 'objective' | 'audience' | 'kpis' | 'safeguards') => {
+    async (field: RegenerationField) => {
       if (!intakeState) return;
+
+      if (regenerationCounts[field] >= MAX_REGENERATIONS) {
+        setErrorMessage(`Regeneration limit reached for ${field}. Please edit manually.`);
+        return;
+      }
 
       setIsGenerating(true);
       setErrorMessage(null);
@@ -145,6 +168,14 @@ export function MissionIntake({ tenantId, objectiveId, onAccept, onStageAdvance 
             context: rawInput,
           }),
         });
+
+        if (response.status === 429) {
+          const payload = (await response.json().catch(() => ({}))) as { error?: string };
+          const limitMessage = payload.error ?? 'Regeneration limit reached. Please edit manually.';
+          setErrorMessage(limitMessage);
+          setRegenerationCounts((prev) => ({ ...prev, [field]: MAX_REGENERATIONS }));
+          return;
+        }
 
         if (!response.ok) {
           const payload = await response.json().catch(() => ({}));
@@ -165,6 +196,7 @@ export function MissionIntake({ tenantId, objectiveId, onAccept, onStageAdvance 
               }
             : prev,
         );
+        setRegenerationCounts((prev) => ({ ...prev, [field]: prev[field] + 1 }));
         setLocalEdits((prev) => {
           if (!prev.size) return prev;
           const next = new Set(prev);
@@ -175,12 +207,14 @@ export function MissionIntake({ tenantId, objectiveId, onAccept, onStageAdvance 
         });
       } catch (error) {
         console.error('[MissionIntake] regenerate failed', error);
-        setErrorMessage(error instanceof Error ? error.message : 'Regeneration failed');
+        setErrorMessage((prev) =>
+          prev ?? (error instanceof Error ? error.message : 'Regeneration failed'),
+        );
       } finally {
         setIsGenerating(false);
       }
     },
-    [intakeState, tenantId, rawInput],
+    [intakeState, tenantId, rawInput, regenerationCounts],
   );
 
   const handleSaveEdit = useCallback(
@@ -282,6 +316,7 @@ export function MissionIntake({ tenantId, objectiveId, onAccept, onStageAdvance 
     setEditingField(null);
     setEditDraft('');
     setErrorMessage(null);
+    setRegenerationCounts({ ...INITIAL_REGEN_COUNTS });
 
     await sendTelemetryEvent(tenantId, {
       eventName: 'brief_item_modified',
@@ -369,7 +404,10 @@ export function MissionIntake({ tenantId, objectiveId, onAccept, onStageAdvance 
             />
           </label>
           <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-slate-400">
-            <span>Ctrl + Enter to generate · {rawInput.length} characters</span>
+            <span>
+              Ctrl + Enter to generate · {rawInput.length} characters
+              {rawInput.trim() ? ` (~${approximateTokens} tokens)` : ''} · No data stored until you accept.
+            </span>
             <div className="flex items-center gap-2">
               {links.length > 0 && <span>{links.length} link(s) detected</span>}
               <button

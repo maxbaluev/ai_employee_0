@@ -5,7 +5,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { regenerateField } from '@/lib/intake/service';
+import { regenerateField, RegenerationLimitError } from '@/lib/intake/service';
 import { getRouteHandlerSupabaseClient } from '@/lib/supabase/server';
 
 function resolveTenantId(
@@ -63,6 +63,17 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ chips });
   } catch (error) {
+    if (error instanceof RegenerationLimitError) {
+      return NextResponse.json(
+        {
+          error: error.message,
+          field: error.field,
+          limit: error.limit,
+        },
+        { status: 429 },
+      );
+    }
+
     console.error('[api:intake/regenerate] error', error);
 
     return NextResponse.json(

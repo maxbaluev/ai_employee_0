@@ -412,12 +412,12 @@ Gate G-B delivers a structured workflow from intake to feedback:
   - **Evidence:** Unit tests for chip actions; telemetry audit confirms event payloads.
   - **File references:** `src/components/MissionIntake.tsx:ChipRow`, `/api/intake/regenerate/route.ts`.
 
-- [ ] **Add token count and privacy notice**: Display character/token count indicator and privacy notice ("No data stored until you accept") per ux.md §4.2.
+- [x] **Add token count and privacy notice**: Display character/token count indicator and privacy notice ("No data stored until you accept") per ux.md §4.2.
   - **Acceptance:** Banner shows live token count; privacy notice visible and accessible.
   - **Evidence:** Screenshot with token counter; accessibility audit confirms notice read by screen reader.
   - **File references:** `src/components/MissionIntake.tsx:GenerativeIntakeBanner`.
 
-- [ ] **Enforce 3-regeneration limit**: Implement client-side + server-side check to limit regeneration attempts per chip to 3 before prompting manual input per workflow.md §3.
+- [x] **Enforce 3-regeneration limit**: Implement client-side + server-side check to limit regeneration attempts per chip to 3 before prompting manual input per workflow.md §3.
   - **Acceptance:** After 3 regeneration attempts, UI displays "Edit manually" prompt instead of "Regenerate" button; backend validates regeneration count.
   - **Evidence:** Integration test confirming limit enforcement; backend validation logs.
   - **File references:** `src/lib/intake/service.ts:generateBrief`, `src/app/api/intake/regenerate/route.ts`.

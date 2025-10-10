@@ -43,6 +43,17 @@ type TelemetryPayload = Record<string, unknown>;
 
 const GEMINI_MODEL = process.env.GEMINI_MODEL ?? 'gemini-1.5-flash-latest';
 const GEMINI_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
+const DEFAULT_REGEN_LIMIT = Number.parseInt(process.env.MISSION_REGEN_LIMIT ?? '3', 10) || 3;
+
+export class RegenerationLimitError extends Error {
+  constructor(
+    public readonly field: 'objective' | 'audience' | 'kpis' | 'safeguards',
+    public readonly limit: number = DEFAULT_REGEN_LIMIT,
+  ) {
+    super(`Regeneration limit reached for ${field}. Please edit manually.`);
+    this.name = 'RegenerationLimitError';
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Public API
@@ -116,6 +127,8 @@ export async function regenerateField(params: {
 }): Promise<IntakeChips> {
   const { missionId, tenantId, field, context } = params;
   const supabase = getServiceSupabaseClient();
+
+  await ensureRegenerationAllowance({ supabase, tenantId, missionId, field });
 
   const baseText = context ?? (await fetchCurrentMissionSummary(supabase, missionId, tenantId));
   const generated = generateWithFallback(baseText, undefined);
@@ -333,7 +346,7 @@ async function persistMissionMetadata(params: {
       .maybeSingle();
 
     const currentCount = existing.data?.regeneration_count ?? 0;
-    const nextCount = incrementGeneration ? currentCount + 1 : Math.max(currentCount, 0) + 1;
+    const nextCount = incrementGeneration ? currentCount + 1 : currentCount;
 
     const { error } = await supabase
       .from('mission_metadata')
@@ -371,6 +384,21 @@ async function persistSafeguards(params: {
 }): Promise<GeneratedSafeguard[]> {
   const { supabase, tenantId, missionId, hints, source, incrementGeneration } = params;
 
+  const { data: existingCounts, error: fetchCountError } = await supabase
+    .from('mission_safeguards')
+    .select('generation_count')
+    .eq('mission_id', missionId)
+    .eq('tenant_id', tenantId)
+    .order('generation_count', { ascending: false })
+    .limit(1);
+
+  if (fetchCountError) {
+    throw new Error('Failed to fetch safeguard regeneration count');
+  }
+
+  const currentCount = existingCounts?.[0]?.generation_count ?? 0;
+  const nextCount = incrementGeneration ? currentCount + 1 : currentCount;
+
   await supabase
     .from('mission_safeguards')
     .delete()
@@ -393,7 +421,7 @@ async function persistSafeguards(params: {
         confidence: hint.confidence,
         status: 'suggested',
         source,
-        generation_count: incrementGeneration ? 1 : 0,
+        generation_count: nextCount,
       })) as Database['public']['Tables']['mission_safeguards']['Insert'][],
     )
     .select('id, hint_type, suggested_value, confidence, status');
@@ -409,6 +437,58 @@ async function persistSafeguards(params: {
     confidence: row.confidence ?? 0,
     status: (row.status as GeneratedSafeguard['status']) ?? 'suggested',
   }));
+}
+
+async function ensureRegenerationAllowance(params: {
+  supabase: SupabaseClient;
+  tenantId: string;
+  missionId: string;
+  field: 'objective' | 'audience' | 'kpis' | 'safeguards';
+}): Promise<void> {
+  const currentCount = await fetchRegenerationCount(params);
+
+  if (currentCount >= DEFAULT_REGEN_LIMIT) {
+    throw new RegenerationLimitError(params.field, DEFAULT_REGEN_LIMIT);
+  }
+}
+
+async function fetchRegenerationCount(params: {
+  supabase: SupabaseClient;
+  tenantId: string;
+  missionId: string;
+  field: 'objective' | 'audience' | 'kpis' | 'safeguards';
+}): Promise<number> {
+  const { supabase, tenantId, missionId, field } = params;
+
+  if (field === 'safeguards') {
+    const { data, error } = await supabase
+      .from('mission_safeguards')
+      .select('generation_count')
+      .eq('mission_id', missionId)
+      .eq('tenant_id', tenantId)
+      .order('generation_count', { ascending: false })
+      .limit(1);
+
+    if (error) {
+      throw new Error('Failed to fetch safeguard regeneration count');
+    }
+
+    return data?.[0]?.generation_count ?? 0;
+  }
+
+  const { data, error } = await supabase
+    .from('mission_metadata')
+    .select('regeneration_count')
+    .eq('mission_id', missionId)
+    .eq('tenant_id', tenantId)
+    .eq('field', field)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error('Failed to fetch mission metadata regeneration count');
+  }
+
+  return data?.regeneration_count ?? 0;
 }
 
 async function fetchSafeguards(supabase: SupabaseClient, missionId: string, tenantId: string) {
