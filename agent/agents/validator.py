@@ -58,6 +58,10 @@ class ValidatorAgent(BaseAgent):
         mission_context = self._mission_context(ctx)
         artifact = self._latest_artifact(ctx)
         safeguards = self._safeguards(ctx, mission_context)
+        attempt = self._current_attempt(ctx)
+
+        self._emit_stage_started(mission_context, attempt, len(safeguards))
+
         result = self._evaluate(artifact, safeguards)
 
         ctx.session.state[LATEST_VALIDATION_KEY] = asdict(result)
@@ -73,9 +77,10 @@ class ValidatorAgent(BaseAgent):
             },
         )
 
-        self._emit_stream(
+        self._emit_feedback(
             mission_context,
             result,
+            attempt,
         )
 
         summary = (
@@ -203,27 +208,61 @@ class ValidatorAgent(BaseAgent):
         identifier = metadata.get("session_identifier") if isinstance(metadata, dict) else None
         return str(identifier) if identifier else context.mission_id
 
-    def _emit_stream(
+    def _current_attempt(self, ctx: InvocationContext) -> int:
+        attempt_raw = ctx.session.state.get("validator_attempt")
+        if isinstance(attempt_raw, int) and attempt_raw > 0:
+            return attempt_raw
+        execution_attempt = ctx.session.state.get("execution_attempt")
+        if isinstance(execution_attempt, int) and execution_attempt > 0:
+            return execution_attempt
+        return 1
+
+    def _emit_stage_started(
         self,
         context: MissionContext,
-        result: ValidationResult,
+        attempt: int,
+        safeguard_count: int,
     ) -> None:
         if not self.streamer:
             return
-        message = (
-            f"Validator outcome {result.status}; violations="
-            f"{len(result.violations)}"
-        )
-        metadata: Dict[str, Any] = {
-            "stage": "validator_stage_completed",
-            "status": result.status,
-            "violations": result.violations,
-            "reviewer_required": result.reviewer_required,
-        }
-        self.streamer.emit_message(
+        self.streamer.emit_stage(
             tenant_id=context.tenant_id,
             session_identifier=self._session_identifier(context),
-            role="assistant",
-            content=message,
-            metadata=metadata,
+            stage="validator_stage_started",
+            event="stage_started",
+            content="Validator reviewing safeguards",
+            mission_id=context.mission_id,
+            mission_status="in_progress",
+            metadata={
+                "attempt": attempt,
+                "safeguard_count": safeguard_count,
+            },
+        )
+
+    def _emit_feedback(
+        self,
+        context: MissionContext,
+        result: ValidationResult,
+        attempt: int,
+    ) -> None:
+        if not self.streamer:
+            return
+        self.streamer.emit_stage(
+            tenant_id=context.tenant_id,
+            session_identifier=self._session_identifier(context),
+            stage="validator_feedback",
+            event="completion",
+            content=(
+                f"Validator outcome {result.status}; violations="
+                f"{len(result.violations)}"
+            ),
+            mission_id=context.mission_id,
+            mission_status="in_progress",
+            metadata={
+                "status": result.status,
+                "attempt": attempt,
+                "violations": result.violations,
+                "reviewer_required": result.reviewer_required,
+                "notes": result.notes,
+            },
         )

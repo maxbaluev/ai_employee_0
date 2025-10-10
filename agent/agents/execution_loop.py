@@ -71,6 +71,7 @@ class ExecutionLoopAgent(BaseAgent):
                 attempts += 1
                 last_play = play
                 ctx.session.state[SELECTED_PLAY_KEY] = play
+                ctx.session.state["execution_attempt"] = attempts
                 self.telemetry.emit(
                     "executor_stage_started",
                     tenant_id=play.get("tenant_id", "gate-ga-default"),
@@ -92,6 +93,7 @@ class ExecutionLoopAgent(BaseAgent):
                     mission_id=play.get("mission_id", "mission-dry-run"),
                     payload={"attempt": attempts},
                 )
+                ctx.session.state["validator_attempt"] = attempts
                 self._emit_stream(
                     play,
                     "validator_stage_started",
@@ -143,7 +145,7 @@ class ExecutionLoopAgent(BaseAgent):
             if success:
                 exit_status = "completed"
                 exit_stage = "execution_loop_completed"
-                exit_metadata = {"attempts": attempts}
+                exit_metadata = {"attempts": attempts, "status": "completed"}
                 self.telemetry.emit(
                     "execution_loop_completed",
                     tenant_id=last_play.get("tenant_id", "gate-ga-default"),
@@ -153,7 +155,7 @@ class ExecutionLoopAgent(BaseAgent):
                 self._emit_stream(
                     last_play,
                     "execution_loop_completed",
-                    {"attempts": attempts},
+                    {"attempts": attempts, "status": "completed"},
                 )
                 yield self._text_event(
                     f"Execution loop completed after {attempts} attempt(s)."
@@ -167,7 +169,7 @@ class ExecutionLoopAgent(BaseAgent):
                 exit_status = exit_status or "exhausted"
                 exit_stage = exit_stage or "execution_loop_exhausted"
                 if not exit_metadata:
-                    exit_metadata = {"attempts": attempts}
+                    exit_metadata = {"attempts": attempts, "status": exit_status}
                 self.telemetry.emit(
                     "execution_loop_exhausted",
                     tenant_id=last_play.get("tenant_id", "gate-ga-default"),
@@ -177,7 +179,7 @@ class ExecutionLoopAgent(BaseAgent):
                 self._emit_stream(
                     last_play,
                     "execution_loop_exhausted",
-                    {"attempts": attempts},
+                    {"attempts": attempts, "status": exit_status},
                 )
                 yield self._text_event(
                     f"Execution loop ended without passing safeguards after {attempts} attempt(s)."
@@ -217,13 +219,43 @@ class ExecutionLoopAgent(BaseAgent):
             return
         mission_id = str(play.get("mission_id", "mission-dry-run"))
         tenant_id = play.get("tenant_id")
-        message = f"{stage.replace('_', ' ').title()} (attempt {metadata.get('attempt', 0)})"
-        self.streamer.emit_message(
+        stage_status_map = {
+            "validator_reviewer_requested": "needs_reviewer",
+            "execution_loop_completed": "completed",
+            "execution_loop_exhausted": metadata.get("status", "exhausted"),
+        }
+        mission_status = stage_status_map.get(stage, "in_progress")
+        attempt = metadata.get("attempt", 0)
+
+        # Determine event type and content based on stage
+        event_map = {
+            "executor_stage_started": ("stage_started", f"Executor Stage Started (attempt {attempt})"),
+            "validator_stage_started": ("stage_started", f"Validator Stage Started (attempt {attempt})"),
+            "validator_retry": ("retry", f"Validator Retry (attempt {attempt})"),
+            "validator_reviewer_requested": ("reviewer_requested", f"Validator Reviewer Requested (attempt {attempt})"),
+            "evidence_stage_started": ("stage_started", f"Evidence Stage Started (attempt {attempt})"),
+            "execution_loop_completed": ("completed", f"Execution Loop Completed (attempts: {attempt})"),
+            "execution_loop_exhausted": ("exhausted", f"Execution Loop Exhausted (attempts: {attempt})"),
+        }
+
+        event, content = event_map.get(stage, ("status_update", stage.replace("_", " ").title()))
+
+        # Enrich metadata with mission identifiers and play info
+        enriched_metadata = {
+            "play_id": play.get("play_id"),
+            "play_title": play.get("title"),
+            **metadata,
+        }
+
+        self.streamer.emit_stage(
             tenant_id=tenant_id,
             session_identifier=mission_id,
-            role="assistant",
-            content=message,
-            metadata={"stage": stage, **metadata},
+            stage=stage,
+            event=event,
+            content=content,
+            mission_id=mission_id,
+            mission_status=mission_status,
+            metadata=enriched_metadata,
         )
 
     def _emit_exit_event(

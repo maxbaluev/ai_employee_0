@@ -178,7 +178,15 @@ class DryRunExecutorAgent(BaseAgent):
         mission_context = self._mission_context(ctx)
         selected_play = self._selected_play(ctx)
         safeguards = self._safeguards(ctx, mission_context)
+
+        # Emit executor_stage_started
+        attempt = self._current_attempt(ctx)
+        self._emit_stage_started(mission_context, selected_play, attempt)
+
         artifact = self._generate_artifact(mission_context, selected_play, safeguards)
+
+        # Emit toolkit simulation status for each toolkit
+        self._emit_toolkit_simulations(mission_context, selected_play)
 
         artifacts_bucket = ctx.session.state.get(ARTIFACT_STATE_KEY, {})
         if not isinstance(artifacts_bucket, dict):
@@ -198,7 +206,7 @@ class DryRunExecutorAgent(BaseAgent):
             },
         )
 
-        self._emit_stream_event(
+        self._emit_artifact_created(
             mission_context,
             artifact,
             selected_play,
@@ -356,12 +364,71 @@ class DryRunExecutorAgent(BaseAgent):
         if tool_calls:
             self.supabase.insert_tool_calls(tool_calls)
 
+    def _current_attempt(self, ctx: InvocationContext) -> int:
+        attempt_raw = ctx.session.state.get("execution_attempt")
+        if isinstance(attempt_raw, int) and attempt_raw > 0:
+            return attempt_raw
+        return 1
+
     def _session_identifier(self, context: MissionContext) -> str:
         metadata = context.metadata or {}
         candidate = metadata.get("session_identifier") if isinstance(metadata, dict) else None
         return str(candidate) if candidate else context.mission_id
 
-    def _emit_stream_event(
+    def _emit_stage_started(
+        self,
+        context: MissionContext,
+        play: Dict[str, Any],
+        attempt: int,
+    ) -> None:
+        if not self.streamer:
+            return
+        self.streamer.emit_stage(
+            tenant_id=context.tenant_id,
+            session_identifier=self._session_identifier(context),
+            stage="executor_stage_started",
+            event="stage_started",
+            content=f"Execution attempt {attempt} started for {play.get('title', 'selected play')}",
+            mission_id=context.mission_id,
+            mission_status="in_progress",
+            metadata={
+                "attempt": attempt,
+                "play_title": play.get("title"),
+                "play_id": play.get("play_id"),
+                "toolkit_count": len(play.get("toolkit_refs", [])),
+            },
+        )
+
+    def _emit_toolkit_simulations(
+        self,
+        context: MissionContext,
+        play: Dict[str, Any],
+    ) -> None:
+        if not self.streamer:
+            return
+        toolkits = [tk for tk in play.get("toolkit_refs", []) if tk]
+        total = len(toolkits)
+        if total == 0:
+            return
+        for index, toolkit in enumerate(toolkits, start=1):
+            self.streamer.emit_stage(
+                tenant_id=context.tenant_id,
+                session_identifier=self._session_identifier(context),
+                stage="executor_status",
+                event="toolkit_simulation",
+                content=f"Simulating toolkit {toolkit} ({index}/{total})",
+                mission_id=context.mission_id,
+                mission_status="in_progress",
+                metadata={
+                    "toolkit": toolkit,
+                    "position": index,
+                    "total": total,
+                    "play_id": play.get("play_id"),
+                    "artifact_preview": play.get("title"),
+                },
+            )
+
+    def _emit_artifact_created(
         self,
         context: MissionContext,
         artifact: Artifact,
@@ -369,21 +436,25 @@ class DryRunExecutorAgent(BaseAgent):
     ) -> None:
         if not self.streamer:
             return
-        metadata = {
-            "stage": "executor_artifact_created",
-            "artifact_id": artifact.artifact_id,
-            "play_title": play.get("title"),
-            "status": artifact.status,
-        }
         message = (
             f"Draft artifact {artifact.artifact_id} ready for review "
             f"({play.get('title', 'unnamed play')})."
         )
-        self.streamer.emit_message(
+        metadata = {
+            "artifact_id": artifact.artifact_id,
+            "play_title": play.get("title"),
+            "status": artifact.status,
+            "undo_plan": play.get("undo_plan"),
+            "hash": hashlib.sha256(artifact.summary.encode("utf-8")).hexdigest(),
+        }
+        self.streamer.emit_stage(
             tenant_id=context.tenant_id,
             session_identifier=self._session_identifier(context),
-            role="assistant",
+            stage="executor_artifact_created",
+            event="artifact_ready",
             content=message,
+            mission_id=context.mission_id,
+            mission_status="in_progress",
             metadata=metadata,
         )
 

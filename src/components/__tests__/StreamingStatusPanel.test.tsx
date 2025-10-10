@@ -1,169 +1,233 @@
 /// <reference types="vitest" />
 
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+
+import type { UseTimelineEventsResult } from '@/hooks/useTimelineEvents';
+
+const useTimelineEventsMock = vi.hoisted(
+  () => vi.fn<[], UseTimelineEventsResult>(),
+);
+
+vi.mock('@/hooks/useTimelineEvents', () => ({
+  useTimelineEvents: useTimelineEventsMock,
+}));
 
 import { StreamingStatusPanel } from '../StreamingStatusPanel';
 
+const baseHookResult: UseTimelineEventsResult = {
+  events: [],
+  isLoading: false,
+  error: null,
+  refresh: vi.fn(),
+  lastUpdated: '2025-10-09T19:00:00.000Z',
+  exitInfo: null,
+  heartbeatSeconds: 2.4,
+  lastEventAt: '2025-10-09T19:00:00.000Z',
+};
+
 describe('StreamingStatusPanel', () => {
   const tenantId = '3c33212c-d119-4ef1-8db0-2ca93cd3b2dd';
-  const sessionIdentifier = 'mission-1234';
+  const agentId = 'control_plane_foundation';
+  const sessionIdentifier = 'mission-123';
+
+  beforeEach(() => {
+    useTimelineEventsMock.mockReturnValue({
+      ...baseHookResult,
+      refresh: vi.fn(),
+    });
+  });
 
   afterEach(() => {
+    useTimelineEventsMock.mockReset();
     vi.restoreAllMocks();
   });
 
-  it('renders streaming events and notifies reviewer requests', async () => {
-    const fetchMock = vi.spyOn(globalThis, 'fetch');
-    const firstPayload = {
-      messages: [
+  it('shows heartbeat indicator and expandable metadata details', async () => {
+    useTimelineEventsMock.mockReturnValue({
+      ...baseHookResult,
+      events: [
         {
-          id: 'event-1',
-          createdAt: '2025-10-09T15:00:00.000Z',
-          stage: 'planner_rank_complete',
+          id: 'evt-1',
+          createdAt: '2025-10-09T19:00:00.000Z',
+          stage: 'executor_status',
+          event: 'toolkit_simulation',
           role: 'assistant',
-          metadata: { candidate_count: 3 },
-          content: 'Planner ranked plays',
+          label: 'Toolkit simulation',
+          description: 'Simulating sheets',
+          status: 'in_progress' as const,
+          rawContent: 'Simulating sheets toolkit',
+          metadata: { toolkit: 'sheets', position: 1, total: 3 },
         },
       ],
-      count: 1,
-      nextCursor: '2025-10-09T15:00:00.000Z',
-      fetchedAt: '2025-10-09T15:00:01.000Z',
-    };
+      heartbeatSeconds: 2.4,
+    });
 
-    const secondPayload = {
-      messages: [
-        {
-          id: 'event-2',
-          createdAt: '2025-10-09T15:00:04.000Z',
-          stage: 'validator_reviewer_requested',
-          role: 'assistant',
-          metadata: { attempt: 2, tool_call_id: 'a1111111-b222-4ccc-8888-eeeeeeee0000' },
-          content: 'Validator requested reviewer',
-        },
-      ],
-      count: 1,
-      nextCursor: '2025-10-09T15:00:04.000Z',
-      fetchedAt: '2025-10-09T15:00:05.000Z',
-    };
-
-    fetchMock.mockResolvedValueOnce(
-      new Response(JSON.stringify(firstPayload), {
-        headers: { 'Content-Type': 'application/json' },
-        status: 200,
-      }),
-    );
-
-    fetchMock.mockResolvedValueOnce(
-      new Response(JSON.stringify(secondPayload), {
-        headers: { 'Content-Type': 'application/json' },
-        status: 200,
-      }),
-    );
-
-    const reviewerRequested = vi.fn();
     const user = userEvent.setup();
 
     render(
       <StreamingStatusPanel
         tenantId={tenantId}
-        agentId="control_plane_foundation"
+        agentId={agentId}
         sessionIdentifier={sessionIdentifier}
-        pollIntervalMs={2000}
-        onReviewerRequested={reviewerRequested}
       />,
     );
 
-    expect(await screen.findByText(/Planner ranked plays/i)).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { name: /Toolkit simulation/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Heartbeat: 2.4s/)).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: /Refresh/i }));
+    await user.click(screen.getByRole('button', { name: /Show details/i }));
+    expect(screen.getByText(/toolkit/i, { selector: 'dt' })).toBeInTheDocument();
+    expect(screen.getByText(/sheets/i, { selector: 'dd' })).toBeInTheDocument();
+  });
 
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
-    expect(await screen.findByText(/Reviewer attention required/i)).toBeInTheDocument();
-    await waitFor(() => expect(reviewerRequested).toHaveBeenCalledTimes(1));
+  it('renders waiting guidance for validator retry', async () => {
+    useTimelineEventsMock.mockReturnValue({
+      ...baseHookResult,
+      events: [
+        {
+          id: 'evt-1',
+          createdAt: '2025-10-09T19:00:00.000Z',
+          stage: 'validator_feedback',
+          event: 'completion',
+          role: 'assistant',
+          label: 'Validator outcome',
+          description: 'Validator requested retry',
+          status: 'warning' as const,
+          rawContent: 'retry later',
+          metadata: { status: 'retry_later', violations: ['quiet_window_missing'] },
+        },
+      ],
+      heartbeatSeconds: 7.8,
+    });
+
+    render(
+      <StreamingStatusPanel
+        tenantId={tenantId}
+        agentId={agentId}
+        sessionIdentifier={sessionIdentifier}
+      />,
+    );
+
+    expect(await screen.findByText(/Validator outcome/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Validator retry scheduled: quiet_window_missing/i),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Heartbeat: 7.8s/)).toBeInTheDocument();
+  });
+
+  it('prioritises reviewer escalation guidance when requested', async () => {
+    useTimelineEventsMock.mockReturnValue({
+      ...baseHookResult,
+      events: [
+        {
+          id: 'evt-1',
+          createdAt: '2025-10-09T19:00:00.000Z',
+          stage: 'validator_reviewer_requested',
+          event: 'reviewer_requested',
+          role: 'assistant',
+          label: 'Reviewer attention required',
+          description: 'Validator escalated (ask_reviewer).',
+          status: 'warning' as const,
+          rawContent: 'Reviewer requested',
+          metadata: { status: 'ask_reviewer', attempt: 2, tool_call_id: 'tool-123' },
+        },
+      ],
+    });
+
+    const reviewerNotified = vi.fn();
+
+    render(
+      <StreamingStatusPanel
+        tenantId={tenantId}
+        agentId={agentId}
+        sessionIdentifier={sessionIdentifier}
+        onReviewerRequested={reviewerNotified}
+      />,
+    );
 
     expect(
       await screen.findByText(/Validator requested input. Open the approval modal/i),
     ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Open approval modal/i })).toBeEnabled();
+  });
 
-    const reviewerButton = screen.getByRole('button', { name: /Open approval modal/i });
-    expect(reviewerButton).toBeEnabled();
-
-    await user.click(reviewerButton);
-    expect(reviewerRequested).toHaveBeenCalledTimes(2);
-  }, 10000);
-
-  it('disables controls and surfaces exit summary after copilotkit_exit event', async () => {
-    const fetchMock = vi.spyOn(globalThis, 'fetch');
-    const initialPayload = {
-      messages: [
+  it('shows alert heartbeat when latency exceeds threshold and handles pause toggle', async () => {
+    useTimelineEventsMock.mockReturnValue({
+      ...baseHookResult,
+      heartbeatSeconds: 12.3,
+      events: [
         {
-          id: 'event-1',
-          createdAt: '2025-10-09T18:00:00.000Z',
+          id: 'evt-1',
+          createdAt: '2025-10-09T19:00:00.000Z',
           stage: 'planner_rank_complete',
+          event: 'rank_complete',
           role: 'assistant',
-          metadata: { candidate_count: 2 },
-          content: 'Planner done',
+          label: 'Planner ranked plays',
+          description: 'Planner run completed.',
+          status: 'complete' as const,
+          rawContent: 'Planner run completed.',
+          metadata: { candidate_count: 3 },
         },
       ],
-      count: 1,
-      nextCursor: '2025-10-09T18:00:00.000Z',
-      fetchedAt: '2025-10-09T18:00:01.000Z',
-    };
-
-    const exitPayload = {
-      messages: [
-        {
-          id: 'event-2',
-          createdAt: '2025-10-09T18:00:05.000Z',
-          stage: null,
-          role: 'system',
-          metadata: {
-            event: 'copilotkit_exit',
-            stage: 'execution_loop_completed',
-            mission_status: 'completed',
-            reason: 'completed',
-          },
-          content: 'Session exited: completed',
-        },
-      ],
-      count: 1,
-      nextCursor: '2025-10-09T18:00:05.000Z',
-      fetchedAt: '2025-10-09T18:00:05.500Z',
-    };
-
-    fetchMock.mockResolvedValueOnce(
-      new Response(JSON.stringify(initialPayload), {
-        headers: { 'Content-Type': 'application/json' },
-        status: 200,
-      }),
-    );
-
-    fetchMock.mockResolvedValueOnce(
-      new Response(JSON.stringify(exitPayload), {
-        headers: { 'Content-Type': 'application/json' },
-        status: 200,
-      }),
-    );
+    });
 
     const user = userEvent.setup();
 
     render(
       <StreamingStatusPanel
         tenantId={tenantId}
-        agentId="control_plane_foundation"
+        agentId={agentId}
         sessionIdentifier={sessionIdentifier}
-        pollIntervalMs={2000}
       />,
     );
 
     expect(await screen.findByText(/Planner ranked plays/i)).toBeInTheDocument();
+    expect(screen.getByText(/Heartbeat: 12.3s/)).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: /Refresh/i }));
+    await user.click(screen.getByRole('button', { name: /Pause/i }));
+    expect(screen.getByRole('button', { name: /Resume/i })).toBeInTheDocument();
+    expect(screen.getByText(/Heartbeat: —/)).toBeInTheDocument();
+  });
 
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+  it('renders exit banner and disables controls when run completes', async () => {
+    useTimelineEventsMock.mockReturnValue({
+      ...baseHookResult,
+      exitInfo: {
+        reason: 'completed',
+        stage: 'execution_loop_completed',
+        missionStatus: 'completed',
+        at: '2025-10-09T19:05:00.000Z',
+      },
+      events: [
+        {
+          id: 'evt-1',
+          createdAt: '2025-10-09T19:00:00.000Z',
+          stage: 'execution_loop_completed',
+          event: 'completed',
+          role: 'assistant',
+          label: 'Dry-run completed',
+          description: 'Completed after 1 attempt.',
+          status: 'complete' as const,
+          rawContent: 'Execution loop completed',
+          metadata: { attempts: 1 },
+        },
+      ],
+    });
 
-    expect(await screen.findByText(/Dry-run loop completed and timeline is archived/i)).toBeInTheDocument();
+    render(
+      <StreamingStatusPanel
+        tenantId={tenantId}
+        agentId={agentId}
+        sessionIdentifier={sessionIdentifier}
+      />,
+    );
+
+    expect(
+      await screen.findByText(/Dry-run loop completed and timeline is archived/i),
+    ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Pause/i })).toBeDisabled();
     expect(screen.getByRole('button', { name: /Refresh/i })).toBeDisabled();
   });

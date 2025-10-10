@@ -125,6 +125,51 @@ class CopilotKitStreamer:
             metadata=merged_metadata,
         )
 
+    def emit_stage(
+        self,
+        *,
+        tenant_id: Optional[str],
+        session_identifier: str,
+        stage: str,
+        event: str,
+        content: str,
+        mission_id: Optional[str] = None,
+        mission_status: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        """Emit a structured lifecycle stage message with consistent metadata schema.
+
+        Args:
+            tenant_id: Tenant identifier (must be UUID or None)
+            session_identifier: Session or mission identifier
+            stage: Timeline stage identifier (e.g., "planner_stage_started")
+            event: Event type (e.g., "stage_started", "status_update", "rank_complete")
+            content: Human-readable message content
+            mission_id: Optional mission identifier
+            mission_status: Optional mission status (e.g., "in_progress", "completed")
+            metadata: Additional metadata fields to merge
+        """
+        merged_metadata: Dict[str, Any] = {
+            "stage": stage,
+            "event": event,
+        }
+        if mission_id:
+            merged_metadata["mission_id"] = mission_id
+        if tenant_id:
+            merged_metadata["tenant_id"] = tenant_id
+        if mission_status:
+            merged_metadata["mission_status"] = mission_status
+        if metadata:
+            merged_metadata.update(metadata)
+
+        self.emit_message(
+            tenant_id=tenant_id,
+            session_identifier=session_identifier,
+            role="assistant",
+            content=content,
+            metadata=merged_metadata,
+        )
+
     def close(self) -> None:
         try:
             self._client.close()

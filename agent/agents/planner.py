@@ -71,6 +71,10 @@ class PlannerAgent(LlmAgent):
     ) -> AsyncGenerator[Event, None]:
         mission_context = self._load_context(ctx)
         mission_mode = ctx.session.state.get("mission_mode", mission_context.mode)
+
+        # Emit planner_stage_started
+        self._emit_stage_started(mission_context, mission_mode)
+
         ranked = self._rank_plays(mission_context, mission_mode)
 
         ctx.session.state[RANKED_PLAYS_KEY] = [asdict(play) for play in ranked]
@@ -92,14 +96,10 @@ class PlannerAgent(LlmAgent):
             },
         )
 
-        self._emit_stream(
+        self._emit_rank_complete(
             mission_context,
-            "planner_rank_complete",
-            {
-                "mode": mission_mode,
-                "candidate_count": len(ranked),
-                "toolkits": self._toolkit_counts(ranked),
-            },
+            mission_mode,
+            ranked,
         )
 
         self._emit_inspection_preview(ctx, mission_context, mission_mode)
@@ -140,6 +140,18 @@ class PlannerAgent(LlmAgent):
         self, mission_context: MissionContext, mission_mode: str
     ) -> List[RankedPlay]:
         audience = mission_context.audience or "Pilot revenue team"
+
+        # Emit library query status
+        self._emit_planner_status(
+            mission_context,
+            "library_query",
+            f"Querying library plays for {audience}...",
+            {
+                "audience": audience,
+                "objective": mission_context.objective[:80],
+            },
+        )
+
         library_rows = self.supabase.search_library_plays(
             tenant_id=mission_context.tenant_id,
             mission_id=mission_context.mission_id,
@@ -149,7 +161,18 @@ class PlannerAgent(LlmAgent):
             limit=3,
         )
 
+        # Emit Composio discovery status
         toolkit_refs = self._toolkit_refs(audience)
+        self._emit_planner_status(
+            mission_context,
+            "composio_discovery",
+            f"Discovered {len(toolkit_refs)} toolkit references from Composio",
+            {
+                "toolkit_count": len(toolkit_refs),
+                "toolkits": toolkit_refs[:6],
+            },
+        )
+
         candidates: List[RankedPlay] = []
 
         for index, row in enumerate(library_rows):
@@ -192,6 +215,21 @@ class PlannerAgent(LlmAgent):
                 )
             )
 
+            # Emit candidate ranked status
+            self._emit_planner_status(
+                mission_context,
+                "candidate_ranked",
+                f"Ranked candidate #{index + 1}: {row.get('title', 'Unnamed play')}",
+                {
+                    "position": index + 1,
+                    "title": row.get("title"),
+                    "similarity": similarity,
+                    "confidence": confidence,
+                    "toolkit_count": len(toolkit_slice),
+                    "play_id": row.get("id"),
+                },
+            )
+
         if not candidates:
             fallback = RankedPlay(
                 title=f"Dry-run scaffolding for {audience}",
@@ -211,6 +249,16 @@ class PlannerAgent(LlmAgent):
                 telemetry={"fallback": True},
             )
             candidates.append(fallback)
+            self._emit_planner_status(
+                mission_context,
+                "fallback_generated",
+                "Generated fallback play due to missing library candidates",
+                {
+                    "title": fallback.title,
+                    "reason": "no_library_candidates",
+                    "confidence": fallback.confidence,
+                },
+            )
 
         return candidates
 
@@ -248,24 +296,83 @@ class PlannerAgent(LlmAgent):
         )
         return str(session_identifier) if session_identifier else context.mission_id
 
-    def _emit_stream(
+    def _emit_stage_started(
         self,
         context: MissionContext,
-        stage: str,
+        mission_mode: str,
+    ) -> None:
+        if not self.streamer:
+            return
+        self.streamer.emit_stage(
+            tenant_id=context.tenant_id,
+            session_identifier=self._session_identifier(context),
+            stage="planner_stage_started",
+            event="stage_started",
+            content="Planner stage started: ranking candidate plays",
+            mission_id=context.mission_id,
+            mission_status="in_progress",
+            metadata={
+                "mode": mission_mode,
+                "objective": context.objective[:100],
+                "audience": context.audience,
+            },
+        )
+
+    def _emit_planner_status(
+        self,
+        context: MissionContext,
+        status_type: str,
+        message: str,
         metadata: Dict[str, Any],
     ) -> None:
         if not self.streamer:
             return
-        message = (
-            f"{stage.replace('_', ' ').title()}: {metadata.get('candidate_count', 0)} "
-            f"candidate plays prepared."
-        )
-        self.streamer.emit_message(
+        self.streamer.emit_stage(
             tenant_id=context.tenant_id,
             session_identifier=self._session_identifier(context),
-            role="assistant",
+            stage="planner_status",
+            event="status_update",
             content=message,
-            metadata={"stage": stage, **metadata},
+            mission_id=context.mission_id,
+            mission_status="in_progress",
+            metadata={
+                "status_type": status_type,
+                **metadata,
+            },
+        )
+
+    def _emit_rank_complete(
+        self,
+        context: MissionContext,
+        mission_mode: str,
+        ranked: List[RankedPlay],
+    ) -> None:
+        if not self.streamer:
+            return
+        toolkit_counts = self._toolkit_counts(ranked)
+        similarities = [
+            float(play.telemetry.get("similarity", 0.0) or 0.0)
+            for play in ranked
+            if isinstance(play.telemetry, dict)
+        ]
+        avg_similarity = sum(similarities) / max(len(similarities), 1)
+        primary_toolkits = sorted(toolkit_counts.items(), key=lambda x: x[1], reverse=True)[:3]
+
+        self.streamer.emit_stage(
+            tenant_id=context.tenant_id,
+            session_identifier=self._session_identifier(context),
+            stage="planner_rank_complete",
+            event="rank_complete",
+            content=f"Ranking complete: {len(ranked)} candidate plays prepared",
+            mission_id=context.mission_id,
+            mission_status="in_progress",
+            metadata={
+                "mode": mission_mode,
+                "candidate_count": len(ranked),
+                "average_similarity": round(avg_similarity, 2),
+                "primary_toolkits": [tk[0] for tk in primary_toolkits],
+                "toolkit_counts": toolkit_counts,
+            },
         )
 
     def _toolkit_refs(self, audience: str) -> List[str]:

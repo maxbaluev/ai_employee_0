@@ -23,7 +23,7 @@ The streamer first upserts the session payload:
 
 ## Message Payloads
 
-Each lifecycle event is recorded with `role="assistant"` (system exit events use `role="system"`). All messages contain a `stage` key within metadata so the UI can group items.
+Each lifecycle event is recorded with `role="assistant"` (system exit events use `role="system"`). All messages include both a `stage` key (legacy timeline identifier) and an `event` discriminator (`stage_started`, `status_update`, `rank_complete`, `toolkit_simulation`, `completion`, `artifact_ready`, etc.) so the UI can render context-specific affordances.
 
 ### Intake
 
@@ -39,36 +39,78 @@ Each lifecycle event is recorded with `role="assistant"` (system exit events use
 }
 ```
 
-### Planner
+### Planner (stage prefix `planner_*`)
+
+| Stage | `event` | Description | Key metadata |
+| ----- | ------- | ----------- | ------------ |
+| `planner_stage_started` | `stage_started` | Planner begins ranking candidates. | `mode`, `objective`, `audience` |
+| `planner_status` | `status_update` | Progress updates (library query, Composio discovery, candidate ranked, fallback). | `status_type`, `toolkit_count`, `toolkits`, `position`, `similarity`, `confidence` |
+| `planner_rank_complete` | `rank_complete` | Ranking completed with summary stats. | `candidate_count`, `average_similarity`, `primary_toolkits`, `toolkit_counts` |
+
+Example rank complete payload:
 
 ```json
 {
+  "role": "assistant",
+  "content": "Ranking complete: 3 candidate plays prepared",
   "metadata": {
     "stage": "planner_rank_complete",
+    "event": "rank_complete",
     "mode": "dry_run",
     "candidate_count": 3,
-    "toolkits": {"slack": 2, "hubspot": 1}
+    "average_similarity": 0.74,
+    "primary_toolkits": ["slack", "sheets"],
+    "toolkit_counts": {"slack": 2, "sheets": 1}
   }
 }
 ```
 
 ### Execution Loop
 
-- `executor_stage_started`, `validator_stage_started`, `validator_retry`, `validator_reviewer_requested`, `evidence_stage_started`, `execution_loop_completed`, `execution_loop_exhausted`
-- Metadata keys: `attempt`, `play_title`, `status`, `violations`, `attempts`
+`ExecutionLoopAgent` now uses `emit_stage` for all lifecycle transitions, emitting structured stage + event metadata with consistent schema. All execution loop events include `mission_id`, `mission_status`, and play identifiers.
 
-### Executor Artifact
+| Stage | `event` | Description | Key metadata |
+| ----- | ------- | ----------- | ------------ |
+| `executor_stage_started` | `stage_started` | Executor stage begins. | `attempt`, `play_id`, `play_title`, `mission_id`, `mission_status` (`in_progress`) |
+| `validator_stage_started` | `stage_started` | Validator stage begins. | `attempt`, `play_id`, `play_title`, `mission_id`, `mission_status` (`in_progress`) |
+| `validator_retry` | `retry` | Validator scheduled retry. | `attempt`, `status`, `play_id`, `play_title`, `mission_id`, `mission_status` (`in_progress`) |
+| `validator_reviewer_requested` | `reviewer_requested` | Validator requested reviewer intervention. | `attempt`, `status`, `play_id`, `play_title`, `mission_id`, `mission_status` (`needs_reviewer`) |
+| `evidence_stage_started` | `stage_started` | Evidence bundling begins. | `attempt`, `play_id`, `play_title`, `mission_id`, `mission_status` (`in_progress`) |
+| `execution_loop_completed` | `completed` | Execution loop succeeded. | `attempts`, `status`, `play_id`, `play_title`, `mission_id`, `mission_status` (`completed`) |
+| `execution_loop_exhausted` | `exhausted` | Execution loop exhausted retries. | `attempts`, `status`, `play_id`, `play_title`, `mission_id`, `mission_status` (`exhausted`) |
+
+### Executor (`executor_*`)
+
+| Stage | `event` | Description | Key metadata |
+| ----- | ------- | ----------- | ------------ |
+| `executor_stage_started` | `stage_started` | Execution attempt begins. | `attempt`, `play_title`, `toolkit_count`, `play_id` |
+| `executor_status` | `toolkit_simulation` | Toolkit simulation progress per Composio recommendation. | `toolkit`, `position`, `total`, `play_id` |
+| `executor_artifact_created` | `artifact_ready` | Draft artifact stored for review. | `artifact_id`, `play_title`, `status`, `undo_plan`, `hash` |
+
+Example artifact payload:
 
 ```json
 {
   "metadata": {
     "stage": "executor_artifact_created",
+    "event": "artifact_ready",
     "artifact_id": "artifact-alpha",
     "play_title": "Re-engagement email sequence",
-    "status": "draft"
+    "status": "draft",
+    "undo_plan": "Document manual rollback",
+    "hash": "991c1cfb…"
   }
 }
 ```
+
+### Validator (`validator_*`)
+
+| Stage | `event` | Description | Key metadata |
+| ----- | ------- | ----------- | ------------ |
+| `validator_stage_started` | `stage_started` | Validator begins safeguard audit. | `attempt`, `safeguard_count` |
+| `validator_feedback` | `completion` | Validator outcome ready for the execution loop. | `status` (`auto_fix`/`retry_later`/`ask_reviewer`), `violations`, `reviewer_required`, `notes`, `attempt` |
+| `validator_retry` | `retry` | Retry scheduled due to safeguard miss. | `attempt`, `status`, `violations` |
+| `validator_reviewer_requested` | `escalation` | Reviewer intervention required. | `status`, `violations`, `tool_call_id` |
 
 ### Validator Outcome
 
@@ -76,7 +118,33 @@ Metadata includes `violations` array and `reviewer_required` flag.
 
 ### Evidence Bundle
 
-Metadata contains `artifact_id` and `play_title` for linking to Supabase artifacts.
+`EvidenceAgent` emits `evidence_bundle_created` via `emit_stage` with expanded metadata for timeline richness.
+
+| Stage | `event` | Description | Key metadata |
+| ----- | ------- | ----------- | ------------ |
+| `evidence_bundle_created` | `bundle_created` | Evidence bundle persisted to Supabase. | `artifact_id`, `play_title`, `hash`, `safeguard_count`, `undo_plan_present`, `validation_status`, `mission_id`, `mission_status` |
+
+Example payload:
+
+```json
+{
+  "role": "assistant",
+  "content": "Evidence bundle created for Re-engagement email sequence (artifact=artifact-alpha, safeguards=3)",
+  "metadata": {
+    "stage": "evidence_bundle_created",
+    "event": "bundle_created",
+    "artifact_id": "artifact-alpha",
+    "play_title": "Re-engagement email sequence",
+    "hash": "991c1cfb12345678",
+    "safeguard_count": 3,
+    "undo_plan_present": true,
+    "validation_status": "auto_fix",
+    "mission_id": "mission-123",
+    "tenant_id": "3c33212c-d119-4ef1-8db0-2ca93cd3b2dd",
+    "mission_status": "completed"
+  }
+}
+```
 
 ## Exit Events
 

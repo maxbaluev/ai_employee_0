@@ -20,6 +20,13 @@ const STATUS_CLASSES: Record<string, string> = {
   pending: 'bg-slate-500 text-slate-100',
 };
 
+const HEARTBEAT_CLASSES: Record<string, string> = {
+  good: 'bg-emerald-500/15 text-emerald-200',
+  caution: 'bg-amber-500/15 text-amber-200',
+  alert: 'bg-rose-500/20 text-rose-200',
+  idle: 'bg-slate-600/40 text-slate-200',
+};
+
 function formatTimestamp(value: string) {
   try {
     const date = new Date(value);
@@ -40,6 +47,30 @@ function getStatusClasses(status: TimelineMessage['status']) {
   return STATUS_CLASSES[status] ?? STATUS_CLASSES.pending;
 }
 
+function formatMetadataValue(value: unknown): string {
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => formatMetadataValue(item))
+      .filter((item) => item !== '')
+      .join(', ');
+  }
+  if (value && typeof value === 'object') {
+    const serialized = JSON.stringify(value);
+    const trimmed = serialized.length > 180 ? `${serialized.slice(0, 177)}…` : serialized;
+    return trimmed;
+  }
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value.toString() : '';
+  }
+  if (typeof value === 'boolean') {
+    return value ? 'true' : 'false';
+  }
+  if (value === null || value === undefined) {
+    return '—';
+  }
+  return String(value);
+}
+
 export function StreamingStatusPanel({
   tenantId,
   agentId,
@@ -48,9 +79,10 @@ export function StreamingStatusPanel({
   onReviewerRequested,
 }: StreamingStatusPanelProps) {
   const [isPaused, setIsPaused] = useState(false);
+  const [expandedEvents, setExpandedEvents] = useState<Set<string>>(() => new Set());
   const reviewerAlertRef = useRef<string | null>(null);
 
-  const { events, isLoading, error, refresh, lastUpdated, exitInfo } = useTimelineEvents({
+  const { events, isLoading, error, refresh, lastUpdated, exitInfo, heartbeatSeconds, lastEventAt } = useTimelineEvents({
     agentId,
     tenantId,
     sessionIdentifier,
@@ -58,8 +90,28 @@ export function StreamingStatusPanel({
     enabled: !isPaused,
   });
 
+  const toggleEvent = useCallback((eventId: string) => {
+    setExpandedEvents((prev) => {
+      const next = new Set(prev);
+      if (next.has(eventId)) {
+        next.delete(eventId);
+      } else {
+        next.add(eventId);
+      }
+      return next;
+    });
+  }, []);
+
   const latestReviewerEvent = useMemo(() => {
     return [...events].filter((event) => event.stage === 'validator_reviewer_requested').pop() ?? null;
+  }, [events]);
+
+  const latestValidatorFeedback = useMemo(() => {
+    return [...events].reverse().find((event) => event.stage === 'validator_feedback') ?? null;
+  }, [events]);
+
+  const latestPlannerStatus = useMemo(() => {
+    return [...events].reverse().find((event) => event.stage === 'planner_status') ?? null;
   }, [events]);
 
   const waitingMessage = useMemo(() => {
@@ -75,8 +127,26 @@ export function StreamingStatusPanel({
     if (latestWarning) {
       return 'Validator scheduled a retry. The agent will re-attempt once safeguards are satisfied.';
     }
+    if (latestValidatorFeedback?.metadata?.status === 'ask_reviewer') {
+      return 'Awaiting reviewer decision on the validator escalation.';
+    }
+    if (latestValidatorFeedback?.metadata?.status === 'retry_later') {
+      const violations = Array.isArray(latestValidatorFeedback.metadata?.violations)
+        ? (latestValidatorFeedback.metadata.violations as string[])
+        : [];
+      if (violations.length) {
+        return `Validator retry scheduled: ${violations.join(', ')}.`;
+      }
+      return 'Validator requested retry and is preparing another attempt.';
+    }
+    if (latestPlannerStatus?.metadata?.status_type === 'library_query') {
+      return 'Planner is querying the mission library for matching plays.';
+    }
+    if (latestPlannerStatus?.metadata?.status_type === 'composio_discovery') {
+      return 'Planner is collecting recommended toolkits for this mission.';
+    }
     return null;
-  }, [events, exitInfo?.missionStatus, latestReviewerEvent]);
+  }, [events, exitInfo?.missionStatus, latestPlannerStatus, latestReviewerEvent, latestValidatorFeedback]);
 
   const handleReviewerNotify = useCallback(
     (event: TimelineMessage | null) => {
@@ -96,8 +166,13 @@ export function StreamingStatusPanel({
     handleReviewerNotify(latestReviewerEvent);
   }, [handleReviewerNotify, latestReviewerEvent]);
 
+  useEffect(() => {
+    setExpandedEvents(new Set<string>());
+  }, [sessionIdentifier]);
+
   const hasSession = Boolean(sessionIdentifier);
   const lastUpdatedLabel = lastUpdated ? formatTimestamp(lastUpdated) : '—';
+  const lastEventLabel = lastEventAt ? formatTimestamp(lastEventAt) : '—';
 
   const handlePauseToggle = () => {
     if (exitInfo) {
@@ -105,6 +180,19 @@ export function StreamingStatusPanel({
     }
     setIsPaused((prev) => !prev);
   };
+
+  const heartbeatIndicator = useMemo(() => {
+    if (isPaused || !hasSession || exitInfo || heartbeatSeconds === null) {
+      return { label: 'Heartbeat: —', tone: HEARTBEAT_CLASSES.idle };
+    }
+    if (heartbeatSeconds <= 5) {
+      return { label: `Heartbeat: ${heartbeatSeconds.toFixed(1)}s`, tone: HEARTBEAT_CLASSES.good };
+    }
+    if (heartbeatSeconds <= 10) {
+      return { label: `Heartbeat: ${heartbeatSeconds.toFixed(1)}s`, tone: HEARTBEAT_CLASSES.caution };
+    }
+    return { label: `Heartbeat: ${heartbeatSeconds.toFixed(1)}s`, tone: HEARTBEAT_CLASSES.alert };
+  }, [exitInfo, hasSession, heartbeatSeconds, isPaused]);
 
   if (!hasSession) {
     return (
@@ -126,10 +214,18 @@ export function StreamingStatusPanel({
         <div>
           <h2 className="text-lg font-semibold text-white">Mission Timeline</h2>
           <p className="text-xs text-slate-400">
-            {exitInfo ? `Completed ${formatTimestamp(exitInfo.at)}` : `Last sync: ${lastUpdatedLabel}`}
+            {exitInfo
+              ? `Completed ${formatTimestamp(exitInfo.at)}`
+              : `Last sync: ${lastUpdatedLabel} · Last event: ${lastEventLabel}`}
           </p>
         </div>
-        <div className="flex items-center gap-2 text-xs">
+        <div className="flex flex-wrap items-center justify-end gap-2 text-xs">
+          <span
+            aria-live="polite"
+            className={`rounded-full px-2 py-1 font-medium uppercase tracking-wide ${heartbeatIndicator.tone}`}
+          >
+            {heartbeatIndicator.label}
+          </span>
           <button
             type="button"
             onClick={handlePauseToggle}
@@ -193,6 +289,15 @@ export function StreamingStatusPanel({
               (event.metadata?.toolCallId as string | undefined) ??
               null;
             const showReviewerCta = event.stage === 'validator_reviewer_requested' && Boolean(onReviewerRequested);
+            const isExpanded = expandedEvents.has(event.id);
+            const detailEntries = (() => {
+              const entries = Object.entries(event.metadata ?? {}).filter(([key]) => key !== 'stage');
+              if (event.event && !entries.some(([key]) => key === 'event')) {
+                entries.unshift(['event', event.event]);
+              }
+              return entries;
+            })();
+            const detailId = `timeline-details-${event.id}`;
 
             return (
               <article
@@ -218,7 +323,38 @@ export function StreamingStatusPanel({
                     {event.stage && (
                       <span className="rounded-full bg-white/5 px-2 py-0.5">{event.stage.replace(/_/g, ' ')}</span>
                     )}
+                    {event.event && (
+                      <span className="rounded-full bg-white/5 px-2 py-0.5">{event.event.replace(/_/g, ' ')}</span>
+                    )}
                   </div>
+                  {detailEntries.length > 0 && (
+                    <div className="space-y-2">
+                      <button
+                        type="button"
+                        onClick={() => toggleEvent(event.id)}
+                        aria-expanded={isExpanded}
+                        aria-controls={detailId}
+                        className="inline-flex items-center gap-2 rounded-md border border-white/15 bg-white/5 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-slate-200 transition hover:bg-white/10"
+                      >
+                        {isExpanded ? 'Hide details' : 'Show details'}
+                      </button>
+                      {isExpanded && (
+                        <dl
+                          id={detailId}
+                          className="grid gap-3 rounded-lg border border-white/10 bg-slate-950/60 p-3 text-left text-xs text-slate-200 sm:grid-cols-2"
+                        >
+                          {detailEntries.map(([key, value]) => (
+                            <div key={`${event.id}-${key}`} className="space-y-1 break-words">
+                              <dt className="text-[10px] font-semibold uppercase tracking-[0.15em] text-slate-400">
+                                {key.replace(/_/g, ' ')}
+                              </dt>
+                              <dd className="text-slate-100">{formatMetadataValue(value)}</dd>
+                            </div>
+                          ))}
+                        </dl>
+                      )}
+                    </div>
+                  )}
                   {showReviewerCta && (
                     <button
                       type="button"

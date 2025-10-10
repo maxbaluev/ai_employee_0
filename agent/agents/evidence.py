@@ -183,16 +183,32 @@ class EvidenceAgent(BaseAgent):
     ) -> None:
         if not self.streamer:
             return
+
+        # Calculate bundle hash for metadata
+        payload = asdict(bundle)
+        bundle_hash = hashlib.sha256(
+            json.dumps(payload, sort_keys=True).encode("utf-8")
+        ).hexdigest()[:16]
+
+        # Enrich metadata with artifact details, safeguard count, and undo plan status
         metadata: Dict[str, Any] = {
-            "stage": "evidence_bundle_created",
             "artifact_id": bundle.artifact_id,
             "play_title": bundle.play_title,
+            "hash": bundle_hash,
+            "safeguard_count": len(bundle.safeguards),
+            "undo_plan_present": bool(bundle.undo_plan and bundle.undo_plan != "Document manual rollback"),
+            "validation_status": bundle.telemetry.get("validation", {}).get("status") if bundle.telemetry else None,
         }
-        message = f"Evidence bundle created for {bundle.play_title}"
-        self.streamer.emit_message(
+
+        message = f"Evidence bundle created for {bundle.play_title} (artifact={bundle.artifact_id}, safeguards={len(bundle.safeguards)})"
+
+        self.streamer.emit_stage(
             tenant_id=context.tenant_id,
             session_identifier=self._session_identifier(context),
-            role="assistant",
+            stage="evidence_bundle_created",
+            event="bundle_created",
             content=message,
+            mission_id=context.mission_id,
+            mission_status="completed",
             metadata=metadata,
         )

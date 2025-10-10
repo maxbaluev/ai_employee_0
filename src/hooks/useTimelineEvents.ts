@@ -14,6 +14,7 @@ export type TimelineMessage = {
   role: string;
   metadata: Record<string, unknown>;
   rawContent: string;
+  event: string | null;
 };
 
 export type SessionExitInfo = {
@@ -38,11 +39,14 @@ export type UseTimelineEventsResult = {
   refresh: () => Promise<void>;
   lastUpdated: string | null;
   exitInfo: SessionExitInfo | null;
+  heartbeatSeconds: number | null;
+  lastEventAt: string | null;
 };
 
 const DEFAULT_INTERVAL = 5000;
 const MAX_EVENTS = 120;
 const EXIT_EVENT_KEY = 'copilotkit_exit';
+const HEARTBEAT_INTERVAL_MS = 1000;
 
 type StageDescriptor = {
   label: string;
@@ -59,12 +63,61 @@ const STAGE_DESCRIPTORS: Record<string, StageDescriptor> = {
         ? `Objective aligned to “${metadata.objective}”`
         : 'Mission brief captured.',
   },
+  planner_stage_started: {
+    label: 'Planner initiated',
+    status: 'in_progress',
+    description: (metadata) => {
+      const objective = typeof metadata.objective === 'string' ? metadata.objective : null;
+      const audience = typeof metadata.audience === 'string' ? metadata.audience : null;
+      if (objective && audience) {
+        return `Ranking plays for “${objective}” targeting ${audience}.`;
+      }
+      if (objective) {
+        return `Ranking plays for “${objective}”.`;
+      }
+      return 'Planner starting candidate ranking.';
+    },
+  },
+  planner_status: {
+    label: 'Planner update',
+    status: 'in_progress',
+    description: (metadata) => {
+      const statusType = typeof metadata.status_type === 'string' ? metadata.status_type : 'status';
+      if (statusType === 'library_query') {
+        const audience = typeof metadata.audience === 'string' ? metadata.audience : 'audience';
+        return `Querying library plays for ${audience}.`;
+      }
+      if (statusType === 'composio_discovery') {
+        const toolkitCount = typeof metadata.toolkit_count === 'number' ? metadata.toolkit_count : null;
+        return toolkitCount ? `Identified ${toolkitCount} toolkits via Composio.` : 'Discovering toolkits via Composio.';
+      }
+      if (statusType === 'candidate_ranked') {
+        const position = typeof metadata.position === 'number' ? metadata.position : null;
+        const title = typeof metadata.title === 'string' ? metadata.title : null;
+        const similarity = typeof metadata.similarity === 'number' ? metadata.similarity : null;
+        const display = position ? `#${position}` : 'candidate';
+        const base = title ? `Ranked ${display}: ${title}` : `Ranked ${display}`;
+        return similarity !== null ? `${base} (similarity ${similarity.toFixed(2)}).` : `${base}.`;
+      }
+      if (statusType === 'fallback_generated') {
+        return 'Generated fallback play while catalogue warms up.';
+      }
+      return 'Planner progressing through ranking steps.';
+    },
+  },
   planner_rank_complete: {
     label: 'Planner ranked plays',
     status: 'complete',
     description: (metadata) => {
       const count = typeof metadata.candidate_count === 'number' ? metadata.candidate_count : null;
-      return count ? `${count} draft plays queued for validation.` : 'Planner run completed.';
+      const similarity = typeof metadata.average_similarity === 'number' ? metadata.average_similarity : null;
+      const toolkitList = Array.isArray(metadata.primary_toolkits)
+        ? (metadata.primary_toolkits as unknown[]).filter((value) => typeof value === 'string')
+        : [];
+      const base = count ? `${count} draft plays queued for validation.` : 'Planner run completed.';
+      const similarityCopy = similarity !== null ? ` Avg similarity ${similarity.toFixed(2)}.` : '';
+      const toolkitCopy = toolkitList.length ? ` Key toolkits: ${toolkitList.join(', ')}.` : '';
+      return `${base}${similarityCopy}${toolkitCopy}`.trim();
     },
   },
   executor_stage_started: {
@@ -72,7 +125,22 @@ const STAGE_DESCRIPTORS: Record<string, StageDescriptor> = {
     status: 'in_progress',
     description: (metadata) => {
       const attempt = typeof metadata.attempt === 'number' ? metadata.attempt : 1;
-      return `Dry-run attempt ${attempt} in progress.`;
+      const playTitle = typeof metadata.play_title === 'string' ? metadata.play_title : null;
+      const prefix = `Dry-run attempt ${attempt} in progress`;
+      return playTitle ? `${prefix} for ${playTitle}.` : `${prefix}.`;
+    },
+  },
+  executor_status: {
+    label: 'Toolkit simulation',
+    status: 'in_progress',
+    description: (metadata) => {
+      const toolkit = typeof metadata.toolkit === 'string' ? metadata.toolkit : 'toolkit';
+      const position = typeof metadata.position === 'number' ? metadata.position : null;
+      const total = typeof metadata.total === 'number' ? metadata.total : null;
+      if (position && total) {
+        return `Simulating ${toolkit} (${position} of ${total}).`;
+      }
+      return `Simulating ${toolkit}.`;
     },
   },
   executor_artifact_created: {
@@ -88,7 +156,29 @@ const STAGE_DESCRIPTORS: Record<string, StageDescriptor> = {
     status: 'in_progress',
     description: (metadata) => {
       const attempt = typeof metadata.attempt === 'number' ? metadata.attempt : 1;
-      return `Validator pass ${attempt} running.`;
+      const safeguards = typeof metadata.safeguard_count === 'number' ? metadata.safeguard_count : null;
+      const suffix = safeguards !== null ? ` against ${safeguards} safeguard${safeguards === 1 ? '' : 's'}.` : '.';
+      return `Validator pass ${attempt} running${suffix}`;
+    },
+  },
+  validator_feedback: {
+    label: 'Validator outcome',
+    status: 'complete',
+    description: (metadata) => {
+      const status = typeof metadata.status === 'string' ? metadata.status : 'reviewed';
+      const violations = Array.isArray(metadata.violations) ? metadata.violations : [];
+      if (status === 'ask_reviewer') {
+        return 'Validator escalated to reviewer.';
+      }
+      if (status === 'retry_later') {
+        return violations.length
+          ? `Validator requested retry (${violations.join(', ')}).`
+          : 'Validator requested retry.';
+      }
+      if (status === 'auto_fix') {
+        return 'Validator auto-fixed minor guardrail notes.';
+      }
+      return `Validator result: ${status}.`;
     },
   },
   validator_retry: {
@@ -167,6 +257,7 @@ function coerceDescription(
   stage: string | null,
   metadata: Record<string, unknown>,
   rawContent: string,
+  eventName: string | null,
 ): { label: string; status: TimelineStageStatus; description: string } {
   if (stage && stage in STAGE_DESCRIPTORS) {
     const descriptor = STAGE_DESCRIPTORS[stage];
@@ -178,7 +269,7 @@ function coerceDescription(
   }
 
   return {
-    label: rawContent || 'Copilot event',
+    label: rawContent || eventName || 'Copilot event',
     status: 'pending',
     description: rawContent,
   };
@@ -191,11 +282,13 @@ export function useTimelineEvents(options: UseTimelineEventsOptions): UseTimelin
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const lastTimestampRef = useRef<string | null>(null);
+  const lastEventAtRef = useRef<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastUpdatedRef = useRef<string | null>(null);
   const exitInfoRef = useRef<SessionExitInfo | null>(null);
   const [exitInfo, setExitInfo] = useState<SessionExitInfo | null>(null);
+  const [heartbeatSeconds, setHeartbeatSeconds] = useState<number | null>(null);
 
   const buildUrl = useCallback(
     (mode: 'initial' | 'delta') => {
@@ -284,11 +377,12 @@ export function useTimelineEvents(options: UseTimelineEventsOptions): UseTimelin
         const mapped = payload.messages.map((message) => {
           const metadata = message.metadata ?? {};
           const stageFromMetadata = typeof metadata.stage === 'string' ? metadata.stage : null;
+          const eventName = typeof metadata.event === 'string' ? metadata.event : null;
           const stage =
-            metadata.event === EXIT_EVENT_KEY
+            eventName === EXIT_EVENT_KEY
               ? EXIT_EVENT_KEY
               : stageFromMetadata ?? message.stage;
-          const descriptor = coerceDescription(stage, metadata, message.content);
+          const descriptor = coerceDescription(stage, metadata, message.content, eventName);
           return {
             id: message.id,
             createdAt: message.createdAt,
@@ -299,11 +393,13 @@ export function useTimelineEvents(options: UseTimelineEventsOptions): UseTimelin
             role: message.role,
             metadata,
             rawContent: message.content,
+            event: eventName,
           } satisfies TimelineMessage;
         });
 
         if (mapped.length) {
           lastTimestampRef.current = mapped[mapped.length - 1]?.createdAt ?? lastTimestampRef.current;
+          lastEventAtRef.current = mapped[mapped.length - 1]?.createdAt ?? lastEventAtRef.current;
           lastUpdatedRef.current = payload.fetchedAt ?? new Date().toISOString();
         }
 
@@ -374,12 +470,38 @@ export function useTimelineEvents(options: UseTimelineEventsOptions): UseTimelin
   }, [enabled, fetchEvents, pollIntervalMs, sessionIdentifier]);
 
   useEffect(() => {
+    if (!enabled || exitInfoRef.current) {
+      setHeartbeatSeconds(null);
+      return undefined;
+    }
+
+    const tick = () => {
+      const lastEventAt = lastEventAtRef.current;
+      if (!lastEventAt) {
+        setHeartbeatSeconds(null);
+        return;
+      }
+      const diffMs = Date.now() - new Date(lastEventAt).getTime();
+      setHeartbeatSeconds(Math.max(diffMs / 1000, 0));
+    };
+
+    tick();
+    const interval = setInterval(tick, HEARTBEAT_INTERVAL_MS);
+
+    return () => {
+      clearInterval(interval);
+    };
+  }, [enabled, exitInfo]);
+
+  useEffect(() => {
     if (!sessionIdentifier) {
       setEvents([]);
       lastTimestampRef.current = null;
       lastUpdatedRef.current = null;
       exitInfoRef.current = null;
       setExitInfo(null);
+      lastEventAtRef.current = null;
+      setHeartbeatSeconds(null);
     }
   }, [sessionIdentifier]);
 
@@ -392,5 +514,7 @@ export function useTimelineEvents(options: UseTimelineEventsOptions): UseTimelin
     refresh,
     lastUpdated,
     exitInfo,
+    heartbeatSeconds,
+    lastEventAt: lastEventAtRef.current,
   };
 }
