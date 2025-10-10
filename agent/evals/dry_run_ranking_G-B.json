@@ -1,25 +1,36 @@
-{
-  "name": "Gate G-B Dry-Run Ranking Evaluation",
-  "description": "Validates planner ranking pipeline combining pgvector similarity with Composio discovery across GTM/support/ops personas",
-  "version": "1.0.0",
-  "gate": "G-B",
-  "created": "2025-10-10",
-  "test_cases": [
-    {
-      "id": "gb-ranking-01-marketing-campaign",
-      "name": "Marketing campaign ROI analysis",
-      "persona": "marketing",
-      "mission_context": {
-        "objective": "Analyze Q4 paid campaign performance and identify top-converting channels",
-        "audience": "Marketing team",
-        "timeframe": "Next 7 days",
-        "guardrails": ["Maintain professional tone", "Include attribution data"]
-      },
+[
+  {
+    "name": "gb-ranking-01-marketing-campaign",
+    "initial_session": {
+      "app_name": "control_plane_foundation",
+      "user_id": "eval_gb_marketing",
+      "state": {
+        "mission_context": {
+          "mission_id": "11111111-1111-1111-1111-111111111101",
+          "tenant_id": "00000000-0000-0000-0000-000000000000",
+          "objective": "Analyze Q4 paid campaign performance and identify top-converting channels",
+          "audience": "Marketing team",
+          "timeframe": "Next 7 days",
+          "guardrails": [
+            "Maintain professional tone",
+            "Include attribution data"
+          ],
+          "metadata": {
+            "persona": "marketing"
+          },
+          "mode": "dry_run"
+        }
+      }
+    },
+    "metadata": {
       "expected_outcomes": {
         "candidate_count": 3,
         "top_play_persona": "marketing",
         "min_similarity": 0.62,
-        "required_toolkit_hints": ["google_analytics", "hubspot"],
+        "required_toolkit_hints": [
+          "google_analytics",
+          "hubspot"
+        ],
         "max_latency_ms": 2500
       },
       "assertions": [
@@ -29,21 +40,47 @@
         "any(toolkit in ranked_plays[0]['toolkit_refs'] for toolkit in ['google_analytics', 'hubspot', 'google_ads'])"
       ]
     },
-    {
-      "id": "gb-ranking-02-support-churn-risk",
-      "name": "Support churn-risk response generation",
-      "persona": "support",
-      "mission_context": {
-        "objective": "Draft safeguarded responses for high-priority tickets flagged for churn risk",
-        "audience": "Customer support team",
-        "timeframe": "Next 2 hours",
-        "guardrails": ["Keep tone warm-professional", "Respect quiet hours"]
-      },
+    "data": [
+      {
+        "query": "Run the Gate G-B planner ranking scenario for marketing campaign ROI analysis and report planner telemetry.",
+        "expected_tool_use": [],
+        "expected_intermediate_agent_responses": [],
+        "reference": "Planner ranking completed for marketing mission."
+      }
+    ]
+  },
+  {
+    "name": "gb-ranking-02-support-churn-risk",
+    "initial_session": {
+      "app_name": "control_plane_foundation",
+      "user_id": "eval_gb_support",
+      "state": {
+        "mission_context": {
+          "mission_id": "11111111-1111-1111-1111-111111111102",
+          "tenant_id": "00000000-0000-0000-0000-000000000000",
+          "objective": "Draft safeguarded responses for high-priority tickets flagged for churn risk",
+          "audience": "Customer support team",
+          "timeframe": "Next 2 hours",
+          "guardrails": [
+            "Keep tone warm-professional",
+            "Respect quiet hours"
+          ],
+          "metadata": {
+            "persona": "support"
+          },
+          "mode": "dry_run"
+        }
+      }
+    },
+    "metadata": {
       "expected_outcomes": {
         "candidate_count": 3,
         "top_play_persona": "support",
         "min_similarity": 0.65,
-        "required_toolkit_hints": ["zendesk", "intercom"],
+        "required_toolkit_hints": [
+          "zendesk",
+          "intercom"
+        ],
         "max_latency_ms": 2500
       },
       "assertions": [
@@ -53,45 +90,97 @@
         "any(toolkit in ranked_plays[0]['toolkit_refs'] for toolkit in ['zendesk', 'intercom', 'slack'])"
       ]
     },
-    {
-      "id": "gb-ranking-03-revenue-ops-pipeline",
-      "name": "Revenue ops pipeline hygiene diagnostics",
-      "persona": "revenue-ops",
-      "mission_context": {
-        "objective": "Assess Salesforce pipeline hygiene and flag stale deals for cleanup",
-        "audience": "Revenue operations team",
-        "timeframe": "Next 14 days",
-        "guardrails": ["Maintain professional tone", "Document undo steps"]
-      },
+    "data": [
+      {
+        "query": "Run the Gate G-B planner ranking scenario for churn-risk support responses and surface planner telemetry.",
+        "expected_tool_use": [],
+        "expected_intermediate_agent_responses": [],
+        "reference": "Planner ranking completed for support mission."
+      }
+    ]
+  },
+  {
+    "name": "gb-ranking-03-revenue-ops-pipeline",
+    "initial_session": {
+      "app_name": "control_plane_foundation",
+      "user_id": "eval_gb_revops",
+      "state": {
+        "mission_context": {
+          "mission_id": "11111111-1111-1111-1111-111111111103",
+          "tenant_id": "00000000-0000-0000-0000-000000000000",
+          "objective": "Assess Salesforce pipeline hygiene and flag stale deals for cleanup",
+          "audience": "Revenue operations team",
+          "timeframe": "Next 14 days",
+          "guardrails": [
+            "Maintain professional tone",
+            "Document undo steps"
+          ],
+          "metadata": {
+            "persona": "revenue-ops"
+          },
+          "mode": "dry_run"
+        }
+      }
+    },
+    "metadata": {
       "expected_outcomes": {
         "candidate_count": 3,
         "top_play_persona": "revenue-ops",
-        "min_similarity": 0.60,
-        "required_toolkit_hints": ["salesforce", "outreach"],
+        "min_similarity": 0.6,
+        "required_toolkit_hints": [
+          "salesforce",
+          "outreach"
+        ],
         "max_latency_ms": 2500
       },
       "assertions": [
         "len(ranked_plays) >= 3",
         "ranked_plays[0]['telemetry']['persona'] in ['revenue-ops', 'ops']",
-        "ranked_plays[0]['telemetry']['similarity'] >= 0.60",
+        "ranked_plays[0]['telemetry']['similarity'] >= 0.6",
         "any(toolkit in ranked_plays[0]['toolkit_refs'] for toolkit in ['salesforce', 'outreach', 'gong'])"
       ]
     },
-    {
-      "id": "gb-ranking-04-sales-renewal-risk",
-      "name": "Sales renewal risk playbook",
-      "persona": "sales",
-      "mission_context": {
-        "objective": "Flag at-risk renewals and generate retention offers with escalation paths",
-        "audience": "Enterprise sales team",
-        "timeframe": "Next 30 days",
-        "guardrails": ["Maintain executive-level tone", "Include ROI justification"]
-      },
+    "data": [
+      {
+        "query": "Run the Gate G-B planner ranking scenario for revenue-ops pipeline hygiene and surface planner telemetry.",
+        "expected_tool_use": [],
+        "expected_intermediate_agent_responses": [],
+        "reference": "Planner ranking completed for revenue-ops mission."
+      }
+    ]
+  },
+  {
+    "name": "gb-ranking-04-sales-renewal-risk",
+    "initial_session": {
+      "app_name": "control_plane_foundation",
+      "user_id": "eval_gb_sales",
+      "state": {
+        "mission_context": {
+          "mission_id": "11111111-1111-1111-1111-111111111104",
+          "tenant_id": "00000000-0000-0000-0000-000000000000",
+          "objective": "Flag at-risk renewals and generate retention offers with escalation paths",
+          "audience": "Enterprise sales team",
+          "timeframe": "Next 30 days",
+          "guardrails": [
+            "Maintain executive-level tone",
+            "Include ROI justification"
+          ],
+          "metadata": {
+            "persona": "sales"
+          },
+          "mode": "dry_run"
+        }
+      }
+    },
+    "metadata": {
       "expected_outcomes": {
         "candidate_count": 3,
         "top_play_persona": "sales",
         "min_similarity": 0.63,
-        "required_toolkit_hints": ["salesforce", "gainsight"],
+        "required_toolkit_hints": [
+          "salesforce",
+          "gainsight"
+        ],
         "max_latency_ms": 2500
       },
       "assertions": [
@@ -101,21 +190,48 @@
         "any(toolkit in ranked_plays[0]['toolkit_refs'] for toolkit in ['salesforce', 'gainsight', 'slack'])"
       ]
     },
-    {
-      "id": "gb-ranking-05-technical-incident",
-      "name": "Technical incident postmortem draft",
-      "persona": "technical",
-      "mission_context": {
-        "objective": "Compile incident timeline and root cause analysis from logs and Slack threads",
-        "audience": "Engineering team",
-        "timeframe": "Next 4 hours",
-        "guardrails": ["Include remediation actions", "Document timeline accurately"]
-      },
+    "data": [
+      {
+        "query": "Run the Gate G-B planner ranking scenario for renewal risk and surface planner telemetry.",
+        "expected_tool_use": [],
+        "expected_intermediate_agent_responses": [],
+        "reference": "Planner ranking completed for sales mission."
+      }
+    ]
+  },
+  {
+    "name": "gb-ranking-05-technical-incident",
+    "initial_session": {
+      "app_name": "control_plane_foundation",
+      "user_id": "eval_gb_technical",
+      "state": {
+        "mission_context": {
+          "mission_id": "11111111-1111-1111-1111-111111111105",
+          "tenant_id": "00000000-0000-0000-0000-000000000000",
+          "objective": "Compile incident timeline and root cause analysis from logs and Slack threads",
+          "audience": "Engineering team",
+          "timeframe": "Next 4 hours",
+          "guardrails": [
+            "Include remediation actions",
+            "Document timeline accurately"
+          ],
+          "metadata": {
+            "persona": "technical"
+          },
+          "mode": "dry_run"
+        }
+      }
+    },
+    "metadata": {
       "expected_outcomes": {
         "candidate_count": 3,
         "top_play_persona": "technical",
         "min_similarity": 0.64,
-        "required_toolkit_hints": ["pagerduty", "slack", "datadog"],
+        "required_toolkit_hints": [
+          "pagerduty",
+          "slack",
+          "datadog"
+        ],
         "max_latency_ms": 2500
       },
       "assertions": [
@@ -125,20 +241,42 @@
         "any(toolkit in ranked_plays[0]['toolkit_refs'] for toolkit in ['pagerduty', 'slack', 'datadog'])"
       ]
     },
-    {
-      "id": "gb-ranking-06-fallback-scenario",
-      "name": "Fallback when no library matches",
-      "persona": "unknown",
-      "mission_context": {
-        "objective": "Handle edge case with no matching library entries",
-        "audience": "Generic team",
-        "timeframe": "Next 7 days",
-        "guardrails": ["Maintain professional tone"]
-      },
+    "data": [
+      {
+        "query": "Run the Gate G-B planner ranking scenario for technical incident postmortem drafts and surface planner telemetry.",
+        "expected_tool_use": [],
+        "expected_intermediate_agent_responses": [],
+        "reference": "Planner ranking completed for technical mission."
+      }
+    ]
+  },
+  {
+    "name": "gb-ranking-06-fallback-scenario",
+    "initial_session": {
+      "app_name": "control_plane_foundation",
+      "user_id": "eval_gb_fallback",
+      "state": {
+        "mission_context": {
+          "mission_id": "11111111-1111-1111-1111-111111111106",
+          "tenant_id": "00000000-0000-0000-0000-000000000000",
+          "objective": "Handle edge case with no matching library entries",
+          "audience": "Generic team",
+          "timeframe": "Next 7 days",
+          "guardrails": [
+            "Maintain professional tone"
+          ],
+          "metadata": {
+            "persona": "unknown"
+          },
+          "mode": "dry_run"
+        }
+      }
+    },
+    "metadata": {
       "expected_outcomes": {
         "candidate_count": 1,
         "fallback_generated": true,
-        "min_confidence": 0.40,
+        "min_confidence": 0.4,
         "max_latency_ms": 2500
       },
       "assertions": [
@@ -146,19 +284,44 @@
         "ranked_plays[0]['telemetry'].get('fallback') == True or ranked_plays[0]['confidence'] <= 0.70"
       ]
     },
-    {
-      "id": "gb-ranking-07-confidence-scoring",
-      "name": "Confidence score calibration",
-      "persona": "marketing",
-      "mission_context": {
-        "objective": "Validate confidence scores align with similarity and position",
-        "audience": "Marketing team",
-        "timeframe": "Next 7 days",
-        "guardrails": ["Maintain professional tone"]
-      },
+    "data": [
+      {
+        "query": "Run the Gate G-B planner ranking fallback scenario when no library matches and surface planner telemetry.",
+        "expected_tool_use": [],
+        "expected_intermediate_agent_responses": [],
+        "reference": "Planner ranking completed for fallback mission."
+      }
+    ]
+  },
+  {
+    "name": "gb-ranking-07-confidence-scoring",
+    "initial_session": {
+      "app_name": "control_plane_foundation",
+      "user_id": "eval_gb_confidence",
+      "state": {
+        "mission_context": {
+          "mission_id": "11111111-1111-1111-1111-111111111107",
+          "tenant_id": "00000000-0000-0000-0000-000000000000",
+          "objective": "Validate confidence scores align with similarity and position",
+          "audience": "Marketing team",
+          "timeframe": "Next 7 days",
+          "guardrails": [
+            "Maintain professional tone"
+          ],
+          "metadata": {
+            "persona": "marketing"
+          },
+          "mode": "dry_run"
+        }
+      }
+    },
+    "metadata": {
       "expected_outcomes": {
         "candidate_count": 3,
-        "confidence_range": [0.40, 0.95],
+        "confidence_range": [
+          0.4,
+          0.95
+        ],
         "confidence_decreasing": true
       },
       "assertions": [
@@ -168,16 +331,38 @@
         "ranked_plays[1]['confidence'] >= ranked_plays[2]['confidence']"
       ]
     },
-    {
-      "id": "gb-ranking-08-telemetry-completeness",
-      "name": "Telemetry payload completeness",
-      "persona": "support",
-      "mission_context": {
-        "objective": "Ensure all telemetry fields are populated correctly",
-        "audience": "Customer support team",
-        "timeframe": "Next 7 days",
-        "guardrails": ["Maintain professional tone"]
-      },
+    "data": [
+      {
+        "query": "Run the Gate G-B planner ranking confidence calibration scenario and surface planner telemetry.",
+        "expected_tool_use": [],
+        "expected_intermediate_agent_responses": [],
+        "reference": "Planner ranking completed for confidence mission."
+      }
+    ]
+  },
+  {
+    "name": "gb-ranking-08-telemetry-completeness",
+    "initial_session": {
+      "app_name": "control_plane_foundation",
+      "user_id": "eval_gb_telemetry",
+      "state": {
+        "mission_context": {
+          "mission_id": "11111111-1111-1111-1111-111111111108",
+          "tenant_id": "00000000-0000-0000-0000-000000000000",
+          "objective": "Ensure all telemetry fields are populated correctly",
+          "audience": "Customer support team",
+          "timeframe": "Next 7 days",
+          "guardrails": [
+            "Maintain professional tone"
+          ],
+          "metadata": {
+            "persona": "support"
+          },
+          "mode": "dry_run"
+        }
+      }
+    },
+    "metadata": {
       "expected_outcomes": {
         "required_telemetry_fields": [
           "library_entry_id",
@@ -193,16 +378,38 @@
         "all(isinstance(play['telemetry']['similarity'], (int, float)) for play in ranked_plays)"
       ]
     },
-    {
-      "id": "gb-ranking-09-undo-plan-presence",
-      "name": "Undo plan mandatory for all plays",
-      "persona": "revenue-ops",
-      "mission_context": {
-        "objective": "Verify undo plans are present and non-empty",
-        "audience": "Revenue operations team",
-        "timeframe": "Next 14 days",
-        "guardrails": ["Document undo steps"]
-      },
+    "data": [
+      {
+        "query": "Run the Gate G-B planner ranking telemetry completeness scenario and surface planner telemetry.",
+        "expected_tool_use": [],
+        "expected_intermediate_agent_responses": [],
+        "reference": "Planner ranking completed for telemetry mission."
+      }
+    ]
+  },
+  {
+    "name": "gb-ranking-09-undo-plan-presence",
+    "initial_session": {
+      "app_name": "control_plane_foundation",
+      "user_id": "eval_gb_undo",
+      "state": {
+        "mission_context": {
+          "mission_id": "11111111-1111-1111-1111-111111111109",
+          "tenant_id": "00000000-0000-0000-0000-000000000000",
+          "objective": "Verify undo plans are present and non-empty",
+          "audience": "Revenue operations team",
+          "timeframe": "Next 14 days",
+          "guardrails": [
+            "Document undo steps"
+          ],
+          "metadata": {
+            "persona": "revenue-ops"
+          },
+          "mode": "dry_run"
+        }
+      }
+    },
+    "metadata": {
       "expected_outcomes": {
         "all_plays_have_undo": true
       },
@@ -212,16 +419,38 @@
         "all(len(play['undo_plan']) >= 10 for play in ranked_plays)"
       ]
     },
-    {
-      "id": "gb-ranking-10-streaming-telemetry",
-      "name": "Streaming telemetry events emitted",
-      "persona": "sales",
-      "mission_context": {
-        "objective": "Validate streaming events for planner stages",
-        "audience": "Sales team",
-        "timeframe": "Next 7 days",
-        "guardrails": ["Maintain professional tone"]
-      },
+    "data": [
+      {
+        "query": "Run the Gate G-B planner ranking undo plan scenario and surface planner telemetry.",
+        "expected_tool_use": [],
+        "expected_intermediate_agent_responses": [],
+        "reference": "Planner ranking completed for undo readiness mission."
+      }
+    ]
+  },
+  {
+    "name": "gb-ranking-10-streaming-telemetry",
+    "initial_session": {
+      "app_name": "control_plane_foundation",
+      "user_id": "eval_gb_streaming",
+      "state": {
+        "mission_context": {
+          "mission_id": "11111111-1111-1111-1111-111111111110",
+          "tenant_id": "00000000-0000-0000-0000-000000000000",
+          "objective": "Validate streaming events for planner stages",
+          "audience": "Sales team",
+          "timeframe": "Next 7 days",
+          "guardrails": [
+            "Maintain professional tone"
+          ],
+          "metadata": {
+            "persona": "sales"
+          },
+          "mode": "dry_run"
+        }
+      }
+    },
+    "metadata": {
       "expected_outcomes": {
         "required_events": [
           "planner_stage_started",
@@ -234,20 +463,14 @@
         "'planner_stage_started' in emitted_event_types",
         "'planner_rank_complete' in emitted_event_types"
       ]
-    }
-  ],
-  "metrics": {
-    "target_pass_rate": 0.90,
-    "max_average_latency_ms": 2500,
-    "min_average_similarity": 0.62,
-    "min_confidence_accuracy": 0.70
-  },
-  "notes": [
-    "Requires library seeding via scripts/seed_library.py before running evaluation",
-    "pgvector similarity scores should align with persona-objective matching",
-    "Composio toolkit discovery must respect no-auth filter for dry-run mode",
-    "Telemetry events must be captured via CopilotKitStreamer for UI consumption",
-    "Confidence scores should decrease with position and lower similarity",
-    "All plays must include non-empty undo_plan field per Gate G-B requirements"
-  ]
-}
+    },
+    "data": [
+      {
+        "query": "Run the Gate G-B planner ranking streaming telemetry scenario and surface planner telemetry.",
+        "expected_tool_use": [],
+        "expected_intermediate_agent_responses": [],
+        "reference": "Planner ranking completed with streaming telemetry captured."
+      }
+    ]
+  }
+]

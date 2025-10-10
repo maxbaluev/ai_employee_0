@@ -6,7 +6,7 @@ This repository powers the Gate G-A/G-B milestones for the AI Employee control p
 
 - **Trust mise configs once:** `mise trust`
 - **Install pinned runtimes:** `mise install`
-- **Activate env + PATH:** `mise env activate`
+- **Activate env + PATH:** `eval "$(mise env activate bash)"`
   - Exports everything declared in `.env`, `.mise.toml`
   - Sets Node 22, Python 3.13, pnpm, uv, Supabase CLI, etc.
 - Use `mise exec <tool> -- <cmd>` to run commands against hydrated runtimes without globally activating them.
@@ -45,6 +45,7 @@ Required for both UI and agents (most live in `.env`):
 
 - Gate G-A smoke: `mise run test-agent` (runs `agent/evals/smoke_g_a_v2.json`)
 - Gate G-B evals: `mise run test-agent` automatically covers ranking + streaming; regenerate evidence artifacts under `docs/readiness/`
+- When running tests or Supabase scripts directly, activate the env in the current shell first: `eval "$(mise env activate bash)"` so `.env` secrets (Supabase keys, API tokens) are loaded.
 - Frontend lint: `pnpm lint`
 - Planned future tests:
   - `pnpm test` / `pytest` once test suites land in `agent/tests/`
