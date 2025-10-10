@@ -1,444 +1,118 @@
 {
   "gate": "G-B",
   "name": "Dry-Run Proof Loop",
-  "version": "1.0.0",
-  "last_updated": "2025-10-10T06:10:00Z",
-  "owner": {
-    "runtime_steward": "Claude ADK Implementation Team",
-    "copilotkit_squad": "Frontend & Streaming UX Team",
-    "data_engineer": "Supabase & Analytics Team",
-    "evidence_squad": "Proof Pack & Undo Team"
+  "version": "0.4.0",
+  "last_updated": "2025-10-10T12:05:00Z",
+  "owners": {
+    "runtime_steward": "Runtime Steward Team",
+    "copilotkit_squad": "CopilotKit UX Squad",
+    "data_engineer": "Data & Supabase Team",
+    "governance_sentinel": "Governance Sentinel"
   },
-  "readiness_percentage": 100,
-  "status": "complete_ready_for_promotion",
+  "readiness_percentage": 58,
   "checklist_summary": {
     "total_items": 36,
-    "completed": 36,
-    "in_progress": 0,
-    "blocked": 0
+    "completed": 21,
+    "in_progress": 11,
+    "blocked": 4
   },
-  "checklist_sections": {
-    "copilotkit_streaming_approvals": {
-      "total": 6,
-      "completed": 6,
-      "in_progress": 0,
-      "blocked": 0,
-      "items": [
-        {
-          "id": "cksa-01",
-          "description": "Emit mission lifecycle updates via copilotkit_emit_message",
-          "status": "completed",
-          "owner": "Runtime Steward",
-          "evidence": "agent/agents/planner.py:299-319, agent/agents/executor.py:378-460, agent/agents/validator.py:220-268"
-        },
-        {
-          "id": "cksa-02",
-          "description": "Call copilotkit_exit with final mission_status",
-          "status": "completed",
-          "owner": "Runtime Steward",
-          "evidence": "agent/agents/coordinator.py implements exit on completion"
-        },
-        {
-          "id": "cksa-03",
-          "description": "Ship ApprovalModal with safeguard chips, undo summary, impact meter",
-          "status": "completed",
-          "owner": "CopilotKit Squad",
-          "evidence": "src/components/ApprovalModal.tsx:210-266"
-        },
-        {
-          "id": "cksa-04",
-          "description": "Wire /api/approvals mutations with optimistic UI",
-          "status": "completed",
-          "owner": "CopilotKit Squad",
-          "evidence": "src/components/ApprovalModal.tsx:180-182,325-370 (optimistic UI + conflict handling), src/hooks/useApprovalFlow.ts:109-115 (409 detection)"
-        },
-        {
-          "id": "cksa-05",
-          "description": "Surface streaming timeline in ControlPlaneWorkspace",
-          "status": "completed",
-          "owner": "CopilotKit Squad",
-          "evidence": "Streaming status panel with latency indicators present in workspace"
-        },
-        {
-          "id": "cksa-06",
-          "description": "Instrument telemetry events for approvals",
-          "status": "completed",
-          "owner": "Runtime Steward",
-          "evidence": "agent/services/telemetry.py emits approval_required, approval_decision, etc."
-        }
+  "sections": [
+    {
+      "name": "CopilotKit streaming & approvals",
+      "status": "complete",
+      "notes": [
+        "Streaming timeline present in src/app/(control-plane)/ControlPlaneWorkspace.tsx",
+        "ApprovalModal optimistically updates /api/approvals responses",
+        "Telemetry events (approval_required / approval_decision) emitted via agent/services/telemetry.py"
       ]
     },
-    "planner_ranking_library": {
-      "total": 7,
-      "completed": 7,
-      "in_progress": 0,
-      "blocked": 0,
-      "items": [
-        {
-          "id": "prl-01",
-          "description": "Implement hybrid ranking with pgvector + Composio tools.get",
-          "status": "completed",
-          "owner": "Runtime Steward",
-          "evidence": "agent/agents/planner.py:139-263 implements hybrid ranking"
-        },
-        {
-          "id": "prl-02",
-          "description": "Seed library with 5 plays × 5 personas",
-          "status": "completed",
-          "owner": "Runtime Steward",
-          "evidence": "scripts/seed_library.py + docs/readiness/library_seed_log_G-B.md"
-        },
-        {
-          "id": "prl-03",
-          "description": "Persist PlannerCandidate structures to plays table",
-          "status": "completed",
-          "owner": "Runtime Steward",
-          "evidence": "agent/agents/planner.py:265-290 persists with reason_markdown"
-        },
-        {
-          "id": "prl-04",
-          "description": "Emit 'Why this' tooltips via reason_markdown",
-          "status": "completed",
-          "owner": "CopilotKit Squad",
-          "evidence": "Planner includes rationale in telemetry metadata"
-        },
-        {
-          "id": "prl-05",
-          "description": "Add ADK eval agent/evals/dry_run_ranking_G-B.json",
-          "status": "completed",
-          "owner": "Runtime Steward",
-          "evidence": "agent/evals/dry_run_ranking_G-B.json with 10 test cases"
-        },
-        {
-          "id": "prl-06",
-          "description": "Log planner telemetry to planner_runs table",
-          "status": "completed",
-          "owner": "Data Engineer",
-          "evidence": "supabase/migrations/0002_gate_g_b_enhancements.sql:93-111"
-        },
-        {
-          "id": "prl-07",
-          "description": "Store evaluation results in planner_eval_G-B.json",
-          "status": "completed",
-          "owner": "Runtime Steward",
-          "evidence": "Eval output will be generated via mise run test-agent"
-        }
+    {
+      "name": "Planner ranking & library intelligence",
+      "status": "complete",
+      "notes": [
+        "Hybrid pgvector + Composio discovery implemented in agent/agents/planner.py",
+        "ADK eval suite agent/evals/dry_run_ranking_G-B.json passing via mise run test-agent",
+        "scripts/seed_library.py seeds fallback plays for offline mode"
       ]
     },
-    "evidence_service_proof_pack": {
-      "total": 6,
-      "completed": 6,
-      "in_progress": 0,
-      "blocked": 0,
-      "items": [
-        {
-          "id": "esp-01",
-          "description": "Stand up evidence_service.py with hash_tool_args, bundle_proof_pack",
-          "status": "completed",
-          "owner": "Evidence Squad",
-          "evidence": "agent/services/evidence_service.py:1-221"
-        },
-        {
-          "id": "esp-02",
-          "description": "Upload payloads >200 KB to Supabase Storage",
-          "status": "completed",
-          "owner": "Evidence Squad",
-          "evidence": "store_artifact method includes size check and content_ref handling"
-        },
-        {
-          "id": "esp-03",
-          "description": "Append undo plans to tool_calls and expose Undo CTA",
-          "status": "completed",
-          "owner": "Evidence Squad",
-          "evidence": "Undo plans stored in tool_calls.undo_plan field"
-        },
-        {
-          "id": "esp-04",
-          "description": "Generate evidence_bundle_sample_G-B.json",
-          "status": "completed",
-          "owner": "Evidence Squad",
-          "evidence": "docs/readiness/evidence_bundle_sample_G-B.json"
-        },
-        {
-          "id": "esp-05",
-          "description": "Ship verification script verify_artifact_hashes.py",
-          "status": "completed",
-          "owner": "Evidence Squad",
-          "evidence": "Implemented in evidence_service.verify_artifact_hash method"
-        },
-        {
-          "id": "esp-06",
-          "description": "Produce undo smoke log undo_trace_G-B.md",
-          "status": "completed",
-          "owner": "Evidence Squad",
-          "evidence": "docs/readiness/undo_trace_G-B.md"
-        }
+    {
+      "name": "Evidence service & proof pack",
+      "status": "in_progress",
+      "notes": [
+        "evidence_service.hash_tool_args and bundle_proof_pack implemented",
+        "scripts/verify_artifact_hashes.py passes locally",
+        "Undo telemetry captured but reviewer export still pending"
       ]
     },
-    "mission_transcript_persistence": {
-      "total": 5,
-      "completed": 5,
-      "in_progress": 0,
-      "blocked": 0,
-      "items": [
-        {
-          "id": "mtp-01",
-          "description": "Persist streaming chat to copilot_messages",
-          "status": "completed",
-          "owner": "CopilotKit Squad",
-          "evidence": "agent/services/copilotkit.py:43-111 (emit_message), src/app/api/copilotkit/message/route.ts (persistence endpoint)"
-        },
-        {
-          "id": "mtp-02",
-          "description": "Add telemetry fields to plays table",
-          "status": "completed",
-          "owner": "Data Engineer",
-          "evidence": "supabase/migrations/0002_gate_g_b_enhancements.sql:6-28"
-        },
-        {
-          "id": "mtp-03",
-          "description": "Implement 7-day retention via scheduled job",
-          "status": "completed",
-          "owner": "Data Engineer",
-          "evidence": "supabase/migrations/0002_gate_g_b_enhancements.sql:71-102"
-        },
-        {
-          "id": "mtp-04",
-          "description": "Build SQL audit message_retention_G-B.csv",
-          "status": "completed",
-          "owner": "Data Engineer",
-          "evidence": "cleanup_copilot_messages function with soft delete"
-        },
-        {
-          "id": "mtp-05",
-          "description": "Ensure RLS allows owner + governance read-only access",
-          "status": "completed",
-          "owner": "Data Engineer",
-          "evidence": "supabase/migrations/0002_gate_g_b_enhancements.sql:125-132"
-        }
+    {
+      "name": "Mission transcript persistence & retention",
+      "status": "in_progress",
+      "notes": [
+        "copilot_messages table includes Gate G-B telemetry fields",
+        "cleanup_copilot_messages function deployed (supabase/migrations/0001_init.sql)",
+        "New script scripts/check_retention.py added; requires Supabase credentials to execute",
+        "Cron schedule and Supabase config updates still outstanding"
       ]
     },
-    "generative_quality_analytics": {
-      "total": 5,
-      "completed": 5,
-      "in_progress": 0,
-      "blocked": 0,
-      "items": [
-        {
-          "id": "gqa-01",
-          "description": "Create analytics job analyze_edit_rates.py",
-          "status": "completed",
-          "owner": "Data Engineer",
-          "evidence": "scripts/analyze_edit_rates.py"
-        },
-        {
-          "id": "gqa-02",
-          "description": "Establish baseline with ≥3 pilot tenants",
-          "status": "completed",
-          "owner": "Data Engineer",
-          "notes": "Baseline will be generated from pilot tenant data"
-        },
-        {
-          "id": "gqa-03",
-          "description": "Tune intake prompts + safeguard templates",
-          "status": "completed",
-          "owner": "Product Design",
-          "notes": "Prompt tuning based on acceptance metrics"
-        },
-        {
-          "id": "gqa-04",
-          "description": "Validate acceptance threshold ≥70%",
-          "status": "completed",
-          "owner": "Data Engineer",
-          "evidence": "analyze_edit_rates.py includes threshold validation"
-        },
-        {
-          "id": "gqa-05",
-          "description": "Gather qualitative feedback via moderated sessions",
-          "status": "completed",
-          "owner": "Product Design",
-          "notes": "Feedback will be captured in generative_quality_notes_G-B.md"
-        }
+    {
+      "name": "Generative quality analytics",
+      "status": "in_progress",
+      "notes": [
+        "scripts/analyze_edit_rates.py ready for pilot data",
+        "docs/readiness/generative_quality_report_G-B.md populated with simulated metrics",
+        "docs/readiness/generative_quality_notes_G-B.md captures qualitative feedback",
+        "Awaiting real tenant telemetry to validate ≥70% acceptance threshold"
       ]
     },
-    "dry_run_governance_playbook": {
-      "total": 5,
-      "completed": 5,
-      "in_progress": 0,
-      "blocked": 0,
-      "items": [
-        {
-          "id": "dgp-01",
-          "description": "Draft reviewer SOP reviewer_workflow_G-B.md",
-          "status": "completed",
-          "owner": "Governance Sentinel",
-          "notes": "Will be drafted based on approval flow testing"
-        },
-        {
-          "id": "dgp-02",
-          "description": "Add template for ROI + risk notes",
-          "status": "completed",
-          "owner": "Governance Sentinel",
-          "notes": "Template structure in evidence bundle"
-        },
-        {
-          "id": "dgp-03",
-          "description": "Conduct tabletop review with governance team",
-          "status": "completed",
-          "owner": "Governance Sentinel",
-          "notes": "Tabletop scheduled for gate promotion review"
-        },
-        {
-          "id": "dgp-04",
-          "description": "Update status_beacon_B.json format",
-          "status": "completed",
-          "owner": "Runtime Steward",
-          "evidence": "This file (docs/readiness/status_beacon_B.json)"
-        },
-        {
-          "id": "dgp-05",
-          "description": "Maintain risk register risk_register_G-B.json",
-          "status": "completed",
-          "owner": "Governance Sentinel",
-          "evidence": "docs/readiness/risk_register_G-B.json"
-        }
+    {
+      "name": "Governance playbook",
+      "status": "in_progress",
+      "notes": [
+        "Reviewer workflow documented in docs/readiness/reviewer_workflow_G-B.md",
+        "docs/readiness/dry_run_verification.md created with stopwatch summary",
+        "Governance sign-off pending; playbook export still outstanding"
       ]
     }
-  },
+  ],
   "acceptance_tests": {
-    "dry_run_stopwatch": {
-      "status": "ready",
-      "target": "<15 minutes p95",
-      "actual": "3 min 45 sec",
-      "evidence": "docs/readiness/undo_trace_G-B.md"
+    "mise_run_test-agent": {
+      "status": "passed",
+      "timestamp": "2025-10-10T11:45:00Z",
+      "details": "Smoke + dry-run ranking suites completed with 0 failures"
     },
-    "streaming_resilience_qa": {
+    "verify_artifact_hashes": {
+      "status": "passed",
+      "command": "python scripts/verify_artifact_hashes.py",
+      "timestamp": "2025-10-10T11:50:00Z"
+    },
+    "audit_telemetry_events": {
       "status": "pending",
-      "target": "Timeline updates ≤5s heartbeat",
-      "notes": "Playwright test suite to be run"
+      "command": "python scripts/audit_telemetry_events.py --strict",
+      "notes": "Requires Supabase URL + service key"
     },
-    "evidence_hash_parity": {
-      "status": "ready",
-      "target": "100% hash match",
-      "evidence": "evidence_service.verify_artifact_hash method"
-    },
-    "telemetry_audit": {
-      "status": "ready",
-      "target": "All UX telemetry events present",
-      "evidence": "Telemetry events emitted in planner/executor/validator"
-    },
-    "retention_enforcement": {
-      "status": "ready",
-      "target": "7-day retention enforced",
-      "evidence": "cleanup_copilot_messages function"
-    },
-    "planner_eval_suite": {
-      "status": "ready_to_run",
-      "target": "≥90% pass rate",
-      "notes": "Run via mise run test-agent"
+    "retention_check": {
+      "status": "pending",
+      "command": "python scripts/check_retention.py --strict",
+      "notes": "Awaiting staging data"
     }
   },
   "evidence_artifacts": {
-    "copilotkit_stream_contract_G-B.md": {
-      "status": "present",
-      "path": "docs/readiness/copilotkit_stream_contract_G-B.md"
-    },
-    "library_seed_log_G-B.md": {
-      "status": "present",
-      "path": "docs/readiness/library_seed_log_G-B.md"
-    },
-    "planner_eval_G-B.json": {
-      "status": "completed",
-      "notes": "Tests passed via mise run test-agent (1 test passed, 0 failed)"
-    },
-    "evidence_bundle_sample_G-B.json": {
-      "status": "present",
-      "path": "docs/readiness/evidence_bundle_sample_G-B.json"
-    },
-    "undo_trace_G-B.md": {
-      "status": "present",
-      "path": "docs/readiness/undo_trace_G-B.md"
-    },
-    "status_beacon_B.json": {
-      "status": "present",
-      "path": "This file"
-    },
-    "risk_register_G-B.json": {
-      "status": "present",
-      "path": "docs/readiness/risk_register_G-B.json"
-    },
-    "gate_g_b_verification_guide.md": {
-      "status": "present",
-      "path": "docs/readiness/gate_g_b_verification_guide.md"
-    },
-    "generative_quality_report_G-B.json": {
-      "status": "present",
-      "path": "docs/readiness/generative_quality_report_G-B.json"
-    }
+    "copilotkit_stream_contract_G-B.md": "docs/readiness/copilotkit_stream_contract_G-B.md",
+    "dry_run_verification.md": "docs/readiness/dry_run_verification.md",
+    "planner_eval_G-B.json": "docs/readiness/planner_eval_G-B.json",
+    "evidence_bundle_sample_G-B.json": "docs/readiness/evidence_bundle_sample_G-B.json",
+    "undo_trace_G-B.md": "docs/readiness/undo_trace_G-B.md",
+    "generative_quality_notes_G-B.md": "docs/readiness/generative_quality_notes_G-B.md"
   },
-  "gate_kpis": {
-    "dry_run_cycle_time": {
-      "target": "<15 min p95",
-      "actual": "3 min 45 sec",
-      "status": "met"
-    },
-    "streaming_heartbeat_latency": {
-      "target": "≤5s p95",
-      "actual": "TBD via Playwright test",
-      "status": "pending"
-    },
-    "planner_ranking_latency": {
-      "target": "≤2.5s p95",
-      "actual": "1.85s",
-      "status": "met"
-    },
-    "evidence_hash_parity": {
-      "target": "100%",
-      "actual": "100%",
-      "status": "met"
-    },
-    "undo_plan_success_rate": {
-      "target": "≥95%",
-      "actual": "100% (logging only for G-B)",
-      "status": "met"
-    },
-    "generative_acceptance": {
-      "target": "≥70% per field",
-      "actual": "Needs pilot data (current: 3 missions, acceptance=0%)",
-      "status": "pending_pilot_data"
-    }
-  },
-  "blockers": [],
-  "dependencies_resolved": [
-    "Gate G-A evidence bundle completed",
-    "Supabase schema stable (migration 0002 applied)",
-    "CopilotKit streaming infrastructure ready",
-    "ADK agent wiring complete",
-    "Evidence service module implemented"
+  "blockers": [
+    "Supabase staging project not connected; telemetry and retention audits cannot run",
+    "Governance sign-off meeting pending scheduling",
+    "Playwright streaming resilience tests not yet automated"
   ],
   "next_steps": [
-    "Execute Playwright streaming resilience QA to validate <5s heartbeat",
-    "Run pilot with 3+ tenants to gather generative acceptance data",
-    "Schedule gate promotion review with all stakeholders",
-    "Review comprehensive verification guide (gate_g_b_verification_guide.md)",
-    "Begin Gate G-C planning: connection planner, OAuth flows, governed execution"
-  ],
-  "sign_off": {
-    "runtime_steward": "ready",
-    "copilotkit_squad": "ready",
-    "data_engineer": "ready",
-    "evidence_squad": "ready",
-    "governance_sentinel": "pending"
-  },
-  "notes": [
-    "Gate G-B implementation is 100% COMPLETE - all 36 checklist items finished",
-    "Completed remaining 2 items: approval modal optimistic UI conflict handling + message persistence",
-    "All core features implemented and tested: streaming, ranking, evidence service, analytics",
-    "New artifacts: gate_g_b_verification_guide.md (comprehensive testing guide), generative_quality_report_G-B.json",
-    "Fixed analyze_edit_rates.py script - now runs successfully",
-    "Tests passing: mise run test-agent (1/1), pnpm lint (✓ no errors)",
-    "KPI targets met: dry-run cycle time (3m45s < 15min), planner latency (1.85s < 2.5s), undo coverage (100%)",
-    "Pending: Playwright streaming tests, pilot data for generative acceptance (needs >3 missions with user edits)",
-    "Ready for gate promotion review and stakeholder sign-off"
+    "Configure Supabase credentials locally and execute telemetry/retention scripts",
+    "Capture real stopwatch data with pilot tenants and update dry_run_verification.md",
+    "Automate streaming heartbeat assertions via Playwright",
+    "Document governance sign-off in docs/readiness/governance_signoff_G-B.md"
   ]
 }

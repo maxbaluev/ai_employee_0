@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createHash } from "crypto";
 
-import type { Database } from "@supabase/types";
+import type { Json, TablesInsert } from "@supabase/types";
 import { getRouteHandlerSupabaseClient } from "@/lib/supabase/server";
 
 type ToolkitSelection = {
@@ -13,7 +13,10 @@ type ToolkitSelection = {
   noAuth: boolean;
 };
 
-function resolveTenantId(candidate: string | null, sessionTenantId: string | undefined) {
+function resolveTenantId(
+  candidate: string | null,
+  sessionTenantId: string | undefined,
+) {
   if (candidate && candidate.trim()) {
     return candidate.trim();
   }
@@ -34,7 +37,11 @@ function resolveTenantId(candidate: string | null, sessionTenantId: string | und
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { missionId, tenantId: tenantFromBody, selections } = body as {
+    const {
+      missionId,
+      tenantId: tenantFromBody,
+      selections,
+    } = body as {
       missionId: string;
       tenantId?: string;
       selections: ToolkitSelection[];
@@ -48,7 +55,10 @@ export async function POST(req: NextRequest) {
     }
 
     if (!Array.isArray(selections)) {
-      return NextResponse.json({ error: "selections must be an array" }, { status: 400 });
+      return NextResponse.json(
+        { error: "selections must be an array" },
+        { status: 400 },
+      );
     }
 
     const supabase = await getRouteHandlerSupabaseClient();
@@ -88,27 +98,31 @@ export async function POST(req: NextRequest) {
 
     // Insert new selections
     if (selections.length > 0) {
-      const rows = selections.map((sel) => ({
-        mission_id: missionId,
-        tenant_id: tenantId,
-        hint_type: "toolkit_recommendation",
-        suggested_value: {
-          slug: sel.slug,
-          name: sel.name,
-          authType: sel.authType,
-          category: sel.category,
-          logo: sel.logo,
-          noAuth: sel.noAuth,
-        },
-        status: "accepted",
-        source: "user_selection",
-        generation_count: 0,
-        accepted_at: new Date().toISOString(),
-      }));
+      const rows = selections.map(
+        (sel): TablesInsert<"mission_safeguards"> => ({
+          mission_id: missionId,
+          tenant_id: tenantId,
+          hint_type: "toolkit_recommendation",
+          suggested_value: {
+            slug: sel.slug,
+            name: sel.name,
+            authType: sel.authType,
+            category: sel.category,
+            logo: sel.logo,
+            noAuth: sel.noAuth,
+          } satisfies Json,
+          status: "accepted",
+          source: "user_selection",
+          generation_count: 0,
+          accepted_at: new Date().toISOString(),
+        }),
+      );
 
       const { error: insertError } = await supabase
         .from("mission_safeguards")
-        .insert(rows as Database["public"]["Tables"]["mission_safeguards"]["Insert"][]);
+        // Supabase's auth helper currently erases insert payload typing; cast to
+        // `never` once we've validated the structure via `TablesInsert` above.
+        .insert(rows as never);
 
       if (insertError) {
         console.error("Insert error:", insertError);
@@ -128,7 +142,8 @@ export async function POST(req: NextRequest) {
       (item) => !previousSelections.some((prev) => prev.slug === item.slug),
     );
     const removed = previousSelections.filter(
-      (item) => !appliedSelections.some((current) => current.slug === item.slug),
+      (item) =>
+        !appliedSelections.some((current) => current.slug === item.slug),
     );
 
     const authBreakdown = appliedSelections.reduce(
@@ -166,7 +181,7 @@ export async function POST(req: NextRequest) {
       const missionValue = isUuid(missionId) ? missionId : null;
 
       try {
-        await supabase.from("mission_events").insert([
+        const events: TablesInsert<"mission_events">[] = [
           {
             tenant_id: tenantId,
             mission_id: missionValue,
@@ -175,17 +190,25 @@ export async function POST(req: NextRequest) {
               ...payload,
               total_selected: appliedSelections.length,
               timestamp: new Date().toISOString(),
-            },
+            } as Json,
           },
           {
             tenant_id: tenantId,
             mission_id: missionValue,
             event_name: "toolkit_suggestion_applied",
-            event_payload: payload,
+            event_payload: payload as Json,
           },
-        ] as Database["public"]["Tables"]["mission_events"]["Insert"][]);
+        ];
+
+        await supabase
+          .from("mission_events")
+          // see note above re: helper generics producing `never` at call sites
+          .insert(events as never);
       } catch (telemetryError) {
-        console.warn("Failed to emit toolkit selection telemetry", telemetryError);
+        console.warn(
+          "Failed to emit toolkit selection telemetry",
+          telemetryError,
+        );
       }
     }
 
@@ -196,8 +219,13 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error("Error persisting toolkit selections:", error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to persist selections" },
-      { status: 500 }
+      {
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to persist selections",
+      },
+      { status: 500 },
     );
   }
 }
@@ -227,9 +255,12 @@ function normaliseSelections(rows: Array<{ suggested_value: unknown }>): Array<{
     if (!slug || !name) {
       return acc;
     }
-    const authType = typeof value.authType === "string" ? value.authType : "oauth";
-    const category = typeof value.category === "string" ? value.category : "general";
-    const noAuth = typeof value.noAuth === "boolean" ? value.noAuth : authType === "none";
+    const authType =
+      typeof value.authType === "string" ? value.authType : "oauth";
+    const category =
+      typeof value.category === "string" ? value.category : "general";
+    const noAuth =
+      typeof value.noAuth === "boolean" ? value.noAuth : authType === "none";
     acc.push({
       slug,
       name,

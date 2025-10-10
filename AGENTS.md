@@ -40,6 +40,7 @@ Required for both UI and agents (most live in `.env`):
 ## 4. Supabase CLI Workflow
 
 - Use supabase cli for supabase manipulations like migrations.
+- After any schema change, regenerate the shared TypeScript types from the linked Supabase project: `supabase gen types typescript --linked --schema public,auth,storage > supabase/types.ts` (run inside `eval "$(mise env activate bash)"`).
 
 ## 5. Testing Expectations
 

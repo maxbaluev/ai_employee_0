@@ -57,7 +57,7 @@ class SupabaseClient:
                 "apikey": self._api_key,
                 "Authorization": f"Bearer {self._api_key}",
                 "Cache-Control": "no-cache",
-            },
+            },  q 
         )
         try:
             with urllib.request.urlopen(request, timeout=10) as response:
