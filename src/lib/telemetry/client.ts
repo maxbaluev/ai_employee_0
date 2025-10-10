@@ -1,5 +1,7 @@
 "use client";
 
+import { redactTelemetryEvent } from './redaction';
+
 export type TelemetryEventPayload = {
   eventName: string;
   missionId?: string | null;
@@ -16,15 +18,17 @@ export async function sendTelemetryEvent(
   }
 
   try {
+    const safePayload = {
+      tenantId,
+      eventName: payload.eventName,
+      missionId: payload.missionId ?? undefined,
+      eventData: payload.eventData ? redactTelemetryEvent(payload.eventData) : {},
+    };
+
     await fetch('/api/intake/events', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        tenantId,
-        eventName: payload.eventName,
-        missionId: payload.missionId ?? undefined,
-        eventData: payload.eventData ?? {},
-      }),
+      body: JSON.stringify(safePayload),
     });
   } catch (error) {
     console.warn('[telemetry] Failed to emit event', error);

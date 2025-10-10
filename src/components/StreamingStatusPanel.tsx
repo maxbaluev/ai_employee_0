@@ -12,6 +12,8 @@ type StreamingStatusPanelProps = {
   sessionIdentifier: string | null | undefined;
   pollIntervalMs?: number;
   onReviewerRequested?: (event: TimelineMessage) => void;
+  onPlanComplete?: () => void;
+  onDryRunComplete?: () => void;
 };
 
 const STATUS_CLASSES: Record<string, string> = {
@@ -147,10 +149,14 @@ export function StreamingStatusPanel({
   sessionIdentifier,
   pollIntervalMs,
   onReviewerRequested,
+  onPlanComplete,
+  onDryRunComplete,
 }: StreamingStatusPanelProps) {
   const [isPaused, setIsPaused] = useState(false);
   const [expandedEvents, setExpandedEvents] = useState<Set<string>>(() => new Set());
   const reviewerAlertRef = useRef<string | null>(null);
+  const dryRunCompleteRef = useRef<boolean>(false);
+  const planCompleteRef = useRef<boolean>(false);
 
   const { events, isLoading, error, refresh, lastUpdated, exitInfo, heartbeatSeconds, lastEventAt } = useTimelineEvents({
     agentId,
@@ -236,8 +242,38 @@ export function StreamingStatusPanel({
     handleReviewerNotify(latestReviewerEvent);
   }, [handleReviewerNotify, latestReviewerEvent]);
 
+  // Monitor exit status for dry run completion
+  useEffect(() => {
+    if (!exitInfo || !onDryRunComplete) {
+      return;
+    }
+
+    // Only trigger once when mission completes successfully
+    if (exitInfo.missionStatus === 'completed' && !dryRunCompleteRef.current) {
+      dryRunCompleteRef.current = true;
+      onDryRunComplete();
+    }
+  }, [exitInfo, onDryRunComplete]);
+
+  useEffect(() => {
+    if (!onPlanComplete) {
+      return;
+    }
+
+    const hasPlannerCompletion = events.some(
+      (event) => event.stage === 'planner_rank_complete' && event.status === 'complete',
+    );
+
+    if (hasPlannerCompletion && !planCompleteRef.current) {
+      planCompleteRef.current = true;
+      onPlanComplete();
+    }
+  }, [events, onPlanComplete]);
+
   useEffect(() => {
     setExpandedEvents(new Set<string>());
+    dryRunCompleteRef.current = false;
+    planCompleteRef.current = false;
   }, [sessionIdentifier]);
 
   const hasSession = Boolean(sessionIdentifier);

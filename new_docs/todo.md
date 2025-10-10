@@ -426,12 +426,12 @@ Gate G-B delivers a structured workflow from intake to feedback:
 
 **Location:** `src/app/(control-plane)/ControlPlaneWorkspace.tsx`, stage-specific components
 
-- [ ] **Implement stage progression state machine**: Refactor workspace to track eight stages (Intake → Brief → Toolkits → Inspect → Plan → Dry-Run → Evidence → Feedback) with clear stage transitions per workflow.md §1.
+- [x] **Implement stage progression state machine**: Refactor workspace to track eight stages (Intake → Brief → Toolkits → Inspect → Plan → Dry-Run → Evidence → Feedback) with clear stage transitions per workflow.md §1.
   - **Acceptance:** Workspace state includes `currentStage` enum; navigation between stages validated; cannot skip required stages.
   - **Evidence:** Unit tests for state machine transitions; stage progression logged to telemetry.
   - **File references:** `src/app/(control-plane)/ControlPlaneWorkspace.tsx:useMissionStage hook`, stage components.
 
-- [ ] **Add stage-specific telemetry events**: Emit stage transition events matching workflow.md §12 catalog (e.g., `stage_intake_completed`, `stage_toolkits_started`, `stage_plan_validated`).
+- [x] **Add stage-specific telemetry events**: Emit stage transition events matching workflow.md §12 catalog (e.g., `stage_intake_completed`, `stage_toolkits_started`, `stage_plan_validated`).
   - **Acceptance:** All eight stages emit start/complete/failed events; payloads include stage name, duration, mission_id.
   - **Evidence:** Telemetry audit CSV showing all stage events; dashboard displays stage funnel.
   - **File references:** `src/lib/telemetry.ts`, stage transition hooks.

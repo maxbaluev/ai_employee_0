@@ -5,9 +5,11 @@ import { useCopilotAction, useCopilotReadable } from "@copilotkit/react-core";
 import { CopilotSidebar, type CopilotKitCSSProperties } from "@copilotkit/react-ui";
 
 import { ApprovalModal } from "@/components/ApprovalModal";
+import { CoverageMeter } from "@/components/CoverageMeter";
 import { MissionIntake } from "@/components/MissionIntake";
 import { RecommendedToolkits } from "@/components/RecommendedToolkits";
 import { StreamingStatusPanel } from "@/components/StreamingStatusPanel";
+import { MissionStageProvider, MissionStageProgress, MissionStage, useMissionStages } from "@/components/mission-stages";
 import type { TimelineMessage } from "@/hooks/useTimelineEvents";
 import { useApprovalFlow } from "@/hooks/useApprovalFlow";
 import type { ApprovalSubmission } from "@/hooks/useApprovalFlow";
@@ -46,12 +48,13 @@ type AcceptedIntakePayload = {
 const AGENT_ID = "control_plane_foundation";
 const SESSION_RETENTION_MINUTES = 60 * 24 * 7; // 7 days
 
-export function ControlPlaneWorkspace({
+function ControlPlaneWorkspaceContent({
   tenantId,
   initialObjectiveId,
   initialArtifacts,
   catalogSummary,
 }: ControlPlaneWorkspaceProps) {
+  const { currentStage, stages, markStageCompleted } = useMissionStages();
   const [themeColor, setThemeColor] = useState("#4f46e5");
   const [artifacts, setArtifacts] = useState<Artifact[]>(initialArtifacts);
   const [objectiveId, setObjectiveId] = useState<string | undefined | null>(initialObjectiveId);
@@ -59,6 +62,13 @@ export function ControlPlaneWorkspace({
   const [workspaceAlert, setWorkspaceAlert] = useState<
     { tone: "success" | "error" | "info"; message: string } | null
   >(null);
+  const [selectedToolkitsCount, setSelectedToolkitsCount] = useState(0);
+
+  useEffect(() => {
+    if (!objectiveId) {
+      setSelectedToolkitsCount(0);
+    }
+  }, [objectiveId]);
 
   const sessionIdentifierRef = useRef<string>(
     typeof crypto !== "undefined" && "randomUUID" in crypto
@@ -366,6 +376,63 @@ export function ControlPlaneWorkspace({
     [artifacts, syncCopilotSession],
   );
 
+  const markStageIfNeeded = useCallback(
+    (stage: MissionStage) => {
+      const status = stages.get(stage);
+      if (!status || status.state === "completed" || status.state === "failed") {
+        return;
+      }
+      markStageCompleted(stage);
+    },
+    [stages, markStageCompleted],
+  );
+
+  const handleIntakeAdvance = useCallback(() => {
+    markStageIfNeeded(MissionStage.Intake);
+    markStageIfNeeded(MissionStage.Brief);
+  }, [markStageIfNeeded]);
+
+  const handleToolkitsAdvance = useCallback(() => {
+    markStageIfNeeded(MissionStage.Brief);
+    markStageIfNeeded(MissionStage.Toolkits);
+  }, [markStageIfNeeded]);
+
+  const handleInspectionComplete = useCallback(() => {
+    markStageIfNeeded(MissionStage.Inspect);
+  }, [markStageIfNeeded]);
+
+  const handlePlanComplete = useCallback(() => {
+    markStageIfNeeded(MissionStage.Plan);
+  }, [markStageIfNeeded]);
+
+  const handleDryRunComplete = useCallback(() => {
+    markStageIfNeeded(MissionStage.Plan);
+    markStageIfNeeded(MissionStage.DryRun);
+  }, [markStageIfNeeded]);
+
+  const handleToolkitSelectionChange = useCallback((count: number) => {
+    setSelectedToolkitsCount(count);
+  }, []);
+
+  useEffect(() => {
+    if (!artifacts.length) {
+      return;
+    }
+    const evidenceStatus = stages.get(MissionStage.Evidence);
+    if (evidenceStatus?.state === "active") {
+      markStageIfNeeded(MissionStage.Evidence);
+    }
+  }, [artifacts, stages, markStageIfNeeded]);
+
+  const showCoverageMeter = useMemo(() => {
+    const inspectStatus = stages.get(MissionStage.Inspect);
+    const toolkitStatus = stages.get(MissionStage.Toolkits);
+    if (inspectStatus && inspectStatus.state !== "pending") {
+      return true;
+    }
+    return toolkitStatus?.state === "completed";
+  }, [stages]);
+
   return (
     <main
       style={{ "--copilot-kit-primary-color": themeColor } as CopilotKitCSSProperties}
@@ -406,13 +473,30 @@ export function ControlPlaneWorkspace({
         </div>
       )}
 
-      <MissionIntake tenantId={tenantId} objectiveId={objectiveId ?? null} onAccept={handleIntakeAccept} />
+      <MissionStageProgress />
+
+      <MissionIntake
+        tenantId={tenantId}
+        objectiveId={objectiveId ?? null}
+        onAccept={handleIntakeAccept}
+        onStageAdvance={handleIntakeAdvance}
+      />
 
       <RecommendedToolkits
         tenantId={tenantId}
         missionId={objectiveId ?? null}
         onAlert={setWorkspaceAlert}
+        onStageAdvance={handleToolkitsAdvance}
+        onSelectionChange={handleToolkitSelectionChange}
       />
+
+      {showCoverageMeter && (
+        <CoverageMeter
+          selectedToolkitsCount={selectedToolkitsCount}
+          hasArtifacts={artifacts.length > 0}
+          onComplete={handleInspectionComplete}
+        />
+      )}
 
       <div className="flex grow flex-col lg:flex-row">
         <section className="flex w-full flex-col gap-6 border-b border-white/10 px-6 py-8 lg:w-2/5 lg:border-r lg:border-b-0">
@@ -503,6 +587,8 @@ export function ControlPlaneWorkspace({
           sessionIdentifier={sessionIdentifier}
           pollIntervalMs={5000}
           onReviewerRequested={handleReviewerRequested}
+          onPlanComplete={handlePlanComplete}
+          onDryRunComplete={handleDryRunComplete}
         />
 
         <section className="flex w-full flex-col bg-slate-950/70 lg:w-1/5">
@@ -545,6 +631,14 @@ export function ControlPlaneWorkspace({
         latestDecision={approvalFlow.latestDecision}
       />
     </main>
+  );
+}
+
+export function ControlPlaneWorkspace(props: ControlPlaneWorkspaceProps) {
+  return (
+    <MissionStageProvider tenantId={props.tenantId} missionId={props.initialObjectiveId ?? null}>
+      <ControlPlaneWorkspaceContent {...props} />
+    </MissionStageProvider>
   );
 }
 

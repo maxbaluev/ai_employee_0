@@ -26,9 +26,11 @@ type RecommendedToolkitsProps = {
   tenantId: string;
   missionId: string | null;
   onAlert?: (alert: { tone: "success" | "error" | "info"; message: string }) => void;
+  onStageAdvance?: () => void;
+  onSelectionChange?: (count: number) => void;
 };
 
-export function RecommendedToolkits({ tenantId, missionId, onAlert }: RecommendedToolkitsProps) {
+export function RecommendedToolkits({ tenantId, missionId, onAlert, onStageAdvance, onSelectionChange }: RecommendedToolkitsProps) {
   const [toolkits, setToolkits] = useState<ToolkitMetadata[]>([]);
   const [selectedSlugs, setSelectedSlugs] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
@@ -54,7 +56,9 @@ export function RecommendedToolkits({ tenantId, missionId, onAlert }: Recommende
 
       const data = await response.json();
       setToolkits(data.toolkits || []);
-      setSelectedSlugs(new Set(data.selected || []));
+      const initialSelections = new Set<string>(data.selected || []);
+      setSelectedSlugs(initialSelections);
+      onSelectionChange?.(initialSelections.size);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to load toolkits";
       setError(message);
@@ -76,6 +80,7 @@ export function RecommendedToolkits({ tenantId, missionId, onAlert }: Recommende
       } else {
         next.add(slug);
       }
+      onSelectionChange?.(next.size);
       return next;
     });
   };
@@ -121,6 +126,9 @@ export function RecommendedToolkits({ tenantId, missionId, onAlert }: Recommende
         tone: "success",
         message: `Saved ${selections.length} toolkit recommendation(s)`,
       });
+
+      // Notify stage advancement after successful save
+      onStageAdvance?.();
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to save selections";
       onAlert?.({ tone: "error", message });

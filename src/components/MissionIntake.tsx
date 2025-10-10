@@ -34,9 +34,10 @@ type MissionIntakeProps = {
   tenantId: string;
   objectiveId?: string | null;
   onAccept: (payload: AcceptedIntakePayload) => Promise<void> | void;
+  onStageAdvance?: () => void;
 };
 
-export function MissionIntake({ tenantId, objectiveId, onAccept }: MissionIntakeProps) {
+export function MissionIntake({ tenantId, objectiveId, onAccept, onStageAdvance }: MissionIntakeProps) {
   const [rawInput, setRawInput] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -264,13 +265,16 @@ export function MissionIntake({ tenantId, objectiveId, onAccept }: MissionIntake
           : prev,
       );
       setLocalEdits(new Set());
+
+      // Notify stage advancement after successful acceptance
+      onStageAdvance?.();
     } catch (error) {
       console.error('[MissionIntake] accept failed', error);
       setErrorMessage(error instanceof Error ? error.message : 'Failed to accept mission intake');
     } finally {
       setIsGenerating(false);
     }
-  }, [intakeState, onAccept, tenantId]);
+  }, [intakeState, onAccept, onStageAdvance, tenantId]);
 
   const handleReset = useCallback(async () => {
     setIntakeState(null);
