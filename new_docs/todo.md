@@ -1,8 +1,9 @@
 # AI Employee Control Plane — Agent Implementation Roadmap
 
-**Version:** 1.1 (October 8, 2025)
+**Version:** 1.2 (October 10, 2025)
 **Audience:** Coding agents, runtime stewards, implementation squads
 **Status:** Active gate-by-gate execution tracker
+**Current Focus:** Gate G-B · Dry-Run Proof (Eight-Stage Flow)
 
 ---
 
@@ -191,18 +192,50 @@ This roadmap governs all implementation work from zero-privilege proofs to gover
 
 ---
 
-## Gate G-B — Dry-Run Proof Loop
+## Gate G-B — Dry-Run Proof (Eight-Stage Flow)
 
-**Mission Question:** Can stakeholders receive high-quality drafts with full telemetry in <15 minutes and observe agent reasoning live?
+**Mission Question:** Can stakeholders receive high-quality drafts with full telemetry in <15 minutes through a governed eight-stage workflow while observing agent reasoning live?
 
 **Key References:**
 
-- Architecture §3.1 (workspace), §3.2 (orchestration), §3.5 (evidence), §4.1 (dry-run flow): [architecture.md](./architecture.md)
+- Architecture §3.1 (workspace), §3.2 (orchestration), §3.5 (evidence), §4.0-4.4 (eight-stage flows): [architecture.md](./architecture.md)
 - PRD §5 (Dry-run proof packs), §6 (metrics), §7 (operational safety): [prd.md](./prd.md)
 - UX blueprint §§4–8 (workspace anatomy, approvals, safeguards), §10 (telemetry): [ux.md](./ux.md)
+- Workflow specification: [workflow.md](./workflow.md) §1 (Eight-Stage Flow), §3-8 (Stage-specific workflows)
 - Partner packs: CopilotKit streaming + interrupt docs (`libs_docs/copilotkit/llms-full.txt`), Composio discovery guidance (`libs_docs/composio/llms.txt`), ADK evaluation patterns (`libs_docs/adk/llms-full.txt`), Supabase retention guidance (`libs_docs/supabase/llms_docs.txt`)
 
 **Gate Barometer:** 0 → 1 for **zero-privilege mission proof of value** (drafts + telemetry) prior to Gate G-C activation work.
+
+**Badge:** Gate G-B · Dry-Run Proof
+
+### Eight-Stage Flow Summary
+
+Gate G-B delivers a structured workflow from intake to feedback:
+
+1. **Intake** – Single-input banner generates chips via Gemini (no fallback state)
+   - Acceptance: Chips persisted to `mission_metadata` with confidence scores
+   - No fallback UI; all content generated or user-edited
+2. **Mission Brief** – Accepted chips persist in Supabase; brief card remains pinned
+   - Acceptance: Brief locked in `objectives` table; safeguards generated
+   - Mission context available to all downstream stages
+3. **Toolkits & Connect** – User-curated Composio palette with inspection preview and Connect Link auth
+   - Acceptance: Toolkit selections stored in `toolkit_selections` or `mission_safeguards`
+   - OAuth tokens encrypted in `oauth_tokens` via Connect Link
+4. **Data Inspect** – MCP draft calls validate coverage/freshness; coverage meter communicates readiness
+   - Acceptance: Inspection findings stored in `inspection_findings`
+   - Coverage meter shows ≥85% readiness threshold
+5. **Plan** – Planner insight rail streams rationale; user selects ranked plays with impact/risk/undo
+   - Acceptance: Plays persisted to `plays` with rationale and confidence
+   - User selection logged with `play_selected` telemetry
+6. **Dry-Run** – Streaming status panel narrates planner → executor → validator loop; heartbeat + logs
+   - Acceptance: Completes in <15 min p95; streaming heartbeat <5s p95
+   - Status updates via `copilotkit_emit_message`; exit via `copilotkit_exit`
+7. **Evidence** – Artifact gallery surfaces proof pack, ROI, undo bar
+   - Acceptance: Artifacts stored with SHA-256 hash verification
+   - Undo plan validated; rollback UI available for 24 hours
+8. **Feedback** – Per-artifact ratings, mission feedback, learning signals feeding next runs
+   - Acceptance: Feedback persisted to `mission_feedback` and `artifacts`
+   - Learning signals feed analytics and future planner ranking
 
 ### Checklist
 
@@ -281,7 +314,7 @@ This roadmap governs all implementation work from zero-privilege proofs to gover
 **Required Tests & Audits:**
 
 1. **Dry-run stopwatch:** Execute 3 persona scenarios (Revenue, Support, Finance) using seeded missions; record timestamps from intent submission to evidence bundle creation; verify <15 minutes per run; archive in `docs/readiness/dry_run_verification.md`.
-2. **Streaming resilience QA:** Cypress or Playwright run (`pnpm test:streaming`) that asserts timeline updates every ≤5 s, approval modal interaction, and `copilotkit_exit` event;.
+2. **Streaming resilience QA:** Cypress or Playwright run (`pnpm test:streaming`) that asserts timeline updates every ≤5 s, approval modal interaction, and `copilotkit_exit` event.
 3. **Evidence hash parity:** Run `python scripts/verify_artifact_hashes.py` and ensure 100% match between Supabase Storage and `artifacts` table; output saved to `docs/readiness/evidence_hash_report_G-B.json`.
 4. **Telemetry audit:** Use `scripts/audit_telemetry_events.py --gate G-B` to confirm events per UX telemetry catalog (mission_created, planner_stage_started, approval_required, approval_decision, undo_requested, undo_completed); export results to `docs/readiness/telemetry_audit_G-B.csv`.
 5. **Retention enforcement:** Execute `python scripts/check_retention.py --table copilot_messages --ttl-days 7`; confirm deletion of aged rows and log to `docs/readiness/message_retention_G-B.csv` (same file as checklist output).

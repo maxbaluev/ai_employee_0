@@ -11,6 +11,7 @@
 This UX blueprint defines the user experience strategy for the AI Employee Control Plane — a mission workspace that converts a single freeform input (links, goals, context) into fully generated missions, objectives, toolkits, audiences, and adaptive safeguards that remain editable at every step. The design centers on **trust through visibility**: users provide intent once, then maintain control as the system proposes, auto-populates, and iterates on the plan.
 
 The experience prioritizes:
+
 - **Single-input onboarding** — users paste one prompt; the workspace generates structured objectives, personas, constraints, and plays
 - **Generative defaults with human oversight** — every recommendation is editable, traceable, and easy to accept, refine, or replace
 - **Zero-to-value in <15 minutes** — from initial input to reviewable proof pack
@@ -62,15 +63,15 @@ Every mutating action includes an undo plan. Users can roll back with confidence
 
 ### 1.2 Design Principles
 
-| Principle | What It Means | How It Shapes UX |
-|-----------|---------------|------------------|
-| **Generative Scaffolding** | System proposes objectives, audiences, toolkits automatically, always editable | Chips, inline editors, "Regenerate" buttons on every generated section |
-| **Clarity Over Cleverness** | Simple, direct language beats jargon; status updates beat spinners | Plain language mission briefs, progress narration, explicit error messages |
-| **Safeguards as Guidance** | Adaptive hints remove friction while keeping users in control | Inline safeguard drawer, one-click fixes, contextual help |
-| **Evidence Before Execution** | Prove value with artifacts before requesting credentials | Dry-run proofs with sample outputs, ROI estimates, risk disclosures |
-| **Adaptive Density** | Surface complexity only when needed; beginners see essentials, experts access depth | Collapsible sections, contextual expansion, role-based views |
-| **Feedback Loops at Every Step** | Users confirm direction before agents commit resources | Approval modals, play selection, safeguard feedback, undo confirmations |
-| **Instrumentation as a First-Class Citizen** | Telemetry touchpoints are baked into flows, not bolted on | Inline event tracking, analytics handoffs, evidence capture |
+| Principle                                    | What It Means                                                                       | How It Shapes UX                                                           |
+| -------------------------------------------- | ----------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| **Generative Scaffolding**                   | System proposes objectives, audiences, toolkits automatically, always editable      | Chips, inline editors, "Regenerate" buttons on every generated section     |
+| **Clarity Over Cleverness**                  | Simple, direct language beats jargon; status updates beat spinners                  | Plain language mission briefs, progress narration, explicit error messages |
+| **Safeguards as Guidance**                   | Adaptive hints remove friction while keeping users in control                       | Inline safeguard drawer, one-click fixes, contextual help                  |
+| **Evidence Before Execution**                | Prove value with artifacts before requesting credentials                            | Dry-run proofs with sample outputs, ROI estimates, risk disclosures        |
+| **Adaptive Density**                         | Surface complexity only when needed; beginners see essentials, experts access depth | Collapsible sections, contextual expansion, role-based views               |
+| **Feedback Loops at Every Step**             | Users confirm direction before agents commit resources                              | Approval modals, play selection, safeguard feedback, undo confirmations    |
+| **Instrumentation as a First-Class Citizen** | Telemetry touchpoints are baked into flows, not bolted on                           | Inline event tracking, analytics handoffs, evidence capture                |
 
 ---
 
@@ -83,6 +84,7 @@ Every mutating action includes an undo plan. Users can roll back with confidence
 **Role:** Director of Business Development, mid-market SaaS
 **Goal:** Revive dormant accounts, launch tailored campaigns, prove ROI without hiring SDRs
 **Pain Points:**
+
 - Manual outreach doesn't scale; CRM enrichment is tedious
 - Leadership demands attribution data before budget approvals
 - Credentialed tools scare IT; need proof-of-value first
@@ -90,6 +92,7 @@ Every mutating action includes an undo plan. Users can roll back with confidence
 **JTBD:** "When I have a quarterly pipeline goal, I want to receive ready-to-run outreach plays so I can demonstrate lift before granting send permissions."
 
 **UX Priorities:**
+
 - Fast dry-run loop (<15 min from objective to draft campaign)
 - Clear ROI estimates (contacts enriched, messages drafted, expected reply rate)
 - Smooth OAuth onboarding once trust is earned
@@ -102,6 +105,7 @@ Every mutating action includes an undo plan. Users can roll back with confidence
 **Role:** Head of Support, high-growth e-commerce
 **Goal:** Compress response times, prevent churn, uphold SLAs with blended human + agent workflows
 **Pain Points:**
+
 - Queue spikes overwhelm team; need triage automation
 - Compliance requires approval trails for customer-facing actions
 - Can't risk tone violations or accidental escalations
@@ -109,6 +113,7 @@ Every mutating action includes an undo plan. Users can roll back with confidence
 **JTBD:** "When churn-risk cases surface, I want safeguarded automations that propose responses and log evidence so my team meets SLAs confidently."
 
 **UX Priorities:**
+
 - Tone safeguards front-and-center in approval modals
 - Undo buttons for every customer-facing action
 - Clear evidence bundles for compliance audits
@@ -121,6 +126,7 @@ Every mutating action includes an undo plan. Users can roll back with confidence
 **Role:** Compliance Lead, regulated fintech
 **Goal:** Audit approvals, toolkits, and rollback plans; greenlight broader usage
 **Pain Points:**
+
 - Opaque AI systems make compliance impossible
 - Need timestamped logs, scopes, reviewer IDs
 - Override workflows must expire automatically
@@ -128,6 +134,7 @@ Every mutating action includes an undo plan. Users can roll back with confidence
 **JTBD:** "When reviewing automation requests, I want visibility into who approved each action, what toolkits were used, and how rollback works so I can justify expansion."
 
 **UX Priorities:**
+
 - Read-only governance dashboard with full audit trails
 - Safeguard feedback timeline that highlights what was auto-fixed vs. sent anyway
 - Exportable evidence bundles (CSV, PDF) for external audits
@@ -140,6 +147,7 @@ Every mutating action includes an undo plan. Users can roll back with confidence
 **Role:** Platform Engineer, dev tooling startup
 **Goal:** Enable agent-led repo fixes without compromising code hygiene
 **Pain Points:**
+
 - Direct repo access is risky; need reviewer checkpoints
 - PR descriptions must explain reasoning and testing
 - Rollback must preserve git history
@@ -147,6 +155,7 @@ Every mutating action includes an undo plan. Users can roll back with confidence
 **JTBD:** "When agents propose code changes, I want them routed through a code MCP with reviewer checkpoints so I can enable fixes without compromising hygiene."
 
 **UX Priorities:**
+
 - Clear diff previews in approval modals
 - Inline commentary from validator agents
 - Git-aware undo plans (revert commits, not force-push)
@@ -159,6 +168,7 @@ Every mutating action includes an undo plan. Users can roll back with confidence
 **Role:** COO, professional services firm
 **Goal:** Justify agent expansion with dashboards summarizing ROI, approvals, safeguard feedback
 **Pain Points:**
+
 - Board demands quantified business impact
 - Risk committee needs compliance posture
 - Can't evaluate agent performance without telemetry
@@ -166,6 +176,7 @@ Every mutating action includes an undo plan. Users can roll back with confidence
 **JTBD:** "When presenting to the board, I want dashboards showing weekly approved jobs, ROI, and safeguard impact so I can justify budget and expansion."
 
 **UX Priorities:**
+
 - Executive-friendly analytics (simple KPIs, trend lines, filters)
 - Exportable reports (PDF, slides)
 - Incident summaries with mitigation narratives
@@ -187,20 +198,21 @@ Every mutating action includes an undo plan. Users can roll back with confidence
 
 **Goal:** Emma (Revenue Lead) wants to prove value before granting OAuth scopes.
 
-#### Stages
+#### Eight Stages
 
-| Stage | User Actions | Agent Actions | UI Touchpoints | Success Criteria |
-|-------|--------------|---------------|----------------|------------------|
-| **1. Single Input Capture** | Pastes one paragraph with objective, links, tone preferences: "We’re Acme SaaS..." | Parses text, extracts entities, infers personas, timeframe, tone | Generative Intake Panel with paste box + "Generate mission" CTA | Input accepted; generation kicks off |
-| **2. Generated Brief Preview** | Reviews auto-created mission brief (objective, audience, KPIs, safeguards) | Builds structured brief, confidence scores, suggested edits | Brief Summary Card with inline chips + "Edit", "Regenerate" | User accepts or tweaks brief items |
-| **3. Auto Toolkit & Auth Draft** | Scans brief, proposes toolkits, auth modes, quiet hours | Queries Composio catalog + Supabase data to recommend no-auth + OAuth paths | Toolkit & Auth Drawer with badges ("Connect later", "No Auth") | User accepts defaults or swaps | 
-| **4. Generated Play Ranking** | Picks from 3 generated plays ("Enrich + Draft Campaign", etc.) | Planner ranks plays, attaches rationale, undo plans | Play Cards with impact, risk, "Regenerate" button | Preferred play selected with minimal edits |
-| **5. Dry-Run Execution** | Clicks "Run Draft" (auto-populated) | Executor uses chosen plan, streams progress | Streaming status panel: "Researching accounts…" etc. | <15 min to evidence bundle |
-| **6. Evidence Review** | Reviews generated artifacts, ROI estimate, optional adjustments | Evidence agent assembles bundles, highlights suggested modifications | Artifact Previews + inline edit toggles (e.g., edit draft email) | User comfortable with outputs, optionally refines |
-| **7. Trust Decision** | Chooses "Approve & Connect" (with auto-suggested scopes) or "Regenerate" | Initiates OAuth flow with recommended scopes, or loops back | OAuth Modal pre-filled with recommended scopes + editable list | User grants scopes or requests new generation |
+| Stage                     | User Actions                                                                                        | Agent Actions                                                                                                        | UI Touchpoints                                                                                             | Success Criteria                                              | Time Budget | Telemetry Events                                                                   |
+| ------------------------- | --------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- | ----------- | ---------------------------------------------------------------------------------- |
+| **1. Intake**             | Pastes one paragraph with objective, links, tone preferences into single-input banner               | Parses text via Gemini, extracts entities, generates chips (objective, audience, KPIs, safeguards)                   | Generative Intake Banner with paste box + "Generate mission" CTA                                           | Chips generated; no fallback state needed                     | ≤3s p95     | `intent_submitted`, `brief_generated`                                              |
+| **2. Mission Brief**      | Reviews and accepts generated chips; accepted chips persist as pinned mission brief card            | Builds structured brief with confidence scores; persists to Supabase `mission_metadata`                              | Mission Brief Card (pinned, persistent) with inline chips + "Edit", "Regenerate", "Accept"                 | User accepts brief; chip acceptance ≥70% without regeneration | 1-2 min     | `brief_item_modified`, `mission_created`                                           |
+| **3. Toolkits & Connect** | Curates Composio toolkit palette; inspects recommended tools with badges; connects via Connect Link | Queries `Composio.tools.get` and `toolkits.list`; surfaces no-auth first, OAuth-ready second with impact estimates   | Toolkit Palette (RecommendedToolStrip + ToolCard) with inspection preview, multi-select, Connect Link auth | Toolkits selected; OAuth ready or no-auth confirmed           | 2-3 min     | `toolkit_recommendation_viewed`, `toolkit_selected`, `inspection_preview_rendered` |
+| **4. Data Inspect**       | Reviews coverage meter and inspection preview; validates data coverage/freshness                    | MCP draft calls validate coverage; generates readiness percentage and gap highlights                                 | Coverage Meter (readiness %, gap highlighting) + inspection preview panel                                  | Inspection pass ≥85%; coverage meter shows readiness          | 2-3 min     | `inspection_preview_rendered`, `plan_validated`                                    |
+| **5. Plan**               | Selects from ranked plays with impact/risk/undo metadata; reviews planner insight rail              | Planner insight rail streams rationale; ranks plays with library embeddings and historical outcomes                  | Planner Insight Rail (streaming rationale) + Play Cards (impact/risk/undo, "Why This?")                    | Preferred play selected with minimal edits                    | 2-3 min     | `play_selected`, `plan_validated`                                                  |
+| **6. Dry-Run**            | Monitors streaming status panel; observes planner → executor → validator loop with heartbeat + logs | Executor streams progress via `copilotkit_emit_message`; validator checks safeguards; evidence agent bundles outputs | Streaming Status Panel (live progress, checkmarks, heartbeat, expandable logs, "Pause", "Cancel")          | Dry-run completes <15 min p95                                 | <15 min p95 | `dry_run_started`, `dry_run_stage_completed`, `dry_run_completed`                  |
+| **7. Evidence**           | Reviews artifact gallery with proof pack, ROI estimates; accesses undo bar for time-bound rollback  | Evidence agent surfaces artifacts, ROI summary, undo plans; enables download/share                                   | Artifact Gallery (proof pack, ROI cards, undo bar, download/share links)                                   | User comfortable with outputs; artifacts accessible           | 2-3 min     | `dry_run_completed`, `evidence_bundle_exported`                                    |
+| **8. Feedback**           | Submits per-artifact ratings and mission feedback; provides learning signals                        | Feedback agent logs ratings, mission feedback; feeds learning signals to next runs                                   | Feedback Drawer (per-artifact ratings, mission feedback form, learning signals)                            | Feedback adoption ≥60%; signals captured for iteration        | 1-2 min     | `artifact_feedback_submitted`, `mission_feedback_submitted`                        |
 
-**Total Time Budget:** 12–15 minutes from intake to evidence
-**Key Metrics:** Dry-run completion rate, time-to-evidence, approval-to-OAuth conversion
+**Total Time Budget:** 12–15 minutes from intake to feedback
+**Key Metrics:** Chip acceptance ≥70% (without regeneration), inspection pass ≥85%, dry-run <15 min p95, feedback adoption ≥60%, coverage meter accuracy, planner insight rail engagement
 
 ---
 
@@ -210,14 +222,14 @@ Every mutating action includes an undo plan. Users can roll back with confidence
 
 #### Stages
 
-| Stage | User Actions | Agent Actions | UI Touchpoints | Success Criteria |
-|-------|--------------|---------------|----------------|------------------|
-| **1. Generated Connection Plan** | Reviews auto-suggested toolkit + scope plan (Zendesk triage + Slack summaries) | Builds connection checklist, scopes, quiet hours from brief & historical runs | Connection Planner Panel with toggle chips ("Zendesk Reply", "Slack Digest") | User enables/edits suggested connections |
-| **2. Safeguard Auto-Tune** | Reviews generated tone, timing, escalation hints | Planner/validator refine hints using mission context | Safeguard Drawer with "Accept", "Edit", "Regenerate" controls | Hints accepted or tailored |
-| **3. Governed Execution Trigger** | Accepts generated mission start prompt | Validator checks hints before execution | Pre-flight checklist showing active safeguards | Safeguards confirmed or amended |
-| **4. Approval Checkpoint** | Reviews generated response + suggested edits | Validator surfaces tone check results, undo plan, recommended edits | Approval Modal with generative suggestions ("Apply suggested tone softener?") | User approves, tweaks, or regenerates portions |
-| **5. Live Execution** | Clicks "Approve & Send" | Executor posts Zendesk reply, logs tool call, captures latency | Execution Confirmation: "Reply sent... Undo available" | Action completes; evidence stored |
-| **6. Undo Safety Net** | Clicks "Undo" within 10 minutes | Evidence service deletes reply, updates Zendesk, logs rollback | Undo Status: "Reply removed, ticket restored to 'Open'" | User rolls back confidently |
+| Stage                             | User Actions                                                                   | Agent Actions                                                                 | UI Touchpoints                                                                | Success Criteria                               |
+| --------------------------------- | ------------------------------------------------------------------------------ | ----------------------------------------------------------------------------- | ----------------------------------------------------------------------------- | ---------------------------------------------- |
+| **1. Generated Connection Plan**  | Reviews auto-suggested toolkit + scope plan (Zendesk triage + Slack summaries) | Builds connection checklist, scopes, quiet hours from brief & historical runs | Connection Planner Panel with toggle chips ("Zendesk Reply", "Slack Digest")  | User enables/edits suggested connections       |
+| **2. Safeguard Auto-Tune**        | Reviews generated tone, timing, escalation hints                               | Planner/validator refine hints using mission context                          | Safeguard Drawer with "Accept", "Edit", "Regenerate" controls                 | Hints accepted or tailored                     |
+| **3. Governed Execution Trigger** | Accepts generated mission start prompt                                         | Validator checks hints before execution                                       | Pre-flight checklist showing active safeguards                                | Safeguards confirmed or amended                |
+| **4. Approval Checkpoint**        | Reviews generated response + suggested edits                                   | Validator surfaces tone check results, undo plan, recommended edits           | Approval Modal with generative suggestions ("Apply suggested tone softener?") | User approves, tweaks, or regenerates portions |
+| **5. Live Execution**             | Clicks "Approve & Send"                                                        | Executor posts Zendesk reply, logs tool call, captures latency                | Execution Confirmation: "Reply sent... Undo available"                        | Action completes; evidence stored              |
+| **6. Undo Safety Net**            | Clicks "Undo" within 10 minutes                                                | Evidence service deletes reply, updates Zendesk, logs rollback                | Undo Status: "Reply removed, ticket restored to 'Open'"                       | User rolls back confidently                    |
 
 **Total Time Budget:** 3–5 minutes per approval cycle
 **Key Metrics:** Approval throughput, safeguard feedback adoption, undo success rate, time-to-fix
@@ -230,13 +242,13 @@ Every mutating action includes an undo plan. Users can roll back with confidence
 
 #### Stages
 
-| Stage | User Actions | Agent Actions | UI Touchpoints | Success Criteria |
-|-------|--------------|---------------|----------------|------------------|
-| **1. Dashboard Access** | Navigates to Governance Dashboard | Generates KPI tiles & summaries from latest runs | Dashboard Home with auto-generated narrative badges ("No critical incidents in 7d") | Quick situational awareness |
-| **2. Mission Drill-Down** | Clicks mission ID to view evidence bundle | Auto-highlights anomalies, safeguard feedback, unusual edits | Mission Detail Page with generated callouts ("Tone hint edited 1x") | Full audit trail visible + insights |
-| **3. Safeguard Feedback Review** | Filters hints by outcome (auto-fixed, edited, rejected) | Summarises clusters, recommends follow-ups | Feedback table + generative sidebar ("Tone hints auto-applied 82%") | Priya identifies patterns, requests tuning |
-| **4. Export for External Audit** | Clicks "Export Evidence Bundle (PDF)" | Generates redacted report, auto-includes generative executive summary | Download Modal: "Evidence bundle ready, includes approvals, tool calls, undo logs" | Compliance-ready artefact |
-| **5. Safeguard Tuning** | Reviews prompt recommendations before editing | Suggests refined hints with impact projections | Safeguard Editor with "Accept" + inline diff view | Safeguard prompts updated with rationale stored |
+| Stage                            | User Actions                                            | Agent Actions                                                         | UI Touchpoints                                                                      | Success Criteria                                |
+| -------------------------------- | ------------------------------------------------------- | --------------------------------------------------------------------- | ----------------------------------------------------------------------------------- | ----------------------------------------------- |
+| **1. Dashboard Access**          | Navigates to Governance Dashboard                       | Generates KPI tiles & summaries from latest runs                      | Dashboard Home with auto-generated narrative badges ("No critical incidents in 7d") | Quick situational awareness                     |
+| **2. Mission Drill-Down**        | Clicks mission ID to view evidence bundle               | Auto-highlights anomalies, safeguard feedback, unusual edits          | Mission Detail Page with generated callouts ("Tone hint edited 1x")                 | Full audit trail visible + insights             |
+| **3. Safeguard Feedback Review** | Filters hints by outcome (auto-fixed, edited, rejected) | Summarises clusters, recommends follow-ups                            | Feedback table + generative sidebar ("Tone hints auto-applied 82%")                 | Priya identifies patterns, requests tuning      |
+| **4. Export for External Audit** | Clicks "Export Evidence Bundle (PDF)"                   | Generates redacted report, auto-includes generative executive summary | Download Modal: "Evidence bundle ready, includes approvals, tool calls, undo logs"  | Compliance-ready artefact                       |
+| **5. Safeguard Tuning**          | Reviews prompt recommendations before editing           | Suggests refined hints with impact projections                        | Safeguard Editor with "Accept" + inline diff view                                   | Safeguard prompts updated with rationale stored |
 
 **Total Time Budget:** 10–15 minutes per audit
 **Key Metrics:** Audit completion time, export download success, policy update adoption
@@ -322,6 +334,7 @@ The mission workspace is a persistent, chat-first interface powered by CopilotKi
 **Component:** `<GenerativeIntakeBanner>`
 
 **Interaction Steps:**
+
 1. User clicks "+ New Mission" or lands on empty state.
 2. Banner displays a large textarea with placeholder examples and privacy notice.
 3. User pastes text/links and hits "Generate mission" (Enter or button).
@@ -330,6 +343,7 @@ The mission workspace is a persistent, chat-first interface powered by CopilotKi
 6. User accepts all, edits individual chips, or regenerates sections before continuing to play selection.
 
 **Accessibility:**
+
 - Textarea supports paste via keyboard, drag-and-drop, and `Ctrl+Enter` to generate.
 - Generated chips announced via live region with summary ("Objective generated: Re-engage 100 dormant accounts; confidence high").
 - Edit buttons accessible via Tab; `R` key triggers regenerate for focused chip; `Enter` opens inline editor.
@@ -345,6 +359,7 @@ The mission workspace is a persistent, chat-first interface powered by CopilotKi
 **Component:** `<RecommendedToolStrip>` + `<ToolCard>`
 
 **Interaction Steps:**
+
 1. Planner responds to mission brief by streaming a row of tool cards sourced from `Composio.tools.get` and `toolkits.list` (see `libs_docs/composio/llms.txt`).
 2. Each card displays: toolkit logo, short description, badge for `No credentials needed` / `Requires OAuth`, impact estimate, precedent missions, and undo confidence.
 3. Users toggle cards on/off or expand to adjust optional parameters (scope, sandbox, sample size). Multi-select is supported with keyboard and pointer.
@@ -353,11 +368,13 @@ The mission workspace is a persistent, chat-first interface powered by CopilotKi
 6. Users can regenerate suggestions, pin favorites, or request alternatives ("Show me finance tools") via quick actions.
 
 **Accessibility:**
+
 - Cards are rendered as ARIA radio/checkbox hybrids with full keyboard support (`Space` toggles selection, `Shift+Arrow` multi-select).
 - Auth badges include text + icon pairings, announced to screen readers ("Requires OAuth scope: hubspot.crm.write").
 - Live region announces inspection results and validation checklist status.
 
 **Empty States:**
+
 - If no matching toolkits, display "No tools yet" message with quick actions: `Broaden search`, `Use library-only plan`, `Request human guidance`.
 - Provide learn-more link to partner docs and reason codes from Composio for transparency.
 
@@ -374,6 +391,7 @@ The mission workspace is a persistent, chat-first interface powered by CopilotKi
 **Component:** `<PlayCard>`
 
 **Card Anatomy:**
+
 ```
 ┌────────────────────────────────────────────────┐
 │ Play 1: Enrich + Draft Campaign                │
@@ -389,12 +407,14 @@ The mission workspace is a persistent, chat-first interface powered by CopilotKi
 ```
 
 **Interaction Steps:**
+
 1. System renders Top 3 plays with rationale; each card shows a confidence badge (High/Medium) and "Regenerate" pill.
 2. User hovers "Why This?" → Tooltip: "Generated from library match to agencies (success 85%)."
 3. User can inline edit impact or undo plan by clicking chip icons, or press `Shift+R` to regenerate the focused card.
 4. Click "Accept" to lock selected play and proceed (card collapses; streaming status opens). Users can accept multiple plays for sequencing.
 
 **Accessibility:**
+
 - Arrow keys to navigate cards
 - Screen reader announces impact/risk/undo
 - "Why This?" tooltip accessible via focus
@@ -410,6 +430,7 @@ The mission workspace is a persistent, chat-first interface powered by CopilotKi
 **Component:** `<StreamingStatusPanel>`
 
 **Appearance:**
+
 ```
 ┌────────────────────────────────────────────────┐
 │ Executing: Enrich + Draft Campaign             │
@@ -424,12 +445,14 @@ The mission workspace is a persistent, chat-first interface powered by CopilotKi
 ```
 
 **Interaction Steps:**
+
 1. Agent streams `copilotkit_emit_message` with step updates
 2. UI updates in real-time (checkmark when step completes)
 3. User clicks "Expand Details" → Shows tool call logs, latency, arguments (hashed)
 4. User clicks "Pause" → Agent checkpoints state; "Resume" appears
 
 **Accessibility:**
+
 - Live region (ARIA `role="status"`) announces updates
 - Pause/Cancel keyboard shortcuts (Ctrl+P, Ctrl+X)
 
@@ -444,6 +467,7 @@ The mission workspace is a persistent, chat-first interface powered by CopilotKi
 **Component:** `<ApprovalModal>`
 
 **Modal Anatomy:**
+
 ```
 ┌────────────────────────────────────────────────┐
 │ Safeguard Check-In                             │
@@ -465,6 +489,7 @@ The mission workspace is a persistent, chat-first interface powered by CopilotKi
 ```
 
 **Interaction Steps:**
+
 1. Validator detects tone violation
 2. Agent raises `CopilotInterrupt` → Modal overlays canvas
 3. User reads proposed message, violation details, undo plan
@@ -475,6 +500,7 @@ The mission workspace is a persistent, chat-first interface powered by CopilotKi
    - **Reschedule:** Date/time picker → Tool call queued for later
 
 **Accessibility:**
+
 - Focus trap, Esc to reject
 - Screen reader announces violation type, undo plan
 - Keyboard shortcuts for common actions (E for Edit, R for Reject)
@@ -490,6 +516,7 @@ The mission workspace is a persistent, chat-first interface powered by CopilotKi
 **Component:** `<ArtifactCard>`
 
 **Card Anatomy:**
+
 ```
 ┌────────────────────────────────────────────────┐
 │ Artifact: Enriched Contact List                │
@@ -501,11 +528,13 @@ The mission workspace is a persistent, chat-first interface powered by CopilotKi
 ```
 
 **Interaction Steps:**
+
 1. User clicks "Preview" → Expandable table view (paginated)
 2. User clicks "Download CSV" → Supabase Storage link downloads
 3. User clicks "Share Link" → Generates expiring link (24h default)
 
 **Accessibility:**
+
 - Table announced as "87 rows, 5 columns"
 - Download triggers focus shift to notification
 
@@ -520,11 +549,13 @@ The mission workspace is a persistent, chat-first interface powered by CopilotKi
 **Component:** `<UndoButton>`
 
 **Appearance:**
+
 ```
 [⟲ Undo: Delete reply to Ticket #12345]
 ```
 
 **Interaction Steps:**
+
 1. Button appears immediately after governed action completes
 2. User clicks → Confirmation modal: "This will delete the Zendesk reply. Continue?"
 3. User confirms → Evidence service executes undo plan
@@ -532,6 +563,7 @@ The mission workspace is a persistent, chat-first interface powered by CopilotKi
 5. Button grays out: "[✓ Undone]"
 
 **Accessibility:**
+
 - Keyboard shortcut: Ctrl+Z (context-aware)
 - Screen reader announces "Undo available for 10 minutes"
 
@@ -545,13 +577,14 @@ The mission workspace is a persistent, chat-first interface powered by CopilotKi
 
 **Solution:** Adaptive UI density with progressive disclosure.
 
-| User Level | Default View | Available Expansions |
-|------------|--------------|----------------------|
-| **Beginner** | Single input banner, generated brief, recommended play | Toolkit details, safeguard quick tips |
-| **Intermediate** | + Safeguard drawer, artefact previews, regenerate controls | Tool call logs, library rankings |
-| **Expert** | + Telemetry panels, approval history, full generation traces | Raw API payloads, embedding vectors |
+| User Level       | Default View                                                 | Available Expansions                  |
+| ---------------- | ------------------------------------------------------------ | ------------------------------------- |
+| **Beginner**     | Single input banner, generated brief, recommended play       | Toolkit details, safeguard quick tips |
+| **Intermediate** | + Safeguard drawer, artefact previews, regenerate controls   | Tool call logs, library rankings      |
+| **Expert**       | + Telemetry panels, approval history, full generation traces | Raw API payloads, embedding vectors   |
 
 **Implementation:**
+
 - **Beginner Mode (default):** Hides "Advanced Options" accordion
 - **Expert Toggle:** Settings → "Show advanced telemetry" → Expands panels
 - **Contextual Expansion:** "Learn more" links inline (e.g., "Why this toolkit?" → Opens toolkit modal)
@@ -561,11 +594,13 @@ The mission workspace is a persistent, chat-first interface powered by CopilotKi
 ### 6.2 Collapsible Sections
 
 **Use Cases:**
+
 - Safeguard history (collapsed by default; expand to inspect)
 - Tool call logs (collapsed; expand for debugging)
 - Mission history (collapsed; expand to view past runs)
 
 **Pattern:**
+
 ```
 ┌────────────────────────────────────────────────┐
 │ ▶ Safeguard History (last 3 hints)            │
@@ -584,6 +619,7 @@ The mission workspace is a persistent, chat-first interface powered by CopilotKi
 ```
 
 **Accessibility:**
+
 - ARIA `aria-expanded` states
 - Keyboard: Space to toggle
 
@@ -592,11 +628,13 @@ The mission workspace is a persistent, chat-first interface powered by CopilotKi
 ### 6.3 Contextual Help & Tooltips
 
 **Use Cases:**
+
 - Toolkit badges ("no-auth" → Tooltip: "No credentials required; drafts only")
 - Play impact estimates (hover "3–5% reply rate" → Tooltip: "Based on 12 similar campaigns in library")
 - Safeguard prompts (hover chips to see why a hint was generated)
 
 **Pattern:**
+
 - Subtle "?" icon or dotted underline
 - Hover or focus triggers tooltip (accessible via keyboard)
 - Tooltip dismisses on Esc or click outside
@@ -610,6 +648,7 @@ The mission workspace is a persistent, chat-first interface powered by CopilotKi
 **Location:** Mission Canvas, beside the generated brief.
 
 **Appearance:**
+
 ```
 ┌────────────────────────────────────────────────┐
 │ Adaptive Safeguards                             │
@@ -624,10 +663,11 @@ The mission workspace is a persistent, chat-first interface powered by CopilotKi
 ```
 
 **Interactions:**
-- *Accept All* locks hints in and emits `safeguard_hint_applied`.
-- *Edit* opens inline controls (dropdowns, sliders, text areas) to refine tone wording, timing, or assignee.
-- *Regenerate* prompts for optional context (e.g., “Sounds more casual”) and updates the chip with a new suggestion.
-- *Pin* marks a hint as a preferred seed for future missions.
+
+- _Accept All_ locks hints in and emits `safeguard_hint_applied`.
+- _Edit_ opens inline controls (dropdowns, sliders, text areas) to refine tone wording, timing, or assignee.
+- _Regenerate_ prompts for optional context (e.g., “Sounds more casual”) and updates the chip with a new suggestion.
+- _Pin_ marks a hint as a preferred seed for future missions.
 
 ### 7.2 Safeguard Feedback Modal
 
@@ -647,6 +687,7 @@ When Validator spots a potential issue, the approval modal offers a focused reme
 ```
 
 **Principles:**
+
 - Highlight one action at a time with a short rationale.
 - “Send Anyway” requests a quick justification and logs a safeguard feedback event for analytics.
 - “Schedule Later” surfaces times outside the suggested quiet window.
@@ -657,6 +698,7 @@ When Validator spots a potential issue, the approval modal offers a focused reme
 **Location:** Adaptive Safeguards section within the Analytics & Governance dashboard.
 
 **List View:**
+
 ```
 ┌──────────────────────────────────────────────────────────────┐
 │ Mission | Hint Type   | Outcome     | Time to Resolve        │
@@ -668,6 +710,7 @@ When Validator spots a potential issue, the approval modal offers a focused reme
 ```
 
 **Features:**
+
 - Filter by persona, hint type, or outcome (auto-fixed, edited, rejected).
 - Drill into a row to view context, original suggestion, reviewer notes, and whether follow-up is needed.
 - Export CSV or PDF for compliance snapshots.
@@ -682,6 +725,7 @@ When Validator spots a potential issue, the approval modal offers a focused reme
 **Goal:** Package mission outcomes as shareable, auditable artifacts.
 
 **Bundle Contents:**
+
 - **Mission Brief:** Goal, audience, timeframe, status (generated + final edits logged)
 - **Toolkits Used:** Names, scopes, connection IDs (initial suggestion vs. accepted)
 - **Tool Calls:** Hashed arguments, results (redacted if sensitive), latency, undo plans
@@ -691,6 +735,7 @@ When Validator spots a potential issue, the approval modal offers a focused reme
 - **Telemetry Summary:** Execution time, agent reasoning steps, approval decisions
 
 **Access Paths:**
+
 1. Mission Canvas → "Download Evidence Bundle (PDF)"
 2. Governance Dashboard → Mission drill-down → "Export Bundle"
 3. Supabase API → `/evidence/:mission_id` (for programmatic access)
@@ -702,6 +747,7 @@ When Validator spots a potential issue, the approval modal offers a focused reme
 **Target Persona:** Carlos (COO), Emma (Revenue Lead)
 
 **Dashboard Layout:**
+
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
 │ AI Employee Control Plane — Analytics                               │
@@ -732,6 +778,7 @@ When Validator spots a potential issue, the approval modal offers a focused reme
 ```
 
 **Features:**
+
 - **KPI Tiles:** Big numbers, week-over-week deltas, color-coded (green = improving, red = regressing)
 - **Trend Charts:** Line charts for time-series, bar charts for categorical comparisons
 - **Library Reuse Table:** Top plays ranked by reuse count, success score
@@ -740,6 +787,7 @@ When Validator spots a potential issue, the approval modal offers a focused reme
 - **Narrative Summary:** Generative paragraph at top ("This week, approved jobs grew 12% driven by outreach play reuse") with edit/regenerate controls
 
 **Accessibility:**
+
 - Charts include data tables (keyboard-navigable)
 - Screen reader announces KPI changes ("Weekly jobs approved increased by 12%")
 
@@ -750,6 +798,7 @@ When Validator spots a potential issue, the approval modal offers a focused reme
 **Target Persona:** Priya (Governance Officer)
 
 **Dashboard Layout:**
+
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
 │ AI Employee Control Plane — Governance                              │
@@ -781,6 +830,7 @@ When Validator spots a potential issue, the approval modal offers a focused reme
 ```
 
 **Features:**
+
 - **Incident Table:** Click row → Drill-down with violation details, override justification, reviewer ID
 - **Override Register:** Active overrides with expiry countdown; click to extend or revoke
 - **Export Audit Report:** PDF with signatures, timestamps, evidence pointers (for external audits)
@@ -794,21 +844,22 @@ When Validator spots a potential issue, the approval modal offers a focused reme
 
 **Commitment:** All UI components meet WCAG 2.1 Level AA standards.
 
-| Guideline | Compliance Strategy | Implementation Notes |
-|-----------|---------------------|----------------------|
-| **1.1 Text Alternatives** | All icons, images, charts have alt text or ARIA labels | Chart data tables for screen readers |
-| **1.3 Adaptable** | Semantic HTML, logical tab order, responsive layouts | Use `<main>`, `<nav>`, `<article>`, `<aside>` |
-| **1.4 Distinguishable** | 4.5:1 contrast ratio (text), 3:1 (UI components) | Tailwind color palette tested with Stark plugin |
+| Guideline                   | Compliance Strategy                                                     | Implementation Notes                                  |
+| --------------------------- | ----------------------------------------------------------------------- | ----------------------------------------------------- |
+| **1.1 Text Alternatives**   | All icons, images, charts have alt text or ARIA labels                  | Chart data tables for screen readers                  |
+| **1.3 Adaptable**           | Semantic HTML, logical tab order, responsive layouts                    | Use `<main>`, `<nav>`, `<article>`, `<aside>`         |
+| **1.4 Distinguishable**     | 4.5:1 contrast ratio (text), 3:1 (UI components)                        | Tailwind color palette tested with Stark plugin       |
 | **2.1 Keyboard Accessible** | All interactions keyboard-operable (Tab, Enter, Space, Esc, Arrow keys) | Focus indicators visible (2px outline, high contrast) |
-| **2.4 Navigable** | Skip links, landmark regions, breadcrumbs | "Skip to main content" link at top |
-| **3.1 Readable** | Plain language, readability grade 8–10, tooltips for jargon | Hemingway App for copy review |
-| **4.1 Compatible** | Valid HTML, ARIA roles/states, tested with NVDA, JAWS, VoiceOver | Automated testing with axe-core |
+| **2.4 Navigable**           | Skip links, landmark regions, breadcrumbs                               | "Skip to main content" link at top                    |
+| **3.1 Readable**            | Plain language, readability grade 8–10, tooltips for jargon             | Hemingway App for copy review                         |
+| **4.1 Compatible**          | Valid HTML, ARIA roles/states, tested with NVDA, JAWS, VoiceOver        | Automated testing with axe-core                       |
 
 ---
 
 ### 9.2 Keyboard Navigation Standards
 
 **Global Shortcuts:**
+
 - `N` — New Mission
 - `D` — Dashboard
 - `L` — Library
@@ -820,6 +871,7 @@ When Validator spots a potential issue, the approval modal offers a focused reme
 - `?` — Show keyboard shortcuts reference
 
 **Component-Specific:**
+
 - **Mission Sidebar:** Arrow keys to navigate, Enter to open
 - **Play Cards:** Tab to focus, Arrow keys to navigate cards, Enter to select
 - **Approval Modal:** Tab through options, Enter to confirm, Esc to reject
@@ -830,11 +882,13 @@ When Validator spots a potential issue, the approval modal offers a focused reme
 ### 9.3 Screen Reader Support
 
 **Live Regions:**
+
 - Agent streaming status (ARIA `role="status"`, `aria-live="polite"`)
 - Approval interrupts (ARIA `role="alert"`, `aria-live="assertive"`)
 - Undo confirmations (ARIA `role="status"`, `aria-live="polite"`)
 
 **Semantic Announcements:**
+
 - "Mission #42 created"
 - "Play 1 selected: Enrich + Draft Campaign"
 - "Agent researching accounts, 2 minutes elapsed"
@@ -848,11 +902,13 @@ When Validator spots a potential issue, the approval modal offers a focused reme
 **Mobile Strategy:** Progressive web app (PWA) with responsive breakpoints.
 
 **Breakpoints:**
+
 - **Desktop (1280px+):** Full sidebar + canvas layout
 - **Tablet (768px–1279px):** Collapsible sidebar, stacked panels
 - **Mobile (≤767px):** Bottom nav, single-column layout, chat-first UI
 
 **Mobile-Specific UX:**
+
 - Approval modals slide up from bottom (easier thumb reach)
 - Artifact previews open in full-screen overlays
 - Simplified safeguard summaries (collapsible by default)
@@ -866,6 +922,7 @@ When Validator spots a potential issue, the approval modal offers a focused reme
 **Goal:** Measure user behavior, agent performance, safeguard efficacy, and business outcomes.
 
 **Tracking Layers:**
+
 1. **Frontend Events:** User interactions (clicks, form submissions, approvals)
 2. **Agent Events:** Agent reasoning steps, tool calls, interrupts
 3. **Backend Events:** API calls, Supabase queries, safeguard evaluations
@@ -876,38 +933,40 @@ When Validator spots a potential issue, the approval modal offers a focused reme
 
 ### 10.2 Key Event Catalog
 
-| Event Name | Trigger | Payload | Purpose |
-|------------|---------|---------|---------|
-| `intent_submitted` | User clicks "Generate mission" after pasting input | `mission_id`, `input_chars`, `link_count`, `user_id` | Track single-input adoption, detect overlong prompts |
-| `brief_generated` | System produces objective/audience/safeguard set | `mission_id`, `confidence_scores`, `generated_fields` | Measure generation quality, identify low-confidence areas |
-| `brief_item_modified` | User edits/regenerates a generated chip | `mission_id`, `field`, `action` (edit/regenerate/accept), `delta_chars` | Understand where users intervene |
-| `toolkit_suggestion_applied` | User accepts generated toolkit/auth plan | `mission_id`, `toolkit_list`, `scopes`, `edit_count` | Evaluate recommendation usefulness |
-| `mission_created` | User submits mission intake | `mission_id`, `goal`, `audience`, `timeframe`, `user_id` | Adoption funnel, time-to-first-mission |
-| `play_selected` | User clicks "Select Play" | `mission_id`, `play_id`, `play_type`, `toolkit_names` | Play popularity, toolkit adoption |
-| `dry_run_started` | Agent begins execution | `mission_id`, `play_id`, `start_timestamp` | Latency tracking, success rate |
-| `dry_run_completed` | Evidence bundle assembled | `mission_id`, `duration_ms`, `artifact_count`, `roi_estimate` | Time-to-evidence KPI, conversion funnel |
-| `approval_required` | Validator raises interrupt | `mission_id`, `hint_type`, `severity`, `suggested_fix` | Safeguard feedback rate, hint efficacy |
-| `approval_decision` | User approves/rejects | `mission_id`, `tool_call_id`, `decision`, `reviewer_id`, `edits` | Approval throughput, reviewer behavior |
-| `oauth_initiated` | User clicks "Connect Toolkit" | `mission_id`, `toolkit_name`, `scopes_requested` | OAuth conversion, scope adoption |
-| `oauth_completed` | Token stored | `mission_id`, `toolkit_name`, `connection_id` | OAuth success rate |
-| `governed_execution_completed` | Live action finishes | `mission_id`, `tool_call_id`, `latency_ms`, `result_hash` | Execution latency, success rate |
-| `undo_requested` | User clicks "Undo" | `mission_id`, `tool_call_id`, `reason` | Undo frequency, failure analysis |
-| `undo_completed` | Evidence service rolls back | `mission_id`, `tool_call_id`, `success` | Undo success rate |
-| `safeguard_hint_applied` | User accepts a safeguard hint | `mission_id`, `hint_type`, `confidence`, `source` | Track hint adoption |
-| `safeguard_hint_rejected` | User rejects or sends anyway | `mission_id`, `hint_type`, `reason`, `reviewer_id` | Identify where prompts need tuning |
-| `evidence_bundle_exported` | User downloads PDF/CSV | `mission_id`, `format`, `user_id` | Artifact sharing, stakeholder engagement |
-| `dashboard_viewed` | User navigates to analytics | `dashboard_type`, `filters`, `user_id` | Dashboard adoption, filter patterns |
+| Event Name                     | Trigger                                            | Payload                                                                 | Purpose                                                   |
+| ------------------------------ | -------------------------------------------------- | ----------------------------------------------------------------------- | --------------------------------------------------------- |
+| `intent_submitted`             | User clicks "Generate mission" after pasting input | `mission_id`, `input_chars`, `link_count`, `user_id`                    | Track single-input adoption, detect overlong prompts      |
+| `brief_generated`              | System produces objective/audience/safeguard set   | `mission_id`, `confidence_scores`, `generated_fields`                   | Measure generation quality, identify low-confidence areas |
+| `brief_item_modified`          | User edits/regenerates a generated chip            | `mission_id`, `field`, `action` (edit/regenerate/accept), `delta_chars` | Understand where users intervene                          |
+| `toolkit_suggestion_applied`   | User accepts generated toolkit/auth plan           | `mission_id`, `toolkit_list`, `scopes`, `edit_count`                    | Evaluate recommendation usefulness                        |
+| `mission_created`              | User submits mission intake                        | `mission_id`, `goal`, `audience`, `timeframe`, `user_id`                | Adoption funnel, time-to-first-mission                    |
+| `play_selected`                | User clicks "Select Play"                          | `mission_id`, `play_id`, `play_type`, `toolkit_names`                   | Play popularity, toolkit adoption                         |
+| `dry_run_started`              | Agent begins execution                             | `mission_id`, `play_id`, `start_timestamp`                              | Latency tracking, success rate                            |
+| `dry_run_completed`            | Evidence bundle assembled                          | `mission_id`, `duration_ms`, `artifact_count`, `roi_estimate`           | Time-to-evidence KPI, conversion funnel                   |
+| `approval_required`            | Validator raises interrupt                         | `mission_id`, `hint_type`, `severity`, `suggested_fix`                  | Safeguard feedback rate, hint efficacy                    |
+| `approval_decision`            | User approves/rejects                              | `mission_id`, `tool_call_id`, `decision`, `reviewer_id`, `edits`        | Approval throughput, reviewer behavior                    |
+| `oauth_initiated`              | User clicks "Connect Toolkit"                      | `mission_id`, `toolkit_name`, `scopes_requested`                        | OAuth conversion, scope adoption                          |
+| `oauth_completed`              | Token stored                                       | `mission_id`, `toolkit_name`, `connection_id`                           | OAuth success rate                                        |
+| `governed_execution_completed` | Live action finishes                               | `mission_id`, `tool_call_id`, `latency_ms`, `result_hash`               | Execution latency, success rate                           |
+| `undo_requested`               | User clicks "Undo"                                 | `mission_id`, `tool_call_id`, `reason`                                  | Undo frequency, failure analysis                          |
+| `undo_completed`               | Evidence service rolls back                        | `mission_id`, `tool_call_id`, `success`                                 | Undo success rate                                         |
+| `safeguard_hint_applied`       | User accepts a safeguard hint                      | `mission_id`, `hint_type`, `confidence`, `source`                       | Track hint adoption                                       |
+| `safeguard_hint_rejected`      | User rejects or sends anyway                       | `mission_id`, `hint_type`, `reason`, `reviewer_id`                      | Identify where prompts need tuning                        |
+| `evidence_bundle_exported`     | User downloads PDF/CSV                             | `mission_id`, `format`, `user_id`                                       | Artifact sharing, stakeholder engagement                  |
+| `dashboard_viewed`             | User navigates to analytics                        | `dashboard_type`, `filters`, `user_id`                                  | Dashboard adoption, filter patterns                       |
 
 ---
 
 ### 10.3 Telemetry Privacy & Redaction
 
 **Principles:**
+
 - **No sensitive data in logs:** Hash arguments, redact PII before storing
 - **Granular consent:** Users opt into telemetry; governance teams review redaction policies
 - **Audit trails:** All telemetry includes `user_id`, `mission_id`, `timestamp` for compliance
 
 **Implementation:**
+
 - Evidence service hashes arguments using SHA-256 before logging to `tool_calls` table
 - Supabase Edge Function redacts PII (emails, phone numbers, SSNs) from `copilot_messages` before analytics export
 - Governance dashboard includes "Redaction Log" showing redacted fields per mission
@@ -918,52 +977,52 @@ When Validator spots a potential issue, the approval modal offers a focused reme
 
 ### 11.1 Architecture Mapping
 
-| UX Component | Architecture Reference | Implementation Assets |
-|--------------|------------------------|------------------------|
-| Mission Intake Modal | `architecture.md §3.1` | `src/app/(control-plane)/MissionIntake.tsx` |
-| Streaming Status Panel | `architecture.md §4.1` | CopilotKit `copilotkit_emit_message` integration |
-| Approval Modal | `architecture.md §3.1, §4.3` | `src/app/components/ApprovalModal.tsx` |
-| Play Recommendation Cards | `architecture.md §3.2` | Planner agent output, Supabase `plays` table |
-| Artifact Preview Cards | `architecture.md §3.5` | `artifacts` table, Supabase Storage |
-| Safeguard Drawer | `architecture.md §3.1` | `src/app/components/SafeguardDrawer.tsx` |
-| Undo Button | `architecture.md §3.5` | Evidence service `execute_undo` endpoint |
-| Analytics Dashboard | `architecture.md §3.6` | Next.js server components, PostgREST views |
-| Governance Dashboard | `architecture.md §3.7` | `src/app/(governance)/dashboard/page.tsx` |
+| UX Component              | Architecture Reference       | Implementation Assets                            |
+| ------------------------- | ---------------------------- | ------------------------------------------------ |
+| Mission Intake Modal      | `architecture.md §3.1`       | `src/app/(control-plane)/MissionIntake.tsx`      |
+| Streaming Status Panel    | `architecture.md §4.1`       | CopilotKit `copilotkit_emit_message` integration |
+| Approval Modal            | `architecture.md §3.1, §4.3` | `src/app/components/ApprovalModal.tsx`           |
+| Play Recommendation Cards | `architecture.md §3.2`       | Planner agent output, Supabase `plays` table     |
+| Artifact Preview Cards    | `architecture.md §3.5`       | `artifacts` table, Supabase Storage              |
+| Safeguard Drawer          | `architecture.md §3.1`       | `src/app/components/SafeguardDrawer.tsx`         |
+| Undo Button               | `architecture.md §3.5`       | Evidence service `execute_undo` endpoint         |
+| Analytics Dashboard       | `architecture.md §3.6`       | Next.js server components, PostgREST views       |
+| Governance Dashboard      | `architecture.md §3.7`       | `src/app/(governance)/dashboard/page.tsx`        |
 
 ---
 
 ### 11.2 Safeguard Alignment
 
-| UX Surface | Supporting Document | Implementation Notes |
-|------------|---------------------|----------------------|
-| Safeguard Drawer | `architecture.md §3.7`, `prd.md` (Adaptive Safeguards) | Render generated hints with confidence + edit/regenerate actions |
-| Safeguard Feedback Modal | `architecture.md §4.3` | Present quick fixes, log outcomes to safeguard feedback stream |
-| Governance Dashboard | `architecture.md §3.6`, `todo.md` (Gates G-C/G-D) | Show safeguard feedback stream, narrative summaries, export options |
-| Analytics Telemetry | `architecture.md §7`, `todo.md` (telemetry audits) | Track hint adoption, auto-fix rate, send-anyway justifications |
+| UX Surface               | Supporting Document                                    | Implementation Notes                                                |
+| ------------------------ | ------------------------------------------------------ | ------------------------------------------------------------------- |
+| Safeguard Drawer         | `architecture.md §3.7`, `prd.md` (Adaptive Safeguards) | Render generated hints with confidence + edit/regenerate actions    |
+| Safeguard Feedback Modal | `architecture.md §4.3`                                 | Present quick fixes, log outcomes to safeguard feedback stream      |
+| Governance Dashboard     | `architecture.md §3.6`, `todo.md` (Gates G-C/G-D)      | Show safeguard feedback stream, narrative summaries, export options |
+| Analytics Telemetry      | `architecture.md §7`, `todo.md` (telemetry audits)     | Track hint adoption, auto-fix rate, send-anyway justifications      |
 
 ---
 
 ### 11.3 PRD Value Proposition Realization
 
-| PRD Differentiator | UX Manifestation |
-|--------------------|------------------|
-| **Zero-to-value runway** | Dry-run proof loop completes in <15 min (Mission Intake → Evidence Bundle) |
-| **Proven outcomes** | ROI estimates in Artifact Cards ("87 contacts, 3–5% reply rate"), library reuse metrics in Analytics |
-| **Human-centered copilot UX** | CopilotKit chat, approval modals, inline edits, "Why This?" tooltips |
-| **Adaptive safeguards** | Safeguard Drawer, feedback modal, undo-first approvals |
-| **Compounding library** | Play Recommendation Cards surface top plays from library; Analytics shows reuse trends |
+| PRD Differentiator            | UX Manifestation                                                                                     |
+| ----------------------------- | ---------------------------------------------------------------------------------------------------- |
+| **Zero-to-value runway**      | Dry-run proof loop completes in <15 min (Mission Intake → Evidence Bundle)                           |
+| **Proven outcomes**           | ROI estimates in Artifact Cards ("87 contacts, 3–5% reply rate"), library reuse metrics in Analytics |
+| **Human-centered copilot UX** | CopilotKit chat, approval modals, inline edits, "Why This?" tooltips                                 |
+| **Adaptive safeguards**       | Safeguard Drawer, feedback modal, undo-first approvals                                               |
+| **Compounding library**       | Play Recommendation Cards surface top plays from library; Analytics shows reuse trends               |
 
 ---
 
 ### 11.4 Gate-by-Gate UX Delivery
 
-| Gate | UX Deliverables | Acceptance Evidence |
-|------|-----------------|---------------------|
-| **G-A (Foundation)** | Generative Intake Modal, CopilotKit workspace scaffold, Safeguard Drawer scaffold | Screenshots in `docs/readiness/copilotkit_qa_G-A/` |
-| **G-B (Dry-Run Proof)** | Streaming Status Panel, Play Cards, Artefact Previews, Safeguard feedback logging | QA video in `docs/readiness/copilotkit_session_G-B.mp4` |
-| **G-C (Governed Activation)** | Safeguard feedback modal, OAuth flow, undo-first approvals | Approval feed export in `docs/readiness/approval_feed_export_G-C.json` |
-| **G-D (Analytics)** | Analytics Dashboard, Safeguard feedback stream, Library Recommendations | Dashboard QA video in `docs/readiness/dashboard_qa_G-D.mp4` |
-| **G-E (Scale Hardening)** | Mobile responsive breakpoints, accessibility audit report | Accessibility report in `docs/readiness/accessibility_audit_G-E.pdf` |
+| Gate                          | UX Deliverables                                                                   | Acceptance Evidence                                                    |
+| ----------------------------- | --------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| **G-A (Foundation)**          | Generative Intake Modal, CopilotKit workspace scaffold, Safeguard Drawer scaffold | Screenshots in `docs/readiness/copilotkit_qa_G-A/`                     |
+| **G-B (Dry-Run Proof)**       | Streaming Status Panel, Play Cards, Artefact Previews, Safeguard feedback logging | QA video in `docs/readiness/copilotkit_session_G-B.mp4`                |
+| **G-C (Governed Activation)** | Safeguard feedback modal, OAuth flow, undo-first approvals                        | Approval feed export in `docs/readiness/approval_feed_export_G-C.json` |
+| **G-D (Analytics)**           | Analytics Dashboard, Safeguard feedback stream, Library Recommendations           | Dashboard QA video in `docs/readiness/dashboard_qa_G-D.mp4`            |
+| **G-E (Scale Hardening)**     | Mobile responsive breakpoints, accessibility audit report                         | Accessibility report in `docs/readiness/accessibility_audit_G-E.pdf`   |
 
 ---
 
@@ -1014,6 +1073,7 @@ This UX blueprint establishes a foundation for an **elegant, loved-by-users miss
 The design aligns with Gate G-A expectations (dry-run focus) and extends toward governed activation (Gate G-C), with clear paths to analytics (Gate G-D) and scale hardening (Gate G-E). Every interaction pattern, component, and telemetry touchpoint ties back to the PRD's value proposition and the architecture blueprint.
 
 **Next Steps:**
+
 1. Review with Product, Design, Governance stakeholders
 2. Validate generative quality metrics (confidence scoring, edit rate) alongside WCAG audit commitments
 3. Build component library (Storybook) per Appendix A checklist

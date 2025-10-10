@@ -50,6 +50,7 @@ Deliver an objective-first AI employee that plans, executes, and learns like a t
 ## Detailed Requirements & Acceptance Criteria
 
 ### CopilotKit Experience
+
 - Mission chat, contextual briefs, approval modals, and artifact previews must all run on CopilotKit CoAgents using shared state; persistence is required via Supabase Postgres tables (CopilotKit message/state storage) so reviewers can reload or transfer conversations without losing context. Layout, navigation, and component behavior should follow the mission workspace anatomy in `new_docs/ux.md` (generative intake banner, editable chip stack, mission sidebar, streaming status panel, safeguard drawer).
 - The system must parse a single freeform input into structured mission data (objective, audience, KPIs, safeguards, suggested tools) with confidence scores, expose each element as editable chips, and support regenerate/edit/replace actions without leaving the workspace.
 - The workspace must render a recommended tool palette that pairs Composio metadata (auth status, scopes, impact heuristics) with narrative summaries so users can curate the toolkit mix before the planner locks a mission plan.
@@ -58,12 +59,14 @@ Deliver an objective-first AI employee that plans, executes, and learns like a t
 - Message history hygiene and redaction controls must exist so governance teams can remove sensitive strings while maintaining evidence pointers.
 
 ### Agent Orchestration & ADK Expectations
+
 - Coordinator, planner, executor, validator, and evidence agents run on Gemini ADK with deterministic `_run_async_impl` branches for conditional loops (e.g., regenerate plays if tone check fails). Shared state (`ctx.session.state`) stores mission metadata, safeguard hints, and evidence references.
 - Intake orchestration must include a generative parser step that converts the single input into structured mission data, writes confidence scores, and tracks user edits/regenerations for observability.
 - Checkpointed evaluations (`adk eval`) must replay top missions across dry-run and governed modes, confirming stable outcomes before promotion.
 - Orchestration logs capture tool calls, approvals, and undo instructions with IDs that align to Supabase tables and UI events.
 
 ### Tooling & Integrations
+
 - Composio usage follows the official SDK guidance: limit tool payloads, scope searches, avoid mixing filters, and capture auth evidence (`redirectUrl`, `connectedAccountId`, scopes).
 - Generative recommendations for toolkits and scopes must include rationale and align with Composio's available metadata; suggestions default to `no_auth` where possible and highlight required OAuth upgrades.
 - MCP inspection passes must run after tool selection and before live execution so users can validate sample data and safeguard implications without committing credentials.
@@ -72,17 +75,20 @@ Deliver an objective-first AI employee that plans, executes, and learns like a t
 - Supabase Cron handles analytics rollups; Edge Functions deliver streaming evidence search and ROI calculations without exposing secrets client-side.
 
 ### Adaptive Safeguards
+
 - Intake must generate safeguard hints (tone guidance, suggested quiet windows, escalation contacts, optional spend caps) with confidence scores; reviewers can accept, edit, or regenerate.
 - Accepted hints are stored alongside the mission and become part of validator context; their adoption rate feeds the analytics views documented in the architecture blueprint.
 - Approvals surface only the safeguards relevant to the pending action, offering one-click fixes where possible (e.g., auto-soften tone, schedule later, request escalation).
 - Safeguard feedback (accepted, edited, rejected, auto-fixed) is logged so product teams can tune prompts and highlight common patterns.
 
 ### Evidence, Analytics & Governance
+
 - Each mission generates an evidence bundle: mission brief, tool outputs (redacted), ROI estimates, risk notes, undo plan, and telemetry summary. Bundles are reviewable in CopilotKit and exportable via Supabase APIs.
 - Dashboards present dry-run conversion, approval throughput, safeguard feedback, and library reuse. Data must be filterable by tenant, persona, and checkpoint state.
 - Safeguard telemetry (hint adoption, auto-fixes, reviewer overrides, undo outcomes) must sync with Supabase analytics views and appear in weekly governance reports.
 
 ### Non-Functional Requirements
+
 - **Latency:** Dry-run loop ≤15 minutes end-to-end; streaming updates surface within 5 seconds of agent emission.
 - **Generative Intake Latency:** Initial mission brief generation ≤3 seconds p95 for 1k-character inputs; regeneration ≤2 seconds p95.
 - **Reliability:** Daily Cron sync success rate ≥99%; trigger subscription health monitored with automated alerts.
@@ -92,6 +98,7 @@ Deliver an objective-first AI employee that plans, executes, and learns like a t
 - **Scalability:** Support 20 concurrent governed missions with maintained latency targets by Gate G-D.
 
 ### Stakeholder Sign-Off Criteria
+
 - Governance officers can audit any mission’s approvals, toolkits, and undo plans via UI or API.
 - GTM leads can demonstrate at least three dry-run wins per persona during pilots, using evidence packs as collateral.
 - Technical enablement validates MCP-triggered workflows and repo-safe change management before expanding scope.

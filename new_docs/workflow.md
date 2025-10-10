@@ -1,9 +1,11 @@
-# AI Employee Control Plane — Workflow Specification (Gate G‑A Baseline)
+# AI Employee Control Plane — Workflow Specification (Gate G‑B Eight-Stage Flow)
 
-_Last updated: October 9, 2025_
+_Last updated: October 10, 2025_
 
 ## 0. Purpose & Source Map
+
 This document translates the architecture, product, UX, and roadmap inputs into an implementable workflow blueprint for Gates G‑A through G‑C. It should be read in tandem with:
+
 - `new_docs/architecture.md §3–4` for system components and runtime flows.
 - `new_docs/prd.md §Product Scope` and §Detailed Requirements for business guardrails.
 - `new_docs/ux.md §3–7` for workspace anatomy, interrupts, and telemetry.
@@ -14,17 +16,25 @@ Each workflow section below names the data writes, CopilotKit surfaces, ADK resp
 
 ---
 
-## 1. Workflow Taxonomy
-| Track | Description | Primary Goal | Exit Criteria |
-| --- | --- | --- | --- |
-| **Dry Run (Zero Privilege)** | Generates artefacts and ROI indicators without live credentials. | Prove smallest viable workflow within 15 minutes. | Evidence bundle ready; no governance blockers. |
-| **Governed Activation** | Executes approved plays using OAuth-backed connections, with adaptive safeguards and reviewer interrupts. | Deliver real outcomes while enforcing undo + approvals. | Validator returns _pass_; approvals recorded; undo plan ready. |
-| **Trigger Lifecycle** | Manages event-driven follow-ups via Composio triggers with warehouse reconciliation. | Sustain automation safely after activation. | Trigger health monitored; warehouse and tool_calls aligned. |
-| **Evidence & Undo** | Packages outputs, telemetry, and rollback handles for governance and retros. | Provide audit-ready artefacts and reversible actions. | Artefact hash stored; undo tested or documented. |
+## 1. Eight-Stage Mission Workspace Flow
+
+Gate G-B introduces a structured eight-stage workflow that guides users from intent to feedback, ensuring governed execution with full auditability.
+
+| Stage                     | Description                                                                              | Primary Goal                                                    | Exit Criteria                                                            |
+| ------------------------- | ---------------------------------------------------------------------------------------- | --------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| **1. Intake**             | Single-input banner generates chips via Gemini with structured mission metadata.         | Transform freeform intent into structured mission primitives.   | Chips accepted and persisted to Supabase; no fallback state.             |
+| **2. Mission Brief**      | Accepted chips persist in Supabase; brief card remains pinned throughout workspace.      | Provide stable mission context for all downstream stages.       | Mission brief locked; safeguards generated and ready for review.         |
+| **3. Toolkits & Connect** | User-curated Composio palette with inspection preview and Connect Link auth.             | Ground capabilities with toolkit discovery and managed OAuth.   | Selected toolkits validated; connections authorized via Connect Link.    |
+| **4. Data Inspect**       | MCP draft calls validate coverage/freshness; coverage meter communicates readiness.      | Validate data access and scope sufficiency before planning.     | Inspection previews rendered; coverage meter shows readiness percentage. |
+| **5. Plan**               | Planner insight rail streams rationale; user selects ranked plays with impact/risk/undo. | Generate executable plays with full context and user selection. | Plays validated; user accepts plan with impact understanding.            |
+| **6. Dry-Run**            | Streaming status panel narrates planner → executor → validator loop; heartbeat + logs.   | Prove value without live credentials in <15 minutes.            | Evidence bundle generated; validator feedback captured; no blockers.     |
+| **7. Evidence**           | Artifact gallery surfaces proof pack, ROI, undo bar with time-bound rollback UI.         | Package audit-ready outputs with reversibility.                 | Artifacts stored with hash verification; undo plan validated.            |
+| **8. Feedback**           | Per-artifact ratings, mission feedback, learning signals feeding next runs.              | Capture quality signals and improvement data.                   | Feedback submitted; learning signals persisted to analytics.             |
 
 ---
 
 ## 2. End-to-End Overview
+
 ```mermaid
 flowchart LR
     A[Intake Banner
@@ -55,32 +65,38 @@ flowchart LR
     K -->|triggers|
     L[Trigger Warehouse]
 ```
+
 _References: architecture.md §4.1–4.3; prd.md §Product Scope; ux.md §3._
 
 ---
 
-## 3. Generative Intake Workflow
-**Context:** Converts a single freeform input into structured mission primitives before any planner call.
+## 3. Stage 1: Intake — Generative Mission Creation
 
-- **API surface:** `POST /api/intake/generate`, `POST /api/intake/regenerate`, `POST /api/objectives` (`architecture.md §3.2`).
-- **Carbon copy of UX:** Generative intake banner, editable chip rows, confidence badges (`ux.md §3.1`).
+**Context:** Single-input banner converts freeform intent into structured mission primitives via Gemini. No fallback state exists; all chips are generated.
+
+- **API surface:** `POST /api/intake/generate`, `POST /api/intake/regenerate` (`architecture.md §3.2`).
+- **UX surface:** Generative intake banner, editable chip rows, confidence badges (`ux.md §3.1`).
 - **ADK dependency:** IntakeAgent enriches `ctx.session.state['mission_context']` with accepted chips (`libs_docs/adk/llms-full.txt §Coordinator pattern`).
 - **CopilotKit contract:**
   - `useCopilotAction('generateMission')` streams chips with `copilotkit_emit_message` updates.
-  - Accepted chips persist via `useCopilotAction('acceptChip')`, logging `brief_item_modified` telemetry (`ux.md §10`).
-- **Supabase writes:**
-  - `mission_metadata` rows (one per chip) w/ `confidence`, `source`, `regeneration_count`.
-  - `mission_safeguards` rows for generated hints, status=`suggested`.
-  - `objectives` row when user confirms summary.
-- **Telemetry:** `intent_submitted`, `brief_generated`, `brief_item_modified` with payloads referencing `mission_id` and `field` (`prd.md §Metrics`).
+  - Accepted chips persist via `useCopilotAction('acceptChip')`, logging `brief_item_modified` telemetry.
+- **Supabase persistence schema:**
+  - `mission_metadata` rows (one per chip) with `confidence`, `source`, `regeneration_count`.
+  - `mission_safeguards` rows for generated hints with `status='suggested'`, `source='gemini'`.
+  - NO fallback state table or column; all data is generative.
+- **Telemetry events:**
+  - `intent_submitted` — raw objective hash, tenant, character count
+  - `brief_generated` — mission_id, generation_time_ms, chip_count, acceptance_ratio
+  - `brief_item_modified` — chip type, action (edit/regenerate/reset), confidence_delta
 - **Guardrails:**
-  - Redact secrets before logging prompts (`todo.md G‑A » Intake hygiene`).
+  - Redact secrets before logging prompts (`todo.md G-A Intake hygiene`).
   - Regeneration limited to 3 tries per chip before prompting manual input.
   - Quiet-hours hints include tenant locale metadata for validator use.
 
 ---
 
 ## 4. Planning & Capability Grounding
+
 Planner transforms mission context into ranked plays, connection plans, and trigger candidates.
 
 - **Inputs:** Mission brief, safeguard hints, tenant persona, historical play success (`architecture.md §3.3`).
@@ -113,6 +129,7 @@ sequenceDiagram
 ```
 
 ### 4.1 Tool Validation & MCP Inspection Pass
+
 - **Inspection objective:** Run non-mutating MCP calls (e.g., summarise CRM sample, fetch top tickets) using selected toolkits to validate scopes, data freshness, and guardrail compatibility before committing to a plan.
 - **CopilotKit experience:** Users see inspection summaries inline ("Found 23 dormant deals; recommended segmentation ready") with actionable warnings if data is stale or missing scopes.
 - **Validator hook:** Validator consumes inspection outputs; mismatches trigger `auto_fix` (adjust scope), `ask_reviewer` (manual sign-off), or `retry_later` (await data sync). Outcomes log to `safeguard_events` with reason codes.
@@ -122,6 +139,7 @@ sequenceDiagram
 ---
 
 ## 5. Dry-Run Execution Loop
+
 Dry runs prove value without credentials; they should finish within 15 minutes p95 (`architecture.md §4.2`).
 
 - **Trigger:** User accepts a play card; CopilotKit calls `useCopilotAction('startDryRun')`.
@@ -143,6 +161,7 @@ Dry runs prove value without credentials; they should finish within 15 minutes p
 ---
 
 ## 6. Governed Activation Workflow
+
 Once reviewers approve scopes and plays, governed execution proceeds with live credentials.
 
 - **Prereqs:** Accepted connection plan entries in `mission_safeguards` (`status='accepted'`), at least one connected account per required toolkit.
@@ -190,6 +209,7 @@ sequenceDiagram
 ---
 
 ## 7. Safeguard Feedback Loop
+
 Safeguards remain dynamic, feeding back into future missions and analytics.
 
 - **Generation:** Intake seeds hints (tone, quiet hours, budget caps, fallback contacts) with `confidence` scores (`architecture.md §3.7`).
@@ -221,6 +241,7 @@ stateDiagram-v2
 ---
 
 ## 8. Evidence Bundling & Undo
+
 Evidence underpins promotion decisions and compliance reviews.
 
 - **Bundle contents:** Mission brief, selected plays, tool call summaries, raw outputs (redacted), ROI deltas, safeguard outcomes, undo instructions (`architecture.md §3.6`).
@@ -237,6 +258,7 @@ Evidence underpins promotion decisions and compliance reviews.
 ---
 
 ## 9. Trigger Lifecycle & Warehouse
+
 Automations extend missions beyond single runs.
 
 - **Planner stage:** Identify trigger-ready plays via `Composio.triggers.list` filtered by toolkit and event type (`libs_docs/composio/llms.txt §7`). Persist suggestions to `triggers` table (`status='suggested'`).
@@ -264,21 +286,23 @@ flowchart TD
 ---
 
 ## 10. Supabase Persistence Map
-| Stage | Tables touched | Notes |
-| --- | --- | --- |
-| Intake | `mission_metadata`, `mission_safeguards`, `objectives`, `mission_events` | Ensure RLS uses `tenant_id`. |
-| Planning | `plays`, `mission_safeguards`, `mission_flags` | Write rationales + undo plan seeds. |
-| Dry Run | `tool_calls` (`mode='dry_run'`), `artifacts`, `mission_events` | `result_ref` points to Storage. |
-| Governed | `tool_calls` (`mode='governed'`), `approvals`, `safeguard_events`, `artifacts`, `mission_events` | Capture latency and reviewer ID. |
-| Evidence | `artifacts`, `mission_events`, future `undo_events` | Store hashes and Storage URLs. |
-| Triggers | `triggers`, `trigger_warehouse`, `mission_flags` | Enforce pg_cron monitoring. |
-| Analytics | `analytics_*` materialized views | Refresh nightly; avoid direct writes. |
+
+| Stage     | Tables touched                                                                                   | Notes                                 |
+| --------- | ------------------------------------------------------------------------------------------------ | ------------------------------------- |
+| Intake    | `mission_metadata`, `mission_safeguards`, `objectives`, `mission_events`                         | Ensure RLS uses `tenant_id`.          |
+| Planning  | `plays`, `mission_safeguards`, `mission_flags`                                                   | Write rationales + undo plan seeds.   |
+| Dry Run   | `tool_calls` (`mode='dry_run'`), `artifacts`, `mission_events`                                   | `result_ref` points to Storage.       |
+| Governed  | `tool_calls` (`mode='governed'`), `approvals`, `safeguard_events`, `artifacts`, `mission_events` | Capture latency and reviewer ID.      |
+| Evidence  | `artifacts`, `mission_events`, future `undo_events`                                              | Store hashes and Storage URLs.        |
+| Triggers  | `triggers`, `trigger_warehouse`, `mission_flags`                                                 | Enforce pg_cron monitoring.           |
+| Analytics | `analytics_*` materialized views                                                                 | Refresh nightly; avoid direct writes. |
 
 _Reference: architecture.md §3.5; libs_docs/supabase/llms_docs.txt._
 
 ---
 
 ## 11. CopilotKit Session Management
+
 - **Persistence:** Store CopilotKit message history and shared state in Supabase via CopilotKit connectors; required for reload resilience (`prd.md §CopilotKit Experience`).
 - **Shared state contract:**
   - `mission_context`: mission metadata, safeguards, planner outputs.
@@ -291,28 +315,30 @@ _Reference: architecture.md §3.5; libs_docs/supabase/llms_docs.txt._
 ---
 
 ## 12. Telemetry & Analytics Catalogue
+
 Capture events at every decision point to power dashboards and Gate promotion metrics.
 
-| Event | Stage | Payload essentials |
-| --- | --- | --- |
-| `intent_submitted` | Intake | raw objective hash, tenant, character count |
-| `brief_generated` | Intake | mission_id, generation_time_ms, acceptance_ratio |
-| `brief_item_modified` | Intake | chip type, action (edit/regenerate/reset), confidence_delta |
-| `play_generated` | Planning | play_id, rank, similarity_score |
-| `connection_plan_generated` | Planning | suggested toolkit, scopes, confidence |
-| `dry_run_started/completed/failed` | Dry run | play_id, duration_ms, failure_code |
-| `governed_run_started/completed` | Governed | play_id, approvals_count, undo_plan_hash |
-| `approval_required` / `approval_decision` | Governance | tool_call_id, safeguard_context, decision |
-| `safeguard_hint_*` | Safeguards | hint_type, status_change |
-| `trigger_created/event_received/disabled` | Triggers | trigger_id, event_type, failure_count |
-| `undo_requested/completed/failed` | Evidence | tool_call_id, undo_strategy |
-| `telemetry_export_generated` | Analytics | export_type, hash |
+| Event                                     | Stage      | Payload essentials                                          |
+| ----------------------------------------- | ---------- | ----------------------------------------------------------- |
+| `intent_submitted`                        | Intake     | raw objective hash, tenant, character count                 |
+| `brief_generated`                         | Intake     | mission_id, generation_time_ms, acceptance_ratio            |
+| `brief_item_modified`                     | Intake     | chip type, action (edit/regenerate/reset), confidence_delta |
+| `play_generated`                          | Planning   | play_id, rank, similarity_score                             |
+| `connection_plan_generated`               | Planning   | suggested toolkit, scopes, confidence                       |
+| `dry_run_started/completed/failed`        | Dry run    | play_id, duration_ms, failure_code                          |
+| `governed_run_started/completed`          | Governed   | play_id, approvals_count, undo_plan_hash                    |
+| `approval_required` / `approval_decision` | Governance | tool_call_id, safeguard_context, decision                   |
+| `safeguard_hint_*`                        | Safeguards | hint_type, status_change                                    |
+| `trigger_created/event_received/disabled` | Triggers   | trigger_id, event_type, failure_count                       |
+| `undo_requested/completed/failed`         | Evidence   | tool_call_id, undo_strategy                                 |
+| `telemetry_export_generated`              | Analytics  | export_type, hash                                           |
 
 All events land in `mission_events`, feed `analytics_*` views, and support weekly readiness reporting (`prd.md §Metrics`, `ux.md §10`).
 
 ---
 
 ## 13. Error Handling & Resilience
+
 - **Planner discovery failure:** Emit `planner_no_catalog` warning, fallback to library; notify reviewer in CopilotKit status bar.
 - **Composio rate limits:** Respect SDK retry headers; on repeated `429`, pause run, log `mission_flags.rate_limited`, and surface mitigation (“retry in 60s”). (`libs_docs/composio/llms.txt §5.4`).
 - **Validator retry exhaustion:** After 3 failures, abort mission run, require reviewer intervention, record in `approvals` and `mission_flags.validator_dead_end` (`todo.md G‑A`).
@@ -323,33 +349,36 @@ All events land in `mission_events`, feed `analytics_*` views, and support weekl
 ---
 
 ## 14. Gate Alignment Checklist
-| Gate | Required Workflow Proof | Validation Steps |
-| --- | --- | --- |
-| **G‑A** | Intake → Planner → Dry run loop w/ evidence bundle; safeguard edit loop functioning. | 1) Run mission: verify events logged. 2) Review `mission_metadata` + `plays`. 3) Confirm evidence bundle stored. |
-| **G‑B** | Governed activation w/ approvals + undo execution; streaming status updates. | 1) Connect toolkit via oauth_tokens. 2) Trigger validator interrupt & approval. 3) Execute undo and confirm status. |
-| **G‑C** | Trigger lifecycle + connection planner autopopulated scopes. | 1) Accept trigger suggestion, create subscription. 2) Receive event → log to warehouse. 3) Reconciliation job green. |
-| **G‑D** | Analytics dashboards + telemetry exports. | 1) Refresh analytics views. 2) Export readiness report. 3) Validate KPI tiles with mission events. |
-| **G‑E (forward looking)** | Multi-tenant governance, narrative summaries, expanded undo telemetry. | 1) Verify RLS across tables. 2) Run narrative summariser function. 3) Validate undo success reporting. |
+
+| Gate                      | Required Workflow Proof                                                              | Validation Steps                                                                                                     |
+| ------------------------- | ------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------- |
+| **G‑A**                   | Intake → Planner → Dry run loop w/ evidence bundle; safeguard edit loop functioning. | 1) Run mission: verify events logged. 2) Review `mission_metadata` + `plays`. 3) Confirm evidence bundle stored.     |
+| **G‑B**                   | Governed activation w/ approvals + undo execution; streaming status updates.         | 1) Connect toolkit via oauth_tokens. 2) Trigger validator interrupt & approval. 3) Execute undo and confirm status.  |
+| **G‑C**                   | Trigger lifecycle + connection planner autopopulated scopes.                         | 1) Accept trigger suggestion, create subscription. 2) Receive event → log to warehouse. 3) Reconciliation job green. |
+| **G‑D**                   | Analytics dashboards + telemetry exports.                                            | 1) Refresh analytics views. 2) Export readiness report. 3) Validate KPI tiles with mission events.                   |
+| **G‑E (forward looking)** | Multi-tenant governance, narrative summaries, expanded undo telemetry.               | 1) Verify RLS across tables. 2) Run narrative summariser function. 3) Validate undo success reporting.               |
 
 Checklist items cross-reference `new_docs/todo.md` for detailed acceptance per gate.
 
 ---
 
 ## 15. Integration Reference Matrix
-| Workflow Stage | Architecture | PRD | UX | TODO | Composio | ADK | CopilotKit | Supabase |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Intake | `§3.1`, `§4.1` | `§Product Scope`, `§CopilotKit Experience` | `§3.1`, `§4.1` | `G‑A Intake` | — | `Coordinator` | `Shared state`, `Actions` | `mission_metadata` |
-| Planning | `§3.2–3.4` | `Capability grounding` | `§4.2` | `G‑A Planner` | `§3`, `§4` | `Planner`, `ctx.session.state` | Play cards | `plays`, `mission_safeguards` |
-| Dry Run | `§4.2` | `Dry-run proof packs` | `§4.3`, `§5` | `G‑A Execution` | `§5` (simulation) | `ExecutionLoop`, `Evidence` | Streaming status | `tool_calls (dry)` |
-| Governed | `§3.3` | `Governed activation` | `§6` | `G‑B Governed` | `§4`, `§5` | `Executor`, `Validator` | Approvals | `tool_calls (live)`, `approvals` |
-| Safeguards | `§3.7` | `Adaptive safeguards` | `§5` | `G‑B Validators` | — | `Validator` | Safeguard drawer | `mission_safeguards`, `safeguard_events` |
-| Evidence | `§3.6` | `Evidence & coaching` | `§7` | `G‑B Evidence` | — | `Evidence agent` | Artefact previews | `artifacts`, Storage |
-| Triggers | `§3.4` | `Trigger-ready plays` | `§8` | `G‑C Triggers` | `§7` | `Execution` | Trigger toggles | `triggers`, `trigger_warehouse` |
-| Analytics | `§3.5`, `§6` | `Metrics` | `§10` | `G‑D Analytics` | — | — | Dashboards | `analytics_*` |
+
+| Workflow Stage | Architecture   | PRD                                        | UX             | TODO             | Composio          | ADK                            | CopilotKit                | Supabase                                 |
+| -------------- | -------------- | ------------------------------------------ | -------------- | ---------------- | ----------------- | ------------------------------ | ------------------------- | ---------------------------------------- |
+| Intake         | `§3.1`, `§4.1` | `§Product Scope`, `§CopilotKit Experience` | `§3.1`, `§4.1` | `G‑A Intake`     | —                 | `Coordinator`                  | `Shared state`, `Actions` | `mission_metadata`                       |
+| Planning       | `§3.2–3.4`     | `Capability grounding`                     | `§4.2`         | `G‑A Planner`    | `§3`, `§4`        | `Planner`, `ctx.session.state` | Play cards                | `plays`, `mission_safeguards`            |
+| Dry Run        | `§4.2`         | `Dry-run proof packs`                      | `§4.3`, `§5`   | `G‑A Execution`  | `§5` (simulation) | `ExecutionLoop`, `Evidence`    | Streaming status          | `tool_calls (dry)`                       |
+| Governed       | `§3.3`         | `Governed activation`                      | `§6`           | `G‑B Governed`   | `§4`, `§5`        | `Executor`, `Validator`        | Approvals                 | `tool_calls (live)`, `approvals`         |
+| Safeguards     | `§3.7`         | `Adaptive safeguards`                      | `§5`           | `G‑B Validators` | —                 | `Validator`                    | Safeguard drawer          | `mission_safeguards`, `safeguard_events` |
+| Evidence       | `§3.6`         | `Evidence & coaching`                      | `§7`           | `G‑B Evidence`   | —                 | `Evidence agent`               | Artefact previews         | `artifacts`, Storage                     |
+| Triggers       | `§3.4`         | `Trigger-ready plays`                      | `§8`           | `G‑C Triggers`   | `§7`              | `Execution`                    | Trigger toggles           | `triggers`, `trigger_warehouse`          |
+| Analytics      | `§3.5`, `§6`   | `Metrics`                                  | `§10`          | `G‑D Analytics`  | —                 | —                              | Dashboards                | `analytics_*`                            |
 
 ---
 
 ## 16. Validation Checklist (Run Before Shipping)
+
 1. **Document hygiene**: Confirm all links and section references resolve; update date stamp.
 2. **Source alignment**: Spot-check at least one claim per section against source doc (`architecture`, `prd`, `ux`, `libs_docs`).
 3. **Telemetry verification**: Run `mise run dev` + simulated mission to ensure events fire (use Supabase dashboard or logs).
@@ -364,14 +393,15 @@ Checklist items cross-reference `new_docs/todo.md` for detailed acceptance per g
 ---
 
 ## 17. Integration Gap Log
-| ID | Area | Description | Proposed Next Step | Owner | Gate |
-| --- | --- | --- | --- | --- | --- |
-| GAP‑01 | CopilotKit Persistence | Message history store lacks soft-delete for governed transcripts without losing artefact links. | Implement redaction workflow using soft delete + placeholder events. | CopilotKit squad | G‑B |
-| GAP‑02 | Trigger Wake Path | Missing documented ADK listener to wake mission when trigger payload arrives. | Add event handler that queues ADK job referencing `trigger_id`. | Runtime steward | G‑C |
-| GAP‑03 | Supabase Migrations | Need migration playbook for rotating RLS policies across tenants without downtime. | Draft migration runbook + smoke test script. | Data engineer | G‑E |
-| GAP‑04 | ADK Eval Coverage | Current eval suite lacks governed-mode regression set. | Add governed scenarios to `mise run test-agent`. | Runtime steward | G‑B |
-| GAP‑05 | Composio Rate Limits | No monitor for sustained 429 responses beyond mission flags. | Configure Prometheus alert or Supabase function tracking failure streaks. | Platform ops | G‑D |
-| GAP‑06 | Narrative Quality | Narrative summariser outputs lack reviewer calibration metrics. | Capture reviewer rating loop + add prompt tuning. | Evidence squad | G‑D |
+
+| ID     | Area                   | Description                                                                                     | Proposed Next Step                                                        | Owner            | Gate |
+| ------ | ---------------------- | ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- | ---------------- | ---- |
+| GAP‑01 | CopilotKit Persistence | Message history store lacks soft-delete for governed transcripts without losing artefact links. | Implement redaction workflow using soft delete + placeholder events.      | CopilotKit squad | G‑B  |
+| GAP‑02 | Trigger Wake Path      | Missing documented ADK listener to wake mission when trigger payload arrives.                   | Add event handler that queues ADK job referencing `trigger_id`.           | Runtime steward  | G‑C  |
+| GAP‑03 | Supabase Migrations    | Need migration playbook for rotating RLS policies across tenants without downtime.              | Draft migration runbook + smoke test script.                              | Data engineer    | G‑E  |
+| GAP‑04 | ADK Eval Coverage      | Current eval suite lacks governed-mode regression set.                                          | Add governed scenarios to `mise run test-agent`.                          | Runtime steward  | G‑B  |
+| GAP‑05 | Composio Rate Limits   | No monitor for sustained 429 responses beyond mission flags.                                    | Configure Prometheus alert or Supabase function tracking failure streaks. | Platform ops     | G‑D  |
+| GAP‑06 | Narrative Quality      | Narrative summariser outputs lack reviewer calibration metrics.                                 | Capture reviewer rating loop + add prompt tuning.                         | Evidence squad   | G‑D  |
 
 Document owners should update status weekly and reflect closures in `docs/readiness/` artefacts.
 
@@ -380,6 +410,7 @@ Document owners should update status weekly and reflect closures in `docs/readin
 ## 18. Appendix — Additional Diagrams
 
 ### A. CopilotKit Session Recovery
+
 ```mermaid
 sequenceDiagram
     participant User
@@ -399,6 +430,7 @@ sequenceDiagram
 ```
 
 ### B. Evidence Bundle Generation
+
 ```mermaid
 sequenceDiagram
     participant Executor
@@ -414,6 +446,7 @@ sequenceDiagram
 ```
 
 ### C. Telemetry Export Flow
+
 ```mermaid
 flowchart LR
     A[Mission Events] --> B[analytics_* views]
@@ -426,4 +459,5 @@ flowchart LR
 ---
 
 ## 19. Change Log
+
 - **2025-10-09:** Initial workflow specification authored to align Gate G‑A delivery with partner docs and roadmap requirements.
