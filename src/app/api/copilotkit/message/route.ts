@@ -9,8 +9,12 @@ const payloadSchema = z.object({
   tenantId: z.string().uuid().optional(),
   sessionId: z.string().uuid().optional(),
   sessionIdentifier: z.string().optional(),
+  missionId: z.string().uuid().optional(),
   role: z.enum(["system", "user", "assistant"]).default("assistant"),
   content: z.string().min(1),
+  payloadType: z.string().min(1).optional(),
+  latencyMs: z.number().int().nonnegative().optional(),
+  telemetryEventIds: z.array(z.string()).optional(),
   metadata: z.record(z.any()).optional(),
 });
 
@@ -103,12 +107,22 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const metadataPayload = (parsed.data.metadata ?? {}) as Json;
+  const missionIdFromMetadata =
+    typeof parsed.data.metadata?.mission_id === "string" && uuidPattern.test(parsed.data.metadata.mission_id)
+      ? parsed.data.metadata.mission_id
+      : null;
+
   const messagePayload: Database["public"]["Tables"]["copilot_messages"]["Insert"] = {
     tenant_id: tenantId,
     session_id: sessionId,
+    mission_id: parsed.data.missionId ?? missionIdFromMetadata,
     role: parsed.data.role,
     content: { text: parsed.data.content } as Json,
-    metadata: (parsed.data.metadata ?? {}) as Json,
+    metadata: metadataPayload,
+    payload_type: parsed.data.payloadType ?? null,
+    latency_ms: parsed.data.latencyMs ?? null,
+    telemetry_event_ids: parsed.data.telemetryEventIds ?? null,
   };
 
   const { data, error } = await supabase

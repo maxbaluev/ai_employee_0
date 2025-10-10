@@ -82,6 +82,9 @@ export function useApprovalFlow(options: UseApprovalFlowOptions) {
       setIsSubmitting(true);
       setError(null);
 
+      const pendingDecision = submission.decision;
+      setLatestDecision(pendingDecision);
+
       const payload = {
         tenantId,
         missionId,
@@ -102,8 +105,18 @@ export function useApprovalFlow(options: UseApprovalFlowOptions) {
 
         if (!response.ok) {
           const errorPayload = await response.json().catch(() => ({}));
+
+          if (response.status === 409) {
+            const message = errorPayload.error ?? 'Approval already recorded';
+            const existingDecision = errorPayload.existingApproval?.decision as ApprovalDecision | undefined;
+            setError(message);
+            setLatestDecision(existingDecision ?? null);
+            return { ok: false, error: message };
+          }
+
           const message = errorPayload.error ?? 'Failed to persist approval decision';
           setError(message);
+          setLatestDecision((prev) => (prev === pendingDecision ? null : prev));
           return { ok: false, error: message };
         }
 
@@ -142,6 +155,7 @@ export function useApprovalFlow(options: UseApprovalFlowOptions) {
       } catch (requestError) {
         const message = requestError instanceof Error ? requestError.message : 'Unexpected approval failure';
         setError(message);
+        setLatestDecision((prev) => (prev === pendingDecision ? null : prev));
         return { ok: false, error: message };
       } finally {
         setIsSubmitting(false);

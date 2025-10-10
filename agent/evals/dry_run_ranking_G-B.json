@@ -1,0 +1,253 @@
+{
+  "name": "Gate G-B Dry-Run Ranking Evaluation",
+  "description": "Validates planner ranking pipeline combining pgvector similarity with Composio discovery across GTM/support/ops personas",
+  "version": "1.0.0",
+  "gate": "G-B",
+  "created": "2025-10-10",
+  "test_cases": [
+    {
+      "id": "gb-ranking-01-marketing-campaign",
+      "name": "Marketing campaign ROI analysis",
+      "persona": "marketing",
+      "mission_context": {
+        "objective": "Analyze Q4 paid campaign performance and identify top-converting channels",
+        "audience": "Marketing team",
+        "timeframe": "Next 7 days",
+        "guardrails": ["Maintain professional tone", "Include attribution data"]
+      },
+      "expected_outcomes": {
+        "candidate_count": 3,
+        "top_play_persona": "marketing",
+        "min_similarity": 0.62,
+        "required_toolkit_hints": ["google_analytics", "hubspot"],
+        "max_latency_ms": 2500
+      },
+      "assertions": [
+        "len(ranked_plays) >= 3",
+        "ranked_plays[0]['telemetry']['persona'] == 'marketing'",
+        "ranked_plays[0]['telemetry']['similarity'] >= 0.62",
+        "any(toolkit in ranked_plays[0]['toolkit_refs'] for toolkit in ['google_analytics', 'hubspot', 'google_ads'])"
+      ]
+    },
+    {
+      "id": "gb-ranking-02-support-churn-risk",
+      "name": "Support churn-risk response generation",
+      "persona": "support",
+      "mission_context": {
+        "objective": "Draft safeguarded responses for high-priority tickets flagged for churn risk",
+        "audience": "Customer support team",
+        "timeframe": "Next 2 hours",
+        "guardrails": ["Keep tone warm-professional", "Respect quiet hours"]
+      },
+      "expected_outcomes": {
+        "candidate_count": 3,
+        "top_play_persona": "support",
+        "min_similarity": 0.65,
+        "required_toolkit_hints": ["zendesk", "intercom"],
+        "max_latency_ms": 2500
+      },
+      "assertions": [
+        "len(ranked_plays) >= 3",
+        "ranked_plays[0]['telemetry']['persona'] == 'support'",
+        "ranked_plays[0]['telemetry']['similarity'] >= 0.65",
+        "any(toolkit in ranked_plays[0]['toolkit_refs'] for toolkit in ['zendesk', 'intercom', 'slack'])"
+      ]
+    },
+    {
+      "id": "gb-ranking-03-revenue-ops-pipeline",
+      "name": "Revenue ops pipeline hygiene diagnostics",
+      "persona": "revenue-ops",
+      "mission_context": {
+        "objective": "Assess Salesforce pipeline hygiene and flag stale deals for cleanup",
+        "audience": "Revenue operations team",
+        "timeframe": "Next 14 days",
+        "guardrails": ["Maintain professional tone", "Document undo steps"]
+      },
+      "expected_outcomes": {
+        "candidate_count": 3,
+        "top_play_persona": "revenue-ops",
+        "min_similarity": 0.60,
+        "required_toolkit_hints": ["salesforce", "outreach"],
+        "max_latency_ms": 2500
+      },
+      "assertions": [
+        "len(ranked_plays) >= 3",
+        "ranked_plays[0]['telemetry']['persona'] in ['revenue-ops', 'ops']",
+        "ranked_plays[0]['telemetry']['similarity'] >= 0.60",
+        "any(toolkit in ranked_plays[0]['toolkit_refs'] for toolkit in ['salesforce', 'outreach', 'gong'])"
+      ]
+    },
+    {
+      "id": "gb-ranking-04-sales-renewal-risk",
+      "name": "Sales renewal risk playbook",
+      "persona": "sales",
+      "mission_context": {
+        "objective": "Flag at-risk renewals and generate retention offers with escalation paths",
+        "audience": "Enterprise sales team",
+        "timeframe": "Next 30 days",
+        "guardrails": ["Maintain executive-level tone", "Include ROI justification"]
+      },
+      "expected_outcomes": {
+        "candidate_count": 3,
+        "top_play_persona": "sales",
+        "min_similarity": 0.63,
+        "required_toolkit_hints": ["salesforce", "gainsight"],
+        "max_latency_ms": 2500
+      },
+      "assertions": [
+        "len(ranked_plays) >= 3",
+        "ranked_plays[0]['telemetry']['persona'] == 'sales'",
+        "ranked_plays[0]['telemetry']['similarity'] >= 0.63",
+        "any(toolkit in ranked_plays[0]['toolkit_refs'] for toolkit in ['salesforce', 'gainsight', 'slack'])"
+      ]
+    },
+    {
+      "id": "gb-ranking-05-technical-incident",
+      "name": "Technical incident postmortem draft",
+      "persona": "technical",
+      "mission_context": {
+        "objective": "Compile incident timeline and root cause analysis from logs and Slack threads",
+        "audience": "Engineering team",
+        "timeframe": "Next 4 hours",
+        "guardrails": ["Include remediation actions", "Document timeline accurately"]
+      },
+      "expected_outcomes": {
+        "candidate_count": 3,
+        "top_play_persona": "technical",
+        "min_similarity": 0.64,
+        "required_toolkit_hints": ["pagerduty", "slack", "datadog"],
+        "max_latency_ms": 2500
+      },
+      "assertions": [
+        "len(ranked_plays) >= 3",
+        "ranked_plays[0]['telemetry']['persona'] == 'technical'",
+        "ranked_plays[0]['telemetry']['similarity'] >= 0.64",
+        "any(toolkit in ranked_plays[0]['toolkit_refs'] for toolkit in ['pagerduty', 'slack', 'datadog'])"
+      ]
+    },
+    {
+      "id": "gb-ranking-06-fallback-scenario",
+      "name": "Fallback when no library matches",
+      "persona": "unknown",
+      "mission_context": {
+        "objective": "Handle edge case with no matching library entries",
+        "audience": "Generic team",
+        "timeframe": "Next 7 days",
+        "guardrails": ["Maintain professional tone"]
+      },
+      "expected_outcomes": {
+        "candidate_count": 1,
+        "fallback_generated": true,
+        "min_confidence": 0.40,
+        "max_latency_ms": 2500
+      },
+      "assertions": [
+        "len(ranked_plays) >= 1",
+        "ranked_plays[0]['telemetry'].get('fallback') == True or ranked_plays[0]['confidence'] <= 0.70"
+      ]
+    },
+    {
+      "id": "gb-ranking-07-confidence-scoring",
+      "name": "Confidence score calibration",
+      "persona": "marketing",
+      "mission_context": {
+        "objective": "Validate confidence scores align with similarity and position",
+        "audience": "Marketing team",
+        "timeframe": "Next 7 days",
+        "guardrails": ["Maintain professional tone"]
+      },
+      "expected_outcomes": {
+        "candidate_count": 3,
+        "confidence_range": [0.40, 0.95],
+        "confidence_decreasing": true
+      },
+      "assertions": [
+        "len(ranked_plays) >= 3",
+        "all(0.40 <= play['confidence'] <= 0.95 for play in ranked_plays)",
+        "ranked_plays[0]['confidence'] >= ranked_plays[1]['confidence']",
+        "ranked_plays[1]['confidence'] >= ranked_plays[2]['confidence']"
+      ]
+    },
+    {
+      "id": "gb-ranking-08-telemetry-completeness",
+      "name": "Telemetry payload completeness",
+      "persona": "support",
+      "mission_context": {
+        "objective": "Ensure all telemetry fields are populated correctly",
+        "audience": "Customer support team",
+        "timeframe": "Next 7 days",
+        "guardrails": ["Maintain professional tone"]
+      },
+      "expected_outcomes": {
+        "required_telemetry_fields": [
+          "library_entry_id",
+          "similarity",
+          "success_score",
+          "persona"
+        ]
+      },
+      "assertions": [
+        "len(ranked_plays) >= 3",
+        "all('library_entry_id' in play['telemetry'] or play['telemetry'].get('fallback') for play in ranked_plays)",
+        "all('similarity' in play['telemetry'] for play in ranked_plays)",
+        "all(isinstance(play['telemetry']['similarity'], (int, float)) for play in ranked_plays)"
+      ]
+    },
+    {
+      "id": "gb-ranking-09-undo-plan-presence",
+      "name": "Undo plan mandatory for all plays",
+      "persona": "revenue-ops",
+      "mission_context": {
+        "objective": "Verify undo plans are present and non-empty",
+        "audience": "Revenue operations team",
+        "timeframe": "Next 14 days",
+        "guardrails": ["Document undo steps"]
+      },
+      "expected_outcomes": {
+        "all_plays_have_undo": true
+      },
+      "assertions": [
+        "len(ranked_plays) >= 3",
+        "all('undo_plan' in play and play['undo_plan'] for play in ranked_plays)",
+        "all(len(play['undo_plan']) >= 10 for play in ranked_plays)"
+      ]
+    },
+    {
+      "id": "gb-ranking-10-streaming-telemetry",
+      "name": "Streaming telemetry events emitted",
+      "persona": "sales",
+      "mission_context": {
+        "objective": "Validate streaming events for planner stages",
+        "audience": "Sales team",
+        "timeframe": "Next 7 days",
+        "guardrails": ["Maintain professional tone"]
+      },
+      "expected_outcomes": {
+        "required_events": [
+          "planner_stage_started",
+          "planner_status",
+          "planner_rank_complete"
+        ]
+      },
+      "assertions": [
+        "telemetry_events_emitted",
+        "'planner_stage_started' in emitted_event_types",
+        "'planner_rank_complete' in emitted_event_types"
+      ]
+    }
+  ],
+  "metrics": {
+    "target_pass_rate": 0.90,
+    "max_average_latency_ms": 2500,
+    "min_average_similarity": 0.62,
+    "min_confidence_accuracy": 0.70
+  },
+  "notes": [
+    "Requires library seeding via scripts/seed_library.py before running evaluation",
+    "pgvector similarity scores should align with persona-objective matching",
+    "Composio toolkit discovery must respect no-auth filter for dry-run mode",
+    "Telemetry events must be captured via CopilotKitStreamer for UI consumption",
+    "Confidence scores should decrease with position and lower similarity",
+    "All plays must include non-empty undo_plan field per Gate G-B requirements"
+  ]
+}

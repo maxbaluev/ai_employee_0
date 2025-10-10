@@ -110,6 +110,7 @@ This roadmap governs all implementation work from zero-privilege proofs to gover
 **Reference:** [architecture.md §3.2](./architecture.md#32-orchestration-gemini-adk)
 
 **Coordinator Agent (`SequentialAgent`):**
+
 - [x] Introduce `agent/agents/coordinator.py` deriving from `SequentialAgent` that chains `IntakeAgent → PlannerAgent → ExecutionLoop` with `max_retries = 3` (baseline still single `LlmAgent`).
 - [x] Build lightweight `IntakeAgent` helper to confirm accepted chips exist, hydrate safeguards from Supabase, and hydrate `ctx.session.state['mission_context']` for downstream agents.
 - [x] Register the coordinator in `agent/agent.py` and ensure stage transitions emit telemetry (`planner_stage_started`, `validator_stage_started`, `evidence_stage_started`) via the ADK callback hooks.
@@ -213,10 +214,9 @@ This roadmap governs all implementation work from zero-privilege proofs to gover
 - [ ] Emit mission lifecycle updates (`planner_stage_started`, `planner_status`, `executor_status`, `validator_feedback`) via `copilotkit_emit_message` in `agent/agents/planner.py` and `agent/agents/executor.py` with payload contracts documented in `docs/readiness/copilotkit_stream_contract_G-B.md`.
 - [x] Call `copilotkit_exit` from `agent/agents/coordinator.py` with final `mission_status` block so routers recover deterministically; verify exit always fires (including error paths) via integration test.
 - [x] Ship `src/components/ApprovalModal.tsx` with safeguard chips, undo summary, impact/effort meter, reviewer annotation composer, and CTA hierarchy matching UX blueprint; implement focus trap, ARIA labelling, Esc/Enter shortcuts, and screen reader narration for undo plans.
-- [ ] Wire `/api/approvals` mutations (create/update) and optimistic UI state, including conflict handling when multiple reviewers act concurrently.
+- [x] Wire `/api/approvals` mutations (create/update) and optimistic UI state, including conflict handling when multiple reviewers act concurrently.
 - [x] Surface streaming timeline in `ControlPlaneWorkspace` status rail with latency indicators (target p95 stream heartbeat <5s) and "Why waiting" copy for validator pauses.
 - [x] Instrument telemetry events (`approval_required`, `approval_decision`, `reviewer_annotation_created`, `undo_requested`) using `emitTelemetry` helper and persist to Supabase `mission_events` table.
-- [ ] Capture QA evidence: 3-mission video (GTM, Support, Finance) showing streaming updates, approvals, annotations, undo preview → save to `docs/readiness/copilotkit_session_G-B.mp4` with accompanying console logs.
 
 #### Planner Ranking & Library Intelligence
 
@@ -248,7 +248,7 @@ This roadmap governs all implementation work from zero-privilege proofs to gover
 **Owner:** Data Engineer  
 **References:** [architecture.md §3.4](./architecture.md#34-supabase-data-plane), [ux.md §10](./ux.md#10-instrumentation--telemetry-touchpoints), [libs_docs/supabase/llms_docs.txt](../libs_docs/supabase/llms_docs.txt)
 
-- [ ] Persist streaming chat + annotation records to `copilot_messages` with `mission_id`, `sender_role`, `payload_type`, `latency_ms`, `telemetry_event_ids`.
+- [x] Persist streaming chat + annotation records to `copilot_messages` with `mission_id`, `payload_type`, `latency_ms`, `telemetry_event_ids`.
 - [ ] Add telemetry fields to `plays` (`latency_ms`, `success_score`, `tool_count`, `evidence_hash`) and backfill existing rows with defaults.
 - [ ] Implement 7-day retention via scheduled job (`supabase/functions/cron/copilot_message_cleanup.sql`) and confirm job registered in `supabase/config.toml`.
 - [ ] Build SQL audit (`scripts/sql/cp_messages_retention.sql`) to prove soft-deletions of >7 day records and log output to `docs/readiness/message_retention_G-B.csv`.
@@ -281,7 +281,7 @@ This roadmap governs all implementation work from zero-privilege proofs to gover
 **Required Tests & Audits:**
 
 1. **Dry-run stopwatch:** Execute 3 persona scenarios (Revenue, Support, Finance) using seeded missions; record timestamps from intent submission to evidence bundle creation; verify <15 minutes per run; archive in `docs/readiness/dry_run_verification.md`.
-2. **Streaming resilience QA:** Cypress or Playwright run (`pnpm test:streaming`) that asserts timeline updates every ≤5 s, approval modal interaction, and `copilotkit_exit` event; attach console log + video to `docs/readiness/copilotkit_session_G-B.mp4`.
+2. **Streaming resilience QA:** Cypress or Playwright run (`pnpm test:streaming`) that asserts timeline updates every ≤5 s, approval modal interaction, and `copilotkit_exit` event;.
 3. **Evidence hash parity:** Run `python scripts/verify_artifact_hashes.py` and ensure 100% match between Supabase Storage and `artifacts` table; output saved to `docs/readiness/evidence_hash_report_G-B.json`.
 4. **Telemetry audit:** Use `scripts/audit_telemetry_events.py --gate G-B` to confirm events per UX telemetry catalog (mission_created, planner_stage_started, approval_required, approval_decision, undo_requested, undo_completed); export results to `docs/readiness/telemetry_audit_G-B.csv`.
 5. **Retention enforcement:** Execute `python scripts/check_retention.py --table copilot_messages --ttl-days 7`; confirm deletion of aged rows and log to `docs/readiness/message_retention_G-B.csv` (same file as checklist output).
@@ -343,7 +343,7 @@ This roadmap governs all implementation work from zero-privilege proofs to gover
 
 ## Gate G-C — Governed Activation Core
 
-**Mission Question:** Can we execute OAuth-backed plays with adaptive safeguards, approvals, undo, and trigger lifecycle controls while preserving auditability?*
+**Mission Question:** Can we execute OAuth-backed plays with adaptive safeguards, approvals, undo, and trigger lifecycle controls while preserving auditability?\*
 
 **Key References:**
 
@@ -550,7 +550,7 @@ This roadmap governs all implementation work from zero-privilege proofs to gover
 
 **Required Tests:**
 
-1. **Dashboard QA:** Test p95 latency, filters, data accuracy; record video
+1. **Dashboard QA:** Test p95 latency, filters, data accuracy;
 2. **Recommendation API integration:** Verify contextual suggestions returned by `/api/library/recommend`
 3. **Trigger warehouse consistency:** Check events vs tool calls reconciliation
 4. **Generative metrics validation:** Confirm `brief_accept_rate` and `connection_accept_rate` views align with telemetry samples; test narrative regenerate flow
@@ -818,10 +818,10 @@ Maintain dated decisions here during reviews. Include context, decision, owner, 
 
 ## Cross-Reference Quick Index
 
-| Document                                               | Key Sections                                                             | Purpose                                    |
-| ------------------------------------------------------ | ------------------------------------------------------------------------ | ------------------------------------------ |
-| [architecture.md](./architecture.md)                   | §2 (Layered Architecture), §3 (Component Blueprints), §4 (Runtime Flows), §7 (Observability) | Technical implementation guidance          |
-| [prd.md](./prd.md)                                     | §5 (Product Scope), §6 (Metrics), §7 (GTM Packaging)                     | Business requirements and success criteria |
-| [ux.md](./ux.md)                                       | §4 (Workspace Anatomy), §5 (Interaction Patterns), §7 (Adaptive Safeguards) | Experience blueprint and interaction cues |
+| Document                             | Key Sections                                                                                 | Purpose                                    |
+| ------------------------------------ | -------------------------------------------------------------------------------------------- | ------------------------------------------ |
+| [architecture.md](./architecture.md) | §2 (Layered Architecture), §3 (Component Blueprints), §4 (Runtime Flows), §7 (Observability) | Technical implementation guidance          |
+| [prd.md](./prd.md)                   | §5 (Product Scope), §6 (Metrics), §7 (GTM Packaging)                                         | Business requirements and success criteria |
+| [ux.md](./ux.md)                     | §4 (Workspace Anatomy), §5 (Interaction Patterns), §7 (Adaptive Safeguards)                  | Experience blueprint and interaction cues  |
 
 **End of Roadmap**

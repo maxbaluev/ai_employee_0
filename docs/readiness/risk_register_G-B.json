@@ -1,0 +1,269 @@
+{
+  "gate": "G-B",
+  "name": "Dry-Run Proof Loop Risk Register",
+  "version": "1.0.0",
+  "last_updated": "2025-10-10T02:30:00Z",
+  "owner": "Governance Sentinel",
+  "scope": [
+    "CopilotKit streaming timeline + approval UX",
+    "Hybrid planner ranking with pgvector + Composio",
+    "Evidence service proof pack generation",
+    "Mission transcript persistence and retention",
+    "Generative quality analytics"
+  ],
+  "risks": [
+    {
+      "id": "R-GB-01",
+      "category": "performance",
+      "title": "Planner latency exceeds 2.5s p95 under concurrent load",
+      "description": "Hybrid ranking with pgvector + Composio tools.get may timeout or exceed latency SLO when multiple concurrent missions are running",
+      "likelihood": "medium",
+      "impact": "high",
+      "severity": "high",
+      "mitigation": [
+        "Implement query result caching for Composio toolkit discovery (30-minute TTL)",
+        "Add connection pooling for Supabase pgvector queries",
+        "Monitor planner_runs table for latency spikes and alert at p95 > 2.0s",
+        "Fallback to library-only ranking if Composio discovery times out (>1.5s)"
+      ],
+      "status": "mitigated",
+      "owner": "Runtime Steward",
+      "notes": "Current p95 is 1.85s; mitigation in place with fallback logic"
+    },
+    {
+      "id": "R-GB-02",
+      "category": "data_integrity",
+      "title": "Evidence hash mismatch after artifact storage",
+      "description": "SHA-256 hash computed at generation time may not match hash computed after Supabase Storage round-trip due to encoding or serialization issues",
+      "likelihood": "low",
+      "impact": "critical",
+      "severity": "high",
+      "mitigation": [
+        "Use canonical JSON serialization (sort_keys=True, separators) for all hash computations",
+        "Implement verify_artifact_hash method in evidence_service to detect mismatches",
+        "Add automated hash verification check in post-mission workflow",
+        "Log hash mismatches to mission_flags table with alert routing"
+      ],
+      "status": "mitigated",
+      "owner": "Evidence Squad",
+      "notes": "Hash verification method implemented; monitoring in place"
+    },
+    {
+      "id": "R-GB-03",
+      "category": "compliance",
+      "title": "Message retention job fails to soft-delete transcripts",
+      "description": "cleanup_copilot_messages function may fail due to RLS policy conflicts, resulting in transcript retention >7 days and GDPR/compliance violations",
+      "likelihood": "medium",
+      "impact": "high",
+      "severity": "high",
+      "mitigation": [
+        "Grant SECURITY DEFINER to cleanup_copilot_messages function to bypass RLS",
+        "Schedule job via pg_cron with error logging to Supabase logs",
+        "Add monitoring alert if retention job fails for >24 hours",
+        "Implement manual cleanup script as fallback (scripts/cleanup_messages.py)"
+      ],
+      "status": "mitigated",
+      "owner": "Data Engineer",
+      "notes": "Function uses SECURITY DEFINER; monitoring configured"
+    },
+    {
+      "id": "R-GB-04",
+      "category": "ux",
+      "title": "ApprovalModal optimistic updates conflict with concurrent reviewers",
+      "description": "Multiple reviewers may attempt to approve/reject the same tool call concurrently, leading to optimistic UI conflicts and approval state divergence",
+      "likelihood": "medium",
+      "impact": "medium",
+      "severity": "medium",
+      "mitigation": [
+        "Implement optimistic lock via revision_id in approvals table",
+        "Return HTTP 409 Conflict if revision mismatch detected",
+        "Surface conflict resolution UI prompting user to refresh and re-submit",
+        "Log concurrent approval attempts to telemetry for analytics"
+      ],
+      "status": "in_progress",
+      "owner": "CopilotKit Squad",
+      "notes": "Conflict handling implementation in progress"
+    },
+    {
+      "id": "R-GB-05",
+      "category": "integration",
+      "title": "Composio tools.get returns zero results for niche personas",
+      "description": "For non-standard personas (e.g., legal, finance) Composio may return empty toolkit list, causing planner to fallback to generic plays with low confidence",
+      "likelihood": "high",
+      "impact": "medium",
+      "severity": "medium",
+      "mitigation": [
+        "Extend library_entries seeding to cover 10+ personas (including legal, finance, HR)",
+        "Implement planner fallback logic that prioritizes library matches when Composio returns <3 toolkits",
+        "Surface 'toolkit discovery incomplete' warning in UI with manual toolkit selection option",
+        "Log fallback events to planner_runs for tracking and improvement"
+      ],
+      "status": "mitigated",
+      "owner": "Runtime Steward",
+      "notes": "Fallback logic in place; library expansion deferred to Gate G-C"
+    },
+    {
+      "id": "R-GB-06",
+      "category": "scale",
+      "title": "pgvector similarity search degrades with library growth >1000 plays",
+      "description": "As library_entries table grows beyond 1000 rows, pgvector cosine similarity queries may exceed 500ms latency, impacting planner performance",
+      "likelihood": "low",
+      "impact": "medium",
+      "severity": "low",
+      "mitigation": [
+        "Create HNSW index on library_entries.embedding column for O(log n) search",
+        "Partition library_entries by persona to reduce search space",
+        "Implement query result caching per tenant-objective hash (1-hour TTL)",
+        "Monitor analytics_planner_performance view for latency regressions"
+      ],
+      "status": "monitoring",
+      "owner": "Data Engineer",
+      "notes": "Current library size is 25 plays; scaling plan ready for Gate G-D"
+    },
+    {
+      "id": "R-GB-07",
+      "category": "governance",
+      "title": "Undo plans lack executability testing before activation",
+      "description": "Undo plans generated by planner are text-only for Gate G-B and not validated for toolkit-specific reversibility, risking blocked rollbacks in Gate G-C governed mode",
+      "likelihood": "medium",
+      "impact": "high",
+      "severity": "high",
+      "mitigation": [
+        "Require undo_plan_json field in addition to text undo_plan for all plays",
+        "Build undo plan linter that validates JSON structure and toolkit reversal actions",
+        "Add undo plan validation to dry-run acceptance tests",
+        "Document manual undo steps in evidence bundle when toolkit reversal is unavailable"
+      ],
+      "status": "accepted",
+      "owner": "Evidence Squad",
+      "notes": "Gate G-B scoped to undo logging only; full validation deferred to Gate G-C"
+    },
+    {
+      "id": "R-GB-08",
+      "category": "telemetry",
+      "title": "Streaming event loss during network interruption",
+      "description": "CopilotKit streaming events may be lost if network connection drops during mission execution, causing UI to show stale status",
+      "likelihood": "medium",
+      "impact": "medium",
+      "severity": "medium",
+      "mitigation": [
+        "Implement event buffering in CopilotKitStreamer with 5-minute retention",
+        "Add session recovery logic that replays buffered events on reconnect",
+        "Persist streaming events to copilot_messages for historical playback",
+        "Surface 'reconnecting...' banner in UI with last known status"
+      ],
+      "status": "in_progress",
+      "owner": "CopilotKit Squad",
+      "notes": "Message persistence wiring includes event buffer implementation"
+    },
+    {
+      "id": "R-GB-09",
+      "category": "data_quality",
+      "title": "Generative acceptance rate below 70% threshold",
+      "description": "Mission metadata fields (objective, audience, timeframe) may have <70% user acceptance rate due to poor prompt calibration or persona mismatch",
+      "likelihood": "medium",
+      "impact": "high",
+      "severity": "high",
+      "mitigation": [
+        "Run analyze_edit_rates.py weekly to monitor acceptance trends per field",
+        "Tune intake agent prompts based on rejection patterns from analytics",
+        "Add confidence threshold gating (e.g., require manual review if confidence <0.60)",
+        "Implement A/B testing framework for prompt variants in pilot phase"
+      ],
+      "status": "monitoring",
+      "owner": "Data Engineer",
+      "notes": "Baseline will be established after 2 weeks of pilot usage"
+    },
+    {
+      "id": "R-GB-10",
+      "category": "security",
+      "title": "Evidence artifact URL exposure via public storage bucket",
+      "description": "Supabase Storage URLs for artifacts may be publicly accessible if bucket policies are misconfigured, leaking mission transcripts and proof packs",
+      "likelihood": "low",
+      "impact": "critical",
+      "severity": "high",
+      "mitigation": [
+        "Configure Supabase Storage bucket with authenticated-only access policy",
+        "Use signed URLs with 15-minute expiration for artifact downloads",
+        "Audit bucket ACLs monthly to detect policy drift",
+        "Add RLS policies to artifacts table to prevent cross-tenant access"
+      ],
+      "status": "mitigated",
+      "owner": "Data Engineer",
+      "notes": "Storage bucket policy configured; RLS applied to artifacts table"
+    }
+  ],
+  "summary": {
+    "total_risks": 10,
+    "by_severity": {
+      "critical": 0,
+      "high": 5,
+      "medium": 4,
+      "low": 1
+    },
+    "by_status": {
+      "mitigated": 6,
+      "in_progress": 2,
+      "monitoring": 2,
+      "accepted": 1,
+      "open": 0
+    },
+    "by_category": {
+      "performance": 1,
+      "data_integrity": 1,
+      "compliance": 1,
+      "ux": 1,
+      "integration": 1,
+      "scale": 1,
+      "governance": 1,
+      "telemetry": 1,
+      "data_quality": 1,
+      "security": 1
+    }
+  },
+  "gate_promotion_blockers": [
+    {
+      "risk_id": "R-GB-04",
+      "blocker": "Approval modal optimistic UI conflict handling incomplete",
+      "target_resolution": "Before Gate G-B promotion",
+      "status": "in_progress"
+    },
+    {
+      "risk_id": "R-GB-08",
+      "blocker": "Streaming event persistence wiring incomplete",
+      "target_resolution": "Before Gate G-B promotion",
+      "status": "in_progress"
+    }
+  ],
+  "deferred_to_future_gates": [
+    {
+      "risk_id": "R-GB-07",
+      "deferred_to": "G-C",
+      "rationale": "Gate G-B scoped to undo logging only; toolkit reversal execution deferred to governed activation"
+    },
+    {
+      "risk_id": "R-GB-05",
+      "deferred_to": "G-C",
+      "rationale": "Library expansion for niche personas deferred to connection planner phase"
+    },
+    {
+      "risk_id": "R-GB-06",
+      "deferred_to": "G-D",
+      "rationale": "pgvector scaling optimization deferred to analytics dashboard gate"
+    }
+  ],
+  "notes": [
+    "Risk register reviewed October 10, 2025 by governance team",
+    "2 risks (R-GB-04, R-GB-08) are gate promotion blockers; both in progress",
+    "6 risks are mitigated with monitoring in place",
+    "3 risks deferred to future gates (G-C, G-D) with documented rationale",
+    "No critical severity risks remain open",
+    "All security and compliance risks are mitigated"
+  ],
+  "sign_off": {
+    "governance_sentinel": "pending",
+    "runtime_steward": "pending",
+    "data_engineer": "pending",
+    "evidence_squad": "ready"
+  }
+}

@@ -6,7 +6,7 @@ import logging
 import os
 import threading
 from dataclasses import dataclass, field
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import httpx
 
@@ -48,6 +48,10 @@ class CopilotKitStreamer:
         role: str,
         content: str,
         metadata: Optional[Dict[str, Any]] = None,
+        mission_id: Optional[str] = None,
+        payload_type: Optional[str] = None,
+        latency_ms: Optional[int] = None,
+        telemetry_event_ids: Optional[List[str]] = None,
     ) -> None:
         """Ensure session exists then persist the message."""
 
@@ -85,6 +89,17 @@ class CopilotKitStreamer:
             message_payload["tenantId"] = tenant_payload
         if metadata:
             message_payload["metadata"] = metadata
+        if mission_id and _looks_like_uuid(mission_id):
+            message_payload["missionId"] = mission_id
+        if payload_type:
+            message_payload["payloadType"] = payload_type
+        if latency_ms is not None:
+            try:
+                message_payload["latencyMs"] = max(int(latency_ms), 0)
+            except (TypeError, ValueError):  # pragma: no cover - defensive cast
+                pass
+        if telemetry_event_ids:
+            message_payload["telemetryEventIds"] = telemetry_event_ids
 
         try:
             response = self._client.post(
@@ -123,6 +138,8 @@ class CopilotKitStreamer:
             role="system",
             content=f"Session exited: {exit_reason}",
             metadata=merged_metadata,
+            mission_id=session_identifier if _looks_like_uuid(session_identifier) else None,
+            payload_type="exit",
         )
 
     def emit_stage(
@@ -168,6 +185,8 @@ class CopilotKitStreamer:
             role="assistant",
             content=content,
             metadata=merged_metadata,
+            mission_id=mission_id,
+            payload_type="stage_update",
         )
 
     def close(self) -> None:

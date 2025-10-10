@@ -1,50 +1,98 @@
-# AI Employee Control Plane — Agent Guide
+# AI Employee Control Plane — Agent Operating Guide
 
-This repository hosts the Gate G-A foundation for the AI Employee Control Plane. The system pairs a Next.js CopilotKit workspace with a packaged Gemini ADK backend, Supabase migrations, and catalog parsing helpers. Use this guide to stay aligned with the guardrails, build steps, and verification flows described in `new_docs/`.
+This repository powers the Gate G-A/G-B milestones for the AI Employee control plane: a Next.js CopilotKit workspace, Gemini ADK backend, Supabase data plane, and supporting scripts. Use this guide as the single source of truth for automated contributors.
 
-## Environment & Tooling
-- Prefer **mise** to hydrate toolchains. Run `mise trust` (once), then `mise install` and `mise env activate` so Node 22, Python 3.13, pnpm, and uv match `.mise.toml`.
-- Frontend packages use **pnpm**. Avoid generating lockfiles with other package managers.
-- Python services live under `agent/`. Install deps with `uv pip install -r agent/requirements.txt` (fast) or a virtualenv activated via `mise exec python -- -m venv .venv`.
-- Environment variables: configure `GOOGLE_API_KEY`, `COMPOSIO_API_KEY`, Supabase keys (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`), `GATE_GA_DEFAULT_TENANT_ID`, and Copilot settings (`NEXT_PUBLIC_COPILOT_RUNTIME_URL`, `NEXT_PUBLIC_COPILOT_AGENT_ID`, `AGENT_HTTP_URL`). Keep secrets out of committed files.
-- Supabase writes run in read-only fallback by default. Set `SUPABASE_ALLOW_WRITES=true` locally only when you need to persist artifacts/tool calls; otherwise the agents buffer payloads offline for eval runs.
+## 1. Toolchain Hydration
 
-## Setup Commands
+- **Trust mise configs once:** `mise trust`
+- **Install pinned runtimes:** `mise install`
+- **Activate env + PATH:** `mise env activate`
+  - Exports everything declared in `.env`, `.mise.toml`
+  - Sets Node 22, Python 3.13, pnpm, uv, Supabase CLI, etc.
+- Use `mise exec <tool> -- <cmd>` to run commands against hydrated runtimes without globally activating them.
+
+## 2. Environment Variables
+
+Required for both UI and agents (most live in `.env`):
+
+| Key                                                               | Purpose                             |
+| ----------------------------------------------------------------- | ----------------------------------- |
+| `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY`      | Frontend Supabase client            |
+| `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY`                      | Server/agent Supabase connectivity  |
+| `GOOGLE_API_KEY`                                                  | Gemini ADK intake + planner prompts |
+| `COMPOSIO_API_KEY`                                                | Toolkit discovery & OAuth passes    |
+| `GATE_GA_DEFAULT_TENANT_ID`                                       | Tenant fallback for local runs      |
+| `NEXT_PUBLIC_COPILOT_AGENT_ID`, `NEXT_PUBLIC_COPILOT_RUNTIME_URL` | CopilotKit shared state             |
+
+**Tip:** Agents fail fast if `SUPABASE_SERVICE_ROLE_KEY` is missing. Always ensure `env | grep SUPABASE` shows both URL + service key before running scripts.
+
+## 3. Daily Commands
+
 - Install frontend deps: `mise run install` (wraps `pnpm install`)
 - Install agent deps: `uv pip install -r agent/requirements.txt`
-- Start full stack (UI + agent): `mise run dev`
-- Run only the UI: `mise run ui`
-- Run only the agent (JS launcher) : `mise run agent` or execute `mise exec python -- agent/agent.py`
-- Apply Supabase schema locally: `supabase start && supabase db push --file supabase/migrations/0001_init.sql`
+- Full stack dev (UI + agent): `mise run dev`
+- UI only: `mise run ui`
+- Agent only: `mise run agent` or `mise exec python -- agent/agent.py`
+- Gemini ADK smoke suite (Gate G-B ready): `mise run test-agent`
+- Lint: `mise run lint`
+- Python package sanity: `mise exec python -- -m compileall agent`
 
-## Build & Test
-- UI lint/type checks: `mise run lint` (calls `pnpm lint`). If you run lint directly, use `pnpm lint` — Next.js does **not** support a `--dry-run` flag and the command will fail if you append it.
-- (Future) add unit tests under `agent/tests/` and run via `pnpm test` / `pytest`; keep placeholders updated as testing harness lands.
-- Smoke-check the Python package after edits: `mise exec python -- -m compileall agent`
-- Run the Gemini ADK smoke suite before PRs: `mise run test-agent` should exit with 5/5 passing scenarios and zero Supabase HTTP warnings.
-- Supabase schema verification lives in `scripts/test_supabase_persistence.py`; execute it whenever `supabase/migrations/0001_init.sql` changes to refresh the checksum inventory.
-- CopilotKit persistence QA is automated by `scripts/test_copilotkit_persistence.py`; pipe the output into `docs/readiness/copilotkit_qa_G-A/test_results.txt` when regenerating evidence.
+## 4. Supabase CLI Workflow
 
-## Code Style & Patterns
-- **TypeScript**: stick to strict mode defaults (`tsconfig`), use single quotes and trailing commas, no implicit `any`. Favor functional React patterns and avoid class components.
-- **React**: colocate components in the `(control-plane)` directory. Use `useCopilotReadable`/`useCopilotAction` to keep mission state in sync with CopilotKit. Use descriptive Tailwind groupings and reserve custom hex colours for theme accents only.
-- **Python**: follow PEP 8. Prefer dataclasses/Pydantic models for state. Avoid global side effects in module imports—use application factories (`agent/runtime/app.py`).
-- Keep guardrail logic deterministic. Mission state mutations go through the declared ADK tools (`set_mission_details`, `append_planner_note`, `upsert_artifact`).
+- Use supabase cli for supabase manipulations like migrations.
 
-## Domain Guidance
-- Use `new_docs/architecture.md` and `guardrail_policy_pack.md` to validate new planner/validator behavior. Gate G-A assumes dry-run only (no OAuth sends).
-- Composio catalog metadata is sourced via the Composio SDK. Keep the SDK pinned, ensure `COMPOSIO_API_KEY` is configured, and rerun your chosen validation workflow so planners see the latest catalogue state.
-- Supabase schema changes must retain RLS. Update `supabase/migrations/` and refresh readiness artifacts (`docs/readiness/migration_log_G-A.md`, `db_checksum_G-A.csv`, and guardrail seeds) whenever tables or policies change.
-- Gate G-A palette telemetry & inspection preview details live in `docs/readiness/gate_g_a_palette_telemetry.md`. Review it before touching `src/app/api/*/toolkits` or `agent/agents/planner.py` so emitted payloads stay analytics-compatible.
+## 5. Testing Expectations
 
-## When Editing
-- Keep any gate-specific evidence assets up to date as they are introduced by future milestones.
-- Touching `agent/agents/control_plane.py`? Confirm the CopilotKit UI still renders mission/artifact data (`pnpm dev` + browser check) and keep instructions aligned with Gate G progression.
-- Coordinate copy or UX tweaks with the PRD (`new_docs/prd.md`) so Gate definitions (G-A → G-F) remain traceable.
+- Gate G-A smoke: `mise run test-agent` (runs `agent/evals/smoke_g_a_v2.json`)
+- Gate G-B evals: `mise run test-agent` automatically covers ranking + streaming; regenerate evidence artifacts under `docs/readiness/`
+- Frontend lint: `pnpm lint`
+- Planned future tests:
+  - `pnpm test` / `pytest` once test suites land in `agent/tests/`
+  - `scripts/analyze_edit_rates.py` (requires Supabase service creds)
+  - `scripts/verify_artifact_hashes.py`
 
-## Useful References
-- Implementation sequencing: `new_docs/implementation_plan.md`
-- Guardrails & approvals: `new_docs/guardrail_policy_pack.md`
-- Libraries & partner docs: `libs_docs/` (Composio, CopilotKit, ADK, Supabase)
+## 6. Code Style & Conventions
 
-Keep this file current as you expand beyond Gate G-A. Anything you would brief a new teammate on should live here for agents to pick up automatically.
+- **TypeScript:** strict mode, single quotes, trailing commas, functional React patterns, no implicit any.
+- **React:** keep Gate control-plane components in `src/app/(control-plane)`, prefer CopilotKit hooks (`useCopilotReadable`, `useCopilotAction`), keyboard-accessible UI, descriptive Tailwind groupings.
+- **Python:** PEP 8, dataclasses/pydantic for state, avoid side effects at import time, centralize Supabase interactions via `agent/services`.
+- **Migrations:** RLS required for every table; never remove existing policies without stakeholder review.
+- **Telemetry:** emit via `TelemetryEmitter`/`emitTelemetry` helpers; sync with `new_docs/ux.md §10` event catalog.
+- **Migrations** do not implement new migrations, if you need database change modify 0001_init.sql
+
+## 7. Mission Safety & Guardrails
+
+- Adaptive safeguards (tone, quiet hours, escalation) must route through `mission_safeguards` and be respected by validators.
+- Undo plans required for every governed tool call (`tool_calls.undo_plan_json`).
+- Sensitive data redacted before telemetry/evidence; the evidence service hashes arguments before storing.
+- Composio usage rules: do not mix `search` with explicit tool arrays; prefer `tools.get` filtered by toolkit + scopes.
+
+## 8. Documentation & Evidence
+
+- Keep Gate readiness artifacts in `docs/readiness/` synced with implementation (status beacons, seed logs, undo traces, eval outputs).
+- Update `new_docs/` (architecture, PRD, UX, workflow, todo) whenever behaviour changes.
+
+## 9. Escalation Matrix
+
+- **Runtime steward (ADK + agents):** owns planner/executor/validator behaviour & eval suites.
+- **CopilotKit squad:** UX streaming, approvals modal, shared state.
+- **Data engineer:** Supabase migrations, analytics views, retention jobs.
+- **Governance sentinel:** Guardrail policy pack, undo readiness, reviewer SOP.
+- **GTM enablement:** Library seeding, evidence storytelling.
+
+Stay current: rerun `mise env activate` after editing `.env`/`.mise.toml`, keep Supabase CLI authenticated, and refresh readiness artifacts before promoting a Gate.
+
+## 10. Reference Doc Outline
+
+- **`new_docs/`**
+  - `architecture.md` — Technical architecture blueprint covering layers, agents, data plane, and safeguards (updated October 8, 2025).
+  - `prd.md` — Business PRD with market context, personas, value props, and scope expectations (drafted October 7, 2025).
+  - `todo.md` — Gate-by-gate implementation roadmap with checklists, owners, and evidence requirements (version 1.1, October 8, 2025).
+  - `ux.md` — UX blueprint detailing personas, workspace anatomy, interaction patterns, and telemetry priorities (version 1.0, October 8, 2025).
+  - `workflow.md` — Workflow specification translating docs into execution sequences and MCP guardrails (last updated October 9, 2025).
+
+- **`libs_docs/`**
+  - `adk/llms-full.txt` — Gemini ADK reference pack covering agent orchestration patterns and toolkit capabilities.
+  - `composio/llms.txt` — Composio toolkit catalogue excerpt for discovery, scopes, and planner integration.
+  - `copilotkit/llms-full.txt` — CopilotKit workspace guidance covering hooks, shared state, and streaming UX contracts.
+  - `supabase/llms_docs.txt` — Supabase CLI and schema companion outlining migrations, RLS expectations, and persistence workflows.

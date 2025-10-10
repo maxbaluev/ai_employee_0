@@ -369,6 +369,7 @@ export function MissionIntake({ tenantId, objectiveId, onAccept }: MissionIntake
             <div className="flex items-center gap-2">
               {links.length > 0 && <span>{links.length} link(s) detected</span>}
               <button
+                suppressHydrationWarning
                 type="button"
                 onClick={() => void handleGenerate()}
                 disabled={isGenerating || !rawInput.trim()}

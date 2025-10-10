@@ -148,6 +148,8 @@ class IntakeAgent(BaseAgent):
             role="assistant",
             content=f"{stage}: {metadata.get('objective', context.objective)}",
             metadata={"stage": stage, **metadata},
+            mission_id=context.mission_id,
+            payload_type="intake_update",
         )
 
     def _hydrate_safeguards(

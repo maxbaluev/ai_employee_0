@@ -1,5 +1,5 @@
--- AI Employee Control Plane — Gate G-A baseline schema
--- Generated October 8, 2025
+-- AI Employee Control Plane — Consolidated schema (Gate G-A + Gate G-B)
+-- Generated October 10, 2025
 
 -- ------------------------------------------------------------------
 -- Extensions
@@ -9,7 +9,7 @@ create extension if not exists pgcrypto;
 create extension if not exists vector;
 
 -- ------------------------------------------------------------------
--- Helper defaults
+-- Helper functions
 -- ------------------------------------------------------------------
 create or replace function public.touch_updated_at()
 returns trigger
@@ -20,6 +20,37 @@ begin
   return new;
 end;
 $$;
+
+-- Message retention function for Gate G-B
+create or replace function public.cleanup_copilot_messages(retention_days integer default 7)
+returns integer
+language plpgsql
+security definer
+as $$
+declare
+  deleted_count integer;
+  cutoff_timestamp timestamptz;
+begin
+  -- Calculate cutoff timestamp
+  cutoff_timestamp := timezone('utc', now()) - (retention_days || ' days')::interval;
+
+  -- Soft delete messages older than retention period
+  update public.copilot_messages
+  set soft_deleted_at = timezone('utc', now())
+  where created_at < cutoff_timestamp
+    and soft_deleted_at is null;
+
+  get diagnostics deleted_count = row_count;
+
+  -- Hard delete messages soft-deleted more than 30 days ago
+  delete from public.copilot_messages
+  where soft_deleted_at < (timezone('utc', now()) - '30 days'::interval);
+
+  return deleted_count;
+end;
+$$;
+
+comment on function public.cleanup_copilot_messages is 'Soft-delete copilot messages older than retention period (default 7 days)';
 
 -- ------------------------------------------------------------------
 -- Core mission tables
@@ -54,9 +85,19 @@ create table public.plays (
   undo_plan text,
   confidence numeric,
   telemetry jsonb not null default '{}'::jsonb,
+  -- Gate G-B telemetry fields
+  latency_ms integer,
+  success_score numeric,
+  tool_count integer,
+  evidence_hash text,
   created_at timestamptz not null default timezone('utc', now()),
   updated_at timestamptz not null default timezone('utc', now())
 );
+
+comment on column public.plays.latency_ms is 'Planner execution latency in milliseconds';
+comment on column public.plays.success_score is 'Historical success score from library matching';
+comment on column public.plays.tool_count is 'Number of toolkit references in play';
+comment on column public.plays.evidence_hash is 'SHA-256 hash of evidence bundle for tamper detection';
 
 create trigger trg_plays_updated_at
 before update on public.plays
@@ -73,11 +114,14 @@ create table public.tool_calls (
   result_ref text,
   outcome jsonb,
   undo_plan text,
+  undo_plan_json jsonb,  -- Gate G-B structured undo plan
   guardrail_snapshot jsonb,
   latency_ms integer,
   quiet_hour_override boolean not null default false,
   executed_at timestamptz not null default timezone('utc', now())
 );
+
+comment on column public.tool_calls.undo_plan_json is 'Structured undo plan for evidence service execution';
 
 create table public.approvals (
   id uuid primary key default gen_random_uuid(),
@@ -88,7 +132,9 @@ create table public.approvals (
   decision_at timestamptz not null default timezone('utc', now()),
   justification text,
   guardrail_violation jsonb,
-  metadata jsonb not null default '{}'::jsonb
+  metadata jsonb not null default '{}'::jsonb,
+  -- Gate G-B concurrency guard
+  constraint approvals_tool_call_unique unique (tool_call_id)
 );
 
 create table public.artifacts (
@@ -102,9 +148,15 @@ create table public.artifacts (
   status text not null default 'draft',
   hash text,
   checksum text,
+  -- Gate G-B proof pack enhancements
+  size_bytes bigint,
+  reviewer_edits jsonb default '{}'::jsonb,
   created_at timestamptz not null default timezone('utc', now()),
   updated_at timestamptz not null default timezone('utc', now())
 );
+
+comment on column public.artifacts.size_bytes is 'Artifact payload size in bytes';
+comment on column public.artifacts.reviewer_edits is 'Reviewer-applied edits to artifact content';
 
 create trigger trg_artifacts_updated_at
 before update on public.artifacts
@@ -244,8 +296,39 @@ create table public.copilot_messages (
   role text not null,
   content jsonb not null,
   metadata jsonb not null default '{}'::jsonb,
+  -- Gate G-B telemetry fields
+  mission_id uuid references public.objectives(id) on delete cascade,
+  payload_type text default 'text',
+  latency_ms integer,
+  telemetry_event_ids text[] default array[]::text[],
+  soft_deleted_at timestamptz,
   created_at timestamptz not null default timezone('utc', now())
 );
+
+comment on column public.copilot_messages.mission_id is 'Optional mission pointer for playback filtering';
+comment on column public.copilot_messages.payload_type is 'Message payload classification (text, stage_update, attachment, etc.)';
+comment on column public.copilot_messages.latency_ms is 'Latency between agent emission and persistence in milliseconds';
+comment on column public.copilot_messages.telemetry_event_ids is 'Linked telemetry events for quick reconciliation';
+comment on column public.copilot_messages.soft_deleted_at is 'Soft delete timestamp for retention job';
+
+-- ------------------------------------------------------------------
+-- Planner runs telemetry (Gate G-B)
+-- ------------------------------------------------------------------
+
+create table public.planner_runs (
+  id uuid primary key default gen_random_uuid(),
+  tenant_id uuid not null references auth.users(id),
+  mission_id uuid not null references public.objectives(id) on delete cascade,
+  latency_ms integer not null,
+  candidate_count integer not null,
+  embedding_similarity_avg numeric,
+  primary_toolkits text[] default array[]::text[],
+  mode text not null default 'dry_run',
+  metadata jsonb default '{}'::jsonb,
+  created_at timestamptz not null default timezone('utc', now())
+);
+
+comment on table public.planner_runs is 'Planner execution telemetry for Gate G-B analytics';
 
 -- ------------------------------------------------------------------
 -- Vector helpers
@@ -320,6 +403,14 @@ create index safeguard_events_created_at_idx on public.safeguard_events(created_
 create index copilot_sessions_tenant_agent_idx on public.copilot_sessions(tenant_id, agent_id);
 create index copilot_messages_session_idx on public.copilot_messages(session_id);
 
+-- Gate G-B indexes
+create index idx_copilot_messages_session_created on public.copilot_messages(session_id, created_at desc);
+create index idx_copilot_messages_mission_created on public.copilot_messages(mission_id, created_at desc);
+create index idx_copilot_messages_soft_deleted on public.copilot_messages(soft_deleted_at) where soft_deleted_at is not null;
+
+create index idx_planner_runs_mission on public.planner_runs(mission_id, created_at desc);
+create index idx_planner_runs_latency on public.planner_runs(latency_ms);
+
 -- ------------------------------------------------------------------
 -- Row Level Security
 -- ------------------------------------------------------------------
@@ -338,6 +429,7 @@ alter table public.mission_metadata enable row level security;
 alter table public.mission_safeguards enable row level security;
 alter table public.mission_events enable row level security;
 alter table public.safeguard_events enable row level security;
+alter table public.planner_runs enable row level security;
 
 create policy "Tenant scoped read" on public.objectives
   for select using (tenant_id = auth.uid());
@@ -455,6 +547,95 @@ create policy "Tenant scoped read" on public.copilot_messages
 create policy "Tenant scoped write" on public.copilot_messages
   for insert with check (tenant_id = auth.uid());
 
+-- Gate G-B policies
+create policy copilot_messages_tenant_access on public.copilot_messages
+  for all
+  using (auth.uid() = tenant_id);
+
+create policy planner_runs_tenant_access on public.planner_runs
+  for all
+  using (auth.uid() = tenant_id);
+
+-- ------------------------------------------------------------------
+-- Analytics views (Gate G-B)
+-- ------------------------------------------------------------------
+
+-- Planner performance metrics
+create or replace view public.analytics_planner_performance as
+select
+  tenant_id,
+  mode,
+  count(*) as total_runs,
+  round(avg(latency_ms)::numeric, 2) as avg_latency_ms,
+  percentile_cont(0.95) within group (order by latency_ms) as p95_latency_ms,
+  round(avg(candidate_count)::numeric, 2) as avg_candidates,
+  round(avg(embedding_similarity_avg)::numeric, 3) as avg_similarity
+from public.planner_runs
+where created_at >= timezone('utc', now()) - '30 days'::interval
+group by tenant_id, mode;
+
+comment on view public.analytics_planner_performance is 'Planner performance metrics for Gate G-B validation';
+
+-- Generative acceptance metrics
+create or replace view public.analytics_generative_acceptance as
+select
+  tenant_id,
+  field,
+  count(*) as total_generated,
+  sum(case when source = 'accepted' then 1 else 0 end) as accepted_count,
+  sum(case when source = 'edited' then 1 else 0 end) as edited_count,
+  round(avg(confidence)::numeric, 3) as avg_confidence,
+  round(
+    sum(case when source = 'accepted' then 1 else 0 end)::numeric /
+    nullif(count(*), 0),
+    3
+  ) as acceptance_rate,
+  avg(regeneration_count) as avg_regenerations
+from public.mission_metadata
+where created_at >= timezone('utc', now()) - '30 days'::interval
+group by tenant_id, field;
+
+comment on view public.analytics_generative_acceptance is 'Generative quality metrics for Gate G-B compliance';
+
+-- Connection adoption metrics
+create or replace view public.analytics_connection_adoption as
+select
+  tenant_id,
+  hint_type,
+  count(*) as total_hints,
+  sum(case when status = 'accepted' then 1 else 0 end) as accepted_count,
+  sum(case when status = 'edited' then 1 else 0 end) as edited_count,
+  sum(case when status = 'rejected' then 1 else 0 end) as rejected_count,
+  round(avg(confidence)::numeric, 3) as avg_confidence,
+  round(
+    (sum(case when status in ('accepted', 'edited') then 1 else 0 end)::numeric) /
+    nullif(count(*), 0),
+    3
+  ) as adoption_rate
+from public.mission_safeguards
+where updated_at >= timezone('utc', now()) - '30 days'::interval
+group by tenant_id, hint_type;
+
+comment on view public.analytics_connection_adoption is 'Safeguard and connection plan adoption metrics for Gate G-B';
+
+-- Undo success metrics
+create or replace view public.analytics_undo_success as
+select
+  tenant_id,
+  toolkit,
+  count(*) as total_tool_calls,
+  sum(case when undo_plan is not null and undo_plan != '' then 1 else 0 end) as undo_plan_present,
+  round(
+    sum(case when undo_plan is not null and undo_plan != '' then 1 else 0 end)::numeric /
+    nullif(count(*), 0),
+    3
+  ) as undo_coverage_rate
+from public.tool_calls
+where executed_at >= timezone('utc', now()) - '30 days'::interval
+group by tenant_id, toolkit;
+
+comment on view public.analytics_undo_success is 'Undo plan coverage metrics for Gate G-B validation';
+
 -- ------------------------------------------------------------------
 -- Default privileges for service role tasks
 -- ------------------------------------------------------------------
@@ -462,3 +643,9 @@ create policy "Tenant scoped write" on public.copilot_messages
 grant usage on schema public to service_role;
 grant all on all tables in schema public to service_role;
 grant all on all sequences in schema public to service_role;
+
+-- Gate G-B view grants
+grant select on public.analytics_planner_performance to authenticated;
+grant select on public.analytics_generative_acceptance to authenticated;
+grant select on public.analytics_connection_adoption to authenticated;
+grant select on public.analytics_undo_success to authenticated;

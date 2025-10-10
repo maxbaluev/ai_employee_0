@@ -9,6 +9,13 @@ import type {
   SubmitResult,
 } from '@/hooks/useApprovalFlow';
 
+type SafeguardChip = {
+  type: string;
+  value: string;
+  confidence?: number;
+  status?: string;
+};
+
 type ApprovalModalProps = {
   isOpen: boolean;
   isSubmitting: boolean;
@@ -16,6 +23,10 @@ type ApprovalModalProps = {
   onClose: () => void;
   onSubmit: (submission: ApprovalSubmission) => Promise<SubmitResult>;
   request?: ApprovalRequest | null;
+  safeguardChips?: SafeguardChip[];
+  undoSummary?: string;
+  impactEstimate?: string;
+  effortEstimate?: string;
 };
 
 const DECISION_OPTIONS: Array<{ value: ApprovalDecision; label: string; helper: string }> = [
@@ -49,7 +60,18 @@ function getFocusableElements(container: HTMLElement | null) {
   return Array.from(container.querySelectorAll<HTMLElement>(selectors.join(',')));
 }
 
-export function ApprovalModal({ isOpen, isSubmitting, error, onClose, onSubmit, request }: ApprovalModalProps) {
+export function ApprovalModal({
+  isOpen,
+  isSubmitting,
+  error,
+  onClose,
+  onSubmit,
+  request,
+  safeguardChips = [],
+  undoSummary,
+  impactEstimate,
+  effortEstimate,
+}: ApprovalModalProps) {
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const previouslyFocusedRef = useRef<Element | null>(null);
   const [decision, setDecision] = useState<ApprovalDecision>('approved');
@@ -184,6 +206,64 @@ export function ApprovalModal({ isOpen, isSubmitting, error, onClose, onSubmit, 
             Close
           </button>
         </header>
+
+        {/* Safeguard Chips */}
+        {safeguardChips.length > 0 && (
+          <div className="mt-4 space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-300">Active safeguards</p>
+            <div className="flex flex-wrap gap-2">
+              {safeguardChips.map((chip, index) => (
+                <div
+                  key={index}
+                  className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-violet-500/10 px-3 py-1 text-xs"
+                >
+                  <span className="font-medium text-violet-200">{chip.type}</span>
+                  <span className="text-slate-300">{chip.value}</span>
+                  {chip.confidence && (
+                    <span className="rounded bg-white/10 px-1.5 py-0.5 text-[10px] text-slate-400">
+                      {Math.round(chip.confidence * 100)}%
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Impact & Effort Meter */}
+        {(impactEstimate || effortEstimate) && (
+          <div className="mt-4 grid grid-cols-2 gap-3">
+            {impactEstimate && (
+              <div className="rounded-lg border border-white/10 bg-white/5 p-3">
+                <p className="text-xs uppercase tracking-wide text-slate-400">Impact</p>
+                <p className="mt-1 text-sm font-semibold text-white">{impactEstimate}</p>
+              </div>
+            )}
+            {effortEstimate && (
+              <div className="rounded-lg border border-white/10 bg-white/5 p-3">
+                <p className="text-xs uppercase tracking-wide text-slate-400">Effort</p>
+                <p className="mt-1 text-sm font-semibold text-white">{effortEstimate}</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Undo Summary */}
+        {undoSummary && (
+          <div className="mt-4 rounded-lg border border-amber-500/30 bg-amber-500/5 p-4">
+            <div className="flex items-start gap-3">
+              <div className="mt-0.5 rounded-full bg-amber-500/20 p-1.5">
+                <svg className="h-4 w-4 text-amber-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-amber-300">Undo plan</p>
+                <p className="mt-1 text-sm text-slate-200">{undoSummary}</p>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="mt-4 grid gap-3">
           {DECISION_OPTIONS.map((option) => (

@@ -49,6 +49,10 @@ export interface Database {
           risk_profile: string | null;
           undo_plan: string | null;
           confidence: number | null;
+          latency_ms: number | null;
+          success_score: number | null;
+          tool_count: number | null;
+          evidence_hash: string | null;
           telemetry: Json;
           created_at: string;
           updated_at: string;
@@ -63,6 +67,10 @@ export interface Database {
           risk_profile?: string | null;
           undo_plan?: string | null;
           confidence?: number | null;
+          latency_ms?: number | null;
+          success_score?: number | null;
+          tool_count?: number | null;
+          evidence_hash?: string | null;
           telemetry?: Json;
           created_at?: string;
           updated_at?: string;
@@ -81,6 +89,7 @@ export interface Database {
           result_ref: string | null;
           outcome: Json | null;
           undo_plan: string | null;
+          undo_plan_json: Json | null;
           guardrail_snapshot: Json | null;
           latency_ms: number | null;
           quiet_hour_override: boolean;
@@ -97,6 +106,7 @@ export interface Database {
           result_ref?: string | null;
           outcome?: Json | null;
           undo_plan?: string | null;
+          undo_plan_json?: Json | null;
           guardrail_snapshot?: Json | null;
           latency_ms?: number | null;
           quiet_hour_override?: boolean;
@@ -141,6 +151,8 @@ export interface Database {
           status: string;
           hash: string | null;
           checksum: string | null;
+          size_bytes: number | null;
+          reviewer_edits: Json | null;
           created_at: string;
           updated_at: string;
         };
@@ -155,6 +167,8 @@ export interface Database {
           status?: string;
           hash?: string | null;
           checksum?: string | null;
+          size_bytes?: number | null;
+          reviewer_edits?: Json | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -261,19 +275,29 @@ export interface Database {
           id: string;
           tenant_id: string;
           session_id: string;
+          mission_id: string | null;
           role: string;
           content: Json;
           metadata: Json;
+          payload_type: string | null;
+          latency_ms: number | null;
+          telemetry_event_ids: string[] | null;
           created_at: string;
+          soft_deleted_at: string | null;
         };
         Insert: {
           id?: string;
           tenant_id: string;
           session_id: string;
+          mission_id?: string | null;
           role: string;
           content: Json;
           metadata?: Json;
+          payload_type?: string | null;
+          latency_ms?: number | null;
+          telemetry_event_ids?: string[] | null;
           created_at?: string;
+          soft_deleted_at?: string | null;
         };
         Update: Partial<Database['public']['Tables']['copilot_messages']['Row']>;
       };
@@ -354,6 +378,33 @@ export interface Database {
         };
         Update: Partial<Database['public']['Tables']['mission_events']['Row']>;
       };
+      planner_runs: {
+        Row: {
+          id: string;
+          tenant_id: string;
+          mission_id: string;
+          latency_ms: number;
+          candidate_count: number;
+          embedding_similarity_avg: number | null;
+          primary_toolkits: string[] | null;
+          mode: string;
+          metadata: Json;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id: string;
+          mission_id: string;
+          latency_ms: number;
+          candidate_count: number;
+          embedding_similarity_avg?: number | null;
+          primary_toolkits?: string[] | null;
+          mode?: string;
+          metadata?: Json;
+          created_at?: string;
+        };
+        Update: Partial<Database['public']['Tables']['planner_runs']['Row']>;
+      };
       safeguard_events: {
         Row: {
           id: string;
@@ -384,6 +435,12 @@ export interface Database {
           id: string;
           similarity: number;
         }[];
+      };
+      cleanup_copilot_messages: {
+        Args: {
+          retention_days?: number;
+        };
+        Returns: number;
       };
     };
   };

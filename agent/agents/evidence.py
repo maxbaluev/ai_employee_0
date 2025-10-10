@@ -1,4 +1,4 @@
-"""Evidence bundling stub for Gate G-A."""
+"""Evidence bundling for Gate G-B with proof pack generation."""
 
 from __future__ import annotations
 
@@ -14,6 +14,7 @@ from google.genai import types
 from pydantic import Field
 
 from ..services import CopilotKitStreamer, SupabaseClient, TelemetryEmitter
+from ..services.evidence_service import EvidenceService
 from .state import (
     EVIDENCE_BUNDLE_KEY,
     LATEST_ARTIFACT_KEY,
@@ -33,6 +34,7 @@ class EvidenceAgent(BaseAgent):
     supabase: Optional[SupabaseClient] = Field(default=None, exclude=True)
     telemetry: Optional[TelemetryEmitter] = Field(default=None, exclude=True)
     streamer: Optional[CopilotKitStreamer] = Field(default=None, exclude=True)
+    evidence_service: Optional[EvidenceService] = Field(default=None, exclude=True)
 
     def __init__(
         self,
@@ -41,12 +43,14 @@ class EvidenceAgent(BaseAgent):
         supabase: Optional[SupabaseClient] = None,
         telemetry: Optional[TelemetryEmitter] = None,
         streamer: Optional[CopilotKitStreamer] = None,
+        evidence_service: Optional[EvidenceService] = None,
     ) -> None:
         super().__init__(
             name=name,
             supabase=supabase,
             telemetry=telemetry,
             streamer=streamer,
+            evidence_service=evidence_service,
         )
         if self.supabase is None:
             object.__setattr__(self, "supabase", SupabaseClient.from_env())
@@ -54,6 +58,8 @@ class EvidenceAgent(BaseAgent):
             object.__setattr__(self, "telemetry", TelemetryEmitter(self.supabase))
         if self.streamer is None:
             object.__setattr__(self, "streamer", CopilotKitStreamer())
+        if self.evidence_service is None:
+            object.__setattr__(self, "evidence_service", EvidenceService(self.supabase))
 
     async def _run_async_impl(
         self, ctx: InvocationContext
