@@ -374,14 +374,18 @@ function getStageNode(label: string) {
 
 async function advanceToEvidenceStage(user: ReturnType<typeof userEvent.setup>) {
   await advanceToPlanStage(user);
-  await user.click(screen.getByRole('button', { name: /Select Planner Play/i }));
+  await user.click(screen.getByRole('button', { name: 'Select Planner Play' }));
 
   await waitFor(() => {
-    expect(streamingStatusPanelPropsRef.current?.onDryRunComplete).toBeDefined();
+    expect(streamingStatusPanelPropsRef.current?.onPlanComplete).toBeDefined();
   });
 
   act(() => {
     streamingStatusPanelPropsRef.current?.onPlanComplete?.();
+  });
+
+  await waitFor(() => {
+    expect(streamingStatusPanelPropsRef.current?.onDryRunComplete).toBeDefined();
   });
 
   act(() => {
@@ -398,9 +402,9 @@ async function advanceToEvidenceStage(user: ReturnType<typeof userEvent.setup>) 
 }
 
 async function advanceToPlanStage(user: ReturnType<typeof userEvent.setup>) {
-  await user.click(screen.getByRole('button', { name: /Complete Intake/i }));
-  await user.click(screen.getByRole('button', { name: /Save Toolkit Selections/i }));
-  await user.click(screen.getByRole('button', { name: /Complete Inspection/i }));
+  await user.click(screen.getByRole('button', { name: 'Complete Intake' }));
+  await user.click(screen.getByRole('button', { name: 'Save Toolkit Selections' }));
+  await user.click(screen.getByRole('button', { name: 'Complete Inspection' }));
 
   await waitFor(() => {
     expect(getStageNode('Plan').getAttribute('aria-current')).toBe('step');
@@ -447,20 +451,20 @@ describe('ControlPlaneWorkspace stage 5 flow', () => {
     const intakeStage = getStageNode('Intake');
     expect(intakeStage).toHaveAttribute('aria-current', 'step');
 
-    await user.click(screen.getByRole('button', { name: /Complete Intake/i }));
+    await user.click(screen.getByRole('button', { name: 'Complete Intake' }));
     expect(within(getStageNode('Intake')).getByText('✓')).toBeInTheDocument();
     expect(within(getStageNode('Brief')).getByText('✓')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: /Save Toolkit Selections/i }));
+    await user.click(screen.getByRole('button', { name: 'Save Toolkit Selections' }));
     expect(within(getStageNode('Toolkits')).getByText('✓')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: /Complete Inspection/i }));
+    await user.click(screen.getByRole('button', { name: 'Complete Inspection' }));
     expect(within(getStageNode('Inspect')).getByText('✓')).toBeInTheDocument();
 
     const planStage = getStageNode('Plan');
     expect(planStage).toHaveAttribute('aria-current', 'step');
 
-    await user.click(screen.getByRole('button', { name: /Select Planner Play/i }));
+  await user.click(screen.getByRole('button', { name: 'Select Planner Play' }));
 
     expect(plannerSelectSpy).toHaveBeenCalled();
 
@@ -474,6 +478,14 @@ describe('ControlPlaneWorkspace stage 5 flow', () => {
 
     const evidenceStage = getStageNode('Evidence');
     expect(evidenceStage.getAttribute('aria-current')).not.toBe('step');
+
+    await waitFor(() => {
+      expect(streamingStatusPanelPropsRef.current?.onPlanComplete).toBeDefined();
+    });
+
+    act(() => {
+      streamingStatusPanelPropsRef.current?.onPlanComplete?.();
+    });
 
     await waitFor(() => {
       expect(streamingStatusPanelPropsRef.current?.onDryRunComplete).toBeDefined();
@@ -521,7 +533,7 @@ describe('ControlPlaneWorkspace Gate G-B gating', () => {
     );
 
     await advanceToPlanStage(user);
-    await user.click(screen.getByRole('button', { name: /Select Planner Play/i }));
+    await user.click(screen.getByRole('button', { name: 'Select Planner Play' }));
 
     const dryRunStage = getStageNode('Dry Run');
     await waitFor(() => {
@@ -547,7 +559,7 @@ describe('ControlPlaneWorkspace Gate G-B gating', () => {
     );
 
     await advanceToPlanStage(user);
-    await user.click(screen.getByRole('button', { name: /Select Planner Play/i }));
+    await user.click(screen.getByRole('button', { name: 'Select Planner Play' }));
 
     const dryRunStage = getStageNode('Dry Run');
     await waitFor(() => {
@@ -555,6 +567,14 @@ describe('ControlPlaneWorkspace Gate G-B gating', () => {
     });
 
     expect(within(dryRunStage).queryByText('✓')).not.toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(streamingStatusPanelPropsRef.current?.onPlanComplete).toBeDefined();
+    });
+
+    act(() => {
+      streamingStatusPanelPropsRef.current?.onPlanComplete?.();
+    });
 
     await waitFor(() => {
       expect(streamingStatusPanelPropsRef.current?.onDryRunComplete).toBeDefined();
@@ -573,7 +593,7 @@ describe('ControlPlaneWorkspace Gate G-B gating', () => {
     });
   });
 
-  it('marks Feedback stage as started when the drawer is opened', async () => {
+  it('marks Feedback stage as current when the drawer is opened', async () => {
     const user = userEvent.setup();
 
     render(
@@ -585,35 +605,30 @@ describe('ControlPlaneWorkspace Gate G-B gating', () => {
       />,
     );
 
-    await advanceToPlanStage(user);
-    await user.click(screen.getByRole('button', { name: /Select Planner Play/i }));
+    await advanceToEvidenceStage(user);
 
     await waitFor(() => {
-      expect(streamingStatusPanelPropsRef.current?.onDryRunComplete).toBeDefined();
+      expect(feedbackDrawerPropsRef.current).not.toBeNull();
+      expect(feedbackDrawerPropsRef.current?.isOpen).toBe(false);
+    });
+
+    const addPlaceholderButton = await screen.findByRole('button', { name: 'Add Placeholder' });
+    await user.click(addPlaceholderButton);
+
+    await waitFor(() => {
+      expect(within(getStageNode('Evidence')).getByText('✓')).toBeInTheDocument();
     });
 
     act(() => {
-      streamingStatusPanelPropsRef.current?.onDryRunComplete?.();
+      feedbackDrawerPropsRef.current?.onOpenChange?.(true);
     });
-
-    await waitFor(() => {
-      expect(getStageNode('Evidence').getAttribute('aria-current')).toBe('step');
-    });
-
-    const feedbackStageBefore = getStageNode('Feedback');
-    expect(within(feedbackStageBefore).queryByText('✓')).not.toBeInTheDocument();
-    expect(feedbackStageBefore.getAttribute('aria-current')).not.toBe('step');
-
-    const trigger = await screen.findByRole('button', { name: /Open Feedback Drawer/i });
-    await user.click(trigger);
 
     await waitFor(() => {
       expect(feedbackDrawerPropsRef.current?.isOpen).toBe(true);
     });
 
-    const feedbackStageAfter = getStageNode('Feedback');
     await waitFor(() => {
-      expect(feedbackStageAfter.getAttribute('aria-current')).toBe('step');
+      expect(getStageNode('Feedback').getAttribute('aria-current')).toBe('step');
     });
   });
 });
@@ -633,7 +648,7 @@ describe('ControlPlaneWorkspace mission brief integration', () => {
       />,
     );
 
-    await user.click(screen.getByRole('button', { name: /Complete Intake/i }));
+    await user.click(screen.getByRole('button', { name: 'Complete Intake' }));
 
     expect(await screen.findByRole('heading', { name: /Mission Brief/i })).toBeInTheDocument();
     expect(screen.getByText('Drive Q4 pipeline')).toBeInTheDocument();
@@ -723,11 +738,11 @@ describe('ControlPlaneWorkspace Feedback Drawer integration', () => {
     const user = userEvent.setup();
     renderWorkspace();
 
-    expect(screen.queryByRole('button', { name: /Open Feedback Drawer/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Open Feedback Drawer' })).not.toBeInTheDocument();
 
     await advanceToEvidenceStage(user);
 
-    const trigger = await screen.findByRole('button', { name: /Open Feedback Drawer/i });
+    const trigger = await screen.findByRole('button', { name: 'Open Feedback Drawer' });
     expect(trigger).toBeInTheDocument();
 
     await waitFor(() => {
@@ -743,7 +758,7 @@ describe('ControlPlaneWorkspace Feedback Drawer integration', () => {
 
     await advanceToEvidenceStage(user);
 
-    const trigger = await screen.findByRole('button', { name: /Open Feedback Drawer/i });
+    const trigger = await screen.findByRole('button', { name: 'Open Feedback Drawer' });
     await user.click(trigger);
 
     const drawer = await screen.findByRole('dialog', { name: /Feedback Drawer/i });
@@ -773,7 +788,7 @@ describe('ControlPlaneWorkspace Feedback Drawer integration', () => {
 
     telemetryMock.mockClear();
 
-    const acceptAllButton = within(drawer).getByRole('button', { name: /Accept All/i });
+    const acceptAllButton = within(drawer).getByRole('button', { name: 'Accept All' });
     await user.click(acceptAllButton);
 
     await waitFor(() => {
@@ -784,7 +799,7 @@ describe('ControlPlaneWorkspace Feedback Drawer integration', () => {
     });
   });
 
-  it('submits mission feedback via API, records telemetry, and completes the stage', async () => {
+  it('submits mission feedback via API, records telemetry, and keeps Feedback stage current', async () => {
     const user = userEvent.setup();
     renderWorkspace([
       {
@@ -797,7 +812,7 @@ describe('ControlPlaneWorkspace Feedback Drawer integration', () => {
 
     await advanceToEvidenceStage(user);
 
-    const trigger = await screen.findByRole('button', { name: /Open Feedback Drawer/i });
+    const trigger = await screen.findByRole('button', { name: 'Open Feedback Drawer' });
     await user.click(trigger);
 
     await waitFor(() => {
@@ -812,12 +827,16 @@ describe('ControlPlaneWorkspace Feedback Drawer integration', () => {
       expect(feedbackDrawerPropsRef.current?.isOpen).toBe(true);
     });
 
-    await user.click(await screen.findByRole('button', { name: /Rate mission 5/i }));
+    await waitFor(() => {
+      expect(getStageNode('Feedback').getAttribute('aria-current')).toBe('step');
+    });
+
+    await user.click(await screen.findByRole('button', { name: 'Rate mission 5' }));
 
     const commentsField = screen.getByRole('textbox', { name: /Mission feedback comments/i });
     await user.type(commentsField, 'Great mission support');
 
-    await user.click(screen.getByRole('button', { name: /Send Feedback/i }));
+    await user.click(screen.getByRole('button', { name: 'Send Feedback' }));
 
     await waitFor(() => {
       expect(telemetryMock).toHaveBeenCalledWith(
@@ -858,9 +877,13 @@ describe('ControlPlaneWorkspace Feedback Drawer integration', () => {
       expect(parsed.learningSignals.comment_length).toBeGreaterThan(0);
     });
 
+    await waitFor(() => {
+      expect(feedbackDrawerPropsRef.current?.isOpen).toBe(false);
+    });
+
     await waitFor(
       () => {
-        expect(within(getStageNode('Feedback')).getByText('✓')).toBeInTheDocument();
+        expect(getStageNode('Feedback').getAttribute('aria-current')).toBe('step');
       },
       { timeout: 3000 },
     );
@@ -954,7 +977,7 @@ describe('ControlPlaneWorkspace reviewer integration', () => {
       expect(within(modal).getByText('Maintain professional tone')).toBeInTheDocument();
     });
 
-    await user.click(within(modal).getByRole('button', { name: /Submit decision/i }));
+    await user.click(within(modal).getByRole('button', { name: 'Submit decision' }));
 
     await waitFor(() => {
       expect(capturedApprovalPayload).not.toBeNull();
@@ -1027,8 +1050,10 @@ describe('ControlPlaneWorkspace Evidence Gallery Stage 7 flow', () => {
       expect(screen.getByText('Email Sequence Plan')).toBeInTheDocument();
 
       // Each artifact should have an undo button
-      const undoButtons = screen.getAllByRole('button', { name: /Undo draft/i });
-      expect(undoButtons).toHaveLength(2);
+      const undoButton = screen.getByRole('button', {
+        name: 'Undo draft for LinkedIn Campaign Draft',
+      });
+      expect(undoButton).toBeInTheDocument();
     });
 
     it('calls evidence service API when undo button is clicked', async () => {
@@ -1071,7 +1096,7 @@ describe('ControlPlaneWorkspace Evidence Gallery Stage 7 flow', () => {
         />,
       );
 
-      const undoButton = screen.getByRole('button', { name: /Undo draft/i });
+      const undoButton = screen.getByRole('button', { name: 'Undo draft for Test Artifact' });
       await user.click(undoButton);
 
       await waitFor(() => {
@@ -1128,7 +1153,7 @@ describe('ControlPlaneWorkspace Evidence Gallery Stage 7 flow', () => {
         />,
       );
 
-      const undoButton = screen.getByRole('button', { name: /Undo draft/i });
+      const undoButton = screen.getByRole('button', { name: 'Undo draft for Telemetry Test Artifact' });
       await user.click(undoButton);
 
       await waitFor(() => {
@@ -1186,7 +1211,7 @@ describe('ControlPlaneWorkspace Evidence Gallery Stage 7 flow', () => {
         />,
       );
 
-      const undoButton = screen.getByRole('button', { name: /Undo draft/i });
+      const undoButton = screen.getByRole('button', { name: 'Undo draft for Success Test Artifact' });
       await user.click(undoButton);
 
       await waitFor(() => {
@@ -1234,7 +1259,7 @@ describe('ControlPlaneWorkspace Evidence Gallery Stage 7 flow', () => {
         />,
       );
 
-      const undoButton = screen.getByRole('button', { name: /Undo draft/i });
+      const undoButton = screen.getByRole('button', { name: 'Undo draft for Queued Test Artifact' });
       await user.click(undoButton);
 
       await waitFor(() => {
@@ -1282,7 +1307,7 @@ describe('ControlPlaneWorkspace Evidence Gallery Stage 7 flow', () => {
         />,
       );
 
-      const undoButton = screen.getByRole('button', { name: /Undo draft/i });
+      const undoButton = screen.getByRole('button', { name: 'Undo draft for Error Test Artifact' });
       await user.click(undoButton);
 
       await waitFor(() => {
@@ -1330,14 +1355,18 @@ describe('ControlPlaneWorkspace Evidence Gallery Stage 7 flow', () => {
         />,
       );
 
-      const undoButton = screen.getByRole('button', { name: /Undo draft/i });
+      const undoButton = screen.getByRole('button', { name: 'Undo draft for Loading Test Artifact' });
       expect(undoButton).not.toBeDisabled();
 
       await user.click(undoButton);
 
       // Button should be disabled and show loading text
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /Undoing…/i })).toBeDisabled();
+        const loadingButton = screen.getByRole('button', {
+          name: 'Undo draft for Loading Test Artifact',
+        });
+        expect(loadingButton).toBeDisabled();
+        expect(loadingButton).toHaveTextContent('Undoing…');
       });
 
       // Resolve the undo request
@@ -1350,7 +1379,7 @@ describe('ControlPlaneWorkspace Evidence Gallery Stage 7 flow', () => {
 
       // Button should be enabled again
       await waitFor(() => {
-        const button = screen.getByRole('button', { name: /Undo draft/i });
+        const button = screen.getByRole('button', { name: 'Undo draft for Loading Test Artifact' });
         expect(button).not.toBeDisabled();
       });
     });
@@ -1402,7 +1431,7 @@ describe('ControlPlaneWorkspace Evidence Gallery Stage 7 flow', () => {
         );
       });
 
-      const addButton = screen.getByRole('button', { name: /Add Placeholder/i });
+      const addButton = screen.getByRole('button', { name: 'Add Placeholder' });
       await user.click(addButton);
 
       // Evidence stage should be marked complete
@@ -1497,7 +1526,7 @@ describe('ControlPlaneWorkspace Evidence Gallery Stage 7 flow', () => {
         );
       });
 
-      await user.click(screen.getByRole('button', { name: /Add Placeholder/i }));
+      await user.click(screen.getByRole('button', { name: 'Add Placeholder' }));
 
       await waitFor(() => {
         expect(telemetryMock).toHaveBeenCalledWith(
@@ -1576,7 +1605,7 @@ describe('ControlPlaneWorkspace Evidence Gallery Stage 7 flow', () => {
 
       await advanceToEvidenceStage(user);
 
-      await user.click(screen.getByRole('button', { name: /Add Placeholder/i }));
+      await user.click(screen.getByRole('button', { name: 'Add Placeholder' }));
 
       await waitFor(() => {
         expect(within(getStageNode('Evidence')).getByText('✓')).toBeInTheDocument();
@@ -1764,8 +1793,12 @@ describe('ControlPlaneWorkspace Evidence Gallery Stage 7 flow', () => {
         />,
       );
 
-      await user.click(screen.getByRole('button', { name: /Download CSV/i }));
-      await user.click(screen.getByRole('button', { name: /Copy Share Link/i }));
+      await user.click(
+        screen.getByRole('button', { name: 'Download Action Artifact as CSV' }),
+      );
+      await user.click(
+        screen.getByRole('button', { name: 'Copy share link for Action Artifact' }),
+      );
 
       await waitFor(() => {
         expect(fetchMock).toHaveBeenCalledWith(
@@ -1807,7 +1840,7 @@ describe('ControlPlaneWorkspace Evidence Gallery Stage 7 flow', () => {
       const hashElement = await screen.findByTitle(hash);
       expect(hashElement).toHaveTextContent('1234567890…abcdef');
 
-      await user.click(screen.getByRole('button', { name: /Copy evidence SHA-256 hash/i }));
+      await user.click(screen.getByRole('button', { name: 'Copy evidence SHA-256 hash' }));
 
       await waitFor(() => {
         expect(telemetryMock).toHaveBeenCalledWith(
@@ -1846,8 +1879,8 @@ describe('MissionStageProvider failure path', () => {
       </MissionStageProvider>
     );
 
-    await user.click(screen.getByRole('button', { name: /Start Stage/i }));
-    await user.click(screen.getByRole('button', { name: /Fail Stage/i }));
+    await user.click(screen.getByRole('button', { name: 'Start Stage' }));
+    await user.click(screen.getByRole('button', { name: 'Fail Stage' }));
 
     await waitFor(() => {
       expect(screen.getByTestId('failure-state')).toHaveTextContent('failed');
