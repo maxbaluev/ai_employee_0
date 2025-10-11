@@ -27,6 +27,7 @@
     "@supabase/auth-helpers-nextjs": "^0.10.0",
     "@supabase/supabase-js": "^2.46.1",
     "next": "15.3.2",
+    "pdfkit": "^0.17.2",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "zod": "^3.24.4"

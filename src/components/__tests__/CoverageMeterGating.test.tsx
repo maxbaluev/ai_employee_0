@@ -21,9 +21,13 @@ vi.mock('@/lib/telemetry/client', () => ({
   sendTelemetryEvent: telemetryMock,
 }));
 
+type MissionIntakeAcceptPayload = {
+  missionId: string;
+};
+
 const missionIntakeMock = vi.hoisted(() =>
   vi.fn(
-    (props: { onAccept: (payload: any) => void; onStageAdvance?: () => void }) => (
+    (props: { onAccept: (payload: MissionIntakeAcceptPayload) => void; onStageAdvance?: () => void }) => (
       <section aria-label="Mock Mission Intake Stage">
         <button
           type="button"
@@ -88,12 +92,17 @@ type PreviewState = {
   readiness: number;
   canProceed: boolean;
   summary: string;
+  toolkits?: Array<{ slug: string; name: string; sampleCount?: number }>;
 };
 
 const previewState = vi.hoisted<PreviewState>(() => ({
   readiness: 100,
   canProceed: true,
   summary: 'Ready to proceed',
+  toolkits: [
+    { slug: 'hubspot-crm', name: 'HubSpot CRM', sampleCount: 3 },
+    { slug: 'slack', name: 'Slack', sampleCount: 2 },
+  ],
 }));
 
 const { ControlPlaneWorkspace } = await import('@/app/(control-plane)/ControlPlaneWorkspace');
@@ -130,7 +139,7 @@ describe('CoverageMeter gating integration', () => {
     recommendedToolkitsMock.mockClear();
     fetchMock.mockReset();
 
-    fetchMock.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+    fetchMock.mockImplementation((input: RequestInfo | URL) => {
       const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
 
       if (url.includes('/api/inspect/preview')) {
@@ -225,6 +234,7 @@ describe('CoverageMeter gating integration', () => {
     expect(parsedBody).not.toBeNull();
     expect(parsedBody).toMatchObject({
       missionId: '22222222-2222-2222-2222-222222222222',
+      tenantId,
       findingType: 'coverage_preview',
     });
 
@@ -252,6 +262,9 @@ describe('CoverageMeter gating integration', () => {
 
     expect(previewTelemetryCall).toBeDefined();
     expect(previewTelemetryCall?.[1].eventData?.canProceed).toBe(false);
+    expect(previewTelemetryCall?.[1].eventData?.toolkit_count).toBe(
+      previewState.toolkits?.length ?? 0,
+    );
   });
 
   it('advances to Plan when inspection readiness meets threshold', async () => {
@@ -303,6 +316,7 @@ describe('CoverageMeter gating integration', () => {
     expect(parsedBody).not.toBeNull();
     expect(parsedBody).toMatchObject({
       missionId: '22222222-2222-2222-2222-222222222222',
+      tenantId,
       findingType: 'coverage_preview',
     });
 
@@ -334,5 +348,8 @@ describe('CoverageMeter gating integration', () => {
 
     expect(previewTelemetryCall).toBeDefined();
     expect(previewTelemetryCall?.[1].eventData?.canProceed).toBe(true);
+    expect(previewTelemetryCall?.[1].eventData?.toolkit_count).toBe(
+      previewState.toolkits?.length ?? 0,
+    );
   });
 });

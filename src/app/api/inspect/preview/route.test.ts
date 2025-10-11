@@ -4,9 +4,14 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { POST } from './route';
 
 const getRouteHandlerSupabaseClientMock = vi.hoisted(() => vi.fn());
+const getServiceSupabaseClientMock = vi.hoisted(() => vi.fn());
 
 vi.mock('@/lib/supabase/server', () => ({
   getRouteHandlerSupabaseClient: getRouteHandlerSupabaseClientMock,
+}));
+
+vi.mock('@/lib/supabase/service', () => ({
+  getServiceSupabaseClient: getServiceSupabaseClientMock,
 }));
 
 const DEFAULT_TENANT_ID = '7ae75a5c-0aed-4bd0-9c71-9d30e5bb6e08';
@@ -30,37 +35,53 @@ describe('POST /api/inspect/preview', () => {
       error: null,
     });
 
-    const insertTelemetryMock = vi.fn().mockResolvedValue({ data: null, error: null });
-    const insertFindingMock = vi.fn().mockResolvedValue({
+    const toolkitQueryBuilder = createToolkitSelectionQueryBuilder([
+      {
+        slug: 'hubspot-crm',
+        name: 'HubSpot CRM',
+        authType: 'oauth',
+        category: 'crm',
+      },
+      {
+        slug: 'slack',
+        name: 'Slack',
+        authType: 'oauth',
+        category: 'collaboration',
+        noAuth: false,
+      },
+    ]);
+
+    const insertSingleMock = vi.fn().mockResolvedValue({
       data: {
         id: 'finding-123',
-        tenant_id: DEFAULT_TENANT_ID,
-        mission_id: '67ab22f9-0f06-4ac4-9710-4a1ddcb915d2',
-        finding_type: 'coverage_gap',
-        payload: { accountsMissingOwner: 12 },
-        readiness: 92,
         created_at: '2025-10-11T00:00:00Z',
       },
       error: null,
     });
 
-    const selectMock = vi.fn(() => ({ single: insertFindingMock }));
-    const insertMock = vi.fn(() => ({ select: selectMock }));
+    const inspectionInsertBuilder = {
+      insert: vi.fn(() => ({
+        select: vi.fn(() => ({ single: insertSingleMock })),
+      })),
+    };
 
-    const fromMock = vi.fn((table: string) => {
-      if (table === 'inspection_findings') {
-        return { insert: insertMock };
+    const serviceFromMock = vi.fn((table: string) => {
+      if (table === 'toolkit_selections') {
+        return toolkitQueryBuilder;
       }
-      if (table === 'mission_events') {
-        return { insert: insertTelemetryMock };
+      if (table === 'inspection_findings') {
+        return inspectionInsertBuilder;
       }
       throw new Error(`Unexpected table ${table}`);
     });
 
     getRouteHandlerSupabaseClientMock.mockResolvedValue({
       auth: { getSession: getSessionMock },
-      from: fromMock,
     } as unknown as Awaited<ReturnType<typeof getRouteHandlerSupabaseClientMock>>);
+
+    getServiceSupabaseClientMock.mockReturnValue({
+      from: serviceFromMock,
+    } as unknown as ReturnType<typeof getServiceSupabaseClientMock>);
   });
 
   afterEach(() => {
@@ -78,32 +99,60 @@ describe('POST /api/inspect/preview', () => {
     expect(getRouteHandlerSupabaseClientMock).not.toHaveBeenCalled();
   });
 
-  it('returns 201 when inspection findings are persisted', async () => {
+  it('returns preview payload with toolkits and persists finding', async () => {
     const body = {
       missionId: '67ab22f9-0f06-4ac4-9710-4a1ddcb915d2',
-      findingType: 'coverage_gap',
-      readiness: 92,
-      payload: { accountsMissingOwner: 12 },
+      findingType: 'coverage_preview',
+      payload: { selectedToolkitsCount: 2, hasArtifacts: true },
     };
 
     const request = createRequest(body);
 
     const response = await POST(request);
 
-    expect(response.status).toBe(201);
-    const payload = await response.json();
+    expect(response.status).toBe(200);
+    const payload = (await response.json()) as Record<string, unknown>;
 
-    expect(getRouteHandlerSupabaseClientMock).toHaveBeenCalled();
-    const supabaseClient = getRouteHandlerSupabaseClientMock.mock.results[0]?.value;
-    await expect(supabaseClient).resolves.toBeDefined();
-
-    expect(payload).toEqual({
-      finding: expect.objectContaining({
-        id: 'finding-123',
-        mission_id: body.missionId,
-        readiness: body.readiness,
-      }),
+    expect(payload).toMatchObject({
+      readiness: expect.any(Number),
+      canProceed: expect.any(Boolean),
+      summary: expect.any(String),
+      toolkits: expect.any(Array),
+      findingId: 'finding-123',
     });
+
+    const serviceClient = getServiceSupabaseClientMock.mock.results[0]?.value;
+    await expect(serviceClient).toBeDefined();
+
+    const serviceResolved = await serviceClient;
+    const fromMock = serviceResolved?.from as vi.Mock;
+    expect(fromMock).toHaveBeenCalledWith('toolkit_selections');
+    expect(fromMock).toHaveBeenCalledWith('inspection_findings');
   });
 });
 
+type ToolkitSelectionQueryBuilder = {
+  select: vi.Mock;
+  eq: vi.Mock;
+  order: vi.Mock;
+  limit: vi.Mock;
+  maybeSingle: vi.Mock;
+};
+
+function createToolkitSelectionQueryBuilder(selectedTools: unknown[]): ToolkitSelectionQueryBuilder {
+  const builder: ToolkitSelectionQueryBuilder = {
+    select: vi.fn(),
+    eq: vi.fn(),
+    order: vi.fn(),
+    limit: vi.fn(),
+    maybeSingle: vi.fn(),
+  };
+
+  builder.select.mockReturnValue(builder);
+  builder.eq.mockReturnValue(builder);
+  builder.order.mockReturnValue(builder);
+  builder.limit.mockReturnValue(builder);
+  builder.maybeSingle.mockResolvedValue({ data: { selected_tools: selectedTools }, error: null });
+
+  return builder;
+}

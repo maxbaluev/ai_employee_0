@@ -16,6 +16,7 @@ vi.mock('@copilotkit/react-ui', () => ({
 }));
 
 const telemetryMock = vi.hoisted(() => vi.fn());
+const clipboardWriteMockRef = vi.hoisted(() => ({ current: vi.fn() as vi.Mock }));
 
 vi.mock('@/lib/telemetry/client', () => ({
   sendTelemetryEvent: telemetryMock,
@@ -260,6 +261,24 @@ beforeEach(() => {
   feedbackDrawerPropsRef.current = null;
   streamingStatusPanelPropsRef.current = null;
 
+  clipboardWriteMockRef.current = vi.fn().mockResolvedValue(undefined);
+  Object.defineProperty(navigator, 'clipboard', {
+    value: { writeText: clipboardWriteMockRef.current },
+    configurable: true,
+  });
+  Object.defineProperty(URL, 'createObjectURL', {
+    value: vi.fn(() => 'blob:mock-url'),
+    configurable: true,
+  });
+  Object.defineProperty(URL, 'revokeObjectURL', {
+    value: vi.fn(),
+    configurable: true,
+  });
+  Object.defineProperty(HTMLAnchorElement.prototype, 'click', {
+    value: vi.fn(),
+    configurable: true,
+  });
+
   fetchMock.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
     const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
 
@@ -309,6 +328,15 @@ beforeEach(() => {
       );
     }
 
+    if (url.includes('/api/missions/') && url.includes('/brief')) {
+      return Promise.resolve(
+        new Response(JSON.stringify({ brief: null }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      );
+    }
+
     return Promise.resolve(
       new Response(JSON.stringify({ ok: true }), {
         status: 200,
@@ -323,6 +351,10 @@ beforeEach(() => {
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.clearAllMocks();
+  Reflect.deleteProperty(navigator as unknown as Record<string, unknown>, 'clipboard');
+  Reflect.deleteProperty(URL as unknown as Record<string, unknown>, 'createObjectURL');
+  Reflect.deleteProperty(URL as unknown as Record<string, unknown>, 'revokeObjectURL');
+  Reflect.deleteProperty(HTMLAnchorElement.prototype as unknown as Record<string, unknown>, 'click');
 });
 
 const { ControlPlaneWorkspace } = await import('@/app/(control-plane)/ControlPlaneWorkspace');
@@ -580,6 +612,92 @@ describe('ControlPlaneWorkspace Gate G-B gating', () => {
     const feedbackStageAfter = getStageNode('Feedback');
     await waitFor(() => {
       expect(feedbackStageAfter.getAttribute('aria-current')).toBe('step');
+    });
+  });
+});
+
+describe('ControlPlaneWorkspace mission brief integration', () => {
+  const tenantId = '00000000-0000-0000-0000-000000000000';
+
+  it('renders Mission Brief card after intake acceptance', async () => {
+    const user = userEvent.setup();
+
+    render(
+      <ControlPlaneWorkspace
+        tenantId={tenantId}
+        initialObjectiveId={null}
+        initialArtifacts={[]}
+        catalogSummary={null}
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: /Complete Intake/i }));
+
+    expect(await screen.findByRole('heading', { name: /Mission Brief/i })).toBeInTheDocument();
+    expect(screen.getByText('Drive Q4 pipeline')).toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(telemetryMock).toHaveBeenCalledWith(
+        tenantId,
+        expect.objectContaining({ eventName: 'mission_brief_updated' }),
+      );
+    });
+  });
+
+  it('renders Mission Brief card when mission brief fetch resolves', async () => {
+    const missionIdentifier = '99999999-9999-9999-9999-999999999999';
+    const baseFetch = fetchMock.getMockImplementation();
+
+    fetchMock.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
+
+      if (url.includes(`/api/missions/${missionIdentifier}/brief`)) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              brief: {
+                objective: 'Fetched mission objective',
+                audience: 'Fetched audience',
+                kpis: [],
+                safeguards: [],
+                confidence: { objective: 0.6 },
+              },
+            }),
+            {
+              status: 200,
+              headers: { 'Content-Type': 'application/json' },
+            },
+          ),
+        );
+      }
+
+      return baseFetch
+        ? baseFetch(input, init)
+        : Promise.resolve(
+            new Response(JSON.stringify({ ok: true }), {
+              status: 200,
+              headers: { 'Content-Type': 'application/json' },
+            }),
+          );
+    });
+
+    render(
+      <ControlPlaneWorkspace
+        tenantId={tenantId}
+        initialObjectiveId={missionIdentifier}
+        initialArtifacts={[]}
+        catalogSummary={null}
+      />,
+    );
+
+    expect(await screen.findByRole('heading', { name: /Mission Brief/i })).toBeInTheDocument();
+    expect(screen.getByText('Fetched mission objective')).toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(telemetryMock).toHaveBeenCalledWith(
+        tenantId,
+        expect.objectContaining({ eventName: 'mission_brief_loaded' }),
+      );
     });
   });
 });
@@ -1338,6 +1456,124 @@ describe('ControlPlaneWorkspace Evidence Gallery Stage 7 flow', () => {
       expect(screen.getByText('Campaign Strategy Document')).toBeInTheDocument();
       expect(
         screen.getByText('Comprehensive plan for Q4 outreach including timing, messaging, and target segments'),
+      ).toBeInTheDocument();
+    });
+  });
+
+  describe('artifact actions', () => {
+    it('renders export and share buttons that trigger handlers', async () => {
+      const user = userEvent.setup();
+      const artifacts = [
+        {
+          artifact_id: 'artifact-actions',
+          title: 'Action Artifact',
+          summary: 'Contains draft outputs',
+          status: 'draft',
+        },
+      ];
+
+      const baseFetch = fetchMock.getMockImplementation();
+      const exportResponse = new Response('csv-data', {
+        status: 200,
+        headers: { 'Content-Type': 'text/csv' },
+      });
+      const shareResponse = new Response(JSON.stringify({ shareUrl: 'https://example.com/share' }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      fetchMock.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+        const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
+        if (url.includes('/api/artifacts/export')) {
+          expect(init?.method).toBe('POST');
+          return Promise.resolve(exportResponse);
+        }
+        if (url.includes('/api/artifacts/share')) {
+          expect(init?.method).toBe('POST');
+          return Promise.resolve(shareResponse);
+        }
+        return baseFetch
+          ? baseFetch(input, init)
+          : Promise.resolve(
+              new Response(JSON.stringify({ ok: true }), {
+                status: 200,
+                headers: { 'Content-Type': 'application/json' },
+            }),
+        );
+      });
+
+      clipboardWriteMockRef.current.mockClear();
+      telemetryMock.mockClear();
+
+      render(
+        <ControlPlaneWorkspace
+          tenantId={tenantId}
+          initialObjectiveId={missionId}
+          initialArtifacts={artifacts}
+          catalogSummary={null}
+        />,
+      );
+
+      await user.click(screen.getByRole('button', { name: /Download CSV/i }));
+      await user.click(screen.getByRole('button', { name: /Copy Share Link/i }));
+
+      await waitFor(() => {
+        expect(fetchMock).toHaveBeenCalledWith(
+          expect.stringContaining('/api/artifacts/share'),
+          expect.objectContaining({ method: 'POST' }),
+        );
+      });
+
+      expect(
+        await screen.findByText('Share link copied to clipboard.'),
+      ).toBeInTheDocument();
+    });
+
+    it('renders truncated evidence hash and emits telemetry when copied', async () => {
+      const user = userEvent.setup();
+      const hash = '1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef';
+      const artifacts = [
+        {
+          artifact_id: 'artifact-hash',
+          title: 'Hashed Artifact',
+          summary: 'Includes evidence hash',
+          status: 'draft',
+          evidence_hash: hash,
+        },
+      ];
+
+      telemetryMock.mockClear();
+      clipboardWriteMockRef.current.mockClear();
+
+      render(
+        <ControlPlaneWorkspace
+          tenantId={tenantId}
+          initialObjectiveId={missionId}
+          initialArtifacts={artifacts}
+          catalogSummary={null}
+        />,
+      );
+
+      const hashElement = await screen.findByTitle(hash);
+      expect(hashElement).toHaveTextContent('1234567890…abcdef');
+
+      await user.click(screen.getByRole('button', { name: /Copy evidence SHA-256 hash/i }));
+
+      await waitFor(() => {
+        expect(telemetryMock).toHaveBeenCalledWith(
+          tenantId,
+          expect.objectContaining({
+            eventName: 'evidence_hash_copied',
+            eventData: expect.objectContaining({
+              artifact_id: 'artifact-hash',
+              hash_length: hash.length,
+            }),
+          }),
+        );
+      });
+
+      expect(
+        await screen.findByText('Evidence hash copied to clipboard.'),
       ).toBeInTheDocument();
     });
   });

@@ -88,6 +88,20 @@ function getReadinessTextColor(readiness: number): string {
   return 'text-red-300';
 }
 
+type PreviewState = {
+  readiness: number;
+  canProceed: boolean;
+  summary?: string;
+  toolkits?: Array<{
+    slug: string;
+    name: string;
+    sampleCount?: number;
+    sampleRows?: string[];
+  }>;
+  findingId?: string;
+  findingCreatedAt?: string;
+};
+
 export function CoverageMeter({
   tenantId,
   missionId,
@@ -96,15 +110,18 @@ export function CoverageMeter({
   onComplete,
 }: CoverageMeterProps) {
   const [isRecording, setIsRecording] = useState(false);
+  const [preview, setPreview] = useState<PreviewState | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const readiness = useMemo(
+  const baselineReadiness = useMemo(
     () => calculateReadiness(selectedToolkitsCount, hasArtifacts),
-    [selectedToolkitsCount, hasArtifacts]
+    [selectedToolkitsCount, hasArtifacts],
   );
 
+  const readiness = preview?.readiness ?? baselineReadiness;
   const gaps = useMemo(
     () => generateGaps(readiness, selectedToolkitsCount, hasArtifacts),
-    [readiness, selectedToolkitsCount, hasArtifacts]
+    [readiness, selectedToolkitsCount, hasArtifacts],
   );
 
   const handleRecordInspection = useCallback(async () => {
@@ -112,16 +129,22 @@ export function CoverageMeter({
       return;
     }
 
+    if (!missionId) {
+      setErrorMessage('Accept the mission intake before recording inspection.');
+      return;
+    }
+
     setIsRecording(true);
+    setErrorMessage(null);
 
     const requestBody = {
-      missionId: missionId ?? null,
+      missionId,
+      tenantId,
       findingType: INSPECTION_FINDING_TYPE,
       payload: {
         selectedToolkitsCount,
         hasArtifacts,
       },
-      readiness,
     };
 
     try {
@@ -131,71 +154,76 @@ export function CoverageMeter({
         body: JSON.stringify(requestBody),
       });
 
-      const previewPayload = (await response.json().catch(() => null)) as
+      const responsePayload = (await response.json().catch(() => null)) as
+        | PreviewState
         | Record<string, unknown>
         | null;
-      const preview =
-        previewPayload && typeof previewPayload === 'object' && !Array.isArray(previewPayload)
-          ? previewPayload
-          : {};
-      const responseReadiness =
-        typeof preview.readiness === 'number' ? (preview.readiness as number) : readiness;
-      const canProceed = responseReadiness >= READINESS_THRESHOLD;
+
+      const normalized: PreviewState = normalizePreviewResponse(responsePayload, {
+        baselineReadiness,
+        selectedToolkitsCount,
+        hasArtifacts,
+      });
+      setPreview(normalized);
+
+      const canProceed = normalized.canProceed;
+      const responseReadiness = normalized.readiness;
 
       await sendTelemetryEvent(tenantId, {
         eventName: 'inspection_preview_rendered',
-        missionId: missionId ?? undefined,
+        missionId,
         eventData: {
           readiness: responseReadiness,
           selectedToolkitsCount,
           hasArtifacts,
           canProceed,
+          toolkit_count: normalized.toolkits?.length ?? 0,
         },
       });
 
       if (!response.ok) {
-        const errorMessage =
-          typeof preview?.error === 'string'
-            ? (preview.error as string)
-            : 'Failed to fetch inspection preview';
-        throw new Error(errorMessage);
+        throw new Error('Failed to fetch inspection preview');
       }
 
       if (canProceed) {
         await sendTelemetryEvent(tenantId, {
           eventName: 'coverage_ready',
-          missionId: missionId ?? undefined,
+          missionId,
           eventData: {
             readiness: responseReadiness,
             selectedToolkitsCount,
             hasArtifacts,
+            finding_id: normalized.findingId,
           },
         });
 
         onComplete({
-          ...preview,
+          ...normalized,
           readiness: responseReadiness,
           canProceed,
         });
       }
     } catch (error) {
       console.error('Failed to record inspection preview', error);
+      setErrorMessage(
+        error instanceof Error ? error.message : 'Failed to record inspection preview',
+      );
     } finally {
       setIsRecording(false);
     }
   }, [
+    baselineReadiness,
     hasArtifacts,
     isRecording,
     missionId,
     onComplete,
-    readiness,
     selectedToolkitsCount,
     tenantId,
   ]);
 
   const readinessColor = getReadinessColor(readiness);
   const readinessTextColor = getReadinessTextColor(readiness);
-  const canProceed = readiness >= READINESS_THRESHOLD;
+  const canProceed = preview?.canProceed ?? readiness >= READINESS_THRESHOLD;
 
   return (
     <section className="border-b border-white/10 px-6 py-6">
@@ -236,6 +264,18 @@ export function CoverageMeter({
             </div>
           </div>
 
+          {errorMessage && (
+            <div className="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-200">
+              {errorMessage}
+            </div>
+          )}
+
+          {preview?.summary && (
+            <div className="rounded-lg border border-emerald-400/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-200">
+              {preview.summary}
+            </div>
+          )}
+
           {gaps.length > 0 && (
             <div className="space-y-2">
               <h3 className="text-sm font-medium text-slate-200">Coverage Gaps</h3>
@@ -264,7 +304,9 @@ export function CoverageMeter({
             <dl className="grid gap-2 text-xs sm:grid-cols-2">
               <div className="flex items-center justify-between rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2">
                 <dt className="text-slate-400">Selected toolkits</dt>
-                <dd className="font-semibold text-white">{selectedToolkitsCount}</dd>
+                <dd className="font-semibold text-white">
+                  {preview?.toolkits ? preview.toolkits.length : selectedToolkitsCount}
+                </dd>
               </div>
               <div className="flex items-center justify-between rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2">
                 <dt className="text-slate-400">Prior artifacts</dt>
@@ -282,10 +324,10 @@ export function CoverageMeter({
             <button
               type="button"
               onClick={handleRecordInspection}
-              disabled={!canProceed || isRecording}
+              disabled={isRecording || !missionId || selectedToolkitsCount === 0}
               className={`inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition ${
                 canProceed
-                  ? 'bg-violet-500 text-white hover:bg-violet-400 disabled:cursor-not-allowed disabled:opacity-60'
+                  ? 'bg-emerald-600 text-white hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-60'
                   : 'cursor-not-allowed bg-slate-600 text-slate-400 opacity-50'
               }`}
             >
@@ -296,4 +338,49 @@ export function CoverageMeter({
       </div>
     </section>
   );
+}
+
+function normalizePreviewResponse(
+  payload: PreviewState | Record<string, unknown> | null,
+  context: { baselineReadiness: number; selectedToolkitsCount: number; hasArtifacts: boolean },
+): PreviewState {
+  const { baselineReadiness, selectedToolkitsCount, hasArtifacts } = context;
+
+  const candidate = payload && typeof payload === 'object' && !Array.isArray(payload) ? payload : {};
+  const responseReadiness = (() => {
+    const value = (candidate as PreviewState).readiness;
+    return typeof value === 'number' && Number.isFinite(value) ? value : baselineReadiness;
+  })();
+
+  const toolkits = Array.isArray((candidate as PreviewState).toolkits)
+    ? ((candidate as PreviewState).toolkits as PreviewState['toolkits'])
+    : [];
+
+  const canProceed = (() => {
+    const explicit = (candidate as PreviewState).canProceed;
+    if (typeof explicit === 'boolean') {
+      return explicit;
+    }
+    return responseReadiness >= READINESS_THRESHOLD;
+  })();
+
+  const summary = typeof (candidate as PreviewState).summary === 'string'
+    ? ((candidate as PreviewState).summary as string)
+    : toolkits.length
+      ? `${toolkits.length} toolkit${toolkits.length === 1 ? '' : 's'} inspected`
+      : hasArtifacts || selectedToolkitsCount > 0
+        ? 'Inspection preview recorded.'
+        : 'No toolkit selections available.';
+
+  return {
+    readiness: responseReadiness,
+    canProceed,
+    summary,
+    toolkits,
+    findingId: typeof (candidate as PreviewState).findingId === 'string' ? (candidate as PreviewState).findingId : undefined,
+    findingCreatedAt:
+      typeof (candidate as PreviewState).findingCreatedAt === 'string'
+        ? (candidate as PreviewState).findingCreatedAt
+        : undefined,
+  };
 }

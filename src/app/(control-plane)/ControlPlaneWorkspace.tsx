@@ -8,6 +8,7 @@ import { ApprovalModal } from "@/components/ApprovalModal";
 import { CoverageMeter } from "@/components/CoverageMeter";
 import { FeedbackDrawer } from "@/components/FeedbackDrawer";
 import { MissionIntake } from "@/components/MissionIntake";
+import { MissionBriefCard } from "@/components/MissionBriefCard";
 import { RecommendedToolkits } from "@/components/RecommendedToolkits";
 import { StreamingStatusPanel } from "@/components/StreamingStatusPanel";
 import { MissionStageProvider, MissionStageProgress, MissionStage, useMissionStages } from "@/components/mission-stages";
@@ -23,12 +24,23 @@ type Artifact = {
   title: string;
   summary: string;
   status: string;
+  hash?: string | null;
 };
 
 type CatalogSummary = {
   total_entries: number;
   toolkits: number;
   categories: string[];
+};
+
+type MissionBriefState = {
+  missionId: string;
+  objective: string;
+  audience: string;
+  kpis: Array<{ label: string; target?: string | null }>;
+  safeguards: Array<{ hintType: string | null; text: string }>;
+  confidence?: Record<string, number | null>;
+  source?: string | null;
 };
 
 type ControlPlaneWorkspaceProps = {
@@ -68,6 +80,8 @@ function ControlPlaneWorkspaceContent({
   const [selectedToolkitsCount, setSelectedToolkitsCount] = useState(0);
   const [isFeedbackDrawerOpen, setFeedbackDrawerOpen] = useState(false);
   const [selectedFeedbackRating, setSelectedFeedbackRating] = useState<number | null>(null);
+  const [missionBrief, setMissionBrief] = useState<MissionBriefState | null>(null);
+  const hasPinnedBriefRef = useRef(false);
 
   const feedbackStageStatus = stages.get(MissionStage.Feedback);
   const canDisplayFeedbackDrawer =
@@ -78,8 +92,101 @@ function ControlPlaneWorkspaceContent({
   useEffect(() => {
     if (!objectiveId) {
       setSelectedToolkitsCount(0);
+      setMissionBrief(null);
+      hasPinnedBriefRef.current = false;
     }
   }, [objectiveId]);
+
+  useEffect(() => {
+    if (!objectiveId) {
+      return;
+    }
+
+    if (missionBrief?.missionId === objectiveId) {
+      return;
+    }
+
+    let cancelled = false;
+    hasPinnedBriefRef.current = false;
+
+    const fetchBrief = async () => {
+      try {
+        const query = new URLSearchParams({ tenantId }).toString();
+        const response = await fetch(`/api/missions/${objectiveId}/brief?${query}`);
+        if (!response.ok) {
+          throw new Error(`Failed to load mission brief (${response.status})`);
+        }
+
+        const payload = (await response.json()) as {
+          brief: {
+            objective: string;
+            audience: string;
+            kpis: Array<{ label: string; target?: string | null }>;
+            safeguards: Array<{ hintType: string | null; text: string }>;
+            confidence?: Record<string, number | null>;
+          } | null;
+        };
+
+        if (cancelled || !payload.brief) {
+          return;
+        }
+
+        const normalizedBrief: MissionBriefState = {
+          missionId: objectiveId,
+          objective: payload.brief.objective,
+          audience: payload.brief.audience,
+          kpis: payload.brief.kpis ?? [],
+          safeguards: payload.brief.safeguards ?? [],
+          confidence: payload.brief.confidence,
+          source: null,
+        };
+
+        setMissionBrief(normalizedBrief);
+
+        void sendTelemetryEvent(tenantId, {
+          eventName: "mission_brief_loaded",
+          missionId: objectiveId,
+          eventData: {
+            kpi_count: normalizedBrief.kpis.length,
+            safeguard_count: normalizedBrief.safeguards.length,
+          },
+        });
+      } catch (error) {
+        console.error("Failed to load mission brief", error);
+      }
+    };
+
+    void fetchBrief();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [missionBrief?.missionId, objectiveId, tenantId]);
+
+  useEffect(() => {
+    if (!missionBrief || !objectiveId) {
+      return;
+    }
+
+    if (missionBrief.missionId !== objectiveId) {
+      return;
+    }
+
+    if (hasPinnedBriefRef.current) {
+      return;
+    }
+
+    hasPinnedBriefRef.current = true;
+
+    void sendTelemetryEvent(tenantId, {
+      eventName: "mission_brief_pinned",
+      missionId: objectiveId,
+      eventData: {
+        kpi_count: missionBrief.kpis.length,
+        safeguard_count: missionBrief.safeguards.length,
+      },
+    });
+  }, [missionBrief, objectiveId, tenantId]);
 
   const sessionIdentifierRef = useRef<string>(
     typeof crypto !== "undefined" && "randomUUID" in crypto
@@ -198,6 +305,155 @@ function ControlPlaneWorkspaceContent({
       }
     },
     [tenantId],
+  );
+
+  const copyToClipboard = useCallback(async (value: string) => {
+    if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+      try {
+        await navigator.clipboard.writeText(value);
+        return true;
+      } catch (error) {
+        console.warn("Clipboard API failed, falling back", error);
+      }
+    }
+
+    try {
+      const textArea = document.createElement("textarea");
+      textArea.value = value;
+      textArea.setAttribute("readonly", "");
+      textArea.style.position = "absolute";
+      textArea.style.left = "-9999px";
+      document.body.appendChild(textArea);
+      textArea.select();
+      const success = document.execCommand("copy");
+      document.body.removeChild(textArea);
+      return success;
+    } catch (error) {
+      console.warn("Fallback clipboard copy failed", error);
+      return false;
+    }
+  }, []);
+
+  const handleArtifactExport = useCallback(
+    async (artifact: Artifact, format: "csv" | "pdf") => {
+      try {
+        const response = await fetch("/api/artifacts/export", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ artifact, format }),
+        });
+
+        if (!response.ok) {
+          throw new Error(`Export failed with status ${response.status}`);
+        }
+
+        const blob = await response.blob();
+        const extension = format === "pdf" ? "pdf" : "csv";
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `${artifact.artifact_id}.${extension}`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+
+        setWorkspaceAlert({
+          tone: "success",
+          message: `${format.toUpperCase()} downloaded for ${artifact.title}.`,
+        });
+
+        void sendTelemetryEvent(tenantId, {
+          eventName: "artifact_exported",
+          missionId: objectiveId ?? null,
+          eventData: {
+            artifact_id: artifact.artifact_id,
+            format,
+          },
+        });
+      } catch (error) {
+        console.error("Artifact export failed", error);
+        setWorkspaceAlert({
+          tone: "error",
+          message: `Unable to export ${format.toUpperCase()} for ${artifact.title}.`,
+        });
+      }
+    },
+    [objectiveId, tenantId],
+  );
+
+  const handleArtifactShare = useCallback(
+    async (artifact: Artifact) => {
+      try {
+        const response = await fetch("/api/artifacts/share", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ artifact }),
+        });
+
+        if (!response.ok) {
+          throw new Error(`Share link failed with status ${response.status}`);
+        }
+
+        const { shareUrl } = (await response.json()) as { shareUrl?: string };
+
+        if (!shareUrl) {
+          throw new Error("Share URL missing from response");
+        }
+
+        const copied = await copyToClipboard(shareUrl);
+
+        setWorkspaceAlert({
+          tone: "success",
+          message: copied
+            ? "Share link copied to clipboard."
+            : `Share link ready: ${shareUrl}`,
+        });
+
+        void sendTelemetryEvent(tenantId, {
+          eventName: "artifact_share_link_created",
+          missionId: objectiveId ?? null,
+          eventData: {
+            artifact_id: artifact.artifact_id,
+            copied,
+          },
+        });
+      } catch (error) {
+        console.error("Artifact share link generation failed", error);
+        setWorkspaceAlert({
+          tone: "error",
+          message: `Unable to create a share link for ${artifact.title}.`,
+        });
+      }
+    },
+    [copyToClipboard, objectiveId, tenantId],
+  );
+
+  const handleEvidenceHashCopy = useCallback(
+    async (artifact: Artifact) => {
+      const hash = artifact.evidence_hash ?? artifact.checksum ?? artifact.hash ?? null;
+      if (!hash) {
+        return;
+      }
+
+      const copied = await copyToClipboard(hash);
+
+      setWorkspaceAlert({
+        tone: copied ? "success" : "info",
+        message: copied ? "Evidence hash copied to clipboard." : hash,
+      });
+
+      void sendTelemetryEvent(tenantId, {
+        eventName: "evidence_hash_copied",
+        missionId: objectiveId ?? null,
+        eventData: {
+          artifact_id: artifact.artifact_id,
+          copied,
+          hash_length: hash.length,
+        },
+      });
+    },
+    [copyToClipboard, objectiveId, tenantId],
   );
 
   useCopilotAction({
@@ -399,11 +655,60 @@ function ControlPlaneWorkspaceContent({
   }, [artifacts, objectiveId, syncCopilotSession]);
 
   const handleIntakeAccept = useCallback(
-    async ({ missionId }: AcceptedIntakePayload) => {
+    async ({
+      missionId,
+      objective,
+      audience,
+      guardrailSummary,
+      kpis,
+      confidence,
+      source,
+    }: AcceptedIntakePayload) => {
       setObjectiveId(missionId);
+
+      const normalizedObjective = objective ?? "";
+      const normalizedAudience = audience ?? "";
+      const normalizedKpis = Array.isArray(kpis) ? kpis : [];
+
+      const acceptedSafeguards = (guardrailSummary ?? '')
+        .split(/\n+/)
+        .map((entry) => entry.trim())
+        .filter(Boolean)
+        .map((text) => ({ hintType: null, text }));
+
+      const normalizedConfidence: Record<string, number | null> | undefined =
+        typeof confidence === "number"
+          ? {
+              objective: confidence,
+              audience: confidence,
+              kpis: confidence,
+            }
+          : undefined;
+
+      setMissionBrief({
+        missionId,
+        objective: normalizedObjective,
+        audience: normalizedAudience,
+        kpis: normalizedKpis,
+        safeguards: acceptedSafeguards,
+        confidence: normalizedConfidence,
+        source: source ?? null,
+      });
+      hasPinnedBriefRef.current = false;
+
+      void sendTelemetryEvent(tenantId, {
+        eventName: "mission_brief_updated",
+        missionId,
+        eventData: {
+          source,
+          kpi_count: normalizedKpis.length,
+          safeguard_count: acceptedSafeguards.length,
+        },
+      });
+
       await syncCopilotSession(artifacts, missionId);
     },
-    [artifacts, syncCopilotSession],
+    [artifacts, syncCopilotSession, tenantId],
   );
 
   const handleIntakeAdvance = useCallback(() => {
@@ -416,12 +721,9 @@ function ControlPlaneWorkspaceContent({
     markStageIfNeeded(MissionStage.Toolkits);
   }, [markStageIfNeeded]);
 
-  const handleInspectionComplete = useCallback(
-    (_preview?: Record<string, unknown>) => {
-      markStageIfNeeded(MissionStage.Inspect);
-    },
-    [markStageIfNeeded],
-  );
+  const handleInspectionComplete = useCallback(() => {
+    markStageIfNeeded(MissionStage.Inspect);
+  }, [markStageIfNeeded]);
 
   const handlePlanComplete = useCallback(() => {
     const planStatus = stages.get(MissionStage.Plan);
@@ -446,11 +748,6 @@ function ControlPlaneWorkspaceContent({
       markStageStarted(MissionStage.Evidence);
     }
   }, [stages, markStageCompleted, markStageStarted]);
-
-  const handlePlannerAdvance = useCallback(() => {
-    markStageCompleted(MissionStage.Plan);
-    markStageStarted(MissionStage.DryRun);
-  }, [markStageCompleted, markStageStarted]);
 
   const handleFeedbackDrawerOpenChange = useCallback(
     (nextOpen: boolean) => {
@@ -676,6 +973,19 @@ function ControlPlaneWorkspaceContent({
 
       <MissionStageProgress />
 
+      {missionBrief && (
+        <MissionBriefCard
+          brief={{
+            objective: missionBrief.objective,
+            audience: missionBrief.audience,
+            kpis: missionBrief.kpis,
+            safeguards: missionBrief.safeguards,
+            confidence: missionBrief.confidence,
+            source: missionBrief.source ?? null,
+          }}
+        />
+      )}
+
       <MissionIntake
         tenantId={tenantId}
         objectiveId={objectiveId ?? null}
@@ -782,7 +1092,59 @@ function ControlPlaneWorkspaceContent({
                     </span>
                   </div>
                   <p className="text-sm text-slate-300">{artifact.summary}</p>
+                  {(() => {
+                    const hash = artifact.evidence_hash ?? artifact.checksum ?? artifact.hash ?? null;
+                    if (!hash) {
+                      return null;
+                    }
+                    const truncated =
+                      hash.length > 16
+                        ? `${hash.slice(0, 10)}…${hash.slice(-6)}`
+                        : hash;
+                    return (
+                      <div className="rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2 text-xs text-slate-400">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <span className="font-medium uppercase tracking-wide text-slate-300">SHA-256</span>
+                          <button
+                            type="button"
+                            onClick={() => void handleEvidenceHashCopy(artifact)}
+                            className="inline-flex items-center gap-2 rounded-md border border-white/15 bg-white/5 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-slate-200 transition hover:bg-white/10"
+                            aria-label="Copy evidence SHA-256 hash"
+                          >
+                            Copy
+                          </button>
+                        </div>
+                        <code
+                          className="mt-1 block overflow-x-auto whitespace-pre-wrap break-all text-[11px] text-slate-300"
+                          title={hash}
+                        >
+                          {truncated}
+                        </code>
+                      </div>
+                    );
+                  })()}
                   <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => void handleArtifactExport(artifact, "csv")}
+                      className="inline-flex items-center gap-2 rounded-md border border-sky-500/40 bg-sky-500/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-sky-200 transition hover:bg-sky-500/20"
+                    >
+                      Download CSV
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void handleArtifactExport(artifact, "pdf")}
+                      className="inline-flex items-center gap-2 rounded-md border border-violet-500/40 bg-violet-500/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-violet-200 transition hover:bg-violet-500/20"
+                    >
+                      Download PDF
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void handleArtifactShare(artifact)}
+                      className="inline-flex items-center gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-amber-200 transition hover:bg-amber-500/20"
+                    >
+                      Copy Share Link
+                    </button>
                     <button
                       type="button"
                       onClick={() =>
