@@ -1,73 +1,72 @@
 # AI Employee Control Plane — Agent Guide
 
-## Overview
-- Next.js control plane frontend lives under `src/app/(control-plane)` and mirrors the mission intake + artifact gallery UX.
-- The Gemini ADK FastAPI agent resides in `agent/`, with eval configs under `agent/evals/` and CLI helpers in `scripts/`.
-- Supabase schemas and functions are in `supabase/`; readiness evidence lives in `docs/readiness/` and product docs in `new_docs/`.
+## Project Snapshot
 
-## Toolchain & Setup
-- Trust and hydrate pinned tool versions with `.mise.toml`:
+- Next.js control plane frontend lives under `src/app/(control-plane)` and mirrors the mission intake plus artifact gallery UX.
+- Gemini ADK FastAPI agent code resides in `agent/`; evaluation configs live in `agent/evals/` and CLI helpers in `scripts/`.
+- Supabase schema + functions are under `supabase/`; readiness evidence is tracked in `docs/readiness/` and long-form product material in `new_docs/`.
+
+## Mise-First Setup
+
+- mise manages tool versions, environment variables, and project tasks for this repo—do not mix in global Node or Python installs.
+- Bootstrap the toolchain (trust→install) from the repo root:
   - `mise trust`
   - `mise install`
-- Install workspace dependencies via mise tasks:
-  - `mise run install` (wraps `pnpm install`)
-  - `mise run agent-deps` (installs Python deps with `uv`)
-- All project scripts assume `pnpm` and `uv` are supplied by mise; avoid mixing in global Node or Python installs.
+  - `mise run install` (wraps `pnpm install` for the workspace)
+  - `mise run agent-deps` (syncs Python deps via `uv` and `agent/requirements.txt`)
+- Expected pinned versions (`mise current`): Node `22.20.0`, Python `3.13.7`, pnpm `10.18.0`, uv `0.9.2`.
+- Need a quick status check? Use `mise doctor`, `mise config`, `mise env`, or `mise which <tool>` to debug runtime mismatches.
+- List all available project automations with `mise tasks`; every command in this guide assumes the mise-managed PATH.
 
-## Environment Management with direnv
-- Use `direnv` for per-shell environment hydration; `use mise` in `.envrc` bootstraps the pinned toolchain automatically when you `cd` into the repo.
-- Populate `.envrc` (or `.envrc.local`) with the required secrets. A minimal template:
-  ```bash
-  use mise
-  export NEXT_PUBLIC_SUPABASE_URL="http://localhost:54321"
-  export NEXT_PUBLIC_SUPABASE_ANON_KEY="anon-key-from-supabase"
-  export SUPABASE_SERVICE_ROLE_KEY="service-role-key-from-supabase"
-  export GOOGLE_API_KEY="your-google-api-key"
-  export COMPOSIO_API_KEY="your-composio-api-key"
-  export GATE_GA_DEFAULT_TENANT_ID="00000000-0000-0000-0000-000000000000"
-  export NEXT_PUBLIC_COPILOT_RUNTIME_URL="/api/copilotkit"
-  export NEXT_PUBLIC_COPILOT_AGENT_ID="control_plane_foundation"
-  ```
-- Run `direnv allow` after editing to trust the file. `.envrc*` entries are already ignored by git—keep secrets there.
-- For subshells that bypass direnv (CI runners, one-off commands), wrap the invocation: `direnv exec . mise run dev`.
+## Environment & Secrets
 
-## Common Workflows
-- Full stack (UI + agent): `mise run dev` (use `direnv exec . mise run dev` if direnv isn't auto-loading)
-- UI only: `mise run ui`
-- Agent only: `mise run agent` or `./scripts/run-agent.sh`
-- Supabase local stack:
+- Secrets already inside `.env` file
+- `agent/agent.py` calls `load_dotenv()`, so the FastAPI service picks up values from `.env` automatically. Next.js also reads the same file when you run `pnpm dev` / `mise run dev`.
+- For ad-hoc shells, source the file (`set -a; source .env; set +a`) or pass it via `mise exec --env-file .env <command>` if you need the variables in other tooling.
+
+## Core Tasks & Workflows
+
+- `mise run dev` — launch full stack (Next.js UI + FastAPI agent).
+- `mise run ui` — UI-only dev server.
+- `mise run agent` or `./scripts/run-agent.sh` — start the Gemini ADK agent in isolation.
+- Use supabase linked stack
+  After schema edits regenerate types with `supabase gen types typescript --linked --schema public,storage,graphql_public >| supabase/types.ts` and update readiness docs in `docs/readiness/`.
+- Agent evals: once deps are synced run
   ```bash
-  supabase start
-  supabase db reset --seed supabase/seed.sql
-  # or, for iterative changes
-  supabase db push --file supabase/migrations/0001_init.sql
+  uv run --with-requirements agent/requirements.txt \
+    adk eval agent/agent.py agent/evals/smoke_g_a_v2.json
+  uv run --with-requirements agent/requirements.txt \
+    adk eval agent/agent.py agent/evals/dry_run_ranking_G-B.json
   ```
-  `0001_init.sql` now contains the full schema (feedback, toolkit selections, inspection findings, OAuth tokens). Regenerate Supabase types after schema edits via `supabase gen types typescript --linked`. Update readiness artifacts in `docs/readiness/` after applying migrations.
+  (These are the commands behind `mise run test-agent`; keep them green before merging.)
 
 ## Testing & Quality Gates
-- UI unit/integration tests: `pnpm run test:ui`
-- Agent smoke + ranking evals (long running): `mise run test-agent`
-- Lint + TypeScript checks: `pnpm run lint` (mise task `mise run lint` is equivalent)
-- Python quick syntax sweep: `mise exec python -- -m compileall agent`
-- Add or update tests alongside any code changes; CI expects a clean run of lint + both test suites before merge.
+
+- UI unit/integration tests: `pnpm run test:ui` (leverages Vitest + React Testing Library).
+- Agent evals: `mise run test-agent` (wraps the ADK eval commands above).
+- Python quick sweep: `mise exec python -- -m compileall agent` for fast syntax validation.
+- Lint + TypeScript checks: `pnpm run lint` or `mise run lint` (run a dry pass before autofix; stay scoped to files you touched).
+- Add/update tests alongside code changes—CI expects green lint, UI tests, and agent evals.
 
 ## Code Style & Conventions
-- TypeScript runs in strict mode; prefer functional React components and server components when possible.
-- Follow the Next.js default ESLint config: single quotes, no semicolons, Tailwind 4 utility classes.
-- Keep shared utilities co-located with their feature; avoid cross-package mutations.
-- Python agent modules should remain typed (`typing`/`pydantic`) and formatted via Ruff/Black defaults (run `uv run ruff check --fix agent` if needed).
 
-## Hotspots & References
-- `src/app/(control-plane)/ControlPlaneWorkspace.tsx` — primary UI orchestrator.
-- `agent/agents/control_plane.py` — mission tools exposed to the UI.
-- `agent/runtime/app.py` — FastAPI factory consumed by scripts/tests.
-- `scripts/test_supabase_persistence.py` & `scripts/test_copilotkit_persistence.py` — targeted persistence smoke tests.
-- `supabase/migrations/0001_init.sql` — consolidated schema (missions, feedback, toolkit selections, inspection findings, OAuth tokens).
+- TypeScript is strict; prefer functional React components and server components where applicable.
+- ESLint defaults: single quotes, no semicolons, Tailwind v4 utilities.
+- Keep shared utilities near their feature boundaries; avoid cross-package mutations unless documented.
+- Python modules stay fully typed; format via Ruff/Black (`uv run ruff check --fix agent`).
 
-## Troubleshooting
-- Missing toolchain warnings mean `mise install` has not been run; rehydrate before debugging.
-- If the agent refuses connections, ensure `mise run agent` is active (with direnv-loaded credentials) and that Makersuite + Composio keys are populated.
-- Supabase RLS errors usually indicate migrations were not applied; rerun the commands under "Common Workflows".
-- Catalog refresh issues can be diagnosed with `direnv exec . python -m agent.tools.composio_client --status`.
+## Supabase & Data Artifacts
 
-Keep AGENTS.md in sync with workflow changes—agents treat this file as the source of truth for project automation.
+- Primary schema file: `supabase/migrations/0001_init.sql` (missions, feedback, toolkit selections, inspection findings, OAuth tokens).
+- Seeds live in `supabase/seed.sql`; rerun `supabase db reset --seed supabase/seed.sql` when iterating on local data.
+- Update `docs/readiness/` after any schema or data contract change.
+
+## Troubleshooting Cheatsheet
+
+- Missing toolchain errors → rerun `mise install` after verifying `.mise.toml` has been trusted.
+- Agent refusing connections → ensure secrets are loaded and `mise run agent` is active.
+- Supabase RLS failures → confirm migrations have been applied (see Supabase workflow above).
+- Catalog refresh or Composio drift → `mise exec --env-file .env python -m agent.tools.composio_client --status`.
+- Inspect currently active tool versions → `mise current`.
+
+Keep this guide current—agents treat AGENTS.md as the single source of truth for local workflows.

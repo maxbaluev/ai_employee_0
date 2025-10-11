@@ -1,4 +1,4 @@
-"""Validator stub enforcing safeguard alignment for Gate G-A."""
+"""Validator stub enforcing safeguard alignment for Gate G-B."""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""FastAPI entrypoint exposing the Gate G-A control plane agent."""
+"""FastAPI entrypoint exposing the Gate G-B control plane agent."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ load_dotenv()
 
 control_plane_adk = build_control_plane_agent()
 
-app = FastAPI(title="AI Employee Control Plane — Gate G-A")
+app = FastAPI(title="AI Employee Control Plane — Gate G-B")
 
 add_adk_fastapi_endpoint(app, control_plane_adk, path="/")
 

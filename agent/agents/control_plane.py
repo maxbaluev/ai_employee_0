@@ -1,4 +1,4 @@
-"""Control plane ADK agent assembly for Gate G-A."""
+"""Control plane ADK agent assembly for Gate G-B."""
 
 from __future__ import annotations
 

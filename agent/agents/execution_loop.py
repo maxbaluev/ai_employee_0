@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, AsyncGenerator, Dict, List, Optional
+from typing import Any, AsyncGenerator, Dict, List, Optional, Callable
 
 from google.adk.agents.base_agent import BaseAgent
 from google.adk.agents.invocation_context import InvocationContext
@@ -26,6 +26,7 @@ class ExecutionLoopAgent(BaseAgent):
     evidence: BaseAgent = Field(exclude=True)
     telemetry: TelemetryEmitter = Field(exclude=True)
     streamer: Optional[CopilotKitStreamer] = Field(default=None, exclude=True)
+    reviewer_handler: Optional[Callable[..., None]] = Field(default=None, exclude=True)
     max_retries: int = 3
 
     def __init__(
@@ -36,6 +37,7 @@ class ExecutionLoopAgent(BaseAgent):
         evidence: BaseAgent,
         telemetry: TelemetryEmitter,
         streamer: Optional[CopilotKitStreamer] = None,
+        reviewer_handler: Optional[Callable[..., None]] = None,
         max_retries: int = 3,
         name: str = "ExecutionLoop",
     ) -> None:
@@ -46,10 +48,12 @@ class ExecutionLoopAgent(BaseAgent):
             evidence=evidence,
             telemetry=telemetry,
             streamer=streamer,
+            reviewer_handler=reviewer_handler,
             max_retries=max(1, max_retries),
         )
         if self.streamer is None:
             object.__setattr__(self, "streamer", CopilotKitStreamer())
+        object.__setattr__(self, "reviewer_handler", reviewer_handler)
 
     async def _run_async_impl(
         self, ctx: InvocationContext
@@ -110,7 +114,40 @@ class ExecutionLoopAgent(BaseAgent):
                 if status == "ask_reviewer":
                     exit_status = "needs_reviewer"
                     exit_stage = "validator_reviewer_requested"
-                    exit_metadata = {"attempts": attempts, "status": status}
+                    exit_metadata = {
+                        "attempts": attempts,
+                        "status": status,
+                        "validation": validation,
+                    }
+                    self.telemetry.emit(
+                        "execution_loop_needs_reviewer",
+                        tenant_id=play.get("tenant_id", "gate-ga-default"),
+                        mission_id=play.get("mission_id", "mission-dry-run"),
+                        payload={
+                            "attempt": attempts,
+                            "play_id": play.get("play_id"),
+                            "play_title": play.get("title"),
+                            "validation": validation,
+                        },
+                    )
+                    self._emit_stream(
+                        play,
+                        "validator_reviewer_requested",
+                        {"attempt": attempts, "status": status},
+                    )
+                    if self.reviewer_handler:
+                        try:
+                            self.reviewer_handler(
+                                play=play,
+                                validation=validation,
+                                context=ctx,
+                                attempts=attempts,
+                            )
+                        except TypeError:
+                            try:
+                                self.reviewer_handler(play=play, validation=validation)  # type: ignore[misc]
+                            except TypeError:
+                                self.reviewer_handler(play, validation)  # type: ignore[misc]
                     yield self._text_event(
                         "Validator requested reviewer intervention; halting execution."
                     )

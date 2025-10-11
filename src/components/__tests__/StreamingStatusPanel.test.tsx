@@ -37,6 +37,18 @@ describe('StreamingStatusPanel', () => {
   const agentId = 'control_plane_foundation';
   const sessionIdentifier = 'mission-123';
 
+  const renderPanel = (props: Record<string, unknown> = {}) =>
+    render(
+      <StreamingStatusPanel
+        {...({
+          tenantId,
+          agentId,
+          sessionIdentifier,
+          ...props,
+        } as any)}
+      />,
+    );
+
   beforeEach(() => {
     useTimelineEventsMock.mockReturnValue({
       ...baseHookResult,
@@ -262,15 +274,9 @@ describe('StreamingStatusPanel', () => {
     const onCancelSession = vi.fn();
     const user = userEvent.setup();
 
-    render(
-      // @ts-expect-error Gate G-B: cancel control added in StreamingStatusPanel upgrade
-      <StreamingStatusPanel
-        tenantId={tenantId}
-        agentId={agentId}
-        sessionIdentifier={sessionIdentifier}
-        onCancelSession={onCancelSession}
-      />,
-    );
+    renderPanel({
+      onCancelSession,
+    });
 
     const cancelButton = await screen.findByRole('button', { name: /Cancel run/i });
     expect(cancelButton).toBeEnabled();
@@ -304,15 +310,9 @@ describe('StreamingStatusPanel', () => {
       ],
     });
 
-    render(
-      // @ts-expect-error Gate G-B: cancel control added in StreamingStatusPanel upgrade
-      <StreamingStatusPanel
-        tenantId={tenantId}
-        agentId={agentId}
-        sessionIdentifier={sessionIdentifier}
-        onCancelSession={vi.fn()}
-      />,
-    );
+    renderPanel({
+      onCancelSession: vi.fn(),
+    });
 
     expect(
       await screen.findByText(/Dry-run loop completed and timeline is archived/i),
@@ -348,15 +348,9 @@ describe('StreamingStatusPanel', () => {
     const onRetrySession = vi.fn();
     const user = userEvent.setup();
 
-    render(
-      // @ts-expect-error Gate G-B: retry control added in StreamingStatusPanel upgrade
-      <StreamingStatusPanel
-        tenantId={tenantId}
-        agentId={agentId}
-        sessionIdentifier={sessionIdentifier}
-        onRetrySession={onRetrySession}
-      />,
-    );
+    renderPanel({
+      onRetrySession,
+    });
 
     const retryButton = await screen.findByRole('button', { name: /Retry mission/i });
     expect(retryButton).toBeEnabled();
@@ -387,21 +381,14 @@ describe('StreamingStatusPanel', () => {
     const onReviewerRequested = vi.fn();
     const user = userEvent.setup();
 
-    render(
-      <StreamingStatusPanel
-        tenantId={tenantId}
-        agentId={agentId}
-        sessionIdentifier={sessionIdentifier}
-        onReviewerRequested={onReviewerRequested}
-      />,
-    );
+    renderPanel({ onReviewerRequested });
 
-    const handoffButton = await screen.findByRole('button', {
+    const headerButton = await screen.findByRole('button', {
       name: /Reviewer handoff/i,
     });
-    expect(handoffButton).toBeEnabled();
+    expect(headerButton).toBeEnabled();
 
-    await user.click(handoffButton);
+    await user.click(headerButton);
 
     expect(onReviewerRequested).toHaveBeenCalledTimes(1);
     expect(onReviewerRequested).toHaveBeenCalledWith(escalationEvent);

@@ -5,6 +5,7 @@ import type { ReactNode } from 'react';
 
 import type { TimelineMessage } from '@/hooks/useTimelineEvents';
 import { useTimelineEvents } from '@/hooks/useTimelineEvents';
+import { sendTelemetryEvent } from '@/lib/telemetry/client';
 
 type StreamingStatusPanelProps = {
   tenantId: string;
@@ -12,6 +13,8 @@ type StreamingStatusPanelProps = {
   sessionIdentifier: string | null | undefined;
   pollIntervalMs?: number;
   onReviewerRequested?: (event: TimelineMessage) => void;
+  onCancelSession?: () => void;
+  onRetrySession?: () => void;
   onPlanComplete?: () => void;
   onDryRunComplete?: () => void;
 };
@@ -29,6 +32,24 @@ const HEARTBEAT_CLASSES: Record<string, string> = {
   alert: 'bg-rose-500/20 text-rose-200',
   idle: 'bg-slate-600/40 text-slate-200',
 };
+
+const HEARTBEAT_SAMPLE_TARGET = 10;
+
+function computePercentile(samples: number[], percentile: number): number {
+  if (!samples.length) {
+    return 0;
+  }
+  const clamped = Math.min(Math.max(percentile, 0), 1);
+  const position = (samples.length - 1) * clamped;
+  const lowerIndex = Math.floor(position);
+  const upperIndex = Math.ceil(position);
+  if (lowerIndex === upperIndex) {
+    return samples[lowerIndex];
+  }
+  const lowerWeight = upperIndex - position;
+  const upperWeight = position - lowerIndex;
+  return samples[lowerIndex] * lowerWeight + samples[upperIndex] * upperWeight;
+}
 
 function renderMarkdownInline(text: string): ReactNode[] {
   const nodes: ReactNode[] = [];
@@ -149,6 +170,8 @@ export function StreamingStatusPanel({
   sessionIdentifier,
   pollIntervalMs,
   onReviewerRequested,
+  onCancelSession,
+  onRetrySession,
   onPlanComplete,
   onDryRunComplete,
 }: StreamingStatusPanelProps) {
@@ -157,6 +180,8 @@ export function StreamingStatusPanel({
   const reviewerAlertRef = useRef<string | null>(null);
   const dryRunCompleteRef = useRef<boolean>(false);
   const planCompleteRef = useRef<boolean>(false);
+  const heartbeatSamplesRef = useRef<number[]>([]);
+  const heartbeatTelemetrySentRef = useRef<boolean>(false);
 
   const { events, isLoading, error, refresh, lastUpdated, exitInfo, heartbeatSeconds, lastEventAt } = useTimelineEvents({
     agentId,
@@ -274,7 +299,45 @@ export function StreamingStatusPanel({
     setExpandedEvents(new Set<string>());
     dryRunCompleteRef.current = false;
     planCompleteRef.current = false;
+    heartbeatSamplesRef.current = [];
+    heartbeatTelemetrySentRef.current = false;
   }, [sessionIdentifier]);
+
+  useEffect(() => {
+    if (
+      !tenantId ||
+      !sessionIdentifier ||
+      heartbeatSeconds === null ||
+      heartbeatSeconds <= 0 ||
+      isPaused ||
+      exitInfo
+    ) {
+      return;
+    }
+
+    heartbeatSamplesRef.current.push(heartbeatSeconds);
+
+    if (
+      heartbeatSamplesRef.current.length >= HEARTBEAT_SAMPLE_TARGET &&
+      !heartbeatTelemetrySentRef.current
+    ) {
+      const sorted = [...heartbeatSamplesRef.current].sort((a, b) => a - b);
+      const payload = {
+        p50: computePercentile(sorted, 0.5),
+        p95: computePercentile(sorted, 0.95),
+        p99: computePercentile(sorted, 0.99),
+        sampleSize: sorted.length,
+      };
+
+      sendTelemetryEvent(tenantId, {
+        eventName: 'streaming_heartbeat_metrics',
+        missionId: sessionIdentifier,
+        eventData: payload,
+      });
+
+      heartbeatTelemetrySentRef.current = true;
+    }
+  }, [tenantId, sessionIdentifier, heartbeatSeconds, isPaused, exitInfo]);
 
   const hasSession = Boolean(sessionIdentifier);
   const lastUpdatedLabel = lastUpdated ? formatTimestamp(lastUpdated) : '—';
@@ -314,6 +377,24 @@ export function StreamingStatusPanel({
     );
   }
 
+  const isMissionComplete = Boolean(exitInfo);
+  const isMissionExhausted = exitInfo?.missionStatus === 'exhausted';
+  const showReviewerHeaderButton = Boolean(onReviewerRequested && latestReviewerEvent);
+
+  const handleCancelClick = useCallback(() => {
+    if (isMissionComplete || !onCancelSession) {
+      return;
+    }
+    onCancelSession();
+  }, [isMissionComplete, onCancelSession]);
+
+  const handleRetryClick = useCallback(() => {
+    if (!onRetrySession || !isMissionExhausted) {
+      return;
+    }
+    onRetrySession();
+  }, [onRetrySession, isMissionExhausted]);
+
   return (
     <section className="flex w-full flex-col border-b border-white/10 bg-slate-950/60 px-6 py-8 lg:w-2/5 lg:border-x">
       <header className="flex flex-wrap items-center justify-between gap-3">
@@ -326,6 +407,35 @@ export function StreamingStatusPanel({
           </p>
         </div>
         <div className="flex flex-wrap items-center justify-end gap-2 text-xs">
+          {showReviewerHeaderButton && (
+            <button
+              type="button"
+              onClick={() => handleReviewerNotify(latestReviewerEvent)}
+              className="rounded-md border border-amber-400/40 bg-amber-500/10 px-3 py-1 font-medium uppercase tracking-wide text-amber-200 transition hover:bg-amber-500/20"
+            >
+              Reviewer handoff
+            </button>
+          )}
+          {exitInfo?.missionStatus === 'exhausted' && (
+            <button
+              type="button"
+              onClick={handleRetryClick}
+              disabled={!onRetrySession}
+              className="rounded-md border border-emerald-400/40 bg-emerald-500/10 px-3 py-1 font-medium uppercase tracking-wide text-emerald-100 transition enabled:hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              Retry mission
+            </button>
+          )}
+          {onCancelSession && (
+            <button
+              type="button"
+              onClick={handleCancelClick}
+              disabled={isMissionComplete}
+              className="rounded-md border border-rose-400/40 bg-rose-500/10 px-3 py-1 font-medium uppercase tracking-wide text-rose-100 transition enabled:hover:bg-rose-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              Cancel run
+            </button>
+          )}
           <span
             aria-live="polite"
             className={`rounded-full px-2 py-1 font-medium uppercase tracking-wide ${heartbeatIndicator.tone}`}
@@ -358,6 +468,12 @@ export function StreamingStatusPanel({
         >
           {error}
         </div>
+      )}
+
+      {isPaused && !exitInfo && (
+        <p className="mt-4 rounded-lg border border-sky-400/40 bg-sky-500/10 p-3 text-xs text-sky-100">
+          Monitoring paused. Resume to continue streaming updates.
+        </p>
       )}
 
       {waitingMessage && !exitInfo && (
@@ -479,7 +595,7 @@ export function StreamingStatusPanel({
                   {showReviewerCta && (
                     <button
                       type="button"
-                      onClick={() => toolCallId && onReviewerRequested?.(event)}
+                      onClick={() => toolCallId && handleReviewerNotify(event)}
                       disabled={!toolCallId}
                       className="mt-1 inline-flex items-center gap-2 rounded-md border border-amber-400/40 bg-amber-500/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-amber-200 transition enabled:hover:bg-amber-500/20 disabled:cursor-not-allowed disabled:opacity-60"
                     >

@@ -1,4 +1,4 @@
-"""Thin Supabase REST helper for the Gate G-A control plane."""
+"""Thin Supabase REST helper for the Gate G-B control plane."""
 
 from __future__ import annotations
 

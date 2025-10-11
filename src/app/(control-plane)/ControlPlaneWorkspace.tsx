@@ -645,6 +645,22 @@ function ControlPlaneWorkspaceContent({
     [approvalFlow, objectiveId],
   );
 
+  const handleSessionCancel = useCallback(() => {
+    setWorkspaceAlert({
+      tone: "warning",
+      message: "Dry-run cancelled. You can resume by launching a new mission stage.",
+    });
+    markStageCompleted(MissionStage.DryRun, { reason: "cancelled" });
+  }, [markStageCompleted]);
+
+  const handleSessionRetry = useCallback(() => {
+    setWorkspaceAlert({
+      tone: "info",
+      message: "Retry requested. The agent will attempt the dry-run again shortly.",
+    });
+    markStageStarted(MissionStage.DryRun, { reason: "retry_requested" });
+  }, [markStageStarted]);
+
   const submitApproval = useCallback(
     (submission: ApprovalSubmission) => approvalFlow.submitApproval(submission),
     [approvalFlow],
@@ -1175,6 +1191,8 @@ function ControlPlaneWorkspaceContent({
           sessionIdentifier={sessionIdentifier}
           pollIntervalMs={5000}
           onReviewerRequested={handleReviewerRequested}
+          onCancelSession={handleSessionCancel}
+          onRetrySession={handleSessionRetry}
           onPlanComplete={handlePlanComplete}
           onDryRunComplete={handleDryRunComplete}
         />
