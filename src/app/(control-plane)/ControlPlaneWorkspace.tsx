@@ -14,6 +14,8 @@ import type { TimelineMessage } from "@/hooks/useTimelineEvents";
 import { useApprovalFlow } from "@/hooks/useApprovalFlow";
 import type { ApprovalSubmission } from "@/hooks/useApprovalFlow";
 import { useUndoFlow } from "@/hooks/useUndoFlow";
+import { PlannerInsightRail } from "@/components/PlannerInsightRail";
+import { sendTelemetryEvent } from "@/lib/telemetry/client";
 
 type Artifact = {
   artifact_id: string;
@@ -54,7 +56,7 @@ function ControlPlaneWorkspaceContent({
   initialArtifacts,
   catalogSummary,
 }: ControlPlaneWorkspaceProps) {
-  const { currentStage, stages, markStageCompleted } = useMissionStages();
+  const { currentStage, stages, markStageCompleted, markStageStarted } = useMissionStages();
   const [themeColor, setThemeColor] = useState("#4f46e5");
   const [artifacts, setArtifacts] = useState<Artifact[]>(initialArtifacts);
   const [objectiveId, setObjectiveId] = useState<string | undefined | null>(initialObjectiveId);
@@ -410,6 +412,35 @@ function ControlPlaneWorkspaceContent({
     markStageIfNeeded(MissionStage.DryRun);
   }, [markStageIfNeeded]);
 
+  const handlePlannerAdvance = useCallback(() => {
+    markStageCompleted(MissionStage.Plan);
+    markStageStarted(MissionStage.DryRun);
+  }, [markStageCompleted, markStageStarted]);
+
+  const handlePlannerSelect = useCallback(
+    (payload: Record<string, unknown>) => {
+      const title = typeof payload?.title === "string" ? payload.title : "Planner play";
+      setWorkspaceAlert({
+        tone: "success",
+        message: `Selected plan: ${title}.`,
+      });
+
+      const candidateIndex = typeof payload?.candidateIndex === "number" ? payload.candidateIndex : null;
+      const mode = typeof payload?.mode === "string" ? payload.mode : undefined;
+
+      sendTelemetryEvent(tenantId, {
+        eventName: "plan_validated",
+        missionId: objectiveId ?? undefined,
+        eventData: {
+          selected_title: title,
+          candidate_index: candidateIndex,
+          mode,
+        },
+      });
+    },
+    [tenantId, objectiveId],
+  );
+
   const handleToolkitSelectionChange = useCallback((count: number) => {
     setSelectedToolkitsCount(count);
   }, []);
@@ -497,6 +528,15 @@ function ControlPlaneWorkspaceContent({
           onComplete={handleInspectionComplete}
         />
       )}
+
+      <PlannerInsightRail
+        tenantId={tenantId}
+        missionId={objectiveId ?? null}
+        sessionIdentifier={sessionIdentifier}
+        plannerRuns={[]}
+        onSelectPlay={handlePlannerSelect}
+        onStageAdvance={handlePlannerAdvance}
+      />
 
       <div className="flex grow flex-col lg:flex-row">
         <section className="flex w-full flex-col gap-6 border-b border-white/10 px-6 py-8 lg:w-2/5 lg:border-r lg:border-b-0">
