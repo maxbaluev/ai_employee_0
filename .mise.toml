@@ -1,21 +1,46 @@
+# AI Employee Control Plane mise configuration
+
 [tools]
-node = "22"
-python = "3.13"
+node = "22.20.0"
+python = "3.13.7"
+pnpm = "10.18.0"
+uv = "0.9.2"
+
+[env]
+PYTHONUTF8 = "1"
+_.path = [
+  "{{config_root}}/node_modules/.bin",
+  "{{config_root}}/agent/.venv/bin",
+  "./bin"
+]
 
 [tasks.install]
+description = "Install frontend dependencies with pnpm"
 run = "pnpm install"
 
+[tasks.agent-deps]
+description = "Install Python agent dependencies via uv"
+run = "uv pip install -r agent/requirements.txt"
+
 [tasks.dev]
-run = "pnpm dev"
+description = "Run Next.js workspace and agent concurrently"
+run = "pnpm run dev"
 
 [tasks.ui]
+description = "Run the Next.js control plane workspace only"
 run = "pnpm run dev:ui"
 
 [tasks.agent]
-run = "pnpm run dev:agent"
+description = "Start the Gemini ADK FastAPI agent"
+run = "./scripts/run-agent.sh"
 
 [tasks.lint]
-run = "pnpm lint"
+description = "Lint and type-check the Next.js workspace"
+run = "pnpm run lint"
 
 [tasks.test-agent]
-run = "PYTHONPATH=. adk eval agent/evals/control_plane agent/evals/smoke_g_a_v2.json agent/evals/dry_run_ranking_G-B.json"
+description = "Execute Gemini ADK smoke + ranking evaluation suites"
+run = [
+  "uv run --with agent/requirements.txt adk eval agent/evals/smoke_g_a_v2.json",
+  "uv run --with agent/requirements.txt adk eval agent/evals/dry_run_ranking_G-B.json"
+]

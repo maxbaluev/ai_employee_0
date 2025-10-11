@@ -104,6 +104,17 @@ function ControlPlaneWorkspaceContent({
     },
   });
 
+  const markStageIfNeeded = useCallback(
+    (stage: MissionStage) => {
+      const status = stages.get(stage);
+      if (!status || status.state === "completed" || status.state === "failed") {
+        return;
+      }
+      markStageCompleted(stage);
+    },
+    [stages, markStageCompleted],
+  );
+
   const undoFlow = useUndoFlow({
     tenantId,
     missionId: objectiveId ?? null,
@@ -115,6 +126,14 @@ function ControlPlaneWorkspaceContent({
             ? "Undo executed for the selected artifact."
             : "Undo request queued for evidence service.",
       });
+
+      if (status === "completed") {
+        markStageIfNeeded(MissionStage.Evidence);
+        const feedbackStatus = stages.get(MissionStage.Feedback);
+        if (feedbackStatus?.state === "pending") {
+          markStageStarted(MissionStage.Feedback);
+        }
+      }
     },
   });
 
@@ -378,17 +397,6 @@ function ControlPlaneWorkspaceContent({
     [artifacts, syncCopilotSession],
   );
 
-  const markStageIfNeeded = useCallback(
-    (stage: MissionStage) => {
-      const status = stages.get(stage);
-      if (!status || status.state === "completed" || status.state === "failed") {
-        return;
-      }
-      markStageCompleted(stage);
-    },
-    [stages, markStageCompleted],
-  );
-
   const handleIntakeAdvance = useCallback(() => {
     markStageIfNeeded(MissionStage.Intake);
     markStageIfNeeded(MissionStage.Brief);
@@ -446,14 +454,33 @@ function ControlPlaneWorkspaceContent({
   }, []);
 
   useEffect(() => {
+    const planStatus = stages.get(MissionStage.Plan);
+    const dryRunStatus = stages.get(MissionStage.DryRun);
+    if (planStatus?.state === "completed" && dryRunStatus?.state === "active") {
+      markStageIfNeeded(MissionStage.DryRun);
+    }
+  }, [stages, markStageIfNeeded]);
+
+  useEffect(() => {
     if (!artifacts.length) {
       return;
     }
+
     const evidenceStatus = stages.get(MissionStage.Evidence);
-    if (evidenceStatus?.state === "active") {
-      markStageIfNeeded(MissionStage.Evidence);
+    if (!evidenceStatus || evidenceStatus.state === "completed" || evidenceStatus.state === "failed") {
+      return;
     }
-  }, [artifacts, stages, markStageIfNeeded]);
+
+    if (evidenceStatus.state === "active") {
+      markStageIfNeeded(MissionStage.Evidence);
+      return;
+    }
+
+    const dryRunStatus = stages.get(MissionStage.DryRun);
+    if (evidenceStatus.state === "pending" && dryRunStatus?.state === "completed") {
+      markStageStarted(MissionStage.Evidence);
+    }
+  }, [artifacts, stages, markStageIfNeeded, markStageStarted]);
 
   const showCoverageMeter = useMemo(() => {
     const inspectStatus = stages.get(MissionStage.Inspect);
