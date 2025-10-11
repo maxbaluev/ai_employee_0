@@ -125,6 +125,11 @@ export function ApprovalModal({
       decision,
       justification: justification.trim(),
       guardrailViolation: guardrailPayload,
+      safeguards: safeguardChips.length ? safeguardChips.map((chip) => ({
+        type: chip.type,
+        value: chip.value,
+        confidence: chip.confidence,
+      })) : undefined,
     });
 
     if (!result.ok) {

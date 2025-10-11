@@ -6,12 +6,20 @@ import { sendTelemetryEvent } from '@/lib/telemetry/client';
 
 export type ApprovalDecision = 'approved' | 'rejected' | 'needs_changes';
 
+export type SafeguardEntry = {
+  type: string;
+  value: string;
+  confidence?: number;
+  pinned?: boolean;
+};
+
 export type ApprovalRequest = {
   toolCallId: string;
   missionId?: string | null;
   stage?: string | null;
   attempt?: number | null;
   metadata?: Record<string, unknown>;
+  safeguards?: SafeguardEntry[];
 };
 
 export type ApprovalSubmission = {
@@ -21,6 +29,7 @@ export type ApprovalSubmission = {
     violated: boolean;
     notes?: string;
   };
+  safeguards?: SafeguardEntry[];
 };
 
 type UseApprovalFlowOptions = {
@@ -85,6 +94,8 @@ export function useApprovalFlow(options: UseApprovalFlowOptions) {
       const pendingDecision = submission.decision;
       setLatestDecision(pendingDecision);
 
+      const resolvedSafeguards = submission.safeguards ?? currentRequest.safeguards ?? [];
+
       const payload = {
         tenantId,
         missionId,
@@ -94,6 +105,7 @@ export function useApprovalFlow(options: UseApprovalFlowOptions) {
         justification: submission.justification?.trim() || undefined,
         metadata: currentRequest.metadata ?? {},
         guardrailViolation: submission.guardrailViolation,
+        safeguards: resolvedSafeguards,
       };
 
       try {
@@ -130,6 +142,8 @@ export function useApprovalFlow(options: UseApprovalFlowOptions) {
             tool_call_id: currentRequest.toolCallId,
             decision: submission.decision,
             has_guardrail_violation: submission.guardrailViolation?.violated ?? false,
+            has_safeguards: resolvedSafeguards.length > 0,
+            safeguards_count: resolvedSafeguards.length,
           },
         });
 

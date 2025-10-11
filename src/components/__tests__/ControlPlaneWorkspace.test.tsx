@@ -3,6 +3,8 @@
 import { act, render, screen, within, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MissionStage, MissionStageProvider, useMissionStages } from '@/components/mission-stages';
+import type { ArtifactGalleryArtifact } from '@/components/ArtifactGallery';
+import type { TimelineMessage } from '@/hooks/useTimelineEvents';
 
 vi.mock('@copilotkit/react-core', () => ({
   useCopilotReadable: vi.fn(),
@@ -706,9 +708,7 @@ describe('ControlPlaneWorkspace Feedback Drawer integration', () => {
   const tenantId = '00000000-0000-0000-0000-000000000000';
   const missionId = '11111111-1111-1111-1111-111111111111';
 
-  function renderWorkspace(
-    initialArtifacts: Array<{ artifact_id: string; title: string; summary: string; status: string }> = [],
-  ) {
+  function renderWorkspace(initialArtifacts: ArtifactGalleryArtifact[] = []) {
     render(
       <ControlPlaneWorkspace
         tenantId={tenantId}
@@ -759,6 +759,28 @@ describe('ControlPlaneWorkspace Feedback Drawer integration', () => {
     await waitFor(() => {
       expect(screen.queryByRole('dialog', { name: /Feedback Drawer/i })).not.toBeInTheDocument();
       expect(feedbackDrawerPropsRef.current?.isOpen).toBe(false);
+    });
+  });
+
+  it('renders safeguard drawer and Accept All emits telemetry', async () => {
+    const user = userEvent.setup();
+    renderWorkspace();
+
+    await advanceToEvidenceStage(user);
+
+    const drawer = await screen.findByLabelText('Safeguard Drawer');
+    expect(drawer).toBeInTheDocument();
+
+    telemetryMock.mockClear();
+
+    const acceptAllButton = within(drawer).getByRole('button', { name: /Accept All/i });
+    await user.click(acceptAllButton);
+
+    await waitFor(() => {
+      expect(telemetryMock).toHaveBeenCalledWith(
+        tenantId,
+        expect.objectContaining({ eventName: 'safeguard_hint_accept_all' }),
+      );
     });
   });
 
@@ -836,8 +858,132 @@ describe('ControlPlaneWorkspace Feedback Drawer integration', () => {
       expect(parsed.learningSignals.comment_length).toBeGreaterThan(0);
     });
 
+    await waitFor(
+      () => {
+        expect(within(getStageNode('Feedback')).getByText('✓')).toBeInTheDocument();
+      },
+      { timeout: 3000 },
+    );
+  });
+});
+
+describe('ControlPlaneWorkspace reviewer integration', () => {
+  const tenantId = '00000000-0000-0000-0000-000000000000';
+  const missionId = '11111111-1111-1111-1111-111111111111';
+
+  it('passes safeguards into ApprovalModal and approval submission payload', async () => {
+    const user = userEvent.setup();
+    const baseFetch = fetchMock.getMockImplementation();
+    let capturedApprovalPayload: Record<string, unknown> | null = null;
+
+    fetchMock.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
+
+      if (url === '/api/approvals') {
+        if (init && typeof init.body === 'string') {
+          try {
+            capturedApprovalPayload = JSON.parse(init.body) as Record<string, unknown>;
+          } catch (error) {
+            capturedApprovalPayload = null;
+          }
+        }
+
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              approval: {
+                id: 'approval-001',
+                decision: 'approved',
+                missionId,
+              },
+            }),
+            {
+              status: 200,
+              headers: { 'Content-Type': 'application/json' },
+            },
+          ),
+        );
+      }
+
+      return baseFetch
+        ? baseFetch(input, init)
+        : Promise.resolve(
+            new Response(JSON.stringify({ ok: true }), {
+              status: 200,
+              headers: { 'Content-Type': 'application/json' },
+            }),
+          );
+    });
+
+    render(
+      <ControlPlaneWorkspace
+        tenantId={tenantId}
+        initialObjectiveId={null}
+        initialArtifacts={[]}
+        catalogSummary={null}
+      />,
+    );
+
+    await advanceToPlanStage(user);
+
     await waitFor(() => {
-      expect(within(getStageNode('Feedback')).getByText('✓')).toBeInTheDocument();
+      expect(streamingStatusPanelPropsRef.current?.onReviewerRequested).toBeDefined();
+    });
+
+    const reviewerEvent: TimelineMessage = {
+      id: 'timeline-event-reviewer-001',
+      label: 'Validator requested reviewer',
+      description: 'Manual reviewer decision required.',
+      status: 'warning',
+      stage: 'validator_reviewer_requested',
+      createdAt: new Date().toISOString(),
+      metadata: {
+        tool_call_id: 'tool-call-123',
+        attempt: 1,
+      },
+    };
+
+    act(() => {
+      streamingStatusPanelPropsRef.current?.onReviewerRequested?.(reviewerEvent);
+    });
+
+    const modal = await screen.findByRole('dialog', { name: /validator reviewer requested/i });
+
+    await waitFor(() => {
+      expect(within(modal).getByText('Active safeguards')).toBeInTheDocument();
+      expect(within(modal).getByText('Maintain professional tone')).toBeInTheDocument();
+    });
+
+    await user.click(within(modal).getByRole('button', { name: /Submit decision/i }));
+
+    await waitFor(() => {
+      expect(capturedApprovalPayload).not.toBeNull();
+      expect(capturedApprovalPayload).toMatchObject({
+        tenantId,
+        missionId,
+        toolCallId: 'tool-call-123',
+        decision: 'approved',
+        safeguards: [
+          expect.objectContaining({
+            type: 'unspecified',
+            value: 'Maintain professional tone',
+            pinned: false,
+          }),
+        ],
+      });
+    });
+
+    await waitFor(() => {
+      expect(telemetryMock).toHaveBeenCalledWith(
+        tenantId,
+        expect.objectContaining({
+          eventName: 'approval_decision',
+          eventData: expect.objectContaining({
+            safeguards_count: 1,
+            has_safeguards: true,
+          }),
+        }),
+      );
     });
   });
 });
@@ -1379,6 +1525,110 @@ describe('ControlPlaneWorkspace Evidence Gallery Stage 7 flow', () => {
           }),
         );
       });
+    });
+
+    it('emits stage completion telemetry across Inspect through Feedback', async () => {
+      const user = userEvent.setup();
+      const baseFetch = fetchMock.getMockImplementation();
+
+      fetchMock.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+        const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
+
+        if (url.includes('/api/artifacts')) {
+          return Promise.resolve(
+            new Response(
+              JSON.stringify({
+                artifact: {
+                  id: 'artifact-telemetry-flow',
+                  title: 'Telemetry Flow Artifact',
+                  content: { summary: 'Completing evidence stage' },
+                  status: 'draft',
+                },
+              }),
+              {
+                status: 200,
+                headers: { 'Content-Type': 'application/json' },
+              },
+            ),
+          );
+        }
+
+        return baseFetch
+          ? baseFetch(input, init)
+          : Promise.resolve(
+              new Response(JSON.stringify({ ok: true }), {
+                status: 200,
+                headers: { 'Content-Type': 'application/json' },
+              }),
+            );
+      });
+
+      render(
+        <ControlPlaneWorkspace
+          tenantId={tenantId}
+          initialObjectiveId={missionId}
+          initialArtifacts={[]}
+          catalogSummary={null}
+        />,
+      );
+
+      telemetryMock.mockClear();
+
+      await advanceToEvidenceStage(user);
+
+      await user.click(screen.getByRole('button', { name: /Add Placeholder/i }));
+
+      await waitFor(() => {
+        expect(within(getStageNode('Evidence')).getByText('✓')).toBeInTheDocument();
+        expect(getStageNode('Feedback').getAttribute('aria-current')).toBe('step');
+      });
+
+      await waitFor(() => {
+        expect(feedbackDrawerPropsRef.current).not.toBeNull();
+      });
+
+      act(() => {
+        feedbackDrawerPropsRef.current?.onOpenChange?.(true);
+      });
+
+      act(() => {
+        feedbackDrawerPropsRef.current?.onRatingChange?.(5);
+      });
+
+      await act(async () => {
+        await feedbackDrawerPropsRef.current?.onSubmit?.({
+          rating: 5,
+          comment: 'Telemetry flow validation',
+        });
+      });
+
+      await waitFor(() => {
+        expect(within(getStageNode('Feedback')).getByText('✓')).toBeInTheDocument();
+      });
+
+      const expectedEvents = [
+        'stage_inspect_completed',
+        'stage_plan_completed',
+        'stage_dry_run_completed',
+        'stage_evidence_completed',
+        'stage_feedback_completed',
+      ];
+
+      expectedEvents.forEach((eventName) => {
+        const call = telemetryMock.mock.calls.find(([, payload]) => payload.eventName === eventName);
+        expect(call).toBeDefined();
+        expect(call?.[0]).toBe(tenantId);
+        expect(call?.[1]).toMatchObject({
+          missionId,
+          eventData: expect.objectContaining({
+            duration: expect.any(Number),
+          }),
+        });
+      });
+
+      if (baseFetch) {
+        fetchMock.mockImplementation(baseFetch);
+      }
     });
   });
 

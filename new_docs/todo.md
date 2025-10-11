@@ -441,17 +441,17 @@ Gate G-B delivers a structured workflow from intake to feedback:
   - **Evidence:** Component screenshot showing toolkit cards; Supabase query confirms persisted selections; integration test validates inspection flow.
   - **File references:** `src/components/RecommendedToolStrip.tsx`, `src/app/api/toolkits/recommend/route.ts`, Composio `tools.get` integration per libs_docs/composio/llms.txt §3.1.
 
-- [ ] **Implement Stage 4: Coverage Meter with MCP Inspection**: Build coverage meter component displaying readiness percentage, gap highlights, and inspection preview per ux.md §4.2 and workflow.md §4.1.
+- [x] **Implement Stage 4: Coverage Meter with MCP Inspection**: Build coverage meter component displaying readiness percentage, gap highlights, and inspection preview per ux.md §4.2 and workflow.md §4.1.
   - **Acceptance:** Coverage meter shows percentage (0-100%); gaps highlighted in red; inspection summaries rendered inline; ≥85% required to proceed.
   - **Evidence:** Screenshot of coverage meter at various percentages; unit tests for gap calculation; MCP draft call logs.
   - **File references:** `src/components/CoverageMeter.tsx`, `src/app/api/inspect/preview/route.ts`, ADK inspection agent integration.
 
-- [ ] **Implement Stage 5: Planner Insight Rail**: Build streaming planner insight rail showing play ranking rationale, library matches, confidence scores per ux.md §5.3 and architecture.md §3.2.
+- [x] **Implement Stage 5: Planner Insight Rail**: Build streaming planner insight rail showing play ranking rationale, library matches, confidence scores per ux.md §5.3 and architecture.md §3.2.
   - **Acceptance:** Insight rail streams rationale markdown as planner ranks plays; "Why This?" tooltips populated; plays display impact/risk/undo metadata.
   - **Evidence:** Video showing streaming rationale; screenshot of tooltip; Supabase query shows `reason_markdown` populated.
   - **File references:** `src/components/PlannerInsightRail.tsx`, `src/app/api/planner/rank/route.ts`, ADK planner streaming integration per libs_docs/adk/llms-full.txt.
 
-- [ ] **Implement Stage 6: Streaming Status Panel**: Build streaming status panel with live progress narration, heartbeat monitoring, expandable logs per ux.md §5.4.
+- [x] **Implement Stage 6: Streaming Status Panel**: Build streaming status panel with live progress narration, heartbeat monitoring, expandable logs per ux.md §5.4.
   - **Acceptance:** Status panel updates <5s p95 latency; shows checkmarks for completed steps; "Expand Details" reveals tool call logs; "Pause"/"Cancel" buttons functional.
   - **Evidence:** Latency measurements from telemetry; video showing real-time updates; unit tests for pause/resume.
   - **File references:** `src/components/StreamingStatusPanel.tsx`, CopilotKit `copilotkit_emit_message` integration per libs_docs/copilotkit/llms-full.txt.

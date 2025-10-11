@@ -30,6 +30,16 @@ const payloadSchema = z.object({
     })
     .optional(),
   metadata: z.record(z.any()).optional(),
+  safeguards: z
+    .array(
+      z.object({
+        type: z.string().min(1),
+        value: z.string().min(1),
+        confidence: z.number().optional(),
+        pinned: z.boolean().optional(),
+      }),
+    )
+    .optional(),
 });
 
 export async function POST(request: NextRequest) {
@@ -88,11 +98,16 @@ export async function POST(request: NextRequest) {
       } as Json)
     : null;
 
+  const metadataPayload = {
+    ...(parsed.data.metadata ?? {}),
+    ...(parsed.data.safeguards ? { safeguards: parsed.data.safeguards } : {}),
+  } as Record<string, unknown>;
+
   const basePayload = {
     decision: parsed.data.decision,
     justification: parsed.data.justification ?? null,
     guardrail_violation: guardrailViolationPayload,
-    metadata: (parsed.data.metadata ?? {}) as Json,
+    metadata: metadataPayload as Json,
     reviewer_id: parsed.data.reviewerId ?? null,
   } satisfies Partial<Database['public']['Tables']['approvals']['Insert']>;
 

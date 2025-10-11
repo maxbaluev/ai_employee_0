@@ -71,4 +71,60 @@ describe('useApprovalFlow', () => {
       expect.objectContaining({ eventName: 'reviewer_annotation_created' }),
     );
   });
+
+  it('includes safeguards in approval payload and telemetry when provided', async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(
+        new Response(JSON.stringify({ approval: { id: 'approval-2' } }), {
+          headers: { 'Content-Type': 'application/json' },
+          status: 201,
+        }),
+      );
+
+    const safeguards = [
+      { type: 'tone', value: 'professional', confidence: 0.92 },
+      { type: 'budget_limit', value: '$5000' },
+    ];
+
+    const { result } = renderHook(() =>
+      useApprovalFlow({
+        tenantId,
+        missionId,
+      }),
+    );
+
+    act(() => {
+      result.current.openApproval({
+        toolCallId,
+        missionId,
+        stage: 'validator_reviewer_requested',
+        safeguards,
+      });
+    });
+
+    telemetryMock.sendTelemetryEvent.mockClear();
+
+    await act(async () => {
+      await result.current.submitApproval({
+        decision: 'approved',
+        justification: 'Safeguards accepted',
+      });
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [, options] = fetchMock.mock.calls[0];
+    expect(options?.headers).toMatchObject({ 'Content-Type': 'application/json' });
+    const payload = JSON.parse(options?.body as string);
+    expect(payload.safeguards).toEqual(safeguards);
+
+    const decisionEvent = telemetryMock.sendTelemetryEvent.mock.calls.find(
+      ([, payload]) => payload.eventName === 'approval_decision',
+    );
+    expect(decisionEvent).toBeDefined();
+    expect(decisionEvent?.[1].eventData).toMatchObject({
+      safeguards_count: safeguards.length,
+      has_safeguards: true,
+    });
+  });
 });

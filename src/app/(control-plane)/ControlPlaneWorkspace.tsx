@@ -6,26 +6,26 @@ import { CopilotSidebar, type CopilotKitCSSProperties } from "@copilotkit/react-
 
 import { ApprovalModal } from "@/components/ApprovalModal";
 import { CoverageMeter } from "@/components/CoverageMeter";
+import { ArtifactGallery, type ArtifactGalleryArtifact } from "@/components/ArtifactGallery";
 import { FeedbackDrawer } from "@/components/FeedbackDrawer";
 import { MissionIntake } from "@/components/MissionIntake";
 import { MissionBriefCard } from "@/components/MissionBriefCard";
-import { RecommendedToolkits } from "@/components/RecommendedToolkits";
+import { RecommendedToolStrip } from "@/components/RecommendedToolStrip";
+import {
+  SafeguardDrawer,
+  type SafeguardDrawerHint,
+  type SafeguardDrawerHistoryItem,
+} from "@/components/SafeguardDrawer";
 import { StreamingStatusPanel } from "@/components/StreamingStatusPanel";
 import { MissionStageProvider, MissionStageProgress, MissionStage, useMissionStages } from "@/components/mission-stages";
 import type { TimelineMessage } from "@/hooks/useTimelineEvents";
 import { useApprovalFlow } from "@/hooks/useApprovalFlow";
-import type { ApprovalSubmission } from "@/hooks/useApprovalFlow";
+import type { ApprovalSubmission, SafeguardEntry } from "@/hooks/useApprovalFlow";
 import { useUndoFlow } from "@/hooks/useUndoFlow";
 import { PlannerInsightRail } from "@/components/PlannerInsightRail";
 import { sendTelemetryEvent } from "@/lib/telemetry/client";
 
-type Artifact = {
-  artifact_id: string;
-  title: string;
-  summary: string;
-  status: string;
-  hash?: string | null;
-};
+type Artifact = ArtifactGalleryArtifact;
 
 type CatalogSummary = {
   total_entries: number;
@@ -62,6 +62,55 @@ type AcceptedIntakePayload = {
 
 const AGENT_ID = "control_plane_foundation";
 const SESSION_RETENTION_MINUTES = 60 * 24 * 7; // 7 days
+const MAX_SAFEGUARD_HISTORY = 20;
+
+const hashString = (value: string): string => {
+  let hash = 0;
+  for (let index = 0; index < value.length; index += 1) {
+    hash = (hash << 5) - hash + value.charCodeAt(index);
+    hash |= 0;
+  }
+  return Math.abs(hash).toString(36);
+};
+
+const buildSafeguardId = (
+  hint: { hintType: string | null; text: string },
+  occurrence: number,
+): string => {
+  const type = hint.hintType ?? "hint";
+  return `${type}-${hashString(hint.text)}-${occurrence}`;
+};
+
+const normalizeSafeguards = (
+  hints: Array<{ hintType: string | null; text: string }>,
+  previous: SafeguardDrawerHint[],
+): SafeguardDrawerHint[] => {
+  const previousById = new Map(previous.map((hint) => [hint.id, hint]));
+  const seen: Record<string, number> = {};
+
+  return hints.map((hint) => {
+    const key = `${hint.hintType ?? "hint"}|${hint.text}`;
+    const occurrence = seen[key] ?? 0;
+    seen[key] = occurrence + 1;
+    const id = buildSafeguardId(hint, occurrence);
+    const existing = previousById.get(id);
+
+    if (existing) {
+      return existing;
+    }
+
+    return {
+      id,
+      label: hint.text,
+      hintType: hint.hintType ?? "unspecified",
+      status: "accepted",
+      confidence: null,
+      pinned: false,
+      rationale: null,
+      lastUpdatedAt: null,
+    } satisfies SafeguardDrawerHint;
+  });
+};
 
 function ControlPlaneWorkspaceContent({
   tenantId,
@@ -81,7 +130,35 @@ function ControlPlaneWorkspaceContent({
   const [isFeedbackDrawerOpen, setFeedbackDrawerOpen] = useState(false);
   const [selectedFeedbackRating, setSelectedFeedbackRating] = useState<number | null>(null);
   const [missionBrief, setMissionBrief] = useState<MissionBriefState | null>(null);
+  const [safeguards, setSafeguards] = useState<SafeguardDrawerHint[]>([]);
+  const [safeguardHistory, setSafeguardHistory] = useState<SafeguardDrawerHistoryItem[]>([]);
+  const [, setSafeguardHistoryOpen] = useState(false);
+  const [approvalUndoSummary, setApprovalUndoSummary] = useState<string | undefined>(undefined);
   const hasPinnedBriefRef = useRef(false);
+
+  const acceptedSafeguardEntries = useMemo<SafeguardEntry[]>(
+    () =>
+      safeguards
+        .filter((entry) => entry.status === "accepted")
+        .map((entry) => ({
+          type: entry.hintType ?? "safeguard",
+          value: entry.label,
+          confidence: typeof entry.confidence === "number" ? entry.confidence : undefined,
+          pinned: entry.pinned ?? false,
+        })),
+    [safeguards],
+  );
+
+  const safeguardChips = useMemo(
+    () =>
+      acceptedSafeguardEntries.map((entry) => ({
+        type: entry.type,
+        value: entry.value,
+        confidence: entry.confidence,
+        status: "accepted",
+      })),
+    [acceptedSafeguardEntries],
+  );
 
   const feedbackStageStatus = stages.get(MissionStage.Feedback);
   const canDisplayFeedbackDrawer =
@@ -93,6 +170,9 @@ function ControlPlaneWorkspaceContent({
     if (!objectiveId) {
       setSelectedToolkitsCount(0);
       setMissionBrief(null);
+      setSafeguards([]);
+      setSafeguardHistory([]);
+      setSafeguardHistoryOpen(false);
       hasPinnedBriefRef.current = false;
     }
   }, [objectiveId]);
@@ -142,6 +222,9 @@ function ControlPlaneWorkspaceContent({
         };
 
         setMissionBrief(normalizedBrief);
+        setSafeguards((prev) => normalizeSafeguards(normalizedBrief.safeguards, prev));
+        setSafeguardHistory([]);
+        setSafeguardHistoryOpen(false);
 
         void sendTelemetryEvent(tenantId, {
           eventName: "mission_brief_loaded",
@@ -219,6 +302,186 @@ function ControlPlaneWorkspaceContent({
       });
     },
   });
+
+  const appendSafeguardHistory = useCallback(
+    (entries: SafeguardDrawerHistoryItem[]) => {
+      if (!entries.length) {
+        return;
+      }
+      setSafeguardHistory((prev) => [...entries, ...prev].slice(0, MAX_SAFEGUARD_HISTORY));
+    },
+    [],
+  );
+
+  const handleSafeguardTelemetry = useCallback(
+    (eventName: string, data: Record<string, unknown>) => {
+      void sendTelemetryEvent(tenantId, {
+        eventName,
+        missionId: objectiveId ?? null,
+        eventData: data,
+      });
+    },
+    [objectiveId, tenantId],
+  );
+
+  const postSafeguardMutation = useCallback(
+    async (payload: Record<string, unknown>) => {
+      if (!objectiveId) {
+        return;
+      }
+      try {
+        await fetch("/api/safeguards", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ tenantId, missionId: objectiveId, ...payload }),
+        });
+      } catch (error) {
+        console.warn("[SafeguardDrawer] failed to persist safeguard mutation", error);
+      }
+    },
+    [objectiveId, tenantId],
+  );
+
+  const handleSafeguardAcceptAll = useCallback(() => {
+    if (!safeguards.length) {
+      return;
+    }
+
+    const timestamp = new Date().toISOString();
+    setSafeguards((prev) =>
+      prev.map((hint) => ({ ...hint, status: "accepted", lastUpdatedAt: timestamp })),
+    );
+
+    appendSafeguardHistory(
+      safeguards.map((hint) => ({
+        id: `${hint.id}-accept-all`,
+        label: hint.label,
+        status: "accepted",
+        timestamp,
+      })),
+    );
+
+    handleSafeguardTelemetry("safeguard_hint_accept_all", {
+      hint_ids: safeguards.map((hint) => hint.id),
+      hint_count: safeguards.length,
+    });
+
+    void postSafeguardMutation({ action: "accept_all", hintIds: safeguards.map((hint) => hint.id) });
+  }, [appendSafeguardHistory, handleSafeguardTelemetry, postSafeguardMutation, safeguards]);
+
+  const handleSafeguardAccept = useCallback(
+    (hint: SafeguardDrawerHint) => {
+      const timestamp = new Date().toISOString();
+      setSafeguards((prev) =>
+        prev.map((entry) =>
+          entry.id === hint.id
+            ? { ...entry, status: "accepted", lastUpdatedAt: timestamp }
+            : entry,
+        ),
+      );
+
+      appendSafeguardHistory([
+        {
+          id: `${hint.id}-accepted`,
+          label: hint.label,
+          status: "accepted",
+          timestamp,
+        },
+      ]);
+
+      handleSafeguardTelemetry("safeguard_hint_applied", {
+        hint_id: hint.id,
+        hint_type: hint.hintType,
+      });
+
+      void postSafeguardMutation({ action: "accept", hintId: hint.id });
+    },
+    [appendSafeguardHistory, handleSafeguardTelemetry, postSafeguardMutation],
+  );
+
+  const handleSafeguardEdit = useCallback(
+    (hint: SafeguardDrawerHint) => {
+      const nextText = window.prompt("Edit safeguard", hint.label)?.trim();
+      if (!nextText || nextText === hint.label) {
+        return;
+      }
+
+      const timestamp = new Date().toISOString();
+      setSafeguards((prev) =>
+        prev.map((entry) =>
+          entry.id === hint.id
+            ? { ...entry, label: nextText, status: "edited", lastUpdatedAt: timestamp }
+            : entry,
+        ),
+      );
+
+      appendSafeguardHistory([
+        {
+          id: `${hint.id}-edited`,
+          label: nextText,
+          status: "edited",
+          timestamp,
+        },
+      ]);
+
+      handleSafeguardTelemetry("safeguard_hint_edited", {
+        hint_id: hint.id,
+        hint_type: hint.hintType,
+        text_length: nextText.length,
+      });
+
+      void postSafeguardMutation({ action: "edit", hintId: hint.id, text: nextText });
+    },
+    [appendSafeguardHistory, handleSafeguardTelemetry, postSafeguardMutation],
+  );
+
+  const handleSafeguardRegenerate = useCallback(
+    (hint: SafeguardDrawerHint) => {
+      handleSafeguardTelemetry("safeguard_hint_regenerate_requested", {
+        hint_id: hint.id,
+        hint_type: hint.hintType,
+      });
+
+      void postSafeguardMutation({ action: "regenerate", hintId: hint.id });
+    },
+    [handleSafeguardTelemetry, postSafeguardMutation],
+  );
+
+  const handleSafeguardTogglePin = useCallback(
+    (hint: SafeguardDrawerHint, nextPinned: boolean) => {
+      setSafeguards((prev) =>
+        prev.map((entry) => (entry.id === hint.id ? { ...entry, pinned: nextPinned } : entry)),
+      );
+
+      appendSafeguardHistory([
+        {
+          id: `${hint.id}-pin-${nextPinned ? "on" : "off"}`,
+          label: hint.label,
+          status: nextPinned ? "pinned" : "unpinned",
+          timestamp: new Date().toISOString(),
+        },
+      ]);
+
+      handleSafeguardTelemetry("safeguard_hint_toggle_pin", {
+        hint_id: hint.id,
+        hint_type: hint.hintType,
+        pinned: nextPinned,
+      });
+
+      void postSafeguardMutation({ action: "toggle_pin", hintId: hint.id, pinned: nextPinned });
+    },
+    [appendSafeguardHistory, handleSafeguardTelemetry, postSafeguardMutation],
+  );
+
+  const handleSafeguardHistoryToggle = useCallback(
+    (isOpen: boolean) => {
+      setSafeguardHistoryOpen(isOpen);
+      handleSafeguardTelemetry(isOpen ? "safeguard_hint_history_opened" : "safeguard_hint_history_closed", {
+        entry_count: safeguardHistory.length,
+      });
+    },
+    [handleSafeguardTelemetry, safeguardHistory.length],
+  );
 
   const markStageIfNeeded = useCallback(
     (stage: MissionStage) => {
@@ -429,6 +692,53 @@ function ControlPlaneWorkspaceContent({
     [copyToClipboard, objectiveId, tenantId],
   );
 
+  const handleAddPlaceholderArtifact = useCallback(() => {
+    const id = `artifact-${Date.now()}`;
+    const placeholder: Artifact = {
+      artifact_id: id,
+      title: "Approval summary placeholder",
+      summary: "Use the agent to replace this with a real dry-run asset.",
+      status: "draft",
+    };
+
+    setArtifacts((current) => {
+      const nextArtifacts = [...current, placeholder];
+
+      void (async () => {
+        try {
+          await fetch("/api/artifacts", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              artifactId: id,
+              title: placeholder.title,
+              summary: placeholder.summary,
+              status: placeholder.status,
+              tenantId,
+              playId: objectiveId ?? undefined,
+            }),
+          });
+        } catch (error) {
+          console.error("Failed to persist placeholder artifact", error);
+        }
+
+        await syncCopilotSession(nextArtifacts, objectiveId ?? null);
+      })();
+
+      return nextArtifacts;
+    });
+  }, [objectiveId, syncCopilotSession, tenantId]);
+
+  const handleArtifactUndo = useCallback(
+    (artifact: Artifact) => {
+      void undoFlow.requestUndo({
+        toolCallId: artifact.artifact_id,
+        reason: "User requested dry-run rollback",
+      });
+    },
+    [undoFlow],
+  );
+
   const handleEvidenceHashCopy = useCallback(
     async (artifact: Artifact) => {
       const hash = artifact.evidence_hash ?? artifact.checksum ?? artifact.hash ?? null;
@@ -631,6 +941,12 @@ function ControlPlaneWorkspaceContent({
         return;
       }
 
+      const derivedUndoSummary =
+        typeof message.metadata?.undo_summary === "string"
+          ? (message.metadata.undo_summary as string)
+          : undefined;
+      setApprovalUndoSummary(derivedUndoSummary);
+
       approvalFlow.openApproval({
         toolCallId: resolvedToolCall,
         missionId: objectiveId ?? null,
@@ -640,9 +956,10 @@ function ControlPlaneWorkspaceContent({
             ? (message.metadata.attempt as number)
             : null,
         metadata: message.metadata,
+        safeguards: acceptedSafeguardEntries.length ? acceptedSafeguardEntries : undefined,
       });
     },
-    [approvalFlow, objectiveId],
+    [acceptedSafeguardEntries, approvalFlow, objectiveId],
   );
 
   const handleSessionCancel = useCallback(() => {
@@ -662,9 +979,19 @@ function ControlPlaneWorkspaceContent({
   }, [markStageStarted]);
 
   const submitApproval = useCallback(
-    (submission: ApprovalSubmission) => approvalFlow.submitApproval(submission),
-    [approvalFlow],
+    (submission: ApprovalSubmission) =>
+      approvalFlow.submitApproval({
+        ...submission,
+        safeguards: acceptedSafeguardEntries.length ? acceptedSafeguardEntries : undefined,
+      }),
+    [acceptedSafeguardEntries, approvalFlow],
   );
+
+  useEffect(() => {
+    if (!approvalFlow.isOpen) {
+      setApprovalUndoSummary(undefined);
+    }
+  }, [approvalFlow.isOpen]);
 
   useEffect(() => {
     void syncCopilotSession(artifacts, objectiveId ?? null);
@@ -710,6 +1037,9 @@ function ControlPlaneWorkspaceContent({
         confidence: normalizedConfidence,
         source: source ?? null,
       });
+      setSafeguards((prev) => normalizeSafeguards(acceptedSafeguards, prev));
+      setSafeguardHistory([]);
+      setSafeguardHistoryOpen(false);
       hasPinnedBriefRef.current = false;
 
       void sendTelemetryEvent(tenantId, {
@@ -919,9 +1249,14 @@ function ControlPlaneWorkspaceContent({
     }
 
     if (evidenceStatus.state === "active") {
+      const MIN_ACTIVE_WINDOW_MS = 200;
+      const startedAtMs = evidenceStatus.startedAt?.getTime() ?? Date.now();
+      const elapsed = Date.now() - startedAtMs;
+      const delay = Math.max(MIN_ACTIVE_WINDOW_MS - elapsed, 0);
+
       evidenceCompletionTimeoutRef.current = setTimeout(() => {
         markStageIfNeeded(MissionStage.Evidence);
-      }, 50);
+      }, delay || 0);
       return;
     }
 
@@ -1009,7 +1344,7 @@ function ControlPlaneWorkspaceContent({
         onStageAdvance={handleIntakeAdvance}
       />
 
-      <RecommendedToolkits
+      <RecommendedToolStrip
         tenantId={tenantId}
         missionId={objectiveId ?? null}
         onAlert={setWorkspaceAlert}
@@ -1038,151 +1373,41 @@ function ControlPlaneWorkspaceContent({
 
       <div className="flex grow flex-col lg:flex-row">
         <section className="flex w-full flex-col gap-6 border-b border-white/10 px-6 py-8 lg:w-2/5 lg:border-r lg:border-b-0">
-          <div className="flex items-center justify-between gap-3">
-            <h2 className="text-lg font-semibold">Evidence Gallery</h2>
-            <div className="flex items-center gap-3">
-              {canDisplayFeedbackDrawer ? (
-                <FeedbackDrawer
-                  tenantId={tenantId}
-                  missionId={objectiveId ?? null}
-                  currentStage={currentStage}
-                  isOpen={isFeedbackDrawerOpen}
-                  selectedRating={selectedFeedbackRating}
-                  onOpenChange={handleFeedbackDrawerOpenChange}
-                  onRatingChange={handleFeedbackRatingChange}
-                  onSubmit={handleFeedbackSubmit}
-                />
-              ) : null}
-              <button
-                className="inline-flex items-center gap-2 rounded-md border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-medium uppercase tracking-wide text-slate-200 transition hover:bg-white/15"
-                onClick={() => {
-                  const id = `artifact-${Date.now()}`;
-                  const placeholder: Artifact = {
-                    artifact_id: id,
-                    title: "Approval summary placeholder",
-                    summary: "Use the agent to replace this with a real dry-run asset.",
-                    status: "draft",
-                  };
-                  const nextArtifacts = [...artifacts, placeholder];
-                  setArtifacts(nextArtifacts);
-                  void (async () => {
-                    try {
-                      await fetch("/api/artifacts", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                          artifactId: id,
-                          title: placeholder.title,
-                          summary: placeholder.summary,
-                          status: placeholder.status,
-                          tenantId,
-                          playId: objectiveId ?? undefined,
-                        }),
-                      });
-                    } catch (error) {
-                      console.error("Failed to persist placeholder artifact", error);
-                    }
-                    await syncCopilotSession(nextArtifacts, objectiveId ?? null);
-                  })();
-                }}
-              >
-                Add Placeholder
-              </button>
-            </div>
-          </div>
-          <p className="text-sm text-slate-300">
-            Artifacts track dry-run proof packs before granting credentials.
-          </p>
+          <SafeguardDrawer
+            safeguards={safeguards}
+            historyItems={safeguardHistory}
+            isBusy={false}
+            onAcceptAll={handleSafeguardAcceptAll}
+            onAccept={handleSafeguardAccept}
+            onEdit={handleSafeguardEdit}
+            onRegenerate={handleSafeguardRegenerate}
+            onTogglePin={handleSafeguardTogglePin}
+            onHistoryToggle={handleSafeguardHistoryToggle}
+          />
 
-          <div className="grid gap-4 lg:grid-cols-2">
-            {artifacts.length ? (
-              artifacts.map((artifact) => (
-                <article
-                  key={artifact.artifact_id}
-                  className="flex flex-col gap-3 rounded-xl border border-white/10 bg-slate-900/80 p-5 shadow"
-                >
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-base font-semibold text-white">{artifact.title}</h3>
-                    <span className="rounded-full bg-white/10 px-3 py-1 text-xs uppercase tracking-wide text-violet-200">
-                      {artifact.status}
-                    </span>
-                  </div>
-                  <p className="text-sm text-slate-300">{artifact.summary}</p>
-                  {(() => {
-                    const hash = artifact.evidence_hash ?? artifact.checksum ?? artifact.hash ?? null;
-                    if (!hash) {
-                      return null;
-                    }
-                    const truncated =
-                      hash.length > 16
-                        ? `${hash.slice(0, 10)}…${hash.slice(-6)}`
-                        : hash;
-                    return (
-                      <div className="rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2 text-xs text-slate-400">
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <span className="font-medium uppercase tracking-wide text-slate-300">SHA-256</span>
-                          <button
-                            type="button"
-                            onClick={() => void handleEvidenceHashCopy(artifact)}
-                            className="inline-flex items-center gap-2 rounded-md border border-white/15 bg-white/5 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-slate-200 transition hover:bg-white/10"
-                            aria-label="Copy evidence SHA-256 hash"
-                          >
-                            Copy
-                          </button>
-                        </div>
-                        <code
-                          className="mt-1 block overflow-x-auto whitespace-pre-wrap break-all text-[11px] text-slate-300"
-                          title={hash}
-                        >
-                          {truncated}
-                        </code>
-                      </div>
-                    );
-                  })()}
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      onClick={() => void handleArtifactExport(artifact, "csv")}
-                      className="inline-flex items-center gap-2 rounded-md border border-sky-500/40 bg-sky-500/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-sky-200 transition hover:bg-sky-500/20"
-                    >
-                      Download CSV
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void handleArtifactExport(artifact, "pdf")}
-                      className="inline-flex items-center gap-2 rounded-md border border-violet-500/40 bg-violet-500/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-violet-200 transition hover:bg-violet-500/20"
-                    >
-                      Download PDF
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void handleArtifactShare(artifact)}
-                      className="inline-flex items-center gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-amber-200 transition hover:bg-amber-500/20"
-                    >
-                      Copy Share Link
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        void undoFlow.requestUndo({
-                          toolCallId: artifact.artifact_id,
-                          reason: "User requested dry-run rollback",
-                        })
-                      }
-                      disabled={undoFlow.isRequesting}
-                      className="inline-flex items-center gap-2 rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-emerald-200 transition enabled:hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      {undoFlow.isRequesting ? "Undoing…" : "Undo draft"}
-                    </button>
-                  </div>
-                </article>
-              ))
-            ) : (
-              <div className="rounded-xl border border-dashed border-white/20 p-8 text-center text-sm text-slate-400">
-                Ask the agent to generate a draft artifact to populate this area.
-              </div>
-            )}
-          </div>
+          <ArtifactGallery
+            className="flex flex-col gap-6"
+            artifacts={artifacts}
+            onAddPlaceholder={handleAddPlaceholderArtifact}
+            onCopyHash={handleEvidenceHashCopy}
+            onExport={handleArtifactExport}
+            onShare={handleArtifactShare}
+            onUndo={handleArtifactUndo}
+            isUndoing={undoFlow.isRequesting}
+          >
+            {canDisplayFeedbackDrawer ? (
+              <FeedbackDrawer
+                tenantId={tenantId}
+                missionId={objectiveId ?? null}
+                currentStage={currentStage}
+                isOpen={isFeedbackDrawerOpen}
+                selectedRating={selectedFeedbackRating}
+                onOpenChange={handleFeedbackDrawerOpenChange}
+                onRatingChange={handleFeedbackRatingChange}
+                onSubmit={handleFeedbackSubmit}
+              />
+            ) : null}
+          </ArtifactGallery>
         </section>
 
         <StreamingStatusPanel
@@ -1234,6 +1459,8 @@ function ControlPlaneWorkspaceContent({
         onClose={approvalFlow.closeApproval}
         onSubmit={submitApproval}
         request={approvalFlow.currentRequest}
+        safeguardChips={safeguardChips}
+        undoSummary={approvalUndoSummary}
         latestDecision={approvalFlow.latestDecision}
       />
     </main>
