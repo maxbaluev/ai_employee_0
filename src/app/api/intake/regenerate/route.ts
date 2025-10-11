@@ -8,6 +8,18 @@ import { NextRequest, NextResponse } from 'next/server';
 import { regenerateField, RegenerationLimitError } from '@/lib/intake/service';
 import { getRouteHandlerSupabaseClient } from '@/lib/supabase/server';
 
+// TODO: replace Map with distributed store before production rollout.
+const regenerationAttempts = new Map<string, number>();
+const MAX_REGENERATION_ATTEMPTS = 3;
+
+function getAttemptKey(tenantId: string, missionId: string, field: string) {
+  return `${tenantId}:${missionId}:${field}`;
+}
+
+export function __resetRegenerateAttemptsForTest() {
+  regenerationAttempts.clear();
+}
+
 function resolveTenantId(
   bodyTenantId: unknown,
   sessionTenantId: string | undefined,
@@ -54,12 +66,29 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const counterKey = getAttemptKey(tenantId, body.missionId, body.field);
+    const previousAttempts = regenerationAttempts.get(counterKey) ?? 0;
+
+    const nextAttempts = previousAttempts + 1;
+    regenerationAttempts.set(counterKey, nextAttempts);
+
     const chips = await regenerateField({
       missionId: body.missionId,
       tenantId,
       field: body.field,
       context: typeof body.context === 'string' ? body.context : undefined,
     });
+
+    if (previousAttempts >= MAX_REGENERATION_ATTEMPTS) {
+      return NextResponse.json(
+        {
+          error: `Regeneration limit reached for ${body.field}. Please edit manually.`,
+          field: body.field,
+          limit: MAX_REGENERATION_ATTEMPTS,
+        },
+        { status: 429 },
+      );
+    }
 
     return NextResponse.json({ chips });
   } catch (error) {

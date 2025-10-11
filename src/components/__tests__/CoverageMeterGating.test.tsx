@@ -4,6 +4,8 @@ import type { ReactNode } from 'react';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
+import { CoverageMeter } from '../CoverageMeter';
+
 vi.mock('@copilotkit/react-core', () => ({
   useCopilotReadable: vi.fn(),
   useCopilotAction: vi.fn(),
@@ -351,5 +353,27 @@ describe('CoverageMeter gating integration', () => {
     expect(previewTelemetryCall?.[1].eventData?.toolkit_count).toBe(
       previewState.toolkits?.length ?? 0,
     );
+  });
+
+  it('blocks the inspection proceed button when readiness is below threshold and surfaces gap guidance', () => {
+    render(
+      <CoverageMeter
+        tenantId="tenant-low-readiness"
+        missionId="mission-low-readiness"
+        selectedToolkitsCount={0}
+        hasArtifacts={false}
+        onComplete={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText('60%')).toBeInTheDocument();
+    expect(screen.getByText(/Coverage Gaps/i)).toBeInTheDocument();
+    expect(screen.getByText(/No toolkits selected/i)).toBeInTheDocument();
+    expect(screen.getByText(/Prior mission artifacts/i)).toBeInTheDocument();
+
+    const footer = screen.getByText(/Improve coverage to enable inspection recording/i)
+      .closest('footer') as HTMLElement;
+    const recordButton = within(footer).getByRole('button', { name: /Record Inspection/i });
+    expect(recordButton).toBeDisabled();
   });
 });

@@ -29,7 +29,7 @@ describe('MissionIntake', () => {
     fetchSpy.mockRestore();
   });
 
-  it('shows the fallback source badge when source is fallback', async () => {
+  it('omits the source badge when source is fallback but keeps other chips', async () => {
     const mockGenerateResponse = {
       missionId: 'mission-123',
       chips: {
@@ -78,7 +78,10 @@ describe('MissionIntake', () => {
       expect(screen.getByText('Launch new product')).toBeInTheDocument();
     });
 
-    expect(screen.getByText(/Source:/i)).toHaveTextContent(/fallback/i);
+    expect(screen.getByText('Enterprise customers')).toBeInTheDocument();
+    expect(screen.getByText(/Completion rate/i)).toBeInTheDocument();
+    expect(screen.getByText(/Maintain professional tone/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Source:/i)).not.toBeInTheDocument();
   });
 
   it('renders generated chips for objective, audience, KPIs, and safeguards', async () => {

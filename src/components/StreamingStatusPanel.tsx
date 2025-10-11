@@ -352,15 +352,27 @@ export function StreamingStatusPanel({
 
   const heartbeatIndicator = useMemo(() => {
     if (isPaused || !hasSession || exitInfo || heartbeatSeconds === null) {
-      return { label: 'Heartbeat: —', tone: HEARTBEAT_CLASSES.idle };
+      return { label: 'Heartbeat: —', tone: HEARTBEAT_CLASSES.idle, warning: null };
     }
     if (heartbeatSeconds <= 5) {
-      return { label: `Heartbeat: ${heartbeatSeconds.toFixed(1)}s`, tone: HEARTBEAT_CLASSES.good };
+      return {
+        label: `Heartbeat: ${heartbeatSeconds.toFixed(1)}s`,
+        tone: HEARTBEAT_CLASSES.good,
+        warning: null,
+      };
     }
     if (heartbeatSeconds <= 10) {
-      return { label: `Heartbeat: ${heartbeatSeconds.toFixed(1)}s`, tone: HEARTBEAT_CLASSES.caution };
+      return {
+        label: `Heartbeat: ${heartbeatSeconds.toFixed(1)}s`,
+        tone: HEARTBEAT_CLASSES.caution,
+        warning: 'High latency — events may appear intermittently.',
+      };
     }
-    return { label: `Heartbeat: ${heartbeatSeconds.toFixed(1)}s`, tone: HEARTBEAT_CLASSES.alert };
+    return {
+      label: `Heartbeat: ${heartbeatSeconds.toFixed(1)}s`,
+      tone: HEARTBEAT_CLASSES.alert,
+      warning: 'High latency — events may appear intermittently.',
+    };
   }, [exitInfo, hasSession, heartbeatSeconds, isPaused]);
 
   if (!hasSession) {
@@ -442,6 +454,11 @@ export function StreamingStatusPanel({
           >
             {heartbeatIndicator.label}
           </span>
+          {heartbeatIndicator.warning && (
+            <span className="rounded-md border border-amber-400/40 bg-amber-500/10 px-2 py-1 font-medium uppercase tracking-wide text-amber-200">
+              {heartbeatIndicator.warning}
+            </span>
+          )}
           <button
             type="button"
             onClick={handlePauseToggle}
@@ -527,7 +544,9 @@ export function StreamingStatusPanel({
                 className="relative flex gap-4 rounded-xl border border-white/10 bg-slate-900/70 p-4 shadow"
               >
                 <div className="flex flex-col items-center">
-                  <span className={`flex h-3 w-3 items-center justify-center rounded-full ${statusClasses}`} aria-hidden />
+                  <span className={`flex h-3 w-3 items-center justify-center rounded-full ${statusClasses}`} aria-hidden>
+                    {event.status === 'complete' ? '✓' : null}
+                  </span>
                   <span className="mt-2 h-full w-px flex-1 bg-gradient-to-b from-white/20 to-transparent" aria-hidden />
                 </div>
                 <div className="flex-1 space-y-2">

@@ -1,6 +1,6 @@
 /// <reference types="vitest" />
 
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import type { UseTimelineEventsResult } from '@/hooks/useTimelineEvents';
@@ -209,6 +209,36 @@ describe('StreamingStatusPanel', () => {
     await user.click(screen.getByRole('button', { name: /Pause/i }));
     expect(screen.getByRole('button', { name: /Resume/i })).toBeInTheDocument();
     expect(screen.getByText(/Heartbeat: —/)).toBeInTheDocument();
+  });
+
+  it('surfaces heartbeat warnings above threshold and decorates completed events with checkmarks', () => {
+    useTimelineEventsMock.mockReturnValue({
+      ...baseHookResult,
+      heartbeatSeconds: 6.4,
+      events: [
+        {
+          id: 'evt-complete',
+          createdAt: '2025-10-09T19:01:00.000Z',
+          stage: 'planner_rank_complete',
+          event: 'rank_complete',
+          role: 'assistant',
+          label: 'Planner ranked plays',
+          description: 'Planner returned 3 ranked plays.',
+          status: 'complete' as const,
+          rawContent: 'Planner complete',
+          metadata: { candidate_count: 3 },
+        },
+      ],
+    });
+
+    renderPanel();
+
+    expect(screen.getByText('Heartbeat: 6.4s')).toBeInTheDocument();
+    expect(screen.getByText(/High latency/i)).toBeInTheDocument();
+
+    const plannerArticle = screen.getByText('Planner ranked plays').closest('article');
+    expect(plannerArticle).toBeTruthy();
+    expect(within(plannerArticle as HTMLElement).getByText('✓')).toBeInTheDocument();
   });
 
   it('renders exit banner and disables controls when run completes', async () => {

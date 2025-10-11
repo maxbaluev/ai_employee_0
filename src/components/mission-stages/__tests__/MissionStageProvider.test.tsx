@@ -110,6 +110,18 @@ describe('MissionStageProvider', () => {
     expect(intakeStatus?.completedAt).toBe(firstCompletedAt);
   });
 
+  it('should block Plan from starting before Intake completion', () => {
+    const { result } = renderHook(() => useMissionStages(), { wrapper });
+
+    act(() => {
+      result.current.markStageStarted(MissionStage.Plan);
+    });
+
+    const planStatus = result.current.stages.get(MissionStage.Plan);
+    expect(planStatus?.state).toBe('pending');
+    expect(result.current.currentStage).toBe(MissionStage.Intake);
+  });
+
   it('should handle stage progression through all stages', () => {
     const { result } = renderHook(() => useMissionStages(), { wrapper });
 

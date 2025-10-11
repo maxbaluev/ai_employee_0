@@ -17,7 +17,7 @@ type IntakeViewState = {
   kpis: KPI[];
   safeguards: GeneratedSafeguard[];
   confidence: number;
-  source: 'gemini' | 'fallback';
+  source: 'gemini';
 };
 
 type AcceptedIntakePayload = {
@@ -27,7 +27,7 @@ type AcceptedIntakePayload = {
   guardrailSummary: string;
   kpis: KPI[];
   confidence: number;
-  source: 'gemini' | 'fallback';
+  source: 'gemini';
 };
 
 type RegenerationField = 'objective' | 'audience' | 'kpis' | 'safeguards';
@@ -373,7 +373,7 @@ export function MissionIntake({ tenantId, objectiveId, onAccept, onStageAdvance 
               Paste context once—objective, audience, KPIs, tone. We will scaffold the mission brief and safeguards.
             </p>
           </div>
-          {intakeState && (
+          {intakeState && intakeState.source === 'gemini' && (
             <div className="flex items-center gap-3 rounded-full bg-white/5 px-3 py-1.5 text-xs text-slate-200">
               <ConfidenceBadge confidence={intakeState.confidence} />
               <span className="text-slate-400">Source: {intakeState.source}</span>

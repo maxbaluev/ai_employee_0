@@ -28,12 +28,38 @@ describe('MissionStageProvider telemetry', () => {
     sendTelemetryEventMock.mockClear();
   });
 
-  it('emits stage_plan_started with metadata when markStageStarted is called', () => {
+  it('emits stage_plan_started after preceding stages complete', async () => {
     const { result } = renderHook(() => useMissionStages(), { wrapper });
 
-    act(() => {
+    const completeStage = async (stage: MissionStage) => {
+      await act(async () => {
+        result.current.markStageCompleted(stage);
+        await Promise.resolve();
+      });
+    };
+
+    // Complete earlier stages to satisfy ordering guard
+    await completeStage(MissionStage.Intake);
+    await completeStage(MissionStage.Brief);
+    await completeStage(MissionStage.Toolkits);
+
+    // Ignore telemetry emitted while progressing through earlier stages
+    sendTelemetryEventMock.mockClear();
+
+    await completeStage(MissionStage.Inspect);
+
+    const planStatus = result.current.stages.get(MissionStage.Plan);
+    expect(planStatus?.state).toBe('active');
+
+    sendTelemetryEventMock.mockClear();
+
+    await act(async () => {
       result.current.markStageStarted(MissionStage.Plan, { source: 'unit-test' });
+      await Promise.resolve();
     });
+
+    const updatedPlanStatus = result.current.stages.get(MissionStage.Plan);
+    expect(updatedPlanStatus?.metadata).toMatchObject({ source: 'unit-test' });
 
     const call = sendTelemetryEventMock.mock.calls.find(
       ([, payload]) => payload.eventName === 'stage_plan_started',
@@ -46,22 +72,33 @@ describe('MissionStageProvider telemetry', () => {
       eventData: expect.objectContaining({
         stage: MissionStage.Plan,
         timestamp: expect.any(String),
-        source: 'unit-test',
       }),
     });
   });
 
-  it('emits stage_plan_completed with duration metadata', () => {
+  it('emits stage_plan_completed with duration metadata', async () => {
     const { result } = renderHook(() => useMissionStages(), { wrapper });
 
-    act(() => {
-      result.current.markStageStarted(MissionStage.Plan);
-    });
+    const completeStage = async (stage: MissionStage) => {
+      await act(async () => {
+        result.current.markStageCompleted(stage);
+        await Promise.resolve();
+      });
+    };
+
+    await completeStage(MissionStage.Intake);
+    await completeStage(MissionStage.Brief);
+    await completeStage(MissionStage.Toolkits);
+    await completeStage(MissionStage.Inspect);
 
     vi.advanceTimersByTime(2_500);
 
-    act(() => {
+    // Ignore telemetry emitted while progressing to Plan
+    sendTelemetryEventMock.mockClear();
+
+    await act(async () => {
       result.current.markStageCompleted(MissionStage.Plan, { outcome: 'success' });
+      await Promise.resolve();
     });
 
     const call = sendTelemetryEventMock.mock.calls.find(
@@ -75,20 +112,33 @@ describe('MissionStageProvider telemetry', () => {
       outcome: 'success',
       duration: expect.any(Number),
     });
+    expect(payload.eventData.duration).toBeGreaterThan(0);
     expect(payload.eventData.duration).toBeGreaterThanOrEqual(2_500);
   });
 
-  it('emits stage_plan_failed with duration metadata', () => {
+  it('emits stage_plan_failed with duration metadata', async () => {
     const { result } = renderHook(() => useMissionStages(), { wrapper });
 
-    act(() => {
-      result.current.markStageStarted(MissionStage.Plan);
-    });
+    const completeStage = async (stage: MissionStage) => {
+      await act(async () => {
+        result.current.markStageCompleted(stage);
+        await Promise.resolve();
+      });
+    };
+
+    await completeStage(MissionStage.Intake);
+    await completeStage(MissionStage.Brief);
+    await completeStage(MissionStage.Toolkits);
+    await completeStage(MissionStage.Inspect);
 
     vi.advanceTimersByTime(1_500);
 
-    act(() => {
+    // Ignore telemetry emitted while progressing to Plan
+    sendTelemetryEventMock.mockClear();
+
+    await act(async () => {
       result.current.markStageFailed(MissionStage.Plan, { reason: 'timeout' });
+      await Promise.resolve();
     });
 
     const call = sendTelemetryEventMock.mock.calls.find(
@@ -102,6 +152,7 @@ describe('MissionStageProvider telemetry', () => {
       reason: 'timeout',
       duration: expect.any(Number),
     });
+    expect(payload.eventData.duration).toBeGreaterThan(0);
     expect(payload.eventData.duration).toBeGreaterThanOrEqual(1_500);
   });
 });

@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 
 import { sendTelemetryEvent } from '@/lib/telemetry/client';
@@ -25,6 +25,21 @@ type MissionStageProviderProps = {
   missionId: string | null;
 };
 
+type PendingTelemetryEvent =
+  | {
+      kind: 'started';
+      stage: MissionStage;
+      timestamp: string;
+      metadata?: Record<string, unknown>;
+    }
+  | {
+      kind: 'completed' | 'failed';
+      stage: MissionStage;
+      timestamp: string;
+      duration: number;
+      metadata?: Record<string, unknown>;
+    };
+
 function initializeStages(): MissionStagesMap {
   const map = new Map<MissionStage, MissionStageStatus>();
 
@@ -48,7 +63,29 @@ export function MissionStageProvider({
   missionId,
 }: MissionStageProviderProps) {
   const [stages, setStages] = useState<MissionStagesMap>(initializeStages);
-  const [currentStage, setCurrentStage] = useState<MissionStage>(MissionStage.Intake);
+  const pendingTelemetryRef = useRef<PendingTelemetryEvent[]>([]);
+
+  const enqueueTelemetry = useCallback((event: PendingTelemetryEvent) => {
+    pendingTelemetryRef.current.push(event);
+  }, []);
+
+  const activeStage = useMemo(() => {
+    for (const status of stages.values()) {
+      if (status.state === 'active') {
+        return status.stage;
+      }
+    }
+
+    for (let index = MISSION_STAGE_ORDER.length - 1; index >= 0; index -= 1) {
+      const stage = MISSION_STAGE_ORDER[index];
+      const status = stages.get(stage);
+      if (status?.state === 'completed') {
+        return stage;
+      }
+    }
+
+    return MissionStage.Intake;
+  }, [stages]);
 
   const getNextStage = useCallback((stage: MissionStage): MissionStage | null => {
     const currentIndex = MISSION_STAGE_ORDER.indexOf(stage);
@@ -69,8 +106,6 @@ export function MissionStageProvider({
 
   const markStageStarted = useCallback(
     (stage: MissionStage, metadata?: Record<string, unknown>) => {
-      let stageUpdated = false;
-
       setStages((prev) => {
         const current = prev.get(stage);
         if (!current) {
@@ -81,139 +116,197 @@ export function MissionStageProvider({
           return prev;
         }
 
+        const allowedToStart = (() => {
+          const currentActiveStage =
+            Array.from(prev.values()).find((status) => status.state === 'active')?.stage ?? MissionStage.Intake;
+
+          if (current.state === 'active') {
+            return true;
+          }
+
+          const requestedIndex = MISSION_STAGE_ORDER.indexOf(stage);
+          const currentIndex = MISSION_STAGE_ORDER.indexOf(currentActiveStage);
+
+          if (requestedIndex === -1 || currentIndex === -1) {
+            return false;
+          }
+
+          if (requestedIndex !== currentIndex && requestedIndex !== currentIndex + 1) {
+            return false;
+          }
+
+          if (requestedIndex === currentIndex + 1) {
+            const currentState = prev.get(currentActiveStage);
+            if (!currentState || currentState.state !== 'completed') {
+              return false;
+            }
+          }
+
+          return true;
+        })();
+
+        if (!allowedToStart) {
+          return prev;
+        }
+
         const next = new Map(prev);
-        const updatedStage: MissionStageStatus = {
+        const startedAt = current.startedAt ?? new Date();
+
+        next.set(stage, {
           ...current,
           state: 'active',
-          startedAt: current.startedAt ?? new Date(),
-          metadata: { ...current.metadata, ...metadata },
-        };
+          startedAt,
+          metadata: { ...current.metadata, ...(metadata ?? {}) },
+        });
 
-        next.set(stage, updatedStage);
-        stageUpdated = true;
+        enqueueTelemetry({
+          kind: 'started',
+          stage,
+          timestamp: startedAt.toISOString(),
+          metadata,
+        });
+
         return next;
       });
-
-      if (stageUpdated) {
-        setCurrentStage(stage);
-
-        void sendTelemetryEvent(tenantId, {
-          eventName: `stage_${stage}_started`,
-          missionId,
-          eventData: {
-            stage,
-            timestamp: new Date().toISOString(),
-            ...metadata,
-          },
-        });
-      }
     },
-    [tenantId, missionId]
+    [enqueueTelemetry]
   );
 
   const markStageCompleted = useCallback(
     (stage: MissionStage, metadata?: Record<string, unknown>) => {
-      const duration = getStageDuration(stage);
-
       setStages((prev) => {
-        const next = new Map(prev);
-        const current = next.get(stage);
-
-        if (!current) return prev;
+        const current = prev.get(stage);
+        if (!current) {
+          return prev;
+        }
 
         const now = new Date();
+        const startedAt = current.startedAt ?? now;
+        const duration = Math.max(0, now.getTime() - startedAt.getTime());
+        const next = new Map(prev);
+
         next.set(stage, {
           ...current,
           state: 'completed',
           completedAt: now,
-          metadata: { ...current.metadata, ...metadata },
+          metadata: { ...current.metadata, ...(metadata ?? {}) },
         });
 
-        // Automatically start next stage
+        enqueueTelemetry({
+          kind: 'completed',
+          stage,
+          timestamp: now.toISOString(),
+          duration,
+          metadata,
+        });
+
         const nextStage = getNextStage(stage);
         if (nextStage) {
           const nextStatus = next.get(nextStage);
           if (nextStatus && nextStatus.state !== 'failed') {
+            const nextStartedAt = nextStatus.startedAt ?? now;
             next.set(nextStage, {
               ...nextStatus,
               state: 'active',
-              startedAt: nextStatus.startedAt ?? now,
+              startedAt: nextStartedAt,
             });
-            setCurrentStage(nextStage);
+            enqueueTelemetry({
+              kind: 'started',
+              stage: nextStage,
+              timestamp: nextStartedAt.toISOString(),
+            });
           }
         }
 
         return next;
       });
-
-      // Emit completion telemetry
-      void sendTelemetryEvent(tenantId, {
-        eventName: `stage_${stage}_completed`,
-        missionId,
-        eventData: {
-          stage,
-          timestamp: new Date().toISOString(),
-          duration,
-          ...metadata,
-        },
-      });
-
-      // Emit started telemetry for next stage
-      const nextStage = getNextStage(stage);
-      if (nextStage) {
-        void sendTelemetryEvent(tenantId, {
-          eventName: `stage_${nextStage}_started`,
-          missionId,
-          eventData: {
-            stage: nextStage,
-            timestamp: new Date().toISOString(),
-          },
-        });
-      }
     },
-    [tenantId, missionId, getStageDuration, getNextStage]
+    [enqueueTelemetry, getNextStage]
   );
 
   const markStageFailed = useCallback(
     (stage: MissionStage, metadata?: Record<string, unknown>) => {
-      const duration = getStageDuration(stage);
-
       setStages((prev) => {
-        const next = new Map(prev);
-        const current = next.get(stage);
+        const current = prev.get(stage);
+        if (!current) {
+          return prev;
+        }
 
-        if (!current) return prev;
+        const now = new Date();
+        const startedAt = current.startedAt ?? now;
+        const duration = Math.max(0, now.getTime() - startedAt.getTime());
+        const next = new Map(prev);
 
         next.set(stage, {
           ...current,
           state: 'failed',
-          completedAt: new Date(),
+          completedAt: now,
           locked: true,
-          metadata: { ...current.metadata, ...metadata },
+          metadata: { ...current.metadata, ...(metadata ?? {}) },
+        });
+
+        enqueueTelemetry({
+          kind: 'failed',
+          stage,
+          timestamp: now.toISOString(),
+          duration,
+          metadata,
         });
 
         return next;
       });
-
-      // Emit failure telemetry
-      void sendTelemetryEvent(tenantId, {
-        eventName: `stage_${stage}_failed`,
-        missionId,
-        eventData: {
-          stage,
-          timestamp: new Date().toISOString(),
-          duration,
-          ...metadata,
-        },
-      });
     },
-    [tenantId, missionId, getStageDuration]
+    [enqueueTelemetry]
   );
+
+  useEffect(() => {
+    if (pendingTelemetryRef.current.length === 0) {
+      return;
+    }
+
+    const events = pendingTelemetryRef.current.splice(0, pendingTelemetryRef.current.length);
+
+    events.forEach((event) => {
+      if (event.kind === 'started') {
+        void sendTelemetryEvent(tenantId, {
+          eventName: `stage_${event.stage}_started`,
+          missionId,
+          eventData: {
+            stage: event.stage,
+            timestamp: event.timestamp,
+            ...(event.metadata ?? {}),
+          },
+        });
+      } else if (event.kind === 'completed') {
+        void sendTelemetryEvent(tenantId, {
+          eventName: `stage_${event.stage}_completed`,
+          missionId,
+          eventData: {
+            stage: event.stage,
+            timestamp: event.timestamp,
+            duration: event.duration,
+            ...(event.metadata ?? {}),
+          },
+        });
+      } else {
+        void sendTelemetryEvent(tenantId, {
+          eventName: `stage_${event.stage}_failed`,
+          missionId,
+          eventData: {
+            stage: event.stage,
+            timestamp: event.timestamp,
+            duration: event.duration,
+            ...(event.metadata ?? {}),
+          },
+        });
+      }
+    });
+  }, [stages, tenantId, missionId]);
 
   const contextValue = useMemo(
     () => ({
       stages,
-      currentStage,
+      currentStage: activeStage,
       markStageStarted,
       markStageCompleted,
       markStageFailed,
@@ -222,7 +315,7 @@ export function MissionStageProvider({
     }),
     [
       stages,
-      currentStage,
+      activeStage,
       markStageStarted,
       markStageCompleted,
       markStageFailed,
