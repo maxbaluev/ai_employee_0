@@ -716,135 +716,52 @@ Gate G-B delivers a structured workflow from intake to feedback:
   - **Evidence:** CI logs showing eval gate; build failure on regression; eval artifact upload.
   - **File references:** `.github/workflows/test-agent.yml`, CI eval task.
 
-### Supabase Schema & RLS Policy Refactoring
+### Supabase Schema Verification & In-Place Updates
 
 **Owner:** Data Engineer
 **References:** [architecture.md §3.4–§3.5](./architecture.md#34-supabase-data-plane), [workflow.md §10](./workflow.md#10-supabase-persistence-map), [libs_docs/supabase/llms_docs.txt](../libs_docs/supabase/llms_docs.txt)
 
-#### A. Schema Migration & Backfill
+> **Approach:** The Gate G-A/G-B schema, triggers, indexes, policies, functions, and analytics views all live in the consolidated migration `supabase/migrations/0001_init.sql`. When schema or policy work is required:
+> - edit the relevant section of `0001_init.sql` (and companion seeds/comments) in place
+> - regenerate types with `supabase gen types typescript --linked --schema public,storage,graphql_public >| supabase/types.ts`
+> - do **not** add new `00XX_*.sql` migrations
+> Runtime cron jobs and Edge Functions continue to live under `supabase/functions/` with schedules in `supabase/config.toml`.
 
-**Location:** `supabase/migrations/`, migration scripts
+#### A. Schema Verification & Telemetry Enhancements
 
-- [ ] **Add telemetry fields to plays table**: Backfill `latency_ms`, `success_score`, `tool_count`, `evidence_hash` columns per Gate G-B checklist.
-  - **Acceptance:** Migration adds columns with defaults; existing rows backfilled; no null constraint violations.
-  - **Evidence:** Migration diff; backfill script logs; schema validation query.
-  - **File references:** `supabase/migrations/00XX_add_plays_telemetry.sql`, backfill script.
+- [ ] **Verify/Update plays telemetry columns** (`0001_init.sql`, plays table block). Confirm `latency_ms`, `success_score`, `tool_count`, and `evidence_hash` exist with comments/defaults; add missing columns in place and backfill if needed.
+- [ ] **Verify/Update planner_runs telemetry table** (`0001_init.sql`, planner_runs block). Ensure schema, indexes (`idx_planner_runs_*`), and RLS mirror Gate G-B telemetry requirements.
+- [ ] **Verify/Update mission_feedback table** (`0001_init.sql`, mission_feedback block). Check rating/feedback/learning_signals fields, triggers, and indexes; extend if Stage 8 contract evolves.
+- [ ] **Verify/Update inspection_findings table** (`0001_init.sql`, inspection_findings block). Confirm coverage payload structure, indexes, and RLS; adjust for new inspection metadata.
+- [ ] **Verify/Update toolkit_selections table** (`0001_init.sql`, toolkit_selections block). Ensure selected_tools JSON schema, uniqueness, indexes, and RLS coverage; update comments/examples as palette model changes.
+- [ ] **Regenerate Supabase types** after any schema edits so the TypeScript client mirrors the updated definitions.
 
-- [ ] **Create planner_runs telemetry table**: Add table to store planner-specific telemetry (latency, similarity scores, candidate counts) per Gate G-B checklist.
-  - **Acceptance:** Table schema matches telemetry requirements; RLS policies restrict to owner + governance read-only; indexes on mission_id, created_at.
-  - **Evidence:** Table DDL; RLS policy tests; index performance verification.
-  - **File references:** `supabase/migrations/00XX_create_planner_runs.sql`, RLS policies.
+#### B. RLS Policy Verification & Governance Access
 
-- [ ] **Create mission_feedback table**: Add table for Stage 8 feedback (per-artifact ratings, mission feedback, learning signals) per ux.md §3.1.
-  - **Acceptance:** Schema includes mission_id, artifact_id, rating (1-5), feedback_text, learning_signals JSON; RLS policies allow user read/write.
-  - **Evidence:** Table DDL; sample feedback rows; RLS policy tests.
-  - **File references:** `supabase/migrations/00XX_create_mission_feedback.sql`.
+- [ ] **Review tenant-scoped RLS policies** (`0001_init.sql`, RLS section). Confirm objectives, mission_metadata, mission_safeguards, plays, tool_calls, approvals, artifacts, triggers, oauth_tokens, planner_runs, and feedback tables all enforce tenant isolation; patch policies in place if gaps are discovered.
+- [ ] **Plan governance read-only policies** (Gate G-C). Document the required SELECT policies for governance personas; when ready, add them directly to the RLS policy block in `0001_init.sql`.
+- [ ] **Validate oauth_tokens encryption** (`0001_init.sql`, oauth_tokens block) continues to align with `agent/services/oauth_service.py` helpers and pgcrypto columns; update column definitions or helper functions in the same migration if encryption strategy changes.
 
-- [ ] **Create inspection_findings table**: Store MCP inspection preview results (coverage percentage, gap highlights, validation status) per workflow.md §4.1.
-  - **Acceptance:** Schema includes mission_id, toolkit, coverage_pct, gaps JSON, status; linked to tool_calls.
-  - **Evidence:** Table DDL; sample inspection rows; foreign key constraints.
-  - **File references:** `supabase/migrations/00XX_create_inspection_findings.sql`.
+#### C. Analytics Views Verification & Updates
 
-- [ ] **Add toolkit_selections junction table**: Track user-curated toolkit palette selections (mission → toolkits many-to-many) per architecture.md §3.8.
-  - **Acceptance:** Junction table with mission_id, toolkit_slug, selected_at, params JSON; RLS policies; unique constraint on (mission_id, toolkit_slug).
-  - **Evidence:** Table DDL; junction table query tests; RLS enforcement.
-  - **File references:** `supabase/migrations/00XX_create_toolkit_selections.sql`.
-
-#### B. RLS Policy Hardening
-
-**Location:** `supabase/migrations/*_rls_policies.sql`
-
-- [ ] **Audit RLS policies across all tables**: Ensure all tables (objectives, mission_metadata, mission_safeguards, plays, tool_calls, approvals, artifacts, triggers, oauth_tokens) have RLS enabled and scoped to tenant/user per architecture.md §3.4.
-  - **Acceptance:** RLS enabled on all tables; policies restrict access via `auth.uid()` or tenant_id; cross-tenant access blocked.
-  - **Evidence:** RLS audit script output; cross-tenant access tests fail as expected; policy documentation.
-  - **File references:** `supabase/migrations/00XX_audit_rls_policies.sql`, `scripts/test_supabase_persistence.py --gate G-B`.
-
-- [ ] **Add governance read-only policies**: Create PostgREST policies for governance personas to read approvals, safeguard_events, mission_metadata without write access per Gate G-C checklist.
-  - **Acceptance:** Governance role can SELECT but not INSERT/UPDATE/DELETE on sensitive tables; role assignment documented.
-  - **Evidence:** Role creation script; policy tests; governance access audit.
-  - **File references:** `supabase/migrations/00XX_governance_readonly_policies.sql`.
-
-- [ ] **Encrypt oauth_tokens with ENCRYPTION_KEY**: Ensure token storage uses Supabase encryption or application-level encryption per architecture.md §3.3.
-  - **Acceptance:** Tokens encrypted at rest; ENCRYPTION_KEY env var required; decryption tested.
-  - **Evidence:** Encryption tests; key rotation documentation; encrypted token query.
-  - **File references:** `agent/services/oauth_service.py:encryptToken`, encryption key setup.
-
-#### C. Analytics Views & Materialized Views
-
-**Location:** `supabase/migrations/*_analytics_views.sql`
-
-- [ ] **Create analytics_generative_acceptance view**: Aggregate acceptance rates for brief fields (objective, audience, safeguards) per Gate G-B checklist.
-  - **Acceptance:** View calculates `brief_accept_rate`, `connection_accept_rate`, `average_regenerations_per_field` from mission_metadata; refresh nightly.
-  - **Evidence:** View DDL; sample query results; nightly refresh cron job.
-  - **File references:** `supabase/migrations/00XX_analytics_generative_acceptance.sql`, refresh job.
-
-- [ ] **Create analytics_connection_adoption view**: Track toolkit connection adoption (suggested vs accepted scopes, edit counts) per Gate G-B checklist.
-  - **Acceptance:** View aggregates from mission_safeguards where hint_type='toolkit_recommendation'; calculates adoption rate, edit frequency.
-  - **Evidence:** View DDL; adoption report queries; dashboard integration.
-  - **File references:** `supabase/migrations/00XX_analytics_connection_adoption.sql`.
-
-- [ ] **Create analytics_safeguard_feedback view**: Aggregate safeguard outcomes (auto-fixed, ask_reviewer, retry_later, send_anyway) per architecture.md §3.7.
-  - **Acceptance:** View counts by outcome type, calculates closure time, surfaces top hints by rejection rate; segmented by persona.
-  - **Evidence:** View DDL; safeguard feedback dashboard screenshot; persona segmentation query.
-  - **File references:** `supabase/migrations/00XX_analytics_safeguard_feedback.sql`.
-
-- [ ] **Create analytics_undo_success view**: Track undo request counts, success rates, latency percentiles per Gate G-B KPIs.
-  - **Acceptance:** View calculates undo success rate (≥95% target), p50/p95 undo latency, failure reasons.
-  - **Evidence:** View DDL; undo success report; failure reason breakdown.
-  - **File references:** `supabase/migrations/00XX_analytics_undo_success.sql`.
-
-- [ ] **Schedule nightly analytics refresh**: Implement pg_cron job or Edge Function to refresh materialized views per libs_docs/supabase §Cron.
-  - **Acceptance:** Cron job runs nightly at 2 AM UTC; refresh logs; stale data <24h old.
-  - **Evidence:** Cron job registration; execution logs; staleness monitoring.
-  - **File references:** `supabase/config.toml:cron_jobs`, refresh Edge Function.
+- [ ] **Check analytics_generative_acceptance view** (`0001_init.sql`, analytics views section). Update the SELECT if metric definitions move; ensure refresh strategy is documented.
+- [ ] **Check analytics_connection_adoption view** (same section). Confirm toolkit adoption calculations still match mission_safeguards schema; revise in place as needed.
+- [ ] **Check analytics_undo_success view** (same section). Validate undo KPIs remain accurate; adjust calculations for new undo telemetry.
+- [ ] **Scope upcoming safeguard feedback view** (Gate G-C). Capture requirements now; when ready, add the view definition to the analytics block in `0001_init.sql`.
+- [ ] **Define/verify view refresh cadence** (materialized vs standard). If materialized views are adopted, update the migration and schedule refresh via `supabase/config.toml`.
 
 #### D. Edge Functions & Cron Jobs
 
-**Location:** `supabase/functions/*`, `supabase/config.toml`
-
-- [ ] **Implement copilot_message_cleanup cron job**: Delete messages older than 7 days per Gate G-B checklist.
-  - **Acceptance:** Cron job runs daily; soft-deletes aged messages; respects governance exemptions; logs deleted count.
-  - **Evidence:** Cron job logs; retention audit CSV in `docs/readiness/message_retention_G-B.csv`; exemption tests.
-  - **File references:** `supabase/functions/cron/copilot_message_cleanup.sql`, exemption logic.
-
-- [ ] **Implement catalog-sync Edge Function**: Refresh Composio toolkit metadata nightly per architecture.md §3.4 and workflow.md dependencies.
-  - **Acceptance:** Function fetches toolkit list, updates cached metadata, logs sync timestamp; runs before planner evals.
-  - **Evidence:** Sync logs; metadata freshness checks; pre-eval dependency validation.
-  - **File references:** `supabase/functions/catalog-sync/index.ts`, sync schedule.
-
-- [ ] **Implement generate-embedding Edge Function**: Generate embeddings for library entries using open-source models per architecture.md §3.4.
-  - **Acceptance:** Function accepts text payload, generates embedding, stores in library_entries.embedding; latency <500ms p95.
-  - **Evidence:** Embedding generation tests; latency measurements; embedding dimension validation.
-  - **File references:** `supabase/functions/generate-embedding/index.ts`, embedding model setup.
-
-- [ ] **Implement safeguard_feedback_rollup cron job**: Aggregate safeguard events nightly for analytics per Gate G-C checklist.
-  - **Acceptance:** Job aggregates safeguard_events by hint_type, outcome; writes to analytics tables; logs processing time.
-  - **Evidence:** Rollup job logs; analytics table populated; processing time <5 min.
-  - **File references:** `supabase/functions/cron/safeguard_feedback_rollup.sql`.
-
-- [ ] **Implement trigger_consistency_job**: Nightly reconciliation of trigger_warehouse events vs tool_calls per workflow.md §9.
-  - **Acceptance:** Job compares trigger events to tool_calls, flags mismatches, auto-disables failed triggers after 3 consecutive failures.
-  - **Evidence:** Consistency report in `docs/readiness/trigger_warehouse_consistency_G-D.json`; auto-disable logs.
-  - **File references:** `supabase/functions/cron/trigger_consistency_job.sql`.
+- [ ] **Copilot message cleanup cron**: Keep `public.cleanup_copilot_messages` in `0001_init.sql` aligned with retention policy and schedule the job via `supabase/config.toml`; capture results in `docs/readiness/message_retention_G-B.csv`.
+- [ ] **catalog-sync Edge Function**: Maintain implementation in `supabase/functions/catalog-sync/` and its schedule; update docs when toolkit scope changes.
+- [ ] **generate-embedding Edge Function**: Ensure `supabase/functions/generate-embedding/` stays in sync with `library_entries` schema and embedding requirements.
+- [ ] **Safeguard feedback rollup** and **trigger consistency jobs** (Gate G-C/G-D) remain TODOs—implement as Edge Functions with schedules once requirements finalize.
 
 #### E. Database Performance & Indexing
 
-**Location:** `supabase/migrations/*_indexes.sql`
-
-- [ ] **Add pgvector indexes on library_entries**: Create IVFFlat or HNSW index on embedding column for fast similarity search per libs_docs/supabase vector guide.
-  - **Acceptance:** Index created with appropriate distance metric (cosine/L2); query latency <100ms for k=10 neighbors; index size monitored.
-  - **Evidence:** Index creation logs; query plan shows index usage; latency benchmarks.
-  - **File references:** `supabase/migrations/00XX_library_entries_vector_index.sql`, index tuning.
-
-- [ ] **Add composite indexes for common queries**: Index (mission_id, created_at), (user_id, status), (toolkit_slug, scopes) per query patterns.
-  - **Acceptance:** Indexes improve query performance (measured via EXPLAIN ANALYZE); no redundant indexes.
-  - **Evidence:** Query plan comparisons; index usage stats; performance improvement report.
-  - **File references:** `supabase/migrations/00XX_composite_indexes.sql`.
-
-- [ ] **Validate query performance**: Run `scripts/validate_supabase_queries.py` to ensure p95 latency <250ms for critical queries per Gate G-E checklist.
-  - **Acceptance:** All critical queries meet latency targets; slow query report generated; optimization recommendations documented.
-  - **Evidence:** Query performance report; slow query log; optimization plan.
-  - **File references:** `scripts/validate_supabase_queries.py`, performance baseline.
+- [ ] **Verify existing indexes** (`0001_init.sql`, index block). Ensure pgvector and composite indexes reflect current query patterns; adjust/add entries in the same section if new access patterns emerge.
+- [ ] **Profile query latency** using `scripts/validate_supabase_queries.py`; when additional indexes are required, append them to the index block in `0001_init.sql` and document the before/after performance.
+- [ ] **Document optimizations** (query plans, latency improvements) in readiness artifacts after each adjustment.
 
 ### Gate G-A Fallback Logic Cleanup
 
@@ -863,10 +780,10 @@ Gate G-B delivers a structured workflow from intake to feedback:
   - **Evidence:** UI component inventory; user testing video; accessibility audit.
   - **File references:** `src/components/*`, UI component library.
 
-- [ ] **Remove fallback database columns**: Drop any columns named `*_fallback`, `manual_override`, `skip_generation` from Supabase schema.
-  - **Acceptance:** Migration drops unused columns; no application code references dropped columns; zero data loss.
-  - **Evidence:** Migration DDL; grep shows no code references; data backup verified.
-  - **File references:** `supabase/migrations/00XX_drop_fallback_columns.sql`.
+- [ ] **Remove fallback database columns**: Remove any definitions named `*_fallback`, `manual_override`, `skip_generation` directly inside `supabase/migrations/0001_init.sql`.
+  - **Acceptance:** Consolidated migration no longer defines fallback columns; application code has no references; existing data migrated or backfilled as needed.
+  - **Evidence:** Updated migration diff; grep showing zero references; pre/post data snapshot.
+  - **File references:** `supabase/migrations/0001_init.sql`.
 
 #### B. Telemetry & Validation
 

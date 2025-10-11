@@ -5,6 +5,7 @@
 - Next.js control plane frontend lives under `src/app/(control-plane)` and mirrors the mission intake plus artifact gallery UX.
 - Gemini ADK FastAPI agent code resides in `agent/`; evaluation configs live in `agent/evals/` and CLI helpers in `scripts/`.
 - Supabase schema + functions are under `supabase/`; readiness evidence is tracked in `docs/readiness/` and long-form product material in `new_docs/`.
+- The repo uses a **single consolidated migration** (`supabase/migrations/0001_init.sql`). When schema or policy updates are required, edit that file (and related sections within it) directly instead of generating new migrations.
 
 ## Mise-First Setup
 
