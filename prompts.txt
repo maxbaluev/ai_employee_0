@@ -5,7 +5,6 @@
 
 /auto see on all files at /new_docs. After Understand current codebase and implement source code for Gate G-B — Code Refactoring & Cleanup Checkpoints. See /libs_docs when you need library knowledge
 
- after implementation run tests, fix errors in them and fill todo checkboxes. 
 
 /code Ok, now think deeper about data structures and data flows, do we need guardrail_policy_pack.md like this ? Can it be more generative?  also think about data flow, users wanna love it, so do we really need things like tonePolicy ? Make overall architecture more code effective and elegant, adapt all documents at /new_docs
 

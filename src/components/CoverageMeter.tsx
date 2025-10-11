@@ -2,10 +2,14 @@
 
 import { useCallback, useMemo, useState } from 'react';
 
+import { sendTelemetryEvent } from '@/lib/telemetry/client';
+
 type CoverageMeterProps = {
+  tenantId: string;
+  missionId: string | null;
   selectedToolkitsCount: number;
   hasArtifacts: boolean;
-  onComplete: () => void;
+  onComplete: (preview: Record<string, unknown>) => void;
 };
 
 type GapItem = {
@@ -30,6 +34,9 @@ function calculateReadiness(toolkitsCount: number, hasArtifacts: boolean): numbe
   // Cap between 0-100
   return Math.max(0, Math.min(100, readiness));
 }
+
+const READINESS_THRESHOLD = 85;
+const INSPECTION_FINDING_TYPE = 'coverage_preview';
 
 function generateGaps(readiness: number, toolkitsCount: number, hasArtifacts: boolean): GapItem[] {
   const gaps: GapItem[] = [];
@@ -82,6 +89,8 @@ function getReadinessTextColor(readiness: number): string {
 }
 
 export function CoverageMeter({
+  tenantId,
+  missionId,
   selectedToolkitsCount,
   hasArtifacts,
   onComplete,
@@ -99,18 +108,94 @@ export function CoverageMeter({
   );
 
   const handleRecordInspection = useCallback(async () => {
+    if (isRecording) {
+      return;
+    }
+
     setIsRecording(true);
 
-    // Simulate inspection recording delay
-    await new Promise((resolve) => setTimeout(resolve, 800));
+    const requestBody = {
+      missionId: missionId ?? null,
+      findingType: INSPECTION_FINDING_TYPE,
+      payload: {
+        selectedToolkitsCount,
+        hasArtifacts,
+      },
+      readiness,
+    };
 
-    setIsRecording(false);
-    onComplete();
-  }, [onComplete]);
+    try {
+      const response = await fetch('/api/inspect/preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody),
+      });
+
+      const previewPayload = (await response.json().catch(() => null)) as
+        | Record<string, unknown>
+        | null;
+      const preview =
+        previewPayload && typeof previewPayload === 'object' && !Array.isArray(previewPayload)
+          ? previewPayload
+          : {};
+      const responseReadiness =
+        typeof preview.readiness === 'number' ? (preview.readiness as number) : readiness;
+      const canProceed = responseReadiness >= READINESS_THRESHOLD;
+
+      await sendTelemetryEvent(tenantId, {
+        eventName: 'inspection_preview_rendered',
+        missionId: missionId ?? undefined,
+        eventData: {
+          readiness: responseReadiness,
+          selectedToolkitsCount,
+          hasArtifacts,
+          canProceed,
+        },
+      });
+
+      if (!response.ok) {
+        const errorMessage =
+          typeof preview?.error === 'string'
+            ? (preview.error as string)
+            : 'Failed to fetch inspection preview';
+        throw new Error(errorMessage);
+      }
+
+      if (canProceed) {
+        await sendTelemetryEvent(tenantId, {
+          eventName: 'coverage_ready',
+          missionId: missionId ?? undefined,
+          eventData: {
+            readiness: responseReadiness,
+            selectedToolkitsCount,
+            hasArtifacts,
+          },
+        });
+
+        onComplete({
+          ...preview,
+          readiness: responseReadiness,
+          canProceed,
+        });
+      }
+    } catch (error) {
+      console.error('Failed to record inspection preview', error);
+    } finally {
+      setIsRecording(false);
+    }
+  }, [
+    hasArtifacts,
+    isRecording,
+    missionId,
+    onComplete,
+    readiness,
+    selectedToolkitsCount,
+    tenantId,
+  ]);
 
   const readinessColor = getReadinessColor(readiness);
   const readinessTextColor = getReadinessTextColor(readiness);
-  const canProceed = readiness >= 85;
+  const canProceed = readiness >= READINESS_THRESHOLD;
 
   return (
     <section className="border-b border-white/10 px-6 py-6">

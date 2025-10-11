@@ -13,6 +13,12 @@ vi.mock('@/hooks/useTimelineEvents', () => ({
   useTimelineEvents: useTimelineEventsMock,
 }));
 
+const sendTelemetryEventMock = vi.hoisted(() => vi.fn());
+
+vi.mock('@/lib/telemetry/client', () => ({
+  sendTelemetryEvent: sendTelemetryEventMock,
+}));
+
 import { StreamingStatusPanel } from '../StreamingStatusPanel';
 
 const baseHookResult: UseTimelineEventsResult = {
@@ -40,6 +46,7 @@ describe('StreamingStatusPanel', () => {
 
   afterEach(() => {
     useTimelineEventsMock.mockReset();
+    sendTelemetryEventMock.mockReset();
     vi.restoreAllMocks();
   });
 
@@ -230,5 +237,293 @@ describe('StreamingStatusPanel', () => {
     ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Pause/i })).toBeDisabled();
     expect(screen.getByRole('button', { name: /Refresh/i })).toBeDisabled();
+  });
+
+  it('renders cancel control and fires onCancelSession when used', async () => {
+    useTimelineEventsMock.mockReturnValue({
+      ...baseHookResult,
+      events: [
+        {
+          id: 'evt-1',
+          createdAt: '2025-10-09T19:00:00.000Z',
+          stage: 'executor_status',
+          event: 'toolkit_simulation',
+          role: 'assistant',
+          label: 'Toolkit simulation',
+          description: 'Simulating sheets',
+          status: 'in_progress' as const,
+          rawContent: 'Simulating sheets toolkit',
+          metadata: { toolkit: 'sheets' },
+        },
+      ],
+      heartbeatSeconds: 3.2,
+    });
+
+    const onCancelSession = vi.fn();
+    const user = userEvent.setup();
+
+    render(
+      // @ts-expect-error Gate G-B: cancel control added in StreamingStatusPanel upgrade
+      <StreamingStatusPanel
+        tenantId={tenantId}
+        agentId={agentId}
+        sessionIdentifier={sessionIdentifier}
+        onCancelSession={onCancelSession}
+      />,
+    );
+
+    const cancelButton = await screen.findByRole('button', { name: /Cancel run/i });
+    expect(cancelButton).toBeEnabled();
+
+    await user.click(cancelButton);
+    expect(onCancelSession).toHaveBeenCalledTimes(1);
+  });
+
+  it('disables cancel control once the mission exits', async () => {
+    useTimelineEventsMock.mockReturnValue({
+      ...baseHookResult,
+      exitInfo: {
+        reason: 'completed',
+        stage: 'execution_loop_completed',
+        missionStatus: 'completed',
+        at: '2025-10-09T19:05:00.000Z',
+      },
+      events: [
+        {
+          id: 'evt-1',
+          createdAt: '2025-10-09T19:00:00.000Z',
+          stage: 'execution_loop_completed',
+          event: 'completed',
+          role: 'assistant',
+          label: 'Dry-run completed',
+          description: 'Completed after 1 attempt.',
+          status: 'complete' as const,
+          rawContent: 'Execution loop completed',
+          metadata: { attempts: 1 },
+        },
+      ],
+    });
+
+    render(
+      // @ts-expect-error Gate G-B: cancel control added in StreamingStatusPanel upgrade
+      <StreamingStatusPanel
+        tenantId={tenantId}
+        agentId={agentId}
+        sessionIdentifier={sessionIdentifier}
+        onCancelSession={vi.fn()}
+      />,
+    );
+
+    expect(
+      await screen.findByText(/Dry-run loop completed and timeline is archived/i),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Cancel run/i })).toBeDisabled();
+  });
+
+  it('shows retry control after exhaustion and fires onRetrySession', async () => {
+    useTimelineEventsMock.mockReturnValue({
+      ...baseHookResult,
+      exitInfo: {
+        reason: 'exhausted',
+        stage: 'execution_loop_exhausted',
+        missionStatus: 'exhausted',
+        at: '2025-10-09T19:10:00.000Z',
+      },
+      events: [
+        {
+          id: 'evt-1',
+          createdAt: '2025-10-09T19:10:00.000Z',
+          stage: 'execution_loop_exhausted',
+          event: 'exhausted',
+          role: 'assistant',
+          label: 'Execution halted',
+          description: 'Stopped after 3 attempts.',
+          status: 'warning' as const,
+          rawContent: 'Execution exhausted retry budget',
+          metadata: { attempts: 3 },
+        },
+      ],
+    });
+
+    const onRetrySession = vi.fn();
+    const user = userEvent.setup();
+
+    render(
+      // @ts-expect-error Gate G-B: retry control added in StreamingStatusPanel upgrade
+      <StreamingStatusPanel
+        tenantId={tenantId}
+        agentId={agentId}
+        sessionIdentifier={sessionIdentifier}
+        onRetrySession={onRetrySession}
+      />,
+    );
+
+    const retryButton = await screen.findByRole('button', { name: /Retry mission/i });
+    expect(retryButton).toBeEnabled();
+
+    await user.click(retryButton);
+    expect(onRetrySession).toHaveBeenCalledTimes(1);
+  });
+
+  it('surfaces reviewer handoff control and invokes callback with latest event', async () => {
+    const escalationEvent = {
+      id: 'evt-1',
+      createdAt: '2025-10-09T19:00:00.000Z',
+      stage: 'validator_reviewer_requested',
+      event: 'reviewer_requested',
+      role: 'assistant',
+      label: 'Reviewer attention required',
+      description: 'Validator escalated (ask_reviewer).',
+      status: 'warning' as const,
+      rawContent: 'Reviewer requested',
+      metadata: { status: 'ask_reviewer', attempt: 2, tool_call_id: 'tool-123' },
+    } satisfies UseTimelineEventsResult['events'][number];
+
+    useTimelineEventsMock.mockReturnValue({
+      ...baseHookResult,
+      events: [escalationEvent],
+    });
+
+    const onReviewerRequested = vi.fn();
+    const user = userEvent.setup();
+
+    render(
+      <StreamingStatusPanel
+        tenantId={tenantId}
+        agentId={agentId}
+        sessionIdentifier={sessionIdentifier}
+        onReviewerRequested={onReviewerRequested}
+      />,
+    );
+
+    const handoffButton = await screen.findByRole('button', {
+      name: /Reviewer handoff/i,
+    });
+    expect(handoffButton).toBeEnabled();
+
+    await user.click(handoffButton);
+
+    expect(onReviewerRequested).toHaveBeenCalledTimes(1);
+    expect(onReviewerRequested).toHaveBeenCalledWith(escalationEvent);
+  });
+
+  it('emits heartbeat telemetry with percentile payload', () => {
+    const heartbeatSeries = [
+      3.1,
+      3.8,
+      4.2,
+      5.0,
+      5.6,
+      6.4,
+      7.1,
+      8.9,
+      10.5,
+      12.7,
+    ];
+    let callIndex = 0;
+
+    useTimelineEventsMock.mockImplementation(() => {
+      const value = heartbeatSeries[Math.min(callIndex, heartbeatSeries.length - 1)];
+      callIndex += 1;
+      return {
+        ...baseHookResult,
+        heartbeatSeconds: value,
+        events: [
+          {
+            id: `evt-${callIndex}`,
+            createdAt: `2025-10-09T19:${callIndex.toString().padStart(2, '0')}:00.000Z`,
+            stage: 'executor_status',
+            event: 'heartbeat_tick',
+            role: 'assistant',
+            label: 'Streaming heartbeat',
+            description: 'Collecting heartbeat samples.',
+            status: 'in_progress' as const,
+            rawContent: 'tick',
+            metadata: {},
+          },
+        ],
+      } satisfies UseTimelineEventsResult;
+    });
+
+    const { rerender } = render(
+      <StreamingStatusPanel
+        tenantId={tenantId}
+        agentId={agentId}
+        sessionIdentifier={sessionIdentifier}
+      />,
+    );
+
+    for (let index = 1; index < heartbeatSeries.length; index += 1) {
+      rerender(
+        <StreamingStatusPanel
+          tenantId={tenantId}
+          agentId={agentId}
+          sessionIdentifier={sessionIdentifier}
+        />,
+      );
+    }
+
+    expect(sendTelemetryEventMock).toHaveBeenCalledWith(tenantId, {
+      eventName: 'streaming_heartbeat_metrics',
+      missionId: sessionIdentifier,
+      eventData: expect.objectContaining({
+        p50: expect.any(Number),
+        p95: expect.any(Number),
+        p99: expect.any(Number),
+        sampleSize: heartbeatSeries.length,
+      }),
+    });
+
+    const payload = sendTelemetryEventMock.mock.calls[0]?.[1]?.eventData as
+      | { p50: number; p95: number; p99: number }
+      | undefined;
+    expect(payload).toBeDefined();
+    expect(payload?.p50 ?? 0).toBeLessThanOrEqual(payload?.p95 ?? 0);
+    expect(payload?.p95 ?? 0).toBeLessThanOrEqual(payload?.p99 ?? 0);
+  });
+
+  it('indicates monitoring pause without cancelling the mission', async () => {
+    const refresh = vi.fn();
+    useTimelineEventsMock.mockReturnValue({
+      ...baseHookResult,
+      refresh,
+      heartbeatSeconds: 3.5,
+      events: [
+        {
+          id: 'evt-1',
+          createdAt: '2025-10-09T19:00:00.000Z',
+          stage: 'executor_status',
+          event: 'toolkit_simulation',
+          role: 'assistant',
+          label: 'Toolkit simulation',
+          description: 'Simulating sheets',
+          status: 'in_progress' as const,
+          rawContent: 'Simulating sheets toolkit',
+          metadata: { toolkit: 'sheets' },
+        },
+      ],
+    });
+
+    const user = userEvent.setup();
+
+    render(
+      <StreamingStatusPanel
+        tenantId={tenantId}
+        agentId={agentId}
+        sessionIdentifier={sessionIdentifier}
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: /Pause/i }));
+
+    expect(screen.getByText(/Monitoring paused/i)).toBeInTheDocument();
+    expect(useTimelineEventsMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({ enabled: false }),
+    );
+    expect(sendTelemetryEventMock).not.toHaveBeenCalledWith(
+      tenantId,
+      expect.objectContaining({ eventName: 'session_cancelled' }),
+    );
+    expect(refresh).not.toHaveBeenCalled();
   });
 });

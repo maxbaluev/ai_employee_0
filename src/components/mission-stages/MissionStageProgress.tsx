@@ -64,19 +64,16 @@ export function MissionStageProgress() {
           const status = stages.get(stage);
           if (!status) return null;
 
-          const isCurrent = stage === currentStage;
+    const isCurrent = stage === currentStage || status.state === 'active';
           const duration = getStageDuration(stage);
           const durationText = formatDuration(duration);
           const classes = getStateClasses(status.state, isCurrent);
           const badge = getStateBadge(status.state);
           const isLast = index === MISSION_STAGE_ORDER.length - 1;
 
-          return (
-            <li key={stage} className="flex items-center gap-2">
-              <div
-                className={`flex items-center gap-2 rounded-lg border px-3 py-2 transition ${classes}`}
-                aria-current={isCurrent ? 'step' : undefined}
-              >
+    return (
+      <li key={stage} className="flex items-center gap-2" aria-current={isCurrent ? 'step' : undefined}>
+        <div className={`flex items-center gap-2 rounded-lg border px-3 py-2 transition ${classes}`}>
                 <span
                   className="flex h-5 w-5 items-center justify-center text-xs font-bold"
                   aria-hidden="true"

@@ -69,39 +69,44 @@ export function MissionStageProvider({
 
   const markStageStarted = useCallback(
     (stage: MissionStage, metadata?: Record<string, unknown>) => {
+      let stageUpdated = false;
+
       setStages((prev) => {
-        const next = new Map(prev);
-        const current = next.get(stage);
-
-        if (!current) return prev;
-
-        // Don't restart completed or failed stages
-        if (current.state === 'completed' || current.state === 'failed') {
+        const current = prev.get(stage);
+        if (!current) {
           return prev;
         }
 
-        next.set(stage, {
+        if (current.state === 'failed' || current.state === 'completed') {
+          return prev;
+        }
+
+        const next = new Map(prev);
+        const updatedStage: MissionStageStatus = {
           ...current,
           state: 'active',
           startedAt: current.startedAt ?? new Date(),
           metadata: { ...current.metadata, ...metadata },
-        });
+        };
 
+        next.set(stage, updatedStage);
+        stageUpdated = true;
         return next;
       });
 
-      setCurrentStage(stage);
+      if (stageUpdated) {
+        setCurrentStage(stage);
 
-      // Emit telemetry
-      void sendTelemetryEvent(tenantId, {
-        eventName: `stage_${stage}_started`,
-        missionId,
-        eventData: {
-          stage,
-          timestamp: new Date().toISOString(),
-          ...metadata,
-        },
-      });
+        void sendTelemetryEvent(tenantId, {
+          eventName: `stage_${stage}_started`,
+          missionId,
+          eventData: {
+            stage,
+            timestamp: new Date().toISOString(),
+            ...metadata,
+          },
+        });
+      }
     },
     [tenantId, missionId]
   );
@@ -128,11 +133,11 @@ export function MissionStageProvider({
         const nextStage = getNextStage(stage);
         if (nextStage) {
           const nextStatus = next.get(nextStage);
-          if (nextStatus && nextStatus.state === 'pending') {
+          if (nextStatus && nextStatus.state !== 'failed') {
             next.set(nextStage, {
               ...nextStatus,
               state: 'active',
-              startedAt: now,
+              startedAt: nextStatus.startedAt ?? now,
             });
             setCurrentStage(nextStage);
           }

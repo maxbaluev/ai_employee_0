@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 
 import { useTimelineEvents } from '@/hooks/useTimelineEvents';
 
 import type { TimelineMessage } from '@/hooks/useTimelineEvents';
+import { sendTelemetryEvent } from '@/lib/telemetry/client';
 
 export type PlannerRunRow = Record<string, unknown>;
 
@@ -28,6 +29,14 @@ type PlannerCandidate = {
   candidateIndex: number;
   mode: string;
   reasonMarkdown?: string;
+};
+
+type PlannerStats = {
+  latencyMs?: number;
+  candidateCount?: number;
+  similarity?: number;
+  objective?: string;
+  primaryToolkits?: string[];
 };
 
 const AGENT_ID = 'control_plane_foundation';
@@ -64,7 +73,9 @@ export function PlannerInsightRail({
     };
   }, [events]);
 
-  const stats = useMemo(() => {
+  const lastTelemetryEventIdRef = useRef<string | null>(null);
+
+  const stats = useMemo<PlannerStats>(() => {
     const telemetryRow = plannerRuns[0] ?? {};
     const metadata = typeof telemetryRow.metadata === 'object' && telemetryRow.metadata !== null ? telemetryRow.metadata : {};
 
@@ -83,19 +94,65 @@ export function PlannerInsightRail({
       telemetryRow.embedding_similarity_avg,
     ]);
 
+    const primaryToolkits = pickStringArray([
+      rankEvent?.metadata?.primary_toolkits,
+      telemetryRow.primary_toolkits,
+    ]);
+
+    const objective = typeof metadata.objective === 'string' ? metadata.objective : undefined;
+
     return {
       latencyMs,
       candidateCount,
       similarity,
-      objective: typeof metadata.objective === 'string' ? metadata.objective : undefined,
+      primaryToolkits,
+      objective,
     };
   }, [plannerRuns, rankEvent]);
 
+  useEffect(() => {
+    if (!rankEvent) {
+      return;
+    }
+
+    if (lastTelemetryEventIdRef.current === rankEvent.id) {
+      return;
+    }
+
+    lastTelemetryEventIdRef.current = rankEvent.id;
+
+    const { latencyMs, candidateCount, similarity, primaryToolkits } = stats;
+    const eventMetadata =
+      typeof rankEvent.metadata === 'object' && rankEvent.metadata !== null
+        ? (rankEvent.metadata as Record<string, unknown>)
+        : {};
+
+    void sendTelemetryEvent(tenantId, {
+      eventName: 'planner_metrics_recorded',
+      missionId,
+      eventData: {
+        latency_ms: latencyMs ?? null,
+        candidate_count: candidateCount ?? null,
+        embedding_similarity_avg: similarity ?? null,
+        primary_toolkits: primaryToolkits ?? [],
+        metadata: eventMetadata,
+      },
+    });
+  }, [rankEvent, stats, tenantId, missionId]);
+
   if (!candidates.length) {
     return (
-      <section className="border-b border-white/10 px-6 py-6">
-        <h2 className="text-lg font-semibold text-white">Planner insight</h2>
-        <p className="mt-2 text-sm text-slate-300">Planner is ranking plays</p>
+      <section className="border-b border-white/10 px-6 py-6 space-y-4">
+        <header className="flex items-start justify-between gap-4">
+          <div>
+            <h2 className="text-lg font-semibold text-white">Planner insight</h2>
+            <p className="mt-2 text-sm text-slate-300">Planner is ranking plays</p>
+            {plannerRuns.length > 0 && (
+              <p className="mt-1 text-xs text-slate-500">Displaying the most recent planner telemetry while we wait for live updates.</p>
+            )}
+          </div>
+          <StatsSummary stats={stats} />
+        </header>
       </section>
     );
   }
@@ -109,18 +166,7 @@ export function PlannerInsightRail({
             Review the top-ranked play and proceed to dry-run execution.
           </p>
         </div>
-        <div className="text-right text-xs text-slate-300">
-          {typeof stats.latencyMs === 'number' && (
-            <p>
-              Planner latency: <strong>{formatLatency(stats.latencyMs)}</strong>
-            </p>
-          )}
-          {typeof stats.candidateCount === 'number' && (
-            <p>
-              {stats.candidateCount} {stats.candidateCount === 1 ? 'candidate' : 'candidates'}
-            </p>
-          )}
-        </div>
+        <StatsSummary stats={stats} align="right" />
       </header>
 
       {candidates.map((candidate) => (
@@ -226,6 +272,44 @@ function pickNumber(values: Array<unknown>): number | undefined {
     }
   }
   return undefined;
+}
+
+function pickStringArray(values: Array<unknown>): string[] | undefined {
+  for (const value of values) {
+    if (Array.isArray(value)) {
+      const cleaned = value.filter((item): item is string => typeof item === 'string' && item.length > 0);
+      if (cleaned.length > 0) {
+        return cleaned;
+      }
+    }
+  }
+  return undefined;
+}
+
+function StatsSummary({ stats, align = 'left' }: { stats: PlannerStats; align?: 'left' | 'right' }) {
+  const { latencyMs, candidateCount, similarity } = stats;
+
+  if (latencyMs === undefined && candidateCount === undefined && similarity === undefined) {
+    return null;
+  }
+
+  return (
+    <div className={`text-xs text-slate-300 space-y-1 ${align === 'right' ? 'text-right' : 'text-left'}`}>
+      {typeof latencyMs === 'number' && (
+        <p>
+          Planner latency: <strong>{formatLatency(latencyMs)}</strong>
+        </p>
+      )}
+      {typeof candidateCount === 'number' && (
+        <p>
+          {candidateCount} {candidateCount === 1 ? 'candidate' : 'candidates'}
+        </p>
+      )}
+      {typeof similarity === 'number' && (
+        <p>Avg similarity: {similarity.toFixed(2)}</p>
+      )}
+    </div>
+  );
 }
 
 function ReasonSection({ markdown }: { markdown: string }) {

@@ -270,6 +270,126 @@ create table public.safeguard_events (
 );
 
 -- ------------------------------------------------------------------
+-- Mission feedback (Gate G-B)
+-- ------------------------------------------------------------------
+
+create table public.mission_feedback (
+  id uuid primary key default gen_random_uuid(),
+  mission_id uuid not null references public.objectives(id) on delete cascade,
+  tenant_id uuid not null references auth.users(id),
+  artifact_id uuid references public.artifacts(id) on delete set null,
+  reviewer_id uuid references auth.users(id),
+  rating integer check (rating >= 1 and rating <= 5),
+  feedback_text text,
+  learning_signals jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default timezone('utc', now()),
+  updated_at timestamptz not null default timezone('utc', now())
+);
+
+comment on table public.mission_feedback is 'User feedback and ratings for mission outcomes with learning signals';
+comment on column public.mission_feedback.rating is 'User rating from 1 (poor) to 5 (excellent)';
+comment on column public.mission_feedback.feedback_text is 'Free-form textual feedback from user';
+comment on column public.mission_feedback.learning_signals is 'Structured signals for model fine-tuning and improvement';
+
+create trigger trg_mission_feedback_updated_at
+before update on public.mission_feedback
+for each row execute function public.touch_updated_at();
+
+create index mission_feedback_mission_id_idx on public.mission_feedback(mission_id);
+create index mission_feedback_tenant_idx on public.mission_feedback(tenant_id);
+create index mission_feedback_artifact_idx on public.mission_feedback(artifact_id);
+create index mission_feedback_rating_idx on public.mission_feedback(rating);
+create index mission_feedback_created_at_idx on public.mission_feedback(created_at desc);
+
+alter table public.mission_feedback enable row level security;
+
+create policy "Tenant scoped read" on public.mission_feedback
+  for select using (tenant_id = auth.uid());
+
+create policy "Tenant scoped write" on public.mission_feedback
+  for insert with check (tenant_id = auth.uid());
+
+create policy "Tenant scoped update" on public.mission_feedback
+  for update using (tenant_id = auth.uid()) with check (tenant_id = auth.uid());
+
+create policy "Tenant scoped delete" on public.mission_feedback
+  for delete using (tenant_id = auth.uid());
+
+-- ------------------------------------------------------------------
+-- Toolkit selections (Stage 3 persistence)
+-- ------------------------------------------------------------------
+
+create table public.toolkit_selections (
+  id uuid primary key default gen_random_uuid(),
+  tenant_id uuid not null references auth.users(id),
+  mission_id uuid not null references public.objectives(id) on delete cascade,
+  selected_tools jsonb not null default '[]'::jsonb,
+  rationale text,
+  created_at timestamptz not null default timezone('utc', now())
+);
+
+comment on table public.toolkit_selections is 'Mission-level toolkit selections and rationale for recommended palette';
+comment on column public.toolkit_selections.selected_tools is 'Array of selected toolkit identifiers and metadata';
+
+create index toolkit_selections_mission_created_idx
+  on public.toolkit_selections (mission_id, created_at desc);
+
+create index toolkit_selections_tenant_created_idx
+  on public.toolkit_selections (tenant_id, created_at);
+
+alter table public.toolkit_selections enable row level security;
+
+create policy "Tenant select toolkit selections"
+  on public.toolkit_selections
+  for select
+  using (tenant_id = auth.uid());
+
+create policy "Tenant insert toolkit selections"
+  on public.toolkit_selections
+  for insert
+  with check (tenant_id = auth.uid());
+
+-- TODO: Regenerate Supabase types after adding toolkit_selections table
+
+-- ------------------------------------------------------------------
+-- Inspection findings (Stage 4 readiness)
+-- ------------------------------------------------------------------
+
+create table public.inspection_findings (
+  id uuid primary key default gen_random_uuid(),
+  tenant_id uuid not null references auth.users(id),
+  mission_id uuid not null references public.objectives(id) on delete cascade,
+  finding_type text,
+  payload jsonb not null default '{}'::jsonb,
+  readiness integer check (readiness >= 0 and readiness <= 100),
+  created_at timestamptz not null default timezone('utc', now())
+);
+
+comment on table public.inspection_findings is 'Inspection previews and readiness findings generated prior to execution';
+comment on column public.inspection_findings.finding_type is 'Classifier for inspection finding (coverage_gap, freshness, authorization, etc.)';
+comment on column public.inspection_findings.payload is 'Structured inspection payload (counts, evidence references, gaps)';
+
+create index inspection_findings_mission_created_idx
+  on public.inspection_findings (mission_id, created_at desc);
+
+create index inspection_findings_tenant_created_idx
+  on public.inspection_findings (tenant_id, created_at);
+
+alter table public.inspection_findings enable row level security;
+
+create policy "Tenant select inspection findings"
+  on public.inspection_findings
+  for select
+  using (tenant_id = auth.uid());
+
+create policy "Tenant insert inspection findings"
+  on public.inspection_findings
+  for insert
+  with check (tenant_id = auth.uid());
+
+-- TODO: Regenerate Supabase types after adding inspection_findings table
+
+-- ------------------------------------------------------------------
 -- CopilotKit persistence
 -- ------------------------------------------------------------------
 
@@ -310,6 +430,57 @@ comment on column public.copilot_messages.payload_type is 'Message payload class
 comment on column public.copilot_messages.latency_ms is 'Latency between agent emission and persistence in milliseconds';
 comment on column public.copilot_messages.telemetry_event_ids is 'Linked telemetry events for quick reconciliation';
 comment on column public.copilot_messages.soft_deleted_at is 'Soft delete timestamp for retention job';
+
+-- ------------------------------------------------------------------
+-- OAuth credential vault (Stage 3 integrations)
+-- ------------------------------------------------------------------
+
+create table public.oauth_tokens (
+  id uuid primary key default gen_random_uuid(),
+  tenant_id uuid not null references auth.users(id),
+  provider text not null,
+  connection_id text not null,
+  access_token_ciphertext text not null,
+  refresh_token_ciphertext text,
+  token_fingerprint text not null,
+  expires_at timestamptz,
+  scope text[] not null default array[]::text[],
+  metadata jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default timezone('utc', now()),
+  updated_at timestamptz not null default timezone('utc', now())
+);
+
+comment on table public.oauth_tokens is 'Encrypted OAuth tokens scoped per tenant and provider.';
+comment on column public.oauth_tokens.access_token_ciphertext is 'AES-GCM encrypted access token stored as base64 url-safe text.';
+comment on column public.oauth_tokens.refresh_token_ciphertext is 'AES-GCM encrypted refresh token stored as base64 url-safe text.';
+comment on column public.oauth_tokens.token_fingerprint is 'SHA-256 fingerprint of the decrypted access token for rotation tracking.';
+
+create trigger trg_oauth_tokens_updated_at
+before update on public.oauth_tokens
+for each row execute function public.touch_updated_at();
+
+create unique index oauth_tokens_tenant_provider_connection_uq
+  on public.oauth_tokens (tenant_id, provider, connection_id);
+
+create index oauth_tokens_provider_idx on public.oauth_tokens(provider);
+create index oauth_tokens_tenant_idx on public.oauth_tokens(tenant_id);
+create index oauth_tokens_expiry_idx on public.oauth_tokens(expires_at);
+
+alter table public.oauth_tokens enable row level security;
+
+create policy "Tenant scoped read" on public.oauth_tokens
+  for select using (tenant_id = auth.uid());
+
+create policy "Tenant scoped write" on public.oauth_tokens
+  for insert with check (tenant_id = auth.uid());
+
+create policy "Tenant scoped update" on public.oauth_tokens
+  for update using (tenant_id = auth.uid()) with check (tenant_id = auth.uid());
+
+create policy "Tenant scoped delete" on public.oauth_tokens
+  for delete using (tenant_id = auth.uid());
+
+-- TODO: Regenerate Supabase types after applying OAuth credential changes
 
 -- ------------------------------------------------------------------
 -- Planner runs telemetry (Gate G-B)

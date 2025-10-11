@@ -38,9 +38,11 @@
 - Supabase local stack:
   ```bash
   supabase start
+  supabase db reset --seed supabase/seed.sql
+  # or, for iterative changes
   supabase db push --file supabase/migrations/0001_init.sql
   ```
-  Update readiness artifacts in `docs/readiness/` after applying migrations.
+  `0001_init.sql` now contains the full schema (feedback, toolkit selections, inspection findings, OAuth tokens). Regenerate Supabase types after schema edits via `supabase gen types typescript --linked`. Update readiness artifacts in `docs/readiness/` after applying migrations.
 
 ## Testing & Quality Gates
 - UI unit/integration tests: `pnpm run test:ui`
@@ -60,7 +62,7 @@
 - `agent/agents/control_plane.py` — mission tools exposed to the UI.
 - `agent/runtime/app.py` — FastAPI factory consumed by scripts/tests.
 - `scripts/test_supabase_persistence.py` & `scripts/test_copilotkit_persistence.py` — targeted persistence smoke tests.
-- `supabase/migrations/0001_init.sql` — baseline schema for Gate G-A foundation.
+- `supabase/migrations/0001_init.sql` — consolidated schema (missions, feedback, toolkit selections, inspection findings, OAuth tokens).
 
 ## Troubleshooting
 - Missing toolchain warnings mean `mise install` has not been run; rehydrate before debugging.

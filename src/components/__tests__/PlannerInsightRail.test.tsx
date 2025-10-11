@@ -8,9 +8,14 @@ import { makePlannerCandidateEvent, makePlannerRankCompleteEvent, makePlannerTel
 import type { UseTimelineEventsResult } from '@/hooks/useTimelineEvents';
 
 const useTimelineEventsMock = vi.hoisted(() => vi.fn<[], UseTimelineEventsResult>());
+const sendTelemetryEventMock = vi.hoisted(() => vi.fn());
 
 vi.mock('@/hooks/useTimelineEvents', () => ({
   useTimelineEvents: useTimelineEventsMock,
+}));
+
+vi.mock('@/lib/telemetry/client', () => ({
+  sendTelemetryEvent: sendTelemetryEventMock,
 }));
 
 // Lazy import to ensure mocks are applied first.
@@ -34,6 +39,7 @@ describe('PlannerInsightRail', () => {
 
   beforeEach(() => {
     useTimelineEventsMock.mockReturnValue(baseHookResult);
+    sendTelemetryEventMock.mockReset();
   });
 
   it('renders ranked plays from planner timeline + telemetry and surfaces rationale', async () => {
@@ -127,5 +133,56 @@ describe('PlannerInsightRail', () => {
     expect(
       screen.queryByRole('button', { name: /Select this plan/i }),
     ).not.toBeInTheDocument();
+  });
+
+  it('emits planner metrics telemetry when rank events stream in', async () => {
+    useTimelineEventsMock.mockReturnValue({
+      ...baseHookResult,
+      events: [makePlannerRankCompleteEvent()],
+    });
+
+    render(
+      <PlannerInsightRail
+        tenantId={tenantId}
+        missionId={missionId}
+        sessionIdentifier={sessionIdentifier}
+        plannerRuns={[]}
+        onSelectPlay={vi.fn()}
+        onStageAdvance={vi.fn()}
+      />,
+    );
+
+    expect(sendTelemetryEventMock).toHaveBeenCalledWith(tenantId, {
+      eventName: 'planner_metrics_recorded',
+      missionId,
+      eventData: expect.objectContaining({
+        latency_ms: 1850,
+        candidate_count: 3,
+        embedding_similarity_avg: 0.68,
+        primary_toolkits: ['hubspot', 'gmail'],
+      }),
+    });
+  });
+
+  it('renders fallback planner stats from stored runs when timeline is empty', async () => {
+    useTimelineEventsMock.mockReturnValue({
+      ...baseHookResult,
+      events: [],
+    });
+
+    render(
+      <PlannerInsightRail
+        tenantId={tenantId}
+        missionId={missionId}
+        sessionIdentifier={sessionIdentifier}
+        plannerRuns={[makePlannerTelemetryRow()]}
+        onSelectPlay={vi.fn()}
+        onStageAdvance={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText(/Planner latency:/i)).toHaveTextContent('1.85s');
+    expect(screen.getByText(/3 candidates/i)).toBeInTheDocument();
+    expect(screen.getByText(/Avg similarity:/i)).toHaveTextContent('0.68');
   });
 });

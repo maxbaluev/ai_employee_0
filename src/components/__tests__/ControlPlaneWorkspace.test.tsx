@@ -1,7 +1,8 @@
 /// <reference types="vitest" />
 
-import { render, screen, within, waitFor } from '@testing-library/react';
+import { act, render, screen, within, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { MissionStage, MissionStageProvider, useMissionStages } from '@/components/mission-stages';
 
 vi.mock('@copilotkit/react-core', () => ({
   useCopilotReadable: vi.fn(),
@@ -55,13 +56,21 @@ const recommendedToolkitsMock = vi.hoisted(() =>
 );
 
 const coverageMeterMock = vi.hoisted(() =>
-  vi.fn((props: { onComplete: () => void }) => (
-    <section aria-label="Mock Coverage Meter">
-      <button type="button" onClick={props.onComplete}>
-        Complete Inspection
-      </button>
-    </section>
-  )),
+  vi.fn(
+    (props: {
+      tenantId: string;
+      missionId: string | null;
+      selectedToolkitsCount: number;
+      hasArtifacts: boolean;
+      onComplete: () => void;
+    }) => (
+      <section aria-label="Mock Coverage Meter">
+        <button type="button" onClick={props.onComplete}>
+          Complete Inspection
+        </button>
+      </section>
+    ),
+  ),
 );
 
 const plannerSelectSpy = vi.fn();
@@ -107,22 +116,180 @@ vi.mock('@/components/CoverageMeter', () => ({
   CoverageMeter: coverageMeterMock,
 }));
 
-vi.mock('@/components/StreamingStatusPanel', () => ({
-  StreamingStatusPanel: () => <aside aria-label="Mock Streaming Panel" />,
-}));
+type MockStreamingStatusPanelProps = {
+  tenantId: string;
+  agentId: string;
+  sessionIdentifier: string | null | undefined;
+  pollIntervalMs?: number;
+  onReviewerRequested?: (event: unknown) => void;
+  onPlanComplete?: () => void;
+  onDryRunComplete?: () => void;
+};
+
+const streamingStatusPanelPropsRef = vi.hoisted(
+  () => ({ current: null as MockStreamingStatusPanelProps | null }),
+);
+
+vi.mock('@/components/StreamingStatusPanel', () => {
+  const StreamingStatusPanel = (props: MockStreamingStatusPanelProps) => {
+    streamingStatusPanelPropsRef.current = props;
+    return <aside aria-label="Mock Streaming Panel" />;
+  };
+
+  return { StreamingStatusPanel };
+});
 
 vi.mock('@/components/PlannerInsightRail', () => ({
   PlannerInsightRail: plannerInsightMock,
 }));
+
+type MockFeedbackSubmission = {
+  rating: number | null;
+  comment: string;
+};
+
+type MockFeedbackDrawerProps = {
+  tenantId: string;
+  missionId: string | null;
+  currentStage: MissionStage;
+  isOpen: boolean;
+  selectedRating: number | null;
+  onOpenChange?: (open: boolean) => void;
+  onRatingChange?: (rating: number | null) => void;
+  onSubmit?: (payload: MockFeedbackSubmission) => void;
+};
+
+const feedbackDrawerPropsRef = vi.hoisted(
+  () => ({ current: null as MockFeedbackDrawerProps | null }),
+);
+
+vi.mock(
+  '@/components/FeedbackDrawer',
+  () => {
+    const React = require('react') as typeof import('react');
+    const { useEffect, useRef, useState } = React;
+
+    const FeedbackDrawer = (props: MockFeedbackDrawerProps) => {
+      feedbackDrawerPropsRef.current = props;
+
+      const [comment, setComment] = useState('');
+      const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+      // eslint-disable-next-line no-console
+      useEffect(() => {
+        if (props.isOpen && textareaRef.current) {
+          textareaRef.current.focus();
+        }
+      }, [props.isOpen]);
+
+      const canRenderTrigger = props.currentStage === MissionStage.Evidence;
+
+      return (
+        <>
+          {canRenderTrigger ? (
+            <button
+              type="button"
+              onClick={() => props.onOpenChange?.(true)}
+            >
+              Open Feedback Drawer
+            </button>
+          ) : null}
+
+          {props.isOpen ? (
+            <aside
+              role="dialog"
+              aria-label="Feedback Drawer"
+              onKeyDown={(event) => {
+                if (event.key === 'Escape') {
+                  props.onOpenChange?.(false);
+                }
+              }}
+            >
+              <div aria-label="Mission feedback rating">
+                {[1, 2, 3, 4, 5].map((score) => (
+                  <button
+                    key={score}
+                    type="button"
+                    aria-label={`Rate mission ${score}`}
+                    data-selected={props.selectedRating === score || undefined}
+                    onClick={() => props.onRatingChange?.(score)}
+                  >
+                    {score}
+                  </button>
+                ))}
+              </div>
+              <textarea
+                aria-label="Mission feedback comments"
+                ref={textareaRef}
+                value={comment}
+                onChange={(event) => setComment(event.target.value)}
+              />
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  aria-label="Close feedback drawer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    props.onSubmit?.({ rating: props.selectedRating, comment });
+                    props.onOpenChange?.(false);
+                  }}
+                >
+                  Send Feedback
+                </button>
+              </div>
+            </aside>
+          ) : null}
+        </>
+      );
+    };
+
+    return { FeedbackDrawer };
+  },
+  { virtual: true },
+);
 
 const fetchMock = vi.fn();
 
 beforeEach(() => {
   telemetryMock.mockReset();
   plannerSelectSpy.mockReset();
+  feedbackDrawerPropsRef.current = null;
+  streamingStatusPanelPropsRef.current = null;
 
-  fetchMock.mockImplementation((input: RequestInfo | URL) => {
+  fetchMock.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
     const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
+
+    if (url.includes('/api/feedback/submit')) {
+      let parsedBody: Record<string, unknown> = {};
+      if (init && typeof init.body === 'string') {
+        try {
+          parsedBody = JSON.parse(init.body) as Record<string, unknown>;
+        } catch (error) {
+          // eslint-disable-next-line no-console
+          console.warn('Failed to parse feedback payload in test mock', error);
+        }
+      }
+
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            feedback: {
+              id: 'feedback-001',
+              missionId: parsedBody.missionId ?? null,
+              rating: parsedBody.rating ?? null,
+            },
+          }),
+          {
+            status: 201,
+            headers: { 'Content-Type': 'application/json' },
+          },
+        ),
+      );
+    }
 
     if (url.includes('/api/copilotkit/session')) {
       return Promise.resolve(
@@ -171,6 +338,63 @@ function getStageNode(label: string) {
   return (activeContainer as HTMLElement | null) ?? match;
 }
 
+async function advanceToEvidenceStage(user: ReturnType<typeof userEvent.setup>) {
+  await advanceToPlanStage(user);
+  await user.click(screen.getByRole('button', { name: /Select Planner Play/i }));
+
+  await waitFor(() => {
+    expect(streamingStatusPanelPropsRef.current?.onDryRunComplete).toBeDefined();
+  });
+
+  act(() => {
+    streamingStatusPanelPropsRef.current?.onPlanComplete?.();
+  });
+
+  act(() => {
+    streamingStatusPanelPropsRef.current?.onDryRunComplete?.();
+  });
+
+  await waitFor(() => {
+    expect(within(getStageNode('Dry Run')).getByText('✓')).toBeInTheDocument();
+  });
+
+  await waitFor(() => {
+    expect(getStageNode('Evidence').getAttribute('aria-current')).toBe('step');
+  });
+}
+
+async function advanceToPlanStage(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(screen.getByRole('button', { name: /Complete Intake/i }));
+  await user.click(screen.getByRole('button', { name: /Save Toolkit Selections/i }));
+  await user.click(screen.getByRole('button', { name: /Complete Inspection/i }));
+
+  await waitFor(() => {
+    expect(getStageNode('Plan').getAttribute('aria-current')).toBe('step');
+  });
+}
+
+function StageFailureHarness({
+  stage,
+  metadata,
+}: {
+  stage: MissionStage;
+  metadata?: Record<string, unknown>;
+}) {
+  const { markStageStarted, markStageFailed, stages } = useMissionStages();
+
+  return (
+    <div>
+      <button type="button" onClick={() => markStageStarted(stage)}>
+        Start Stage
+      </button>
+      <button type="button" onClick={() => markStageFailed(stage, metadata)}>
+        Fail Stage
+      </button>
+      <div data-testid="failure-state">{stages.get(stage)?.state ?? 'unknown'}</div>
+    </div>
+  );
+}
+
 describe('ControlPlaneWorkspace stage 5 flow', () => {
   const tenantId = '00000000-0000-0000-0000-000000000000';
 
@@ -209,6 +433,22 @@ describe('ControlPlaneWorkspace stage 5 flow', () => {
     await waitFor(() => {
       expect(getStageNode('Plan').getAttribute('aria-current')).not.toBe('step');
     });
+
+    const dryRunStage = getStageNode('Dry Run');
+    expect(dryRunStage).toHaveAttribute('aria-current', 'step');
+    expect(within(dryRunStage).queryByText('✓')).not.toBeInTheDocument();
+
+    const evidenceStage = getStageNode('Evidence');
+    expect(evidenceStage.getAttribute('aria-current')).not.toBe('step');
+
+    await waitFor(() => {
+      expect(streamingStatusPanelPropsRef.current?.onDryRunComplete).toBeDefined();
+    });
+
+    act(() => {
+      streamingStatusPanelPropsRef.current?.onDryRunComplete?.();
+    });
+
     await waitFor(() => {
       expect(within(getStageNode('Dry Run')).getByText('✓')).toBeInTheDocument();
     });
@@ -228,6 +468,259 @@ describe('ControlPlaneWorkspace stage 5 flow', () => {
         }),
       }),
     );
+  });
+});
+
+describe('ControlPlaneWorkspace Gate G-B gating', () => {
+  const tenantId = '00000000-0000-0000-0000-000000000000';
+
+  it('keeps Dry Run active (not completed) immediately after plan selection', async () => {
+    const user = userEvent.setup();
+
+    render(
+      <ControlPlaneWorkspace
+        tenantId={tenantId}
+        initialObjectiveId={null}
+        initialArtifacts={[]}
+        catalogSummary={null}
+      />,
+    );
+
+    await advanceToPlanStage(user);
+    await user.click(screen.getByRole('button', { name: /Select Planner Play/i }));
+
+    const dryRunStage = getStageNode('Dry Run');
+    await waitFor(() => {
+      expect(dryRunStage).toHaveAttribute('aria-current', 'step');
+    });
+
+    expect(within(dryRunStage).queryByText('✓')).not.toBeInTheDocument();
+
+    const evidenceStage = getStageNode('Evidence');
+    expect(evidenceStage.getAttribute('aria-current')).not.toBe('step');
+  });
+
+  it('completes Dry Run only after StreamingStatusPanel exit callback is invoked', async () => {
+    const user = userEvent.setup();
+
+    render(
+      <ControlPlaneWorkspace
+        tenantId={tenantId}
+        initialObjectiveId={null}
+        initialArtifacts={[]}
+        catalogSummary={null}
+      />,
+    );
+
+    await advanceToPlanStage(user);
+    await user.click(screen.getByRole('button', { name: /Select Planner Play/i }));
+
+    const dryRunStage = getStageNode('Dry Run');
+    await waitFor(() => {
+      expect(dryRunStage).toHaveAttribute('aria-current', 'step');
+    });
+
+    expect(within(dryRunStage).queryByText('✓')).not.toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(streamingStatusPanelPropsRef.current?.onDryRunComplete).toBeDefined();
+    });
+
+    act(() => {
+      streamingStatusPanelPropsRef.current?.onDryRunComplete?.();
+    });
+
+    await waitFor(() => {
+      expect(within(getStageNode('Dry Run')).getByText('✓')).toBeInTheDocument();
+    });
+
+    await waitFor(() => {
+      expect(getStageNode('Evidence').getAttribute('aria-current')).toBe('step');
+    });
+  });
+
+  it('marks Feedback stage as started when the drawer is opened', async () => {
+    const user = userEvent.setup();
+
+    render(
+      <ControlPlaneWorkspace
+        tenantId={tenantId}
+        initialObjectiveId={null}
+        initialArtifacts={[]}
+        catalogSummary={null}
+      />,
+    );
+
+    await advanceToPlanStage(user);
+    await user.click(screen.getByRole('button', { name: /Select Planner Play/i }));
+
+    await waitFor(() => {
+      expect(streamingStatusPanelPropsRef.current?.onDryRunComplete).toBeDefined();
+    });
+
+    act(() => {
+      streamingStatusPanelPropsRef.current?.onDryRunComplete?.();
+    });
+
+    await waitFor(() => {
+      expect(getStageNode('Evidence').getAttribute('aria-current')).toBe('step');
+    });
+
+    const feedbackStageBefore = getStageNode('Feedback');
+    expect(within(feedbackStageBefore).queryByText('✓')).not.toBeInTheDocument();
+    expect(feedbackStageBefore.getAttribute('aria-current')).not.toBe('step');
+
+    const trigger = await screen.findByRole('button', { name: /Open Feedback Drawer/i });
+    await user.click(trigger);
+
+    await waitFor(() => {
+      expect(feedbackDrawerPropsRef.current?.isOpen).toBe(true);
+    });
+
+    const feedbackStageAfter = getStageNode('Feedback');
+    await waitFor(() => {
+      expect(feedbackStageAfter.getAttribute('aria-current')).toBe('step');
+    });
+  });
+});
+
+describe('ControlPlaneWorkspace Feedback Drawer integration', () => {
+  const tenantId = '00000000-0000-0000-0000-000000000000';
+  const missionId = '11111111-1111-1111-1111-111111111111';
+
+  function renderWorkspace(
+    initialArtifacts: Array<{ artifact_id: string; title: string; summary: string; status: string }> = [],
+  ) {
+    render(
+      <ControlPlaneWorkspace
+        tenantId={tenantId}
+        initialObjectiveId={null}
+        initialArtifacts={initialArtifacts}
+        catalogSummary={null}
+      />,
+    );
+  }
+
+  it('renders feedback drawer trigger once Evidence stage is active', async () => {
+    const user = userEvent.setup();
+    renderWorkspace();
+
+    expect(screen.queryByRole('button', { name: /Open Feedback Drawer/i })).not.toBeInTheDocument();
+
+    await advanceToEvidenceStage(user);
+
+    const trigger = await screen.findByRole('button', { name: /Open Feedback Drawer/i });
+    expect(trigger).toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(feedbackDrawerPropsRef.current).not.toBeNull();
+      expect(feedbackDrawerPropsRef.current?.isOpen).toBe(false);
+      expect(typeof feedbackDrawerPropsRef.current?.onOpenChange).toBe('function');
+    });
+  });
+
+  it('opens feedback drawer, focuses comments field, and closes on Escape', async () => {
+    const user = userEvent.setup();
+    renderWorkspace();
+
+    await advanceToEvidenceStage(user);
+
+    const trigger = await screen.findByRole('button', { name: /Open Feedback Drawer/i });
+    await user.click(trigger);
+
+    const drawer = await screen.findByRole('dialog', { name: /Feedback Drawer/i });
+    expect(drawer).toBeInTheDocument();
+
+    const commentsField = screen.getByRole('textbox', { name: /Mission feedback comments/i });
+    await waitFor(() => {
+      expect(commentsField).toHaveFocus();
+    });
+
+    await user.keyboard('{Escape}');
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: /Feedback Drawer/i })).not.toBeInTheDocument();
+      expect(feedbackDrawerPropsRef.current?.isOpen).toBe(false);
+    });
+  });
+
+  it('submits mission feedback via API, records telemetry, and completes the stage', async () => {
+    const user = userEvent.setup();
+    renderWorkspace([
+      {
+        artifact_id: 'artifact-initial-001',
+        title: 'Initial Evidence',
+        summary: 'Seed artifact to activate evidence stage',
+        status: 'draft',
+      },
+    ]);
+
+    await advanceToEvidenceStage(user);
+
+    const trigger = await screen.findByRole('button', { name: /Open Feedback Drawer/i });
+    await user.click(trigger);
+
+    await waitFor(() => {
+      expect(feedbackDrawerPropsRef.current?.isOpen).toBe(true);
+    }).catch(() => {
+      act(() => {
+        feedbackDrawerPropsRef.current?.onOpenChange?.(true);
+      });
+    });
+
+    await waitFor(() => {
+      expect(feedbackDrawerPropsRef.current?.isOpen).toBe(true);
+    });
+
+    await user.click(await screen.findByRole('button', { name: /Rate mission 5/i }));
+
+    const commentsField = screen.getByRole('textbox', { name: /Mission feedback comments/i });
+    await user.type(commentsField, 'Great mission support');
+
+    await user.click(screen.getByRole('button', { name: /Send Feedback/i }));
+
+    await waitFor(() => {
+      expect(telemetryMock).toHaveBeenCalledWith(
+        tenantId,
+        expect.objectContaining({
+          eventName: 'feedback_submitted',
+          missionId,
+          eventData: expect.objectContaining({
+            rating: 5,
+            comment: 'Great mission support',
+          }),
+        }),
+      );
+    });
+
+    await waitFor(() => {
+      const submitCall = fetchMock.mock.calls.find(([url]) => url === '/api/feedback/submit');
+      expect(submitCall).toBeDefined();
+      const [, options] = submitCall!;
+      expect(options).toMatchObject({
+        method: 'POST',
+        headers: expect.objectContaining({ 'Content-Type': 'application/json' }),
+      });
+
+      const body = options?.body;
+      expect(typeof body).toBe('string');
+      const parsed = JSON.parse(body as string);
+      expect(parsed).toMatchObject({
+        missionId,
+        rating: 5,
+        feedbackText: 'Great mission support',
+      });
+      expect(parsed.learningSignals).toMatchObject({
+        source: 'control_plane_feedback_drawer',
+        has_comment: true,
+        rating: 5,
+      });
+      expect(parsed.learningSignals.comment_length).toBeGreaterThan(0);
+    });
+
+    await waitFor(() => {
+      expect(within(getStageNode('Feedback')).getByText('✓')).toBeInTheDocument();
+    });
   });
 });
 
@@ -612,16 +1105,7 @@ describe('ControlPlaneWorkspace Evidence Gallery Stage 7 flow', () => {
         />,
       );
 
-      // Progress through stages to reach Evidence
-      await user.click(screen.getByRole('button', { name: /Complete Intake/i }));
-      await user.click(screen.getByRole('button', { name: /Save Toolkit Selections/i }));
-      await user.click(screen.getByRole('button', { name: /Complete Inspection/i }));
-      await user.click(screen.getByRole('button', { name: /Select Planner Play/i }));
-
-      // Wait for Evidence stage to be active
-      await waitFor(() => {
-        expect(getStageNode('Evidence').getAttribute('aria-current')).toBe('step');
-      });
+      await advanceToEvidenceStage(user);
 
       // Add an artifact using the placeholder button
       fetchMock.mockImplementation((input: RequestInfo | URL) => {
@@ -689,11 +1173,7 @@ describe('ControlPlaneWorkspace Evidence Gallery Stage 7 flow', () => {
 
       const user = userEvent.setup();
 
-      // Progress to Evidence stage
-      await user.click(screen.getByRole('button', { name: /Complete Intake/i }));
-      await user.click(screen.getByRole('button', { name: /Save Toolkit Selections/i }));
-      await user.click(screen.getByRole('button', { name: /Complete Inspection/i }));
-      await user.click(screen.getByRole('button', { name: /Select Planner Play/i }));
+      await advanceToEvidenceStage(user);
 
       // Wait for Evidence stage to auto-complete since artifacts exist
       await waitFor(() => {
@@ -718,15 +1198,7 @@ describe('ControlPlaneWorkspace Evidence Gallery Stage 7 flow', () => {
         />,
       );
 
-      // Progress through stages to reach Evidence
-      await user.click(screen.getByRole('button', { name: /Complete Intake/i }));
-      await user.click(screen.getByRole('button', { name: /Save Toolkit Selections/i }));
-      await user.click(screen.getByRole('button', { name: /Complete Inspection/i }));
-      await user.click(screen.getByRole('button', { name: /Select Planner Play/i }));
-
-      await waitFor(() => {
-        expect(getStageNode('Evidence').getAttribute('aria-current')).toBe('step');
-      });
+      await advanceToEvidenceStage(user);
 
       telemetryMock.mockClear();
 
@@ -867,6 +1339,40 @@ describe('ControlPlaneWorkspace Evidence Gallery Stage 7 flow', () => {
       expect(
         screen.getByText('Comprehensive plan for Q4 outreach including timing, messaging, and target segments'),
       ).toBeInTheDocument();
+    });
+  });
+});
+
+describe('MissionStageProvider failure path', () => {
+  const tenantId = '00000000-0000-0000-0000-000000000000';
+  const missionId = '22222222-2222-2222-2222-222222222222';
+
+  it('marks the stage as failed and emits failure telemetry with metadata', async () => {
+    const user = userEvent.setup();
+    telemetryMock.mockClear();
+
+    render(
+      <MissionStageProvider tenantId={tenantId} missionId={missionId}>
+        <StageFailureHarness
+          stage={MissionStage.Plan}
+          metadata={{ reason: 'planner_error', error_code: 'PLAN_FAIL' }}
+        />
+      </MissionStageProvider>
+    );
+
+    await user.click(screen.getByRole('button', { name: /Start Stage/i }));
+    await user.click(screen.getByRole('button', { name: /Fail Stage/i }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('failure-state')).toHaveTextContent('failed');
+    });
+
+    const failureCall = telemetryMock.mock.calls.find(([, payload]) => payload.eventName === 'stage_plan_failed');
+    expect(failureCall).toBeDefined();
+    expect(failureCall?.[1].eventData).toMatchObject({
+      stage: 'plan',
+      reason: 'planner_error',
+      error_code: 'PLAN_FAIL',
     });
   });
 });

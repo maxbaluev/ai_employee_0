@@ -6,6 +6,7 @@ import { CopilotSidebar, type CopilotKitCSSProperties } from "@copilotkit/react-
 
 import { ApprovalModal } from "@/components/ApprovalModal";
 import { CoverageMeter } from "@/components/CoverageMeter";
+import { FeedbackDrawer } from "@/components/FeedbackDrawer";
 import { MissionIntake } from "@/components/MissionIntake";
 import { RecommendedToolkits } from "@/components/RecommendedToolkits";
 import { StreamingStatusPanel } from "@/components/StreamingStatusPanel";
@@ -65,6 +66,14 @@ function ControlPlaneWorkspaceContent({
     { tone: "success" | "error" | "info"; message: string } | null
   >(null);
   const [selectedToolkitsCount, setSelectedToolkitsCount] = useState(0);
+  const [isFeedbackDrawerOpen, setFeedbackDrawerOpen] = useState(false);
+  const [selectedFeedbackRating, setSelectedFeedbackRating] = useState<number | null>(null);
+
+  const feedbackStageStatus = stages.get(MissionStage.Feedback);
+  const canDisplayFeedbackDrawer =
+    currentStage === MissionStage.Evidence ||
+    feedbackStageStatus?.state === "active" ||
+    feedbackStageStatus?.state === "completed";
 
   useEffect(() => {
     if (!objectiveId) {
@@ -407,23 +416,139 @@ function ControlPlaneWorkspaceContent({
     markStageIfNeeded(MissionStage.Toolkits);
   }, [markStageIfNeeded]);
 
-  const handleInspectionComplete = useCallback(() => {
-    markStageIfNeeded(MissionStage.Inspect);
-  }, [markStageIfNeeded]);
+  const handleInspectionComplete = useCallback(
+    (_preview?: Record<string, unknown>) => {
+      markStageIfNeeded(MissionStage.Inspect);
+    },
+    [markStageIfNeeded],
+  );
 
   const handlePlanComplete = useCallback(() => {
-    markStageIfNeeded(MissionStage.Plan);
-  }, [markStageIfNeeded]);
+    const planStatus = stages.get(MissionStage.Plan);
+    if (planStatus?.state !== "completed") {
+      markStageCompleted(MissionStage.Plan);
+    }
+
+    const dryRunStatus = stages.get(MissionStage.DryRun);
+    if (dryRunStatus?.state === "pending") {
+      markStageStarted(MissionStage.DryRun);
+    }
+  }, [stages, markStageCompleted, markStageStarted]);
 
   const handleDryRunComplete = useCallback(() => {
-    markStageIfNeeded(MissionStage.Plan);
-    markStageIfNeeded(MissionStage.DryRun);
-  }, [markStageIfNeeded]);
+    const dryRunStatus = stages.get(MissionStage.DryRun);
+    if (dryRunStatus?.state !== "completed") {
+      markStageCompleted(MissionStage.DryRun);
+    }
+
+    const evidenceStatus = stages.get(MissionStage.Evidence);
+    if (evidenceStatus?.state === "pending") {
+      markStageStarted(MissionStage.Evidence);
+    }
+  }, [stages, markStageCompleted, markStageStarted]);
 
   const handlePlannerAdvance = useCallback(() => {
     markStageCompleted(MissionStage.Plan);
     markStageStarted(MissionStage.DryRun);
   }, [markStageCompleted, markStageStarted]);
+
+  const handleFeedbackDrawerOpenChange = useCallback(
+    (nextOpen: boolean) => {
+      if (!canDisplayFeedbackDrawer) {
+        setFeedbackDrawerOpen(false);
+        return;
+      }
+
+      if (nextOpen) {
+        const feedbackStatus = stages.get(MissionStage.Feedback);
+        if (feedbackStatus?.state === "pending") {
+          markStageStarted(MissionStage.Feedback);
+        }
+      }
+
+      setFeedbackDrawerOpen(nextOpen);
+    },
+    [canDisplayFeedbackDrawer, stages, markStageStarted],
+  );
+
+  const handleFeedbackRatingChange = useCallback((rating: number | null) => {
+    setSelectedFeedbackRating(rating);
+  }, []);
+
+  const handleFeedbackSubmit = useCallback(
+    async ({ rating, comment }: { rating: number | null; comment: string }) => {
+      if (!objectiveId) {
+        const message = "We need an active mission before capturing feedback.";
+        setWorkspaceAlert({ tone: "error", message });
+        throw new Error(message);
+      }
+
+      const trimmedComment = comment.trim();
+      const learningSignals = {
+        source: "control_plane_feedback_drawer",
+        has_comment: trimmedComment.length > 0,
+        comment_length: trimmedComment.length,
+        rating: rating ?? null,
+      } satisfies Record<string, unknown>;
+
+      const payload: Record<string, unknown> = {
+        missionId: objectiveId,
+        feedbackText: trimmedComment || undefined,
+        learningSignals,
+      };
+
+      if (rating != null) {
+        payload.rating = rating;
+      }
+
+      try {
+        const response = await fetch("/api/feedback/submit", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+
+        const responseBody = await response
+          .json()
+          .catch(() => ({ error: "Failed to parse feedback response" }));
+
+        if (!response.ok) {
+          const message =
+            typeof responseBody?.error === "string"
+              ? responseBody.error
+              : "Failed to submit mission feedback.";
+          setWorkspaceAlert({ tone: "error", message });
+          throw new Error(message);
+        }
+
+        setWorkspaceAlert({
+          tone: "success",
+          message: "Thanks for the feedback—this will help tune future dry runs.",
+        });
+
+        markStageIfNeeded(MissionStage.Feedback);
+
+        void sendTelemetryEvent(tenantId, {
+          eventName: "feedback_submitted",
+          missionId: objectiveId,
+          eventData: {
+            rating,
+            comment: trimmedComment,
+            stage: MissionStage.Feedback,
+          },
+        });
+
+        setSelectedFeedbackRating(rating ?? null);
+      } catch (error) {
+        console.error("[ControlPlaneWorkspace] feedback submission failed", error);
+        if (!(error instanceof Error)) {
+          throw new Error("Failed to submit mission feedback.");
+        }
+        throw error;
+      }
+    },
+    [markStageIfNeeded, objectiveId, setWorkspaceAlert, tenantId, setSelectedFeedbackRating],
+  );
 
   const handlePlannerSelect = useCallback(
     (payload: Record<string, unknown>) => {
@@ -445,8 +570,10 @@ function ControlPlaneWorkspaceContent({
           mode,
         },
       });
+
+      handlePlanComplete();
     },
-    [tenantId, objectiveId],
+    [tenantId, objectiveId, handlePlanComplete],
   );
 
   const handleToolkitSelectionChange = useCallback((count: number) => {
@@ -454,12 +581,14 @@ function ControlPlaneWorkspaceContent({
   }, []);
 
   useEffect(() => {
-    const planStatus = stages.get(MissionStage.Plan);
     const dryRunStatus = stages.get(MissionStage.DryRun);
-    if (planStatus?.state === "completed" && dryRunStatus?.state === "active") {
-      markStageIfNeeded(MissionStage.DryRun);
+    const evidenceStatus = stages.get(MissionStage.Evidence);
+    if (dryRunStatus?.state === "completed" && evidenceStatus?.state === "pending") {
+      markStageStarted(MissionStage.Evidence);
     }
-  }, [stages, markStageIfNeeded]);
+  }, [stages, markStageStarted]);
+
+  const evidenceCompletionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (!artifacts.length) {
@@ -471,8 +600,15 @@ function ControlPlaneWorkspaceContent({
       return;
     }
 
+    if (evidenceCompletionTimeoutRef.current) {
+      clearTimeout(evidenceCompletionTimeoutRef.current);
+      evidenceCompletionTimeoutRef.current = null;
+    }
+
     if (evidenceStatus.state === "active") {
-      markStageIfNeeded(MissionStage.Evidence);
+      evidenceCompletionTimeoutRef.current = setTimeout(() => {
+        markStageIfNeeded(MissionStage.Evidence);
+      }, 50);
       return;
     }
 
@@ -480,6 +616,13 @@ function ControlPlaneWorkspaceContent({
     if (evidenceStatus.state === "pending" && dryRunStatus?.state === "completed") {
       markStageStarted(MissionStage.Evidence);
     }
+
+    return () => {
+      if (evidenceCompletionTimeoutRef.current) {
+        clearTimeout(evidenceCompletionTimeoutRef.current);
+        evidenceCompletionTimeoutRef.current = null;
+      }
+    };
   }, [artifacts, stages, markStageIfNeeded, markStageStarted]);
 
   const showCoverageMeter = useMemo(() => {
@@ -550,6 +693,8 @@ function ControlPlaneWorkspaceContent({
 
       {showCoverageMeter && (
         <CoverageMeter
+          tenantId={tenantId}
+          missionId={objectiveId ?? null}
           selectedToolkitsCount={selectedToolkitsCount}
           hasArtifacts={artifacts.length > 0}
           onComplete={handleInspectionComplete}
@@ -562,48 +707,62 @@ function ControlPlaneWorkspaceContent({
         sessionIdentifier={sessionIdentifier}
         plannerRuns={[]}
         onSelectPlay={handlePlannerSelect}
-        onStageAdvance={handlePlannerAdvance}
+        onStageAdvance={handlePlanComplete}
       />
 
       <div className="flex grow flex-col lg:flex-row">
         <section className="flex w-full flex-col gap-6 border-b border-white/10 px-6 py-8 lg:w-2/5 lg:border-r lg:border-b-0">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-3">
             <h2 className="text-lg font-semibold">Evidence Gallery</h2>
-            <button
-              className="inline-flex items-center gap-2 rounded-md border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-medium uppercase tracking-wide text-slate-200 transition hover:bg-white/15"
-              onClick={() => {
-                const id = `artifact-${Date.now()}`;
-                const placeholder: Artifact = {
-                  artifact_id: id,
-                  title: "Approval summary placeholder",
-                  summary: "Use the agent to replace this with a real dry-run asset.",
-                  status: "draft",
-                };
-                const nextArtifacts = [...artifacts, placeholder];
-                setArtifacts(nextArtifacts);
-                void (async () => {
-                  try {
-                    await fetch("/api/artifacts", {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({
-                        artifactId: id,
-                        title: placeholder.title,
-                        summary: placeholder.summary,
-                        status: placeholder.status,
-                        tenantId,
-                        playId: objectiveId ?? undefined,
-                      }),
-                    });
-                  } catch (error) {
-                    console.error("Failed to persist placeholder artifact", error);
-                  }
-                  await syncCopilotSession(nextArtifacts, objectiveId ?? null);
-                })();
-              }}
-            >
-              Add Placeholder
-            </button>
+            <div className="flex items-center gap-3">
+              {canDisplayFeedbackDrawer ? (
+                <FeedbackDrawer
+                  tenantId={tenantId}
+                  missionId={objectiveId ?? null}
+                  currentStage={currentStage}
+                  isOpen={isFeedbackDrawerOpen}
+                  selectedRating={selectedFeedbackRating}
+                  onOpenChange={handleFeedbackDrawerOpenChange}
+                  onRatingChange={handleFeedbackRatingChange}
+                  onSubmit={handleFeedbackSubmit}
+                />
+              ) : null}
+              <button
+                className="inline-flex items-center gap-2 rounded-md border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-medium uppercase tracking-wide text-slate-200 transition hover:bg-white/15"
+                onClick={() => {
+                  const id = `artifact-${Date.now()}`;
+                  const placeholder: Artifact = {
+                    artifact_id: id,
+                    title: "Approval summary placeholder",
+                    summary: "Use the agent to replace this with a real dry-run asset.",
+                    status: "draft",
+                  };
+                  const nextArtifacts = [...artifacts, placeholder];
+                  setArtifacts(nextArtifacts);
+                  void (async () => {
+                    try {
+                      await fetch("/api/artifacts", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          artifactId: id,
+                          title: placeholder.title,
+                          summary: placeholder.summary,
+                          status: placeholder.status,
+                          tenantId,
+                          playId: objectiveId ?? undefined,
+                        }),
+                      });
+                    } catch (error) {
+                      console.error("Failed to persist placeholder artifact", error);
+                    }
+                    await syncCopilotSession(nextArtifacts, objectiveId ?? null);
+                  })();
+                }}
+              >
+                Add Placeholder
+              </button>
+            </div>
           </div>
           <p className="text-sm text-slate-300">
             Artifacts track dry-run proof packs before granting credentials.

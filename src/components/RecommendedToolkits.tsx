@@ -1,7 +1,9 @@
 "use client";
 
 import Image from "next/image";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+
+import { sendTelemetryEvent } from "@/lib/telemetry/client";
 
 type ToolkitMetadata = {
   name: string;
@@ -35,6 +37,8 @@ export function RecommendedToolkits({ tenantId, missionId, onAlert, onStageAdvan
   const [selectedSlugs, setSelectedSlugs] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [connectingSlug, setConnectingSlug] = useState<string | null>(null);
+  const [connectError, setConnectError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const fetchToolkits = useCallback(async () => {
@@ -94,6 +98,14 @@ export function RecommendedToolkits({ tenantId, missionId, onAlert, onStageAdvan
       return;
     }
 
+    if (selectedSlugs.size === 0) {
+      onAlert?.({
+        tone: "error",
+        message: "Select at least one toolkit to continue.",
+      });
+      return;
+    }
+
     setIsSaving(true);
 
     try {
@@ -108,7 +120,7 @@ export function RecommendedToolkits({ tenantId, missionId, onAlert, onStageAdvan
           noAuth: tk.no_auth,
         }));
 
-      const response = await fetch("/api/safeguards/toolkits", {
+      const response = await fetch("/api/toolkits/selections", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -121,6 +133,15 @@ export function RecommendedToolkits({ tenantId, missionId, onAlert, onStageAdvan
       if (!response.ok) {
         throw new Error("Failed to save selections");
       }
+
+      void sendTelemetryEvent(tenantId, {
+        eventName: "toolkit_selection_saved",
+        missionId,
+        eventData: {
+          selected_count: selections.length,
+          selection_slugs: selections.map((sel) => sel.slug),
+        },
+      });
 
       onAlert?.({
         tone: "success",
@@ -136,6 +157,104 @@ export function RecommendedToolkits({ tenantId, missionId, onAlert, onStageAdvan
       setIsSaving(false);
     }
   };
+
+  const oauthRedirectUri = useMemo(() => {
+    if (typeof window === "undefined") {
+      return "";
+    }
+
+    try {
+      const url = new URL(window.location.origin);
+      url.pathname = "/api/composio/connect";
+      url.search = "";
+      return url.toString();
+    } catch (error) {
+      console.warn("[RecommendedToolkits] Failed to compute redirect URI", error);
+      return "";
+    }
+  }, []);
+
+  const handleConnect = useCallback(
+    async (toolkit: ToolkitMetadata) => {
+      if (!tenantId) {
+        onAlert?.({
+          tone: "error",
+          message: "Missing tenant context for OAuth connect.",
+        });
+        return;
+      }
+
+      if (!missionId) {
+        onAlert?.({
+          tone: "error",
+          message: "Accept the mission before connecting toolkits.",
+        });
+        return;
+      }
+
+      if (!oauthRedirectUri) {
+        onAlert?.({
+          tone: "error",
+          message: "Unable to resolve OAuth redirect URI.",
+        });
+        return;
+      }
+
+      setConnectError(null);
+      setConnectingSlug(toolkit.slug);
+
+      const requestBody = {
+        mode: "init" as const,
+        tenantId,
+        missionId,
+        provider: "composio",
+        redirectUri: oauthRedirectUri,
+        scopes: ["connections:read"],
+      };
+
+      try {
+        const response = await fetch("/api/composio/connect", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(requestBody),
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to initiate Composio connect link");
+        }
+
+        const data = await response.json();
+        const authorizationUrl: string | undefined = data.authorizationUrl ?? data.authUrl;
+
+        void sendTelemetryEvent(tenantId, {
+          eventName: "oauth_initiated",
+          missionId,
+          eventData: {
+            provider: "composio",
+            toolkit_slug: toolkit.slug,
+            scopes_requested: requestBody.scopes,
+          },
+        });
+
+        if (authorizationUrl) {
+          window.open(authorizationUrl, "_blank", "noopener");
+        }
+
+        onAlert?.({
+          tone: "info",
+          message: `Launching ${toolkit.name} Connect Link...`,
+        });
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Failed to launch Composio connect flow";
+        setConnectError(message);
+        onAlert?.({ tone: "error", message });
+      } finally {
+        setConnectingSlug(null);
+      }
+    },
+    [missionId, oauthRedirectUri, onAlert, tenantId],
+  );
 
   if (isLoading) {
     return (
@@ -194,6 +313,7 @@ export function RecommendedToolkits({ tenantId, missionId, onAlert, onStageAdvan
       <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent">
         {toolkits.slice(0, 20).map((toolkit) => {
           const isSelected = selectedSlugs.has(toolkit.slug);
+          const requiresOAuth = !toolkit.no_auth;
           const authBadge = toolkit.no_auth ? (
             <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] uppercase tracking-wide text-emerald-300">
               No Auth
@@ -205,51 +325,81 @@ export function RecommendedToolkits({ tenantId, missionId, onAlert, onStageAdvan
           );
 
           return (
-            <button
+            <article
               key={toolkit.slug}
-              onClick={() => toggleSelection(toolkit.slug)}
-              className={`group min-w-[280px] rounded-xl border p-4 text-left transition ${
+              className={`group min-w-[280px] rounded-xl border p-4 transition ${
                 isSelected
                   ? "border-violet-500/60 bg-violet-500/10"
                   : "border-white/10 bg-slate-900/80 hover:border-white/20 hover:bg-slate-900"
               }`}
             >
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  {toolkit.logo && (
-                    <Image
-                      src={toolkit.logo}
-                      alt={toolkit.name}
-                      width={20}
-                      height={20}
-                      className="h-5 w-5 rounded object-contain"
-                    />
-                  )}
-                  <h3 className="text-sm font-semibold text-white">{toolkit.name}</h3>
+              <button
+                type="button"
+                onClick={() => toggleSelection(toolkit.slug)}
+                className="w-full text-left"
+              >
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    {toolkit.logo && (
+                      <Image
+                        src={toolkit.logo}
+                        alt={toolkit.name}
+                        width={20}
+                        height={20}
+                        className="h-5 w-5 rounded object-contain"
+                      />
+                    )}
+                    <h3 className="text-sm font-semibold text-white">{toolkit.name}</h3>
+                  </div>
+                  {authBadge}
                 </div>
-                {authBadge}
-              </div>
 
-              <p className="text-xs text-slate-300 line-clamp-2 mb-3">
-                {toolkit.description || "No description available"}
-              </p>
+                <p className="text-xs text-slate-300 line-clamp-2 mb-3">
+                  {toolkit.description || "No description available"}
+                </p>
 
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] uppercase tracking-wide text-slate-500">
-                  {toolkit.category}
-                </span>
-                <span
-                  className={`text-xs font-medium ${
-                    isSelected ? "text-violet-300" : "text-slate-400 group-hover:text-slate-300"
-                  }`}
-                >
-                  {isSelected ? "✓ Selected" : "Select"}
-                </span>
-              </div>
-            </button>
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] uppercase tracking-wide text-slate-500">
+                    {toolkit.category}
+                  </span>
+                  <span
+                    className={`text-xs font-medium ${
+                      isSelected ? "text-violet-300" : "text-slate-400 group-hover:text-slate-300"
+                    }`}
+                  >
+                    {isSelected ? "✓ Selected" : "Select"}
+                  </span>
+                </div>
+              </button>
+
+              {requiresOAuth && (
+                <div className="mt-3 flex items-center justify-between gap-3">
+                  <button
+                    type="button"
+                    aria-label={`Connect ${toolkit.name}`}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      void handleConnect(toolkit);
+                    }}
+                    disabled={connectingSlug === toolkit.slug}
+                    className="inline-flex items-center gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-amber-200 transition disabled:cursor-not-allowed disabled:opacity-60 hover:bg-amber-500/20"
+                  >
+                    {connectingSlug === toolkit.slug ? "Connecting..." : "Connect"}
+                  </button>
+
+                  <span className="text-[10px] text-slate-500">
+                    {connectingSlug === toolkit.slug ? "Waiting for OAuth" : "Auth required"}
+                  </span>
+                </div>
+              )}
+            </article>
           );
         })}
       </div>
+
+      {connectError && (
+        <p className="mt-3 text-xs text-red-300">{connectError}</p>
+      )}
 
       {!missionId && (
         <p className="mt-3 text-xs text-amber-300">
