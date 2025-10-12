@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import importlib.util
+import os
 import sys
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
 from typing import Any, Dict, Iterable, List, Optional
 
 ROOT = Path(__file__).resolve().parents[3]
+EVAL_MODE = os.getenv("EVAL_MODE", "false").lower() in {"1", "true", "yes"}
 
 
 def _load_module(name: str, path: Path, *, package: bool = False):
@@ -282,7 +284,8 @@ def _load_control_plane_module():
     # Ensure direct access without relative hops for coordinator imports.
     _load_module("agent_pkg.services.supabase", services_dir / "supabase.py")
     _ensure_agent_aliases()
-    _install_supabase_stub()
+    if EVAL_MODE:
+        _install_supabase_stub()
 
     _load_module("agent_pkg.services.telemetry", services_dir / "telemetry.py")
     _load_module("agent_pkg.tools.composio_client", tools_dir / "composio_client.py")
@@ -296,27 +299,28 @@ def _load_control_plane_module():
 _module = _load_control_plane_module()
 pkg_supabase_module = sys.modules.get("agent_pkg.services.supabase")
 client_cls = getattr(pkg_supabase_module, "SupabaseClient", None)
-print(
-    "[control-plane eval] SupabaseClient before build: "
-    f"{client_cls} (module={getattr(client_cls, '__module__', 'unknown')})"
-)
+
+if EVAL_MODE:
+    print(
+        "[control-plane eval] SupabaseClient before build: "
+        f"{client_cls} (module={getattr(client_cls, '__module__', 'unknown')})"
+    )
+
 _wrapper = _module.build_control_plane_agent()
 
-# After building, propagate a shared stub instance across the agent tree.
-stub_client: Optional[Any] = None
-if client_cls is not None:
+if EVAL_MODE and client_cls is not None:
     try:
-        stub_client = client_cls.from_env()
+        stub_client: Optional[Any] = client_cls.from_env()
     except Exception:  # pragma: no cover - defensive
         stub_client = client_cls()
 
-if stub_client is not None:
     assign_stub_supabase(_wrapper, stub_client)
 
-pkg_supabase_module = sys.modules.get("agent_pkg.services.supabase")
-client_cls = getattr(pkg_supabase_module, "SupabaseClient", None)
-print(
-    "[control-plane eval] SupabaseClient after build: "
-    f"{client_cls} (module={getattr(client_cls, '__module__', 'unknown')})"
-)
+    pkg_supabase_module = sys.modules.get("agent_pkg.services.supabase")
+    client_cls = getattr(pkg_supabase_module, "SupabaseClient", None)
+    print(
+        "[control-plane eval] SupabaseClient after build: "
+        f"{client_cls} (module={getattr(client_cls, '__module__', 'unknown')})"
+    )
+
 agent = SimpleNamespace(root_agent=_wrapper._adk_agent)

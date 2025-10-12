@@ -82,6 +82,9 @@ Keep this guide current—agents treat AGENTS.md as the single source of truth f
 - Supabase types
   - After schema edits run `supabase gen types typescript --linked --schema public,storage,graphql_public > supabase/types.ts`
   - Follow with `pnpm tsc --noEmit` to confirm the generated bindings compile cleanly before committing
+- ADK eval stubs
+  - Set `EVAL_MODE=true` before running `mise run test-agent` to activate the in-memory Supabase stub used by `agent/evals/control_plane`
+  - Unset `EVAL_MODE` when exercising the agent against real Supabase to avoid overriding live clients
 
 ### Telemetry Hygiene
 
