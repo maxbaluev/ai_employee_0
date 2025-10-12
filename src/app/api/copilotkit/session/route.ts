@@ -18,6 +18,21 @@ const payloadSchema = z.object({
   retentionMinutes: z.number().int().positive().optional(),
 });
 
+const querySchema = z.object({
+  agentId: z.string().min(1).optional(),
+  sessionIdentifier: z.string().min(1),
+  tenantId: z.string().uuid().optional(),
+});
+
+type SessionSelectResult = {
+  data: Pick<Database["public"]["Tables"]["copilot_sessions"]["Row"], "state" | "expires_at"> | null;
+  error: PostgrestError | null;
+};
+
+const DEFAULT_TENANT = "00000000-0000-0000-0000-000000000000";
+
+// TODO(Gate G-B): Wire a scheduled job that deletes expired CopilotKit sessions after 7 days.
+
 export async function POST(request: NextRequest) {
   const raw = await request.json().catch(() => null);
   const parsed = payloadSchema.safeParse(raw);
@@ -32,7 +47,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const defaultTenant = process.env.GATE_GA_DEFAULT_TENANT_ID ?? "00000000-0000-0000-0000-000000000000";
+  const defaultTenant = process.env.GATE_GA_DEFAULT_TENANT_ID ?? DEFAULT_TENANT;
   const tenantId = parsed.data.tenantId ?? defaultTenant;
 
   if (!tenantId) {
@@ -80,4 +95,73 @@ export async function POST(request: NextRequest) {
   }
 
   return NextResponse.json({ sessionId: data.id }, { status: 200 });
+}
+
+export async function GET(request: NextRequest) {
+  const url = new URL(request.url);
+  const parsed = querySchema.safeParse({
+    agentId: url.searchParams.get("agentId") ?? undefined,
+    sessionIdentifier: url.searchParams.get("sessionIdentifier") ?? undefined,
+    tenantId: url.searchParams.get("tenantId") ?? undefined,
+  });
+
+  if (!parsed.success) {
+    return NextResponse.json(
+      {
+        error: "Invalid Copilot session query",
+        details: parsed.error.flatten(),
+      },
+      { status: 400 },
+    );
+  }
+
+  const agentIdParam = parsed.data.agentId ?? process.env.NEXT_PUBLIC_COPILOT_AGENT_ID ?? "control_plane_foundation";
+  const defaultTenant = process.env.GATE_GA_DEFAULT_TENANT_ID ?? DEFAULT_TENANT;
+  const tenantId = parsed.data.tenantId ?? defaultTenant;
+
+  if (!tenantId) {
+    return NextResponse.json(
+      {
+        error: "Missing tenant identifier",
+        hint: "Provide tenantId or configure GATE_GA_DEFAULT_TENANT_ID",
+      },
+      { status: 400 },
+    );
+  }
+
+  const serviceClient = getServiceSupabaseClient();
+  const { data, error } = (await serviceClient
+    .from("copilot_sessions")
+    .select("state, expires_at")
+    .eq("tenant_id", tenantId)
+    .eq("agent_id", agentIdParam)
+    .eq("session_identifier", parsed.data.sessionIdentifier)
+    .maybeSingle()) as SessionSelectResult;
+
+  if (error) {
+    return NextResponse.json(
+      {
+        error: "Failed to load Copilot session",
+        hint: error.message,
+      },
+      { status: 500 },
+    );
+  }
+
+  if (!data) {
+    return NextResponse.json({ state: null, expiresAt: null }, { status: 200 });
+  }
+
+  const expiresAtIso = data.expires_at ?? null;
+  const now = new Date();
+  const expiresAtDate = expiresAtIso ? new Date(expiresAtIso) : null;
+  const isExpired = Boolean(expiresAtDate && expiresAtDate.getTime() < now.getTime());
+
+  return NextResponse.json(
+    {
+      state: isExpired ? null : (data.state as Json | null | undefined) ?? null,
+      expiresAt: expiresAtIso,
+    },
+    { status: 200 },
+  );
 }

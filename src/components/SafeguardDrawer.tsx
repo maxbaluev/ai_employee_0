@@ -2,7 +2,14 @@
 
 import { useMemo, useState } from "react";
 
+import { useApprovalFlow } from "@/hooks/useApprovalFlow";
+
 type SafeguardStatus = "suggested" | "accepted" | "edited" | "rejected" | string;
+
+export type SafeguardQuickFix = {
+  label: string;
+  value: string;
+};
 
 export type SafeguardDrawerHint = {
   id: string;
@@ -13,6 +20,7 @@ export type SafeguardDrawerHint = {
   pinned?: boolean;
   rationale?: string | null;
   lastUpdatedAt?: string | null;
+  quickFix?: SafeguardQuickFix;
 };
 
 export type SafeguardDrawerHistoryItem = {
@@ -25,6 +33,8 @@ export type SafeguardDrawerHistoryItem = {
 type TelemetryPayload = {
   type: string;
   safeguard?: SafeguardDrawerHint;
+  draft?: string;
+  fix?: SafeguardQuickFix;
 };
 
 type SafeguardDrawerProps = {
@@ -38,6 +48,9 @@ type SafeguardDrawerProps = {
   onTogglePin: (hint: SafeguardDrawerHint, nextPinned: boolean) => void;
   onHistoryToggle?: (isOpen: boolean) => void;
   onTelemetry?: (payload: TelemetryPayload) => void;
+  onApplyFix?: (hint: SafeguardDrawerHint, quickFix: SafeguardQuickFix) => void;
+  tenantId?: string;
+  missionId?: string | null;
 };
 
 function confidenceLabel(value?: number | null): string {
@@ -58,22 +71,70 @@ export function SafeguardDrawer({
   onTogglePin,
   onHistoryToggle,
   onTelemetry,
+  onApplyFix,
+  tenantId,
+  missionId,
 }: SafeguardDrawerProps) {
   const [isHistoryOpen, setHistoryOpen] = useState(false);
+  const [editingHintId, setEditingHintId] = useState<string | null>(null);
+  const [draftValue, setDraftValue] = useState("\u201c");
+
+  const approvalFlow = useApprovalFlow({ tenantId: tenantId ?? "safeguard-drawer", missionId: missionId ?? null });
+  const emitApprovalTelemetry = approvalFlow.emitTelemetry;
 
   const activeHints = useMemo(() => safeguards ?? [], [safeguards]);
 
-  const emitTelemetry = (type: string, safeguard?: SafeguardDrawerHint) => {
-    onTelemetry?.({ type, safeguard });
+  const emitTelemetry = (payload: TelemetryPayload) => {
+    onTelemetry?.(payload);
   };
 
   const handleHistoryToggle = () => {
     setHistoryOpen((prev) => {
       const next = !prev;
       onHistoryToggle?.(next);
-      emitTelemetry(next ? "history_opened" : "history_closed");
+      emitTelemetry({ type: next ? "history_opened" : "history_closed" });
       return next;
     });
+  };
+
+  const beginEdit = (hint: SafeguardDrawerHint) => {
+    setEditingHintId(hint.id);
+    setDraftValue(hint.label);
+    emitTelemetry({ type: "edit_start", safeguard: hint });
+  };
+
+  const cancelEdit = (hint: SafeguardDrawerHint) => {
+    emitTelemetry({ type: "edit_cancel", safeguard: hint, draft: draftValue });
+    setEditingHintId(null);
+    setDraftValue("");
+  };
+
+  const saveEdit = (hint: SafeguardDrawerHint) => {
+    const trimmed = draftValue.trim();
+    if (!trimmed || trimmed === hint.label) {
+      cancelEdit(hint);
+      return;
+    }
+
+    const timestamp = new Date().toISOString();
+    const updatedHint: SafeguardDrawerHint = {
+      ...hint,
+      label: trimmed,
+      status: "edited",
+      lastUpdatedAt: timestamp,
+    };
+
+    onEdit(updatedHint);
+    emitTelemetry({ type: "edit_save", safeguard: updatedHint });
+    emitApprovalTelemetry?.("safeguard_edit_saved", { hint_id: hint.id });
+    setEditingHintId(null);
+    setDraftValue("");
+  };
+
+  const handleApplyFix = (hint: SafeguardDrawerHint, quickFix: SafeguardQuickFix) => {
+    emitTelemetry({ type: "apply_fix", safeguard: hint, fix: quickFix });
+    emitApprovalTelemetry?.("safeguard_fix_applied", { hint_id: hint.id });
+    onApplyFix?.(hint, quickFix);
   };
 
   return (
@@ -88,7 +149,7 @@ export function SafeguardDrawer({
         <button
           type="button"
           onClick={() => {
-            emitTelemetry("accept_all");
+            emitTelemetry({ type: "accept_all" });
             onAcceptAll();
           }}
           disabled={isBusy || !activeHints.length}
@@ -107,6 +168,7 @@ export function SafeguardDrawer({
           activeHints.map((hint) => {
             const confidence = confidenceLabel(hint.confidence);
             const isPinned = Boolean(hint.pinned);
+            const isEditing = editingHintId === hint.id;
 
             return (
               <li
@@ -125,7 +187,7 @@ export function SafeguardDrawer({
                     aria-pressed={isPinned}
                     className="rounded-md border border-white/15 bg-white/5 px-2 py-1 text-[11px] uppercase tracking-wide text-slate-200 transition hover:bg-white/10"
                     onClick={() => {
-                      emitTelemetry("toggle_pin", hint);
+                      emitTelemetry({ type: "toggle_pin", safeguard: hint });
                       onTogglePin(hint, !isPinned);
                     }}
                   >
@@ -137,38 +199,76 @@ export function SafeguardDrawer({
                   <p className="mt-2 text-xs text-slate-300">{hint.rationale}</p>
                 ) : null}
 
-                <div className="mt-3 flex flex-wrap items-center gap-2">
-                  <button
-                    type="button"
-                    className="inline-flex items-center gap-2 rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-emerald-200 transition hover:bg-emerald-500/20"
-                    onClick={() => {
-                      emitTelemetry("accept", hint);
-                      onAccept(hint);
-                    }}
-                  >
-                    Accept
-                  </button>
-                  <button
-                    type="button"
-                    className="inline-flex items-center gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-amber-200 transition hover:bg-amber-500/20"
-                    onClick={() => {
-                      emitTelemetry("regenerate", hint);
-                      onRegenerate(hint);
-                    }}
-                  >
-                    Regenerate
-                  </button>
-                  <button
-                    type="button"
-                    className="inline-flex items-center gap-2 rounded-md border border-violet-500/40 bg-violet-500/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-violet-200 transition hover:bg-violet-500/20"
-                    onClick={() => {
-                      emitTelemetry("edit", hint);
-                      onEdit(hint);
-                    }}
-                  >
-                    Edit
-                  </button>
-                </div>
+                {isEditing ? (
+                  <div className="mt-3 space-y-2">
+                    <label className="sr-only" htmlFor={`safeguard-edit-${hint.id}`}>
+                      Edit safeguard
+                    </label>
+                    <textarea
+                      id={`safeguard-edit-${hint.id}`}
+                      aria-label="Edit safeguard"
+                      className="w-full rounded-md border border-white/15 bg-slate-950/60 p-3 text-sm text-slate-100 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-400/40"
+                      value={draftValue}
+                      onChange={(event) => setDraftValue(event.target.value)}
+                      rows={3}
+                    />
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        className="rounded-md border border-emerald-500/40 bg-emerald-500/20 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-emerald-200 transition hover:bg-emerald-500/30"
+                        onClick={() => saveEdit(hint)}
+                      >
+                        Save
+                      </button>
+                      <button
+                        type="button"
+                        className="rounded-md border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-200 transition hover:bg-white/10"
+                        onClick={() => cancelEdit(hint)}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-2 rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-emerald-200 transition hover:bg-emerald-500/20"
+                      onClick={() => {
+                        emitTelemetry({ type: "accept", safeguard: hint });
+                        onAccept(hint);
+                      }}
+                    >
+                      Accept
+                    </button>
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-amber-200 transition hover:bg-amber-500/20"
+                      onClick={() => {
+                        emitTelemetry({ type: "regenerate", safeguard: hint });
+                        onRegenerate(hint);
+                      }}
+                    >
+                      Regenerate
+                    </button>
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-2 rounded-md border border-violet-500/40 bg-violet-500/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-violet-200 transition hover:bg-violet-500/20"
+                      onClick={() => beginEdit(hint)}
+                    >
+                      Edit
+                    </button>
+                    {hint.quickFix ? (
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-2 rounded-md border border-cyan-500/40 bg-cyan-500/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-cyan-200 transition hover:bg-cyan-500/20"
+                        onClick={() => handleApplyFix(hint, hint.quickFix!)}
+                      >
+                        Apply Fix
+                      </button>
+                    ) : null}
+                  </div>
+                )}
               </li>
             );
           })

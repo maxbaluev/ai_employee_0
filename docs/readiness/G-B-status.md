@@ -6,3 +6,4 @@
 - **Telemetry Audit**: `python scripts/audit_telemetry_events.py --gate G-B` skipped — missing `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` in current env.
 - **ADK Evals**: `mise run test-agent` now passes (smoke + G‑B ranking suites); Supabase types still need `mission_regeneration_limits` regeneration downstream.
 - **Remaining Follow-ups**: Redis-backed limiter store (REDIS_URL, atomic INCR/PEXPIRE), wire telemetry audit into CI once Supabase creds available, align docs/AGENTS.md/README with Redis backend + Supabase type regeneration workflow.
+- **Supabase Types**: Regeneration blocked until a linked Supabase project (or `SUPABASE_ACCESS_TOKEN` + `supabase/config.toml`) is provided; once available run `supabase gen types typescript --project-ref <PROJECT_REF> --schema public,storage,graphql_public > supabase/types.ts`. Postgres store casts stay in place until types include `mission_regeneration_limits`.

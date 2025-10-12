@@ -719,6 +719,132 @@ describe('ControlPlaneWorkspace mission brief integration', () => {
   });
 });
 
+describe('ControlPlaneWorkspace copilot session persistence', () => {
+  const tenantId = '00000000-0000-0000-0000-000000000000';
+
+  it('does not overwrite persisted snapshot during hydration', async () => {
+    const persistedSnapshot = {
+      artifacts: [
+        {
+          artifact_id: 'persisted-artifact-001',
+          title: 'Persisted Draft',
+          summary: 'Existing artifact from previous session',
+          status: 'draft',
+        },
+      ],
+      objectiveId: '11111111-1111-1111-1111-111111111111',
+      themeColor: '#123456',
+      missionBrief: {
+        missionId: '11111111-1111-1111-1111-111111111111',
+        objective: 'Persisted objective',
+        audience: 'Persisted audience',
+        kpis: [],
+        safeguards: [{ hintType: 'tone', text: 'Keep tone warm-professional' }],
+        confidence: { objective: 0.9 },
+        source: 'persisted',
+      },
+      safeguards: [
+        {
+          id: 'safeguard-1',
+          label: 'Keep tone warm-professional',
+          hintType: 'tone',
+          status: 'accepted',
+          confidence: 0.82,
+        },
+      ],
+      safeguardHistory: [
+        {
+          id: 'history-1',
+          label: 'Keep tone warm-professional',
+          status: 'accepted',
+          timestamp: '2025-10-10T10:00:00.000Z',
+        },
+      ],
+      plannerRuns: [
+        {
+          id: 'planner-run-1',
+          stage: 'planner_rank_complete',
+          event: 'completed',
+          createdAt: '2025-10-10T10:05:00.000Z',
+          label: 'Planner ranked plays',
+          description: 'Persisted planner output',
+          metadata: { candidate_count: 3 },
+        },
+      ],
+      selectedFeedbackRating: 5,
+    } satisfies Record<string, unknown>;
+
+    const baseFetch = fetchMock.getMockImplementation();
+    const postBodies: Record<string, unknown>[] = [];
+    const requestOrder: string[] = [];
+
+    fetchMock.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
+      const method = (init?.method ?? 'GET').toUpperCase();
+
+      if (url.includes('/api/copilotkit/session')) {
+        if (method === 'GET') {
+          requestOrder.push('GET');
+          return Promise.resolve(
+            new Response(JSON.stringify({ state: persistedSnapshot }), {
+              status: 200,
+              headers: { 'Content-Type': 'application/json' },
+            }),
+          );
+        }
+
+        requestOrder.push('POST');
+        if (init?.body) {
+          try {
+            postBodies.push(JSON.parse(init.body as string) as Record<string, unknown>);
+          } catch (error) {
+            postBodies.push({ parseError: String(error) });
+          }
+        }
+
+        return Promise.resolve(
+          new Response(JSON.stringify({ sessionId: 'session-123' }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          }),
+        );
+      }
+
+      return baseFetch ? baseFetch(input, init) : Promise.resolve(new Response('{}', { status: 200 }));
+    });
+
+    try {
+      render(
+        <ControlPlaneWorkspace
+          tenantId={tenantId}
+          initialObjectiveId={null}
+          initialArtifacts={[]}
+          catalogSummary={null}
+        />,
+      );
+
+      await waitFor(() => {
+        expect(requestOrder).toContain('GET');
+      });
+
+      await waitFor(() => {
+        expect(postBodies.length).toBeGreaterThan(0);
+      });
+
+      const firstPost = postBodies[0] as { state?: Record<string, unknown> };
+      expect(firstPost?.state).toBeDefined();
+      expect(firstPost?.state).toMatchObject({
+        artifacts: persistedSnapshot.artifacts,
+        missionBrief: persistedSnapshot.missionBrief,
+        safeguards: persistedSnapshot.safeguards,
+        plannerRuns: persistedSnapshot.plannerRuns,
+      });
+    } finally {
+      fetchMock.mockImplementation(baseFetch);
+    }
+  });
+});
+
 describe('ControlPlaneWorkspace Feedback Drawer integration', () => {
   const tenantId = '00000000-0000-0000-0000-000000000000';
   const missionId = '11111111-1111-1111-1111-111111111111';
@@ -853,7 +979,18 @@ describe('ControlPlaneWorkspace Feedback Drawer integration', () => {
     });
 
     await waitFor(() => {
-      const submitCall = fetchMock.mock.calls.find(([url]) => url === '/api/feedback/submit');
+      const submitCall = fetchMock.mock.calls.find(([request]) => {
+        if (typeof request === 'string') {
+          return request.includes('/api/feedback/submit');
+        }
+        if (request instanceof URL) {
+          return request.toString().includes('/api/feedback/submit');
+        }
+        if (request && typeof (request as Request).url === 'string') {
+          return (request as Request).url.includes('/api/feedback/submit');
+        }
+        return false;
+      });
       expect(submitCall).toBeDefined();
       const [, options] = submitCall!;
       expect(options).toMatchObject({

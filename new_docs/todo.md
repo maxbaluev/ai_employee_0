@@ -703,7 +703,7 @@ Gate G-B delivers a structured workflow from intake to feedback:
 
 **Location:** `agent/evals/`, `mise` tasks
 
-- [ ] **Add dry-run ranking eval suite**: Create `agent/evals/dry_run_ranking_G-B.json` covering GTM/support/ops personas per Gate G-B checklist.
+- [x] **Add dry-run ranking eval suite**: Create `agent/evals/dry_run_ranking_G-B.json` covering GTM/support/ops personas per Gate G-B checklist. *(Smoke + G‑B ranking suites now pass via `mise run test-agent` as of 2025-10-12.)*
   - **Acceptance:** Eval suite includes ≥15 scenarios (5 personas × 3 variants); pass rate ≥90%; integrated into `mise run test-agent`.
   - **Evidence:** Eval run summary in `docs/readiness/planner_eval_G-B.json`; CI gating on eval pass rate.
   - **File references:** `agent/evals/dry_run_ranking_G-B.json`, `mise` test-agent task.

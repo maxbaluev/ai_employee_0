@@ -41,8 +41,8 @@ run = "pnpm run lint"
 [tasks.test-agent]
 description = "Execute Gemini ADK smoke + ranking evaluation suites"
 run = [
-  "uv run --with agent/requirements.txt adk eval agent/evals/smoke_g_a_v2.json",
-  "uv run --with agent/requirements.txt adk eval agent/evals/dry_run_ranking_G-B.json"
+  "uv run --with-requirements agent/requirements.txt adk eval agent/evals/control_plane agent/evals/smoke_g_a_v2.json",
+  "uv run --with-requirements agent/requirements.txt adk eval agent/evals/control_plane agent/evals/dry_run_ranking_G-B.json"
 ]
 
 [tasks.test-gate-gb]

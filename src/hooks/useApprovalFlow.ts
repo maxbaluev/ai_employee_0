@@ -178,6 +178,17 @@ export function useApprovalFlow(options: UseApprovalFlowOptions) {
     [currentRequest, defaultReviewerId, missionId, onSuccess, tenantId],
   );
 
+  const emitTelemetry = useCallback(
+    (eventName: string, eventData?: Record<string, unknown>) => {
+      void sendTelemetryEvent(tenantId, {
+        eventName,
+        missionId,
+        eventData,
+      });
+    },
+    [missionId, tenantId],
+  );
+
   return {
     isOpen,
     isSubmitting,
@@ -188,5 +199,6 @@ export function useApprovalFlow(options: UseApprovalFlowOptions) {
     closeApproval,
     submitApproval,
     clearError: () => setError(null),
+    emitTelemetry,
   } as const;
 }

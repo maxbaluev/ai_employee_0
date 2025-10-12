@@ -16,6 +16,7 @@ export type PlannerInsightRailProps = {
   plannerRuns: PlannerRunRow[];
   onSelectPlay?: (payload: Record<string, unknown>) => void;
   onStageAdvance?: () => void;
+  onTimelineUpdate?: (events: TimelineMessage[]) => void;
 };
 
 type PlannerCandidate = {
@@ -48,6 +49,7 @@ export function PlannerInsightRail({
   plannerRuns,
   onSelectPlay,
   onStageAdvance,
+  onTimelineUpdate,
 }: PlannerInsightRailProps) {
   const { events } = useTimelineEvents({
     agentId: AGENT_ID,
@@ -72,6 +74,10 @@ export function PlannerInsightRail({
       candidates: candidateEvents,
     };
   }, [events]);
+
+  useEffect(() => {
+    onTimelineUpdate?.(events);
+  }, [events, onTimelineUpdate]);
 
   const lastTelemetryEventIdRef = useRef<string | null>(null);
 

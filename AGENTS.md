@@ -91,3 +91,4 @@ Keep this guide current—agents treat AGENTS.md as the single source of truth f
 - Scrub PII before sending events—reuse `src/lib/telemetry/redaction.ts` helpers and extend them if new fields appear.
 - CopilotKit runtime supports opt-out/sampling flags; set `telemetryDisabled` or adjust sample rate when needed.
 - Run `pnpm ts-node scripts/audit_telemetry_events.py --gate G-B` as part of Gate reviews to verify required events are emitted.
+- CI: set `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` to enable the telemetry-audit workflow.

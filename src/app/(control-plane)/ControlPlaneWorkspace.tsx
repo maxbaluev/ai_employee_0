@@ -66,14 +66,26 @@ type HydratedMissionStage = {
   metadata?: Record<string, unknown>;
 };
 
+type PlannerRunSnapshot = {
+  id: string;
+  stage: string | null;
+  event?: string | null;
+  createdAt: string;
+  label?: string;
+  description?: string;
+  metadata?: Record<string, unknown> | null;
+};
+
 type CopilotSessionSnapshot = {
   artifacts?: Artifact[];
   objectiveId?: string | null;
   missionStages?: HydratedMissionStage[];
   missionBrief?: MissionBriefState | null;
   safeguards?: SafeguardDrawerHint[];
+  safeguardHistory?: SafeguardDrawerHistoryItem[];
   selectedFeedbackRating?: number | null;
   themeColor?: string;
+  plannerRuns?: PlannerRunSnapshot[];
 };
 
 type AcceptedIntakePayload = {
@@ -166,9 +178,19 @@ function ControlPlaneWorkspaceContent({
   const [safeguardHistory, setSafeguardHistory] = useState<SafeguardDrawerHistoryItem[]>([]);
   const [, setSafeguardHistoryOpen] = useState(false);
   const [approvalUndoSummary, setApprovalUndoSummary] = useState<string | undefined>(undefined);
+  const [plannerRuns, setPlannerRuns] = useState<PlannerRunSnapshot[]>([]);
   const hasPinnedBriefRef = useRef(false);
   const copilotExitHandledRef = useRef(false);
   const lastHydratedSessionRef = useRef<string | null>(null);
+  const sessionTelemetrySentRef = useRef(false);
+  const latestExitPayloadRef = useRef({
+    tenantId,
+    missionId: objectiveId ?? null,
+    artifactsCount: artifacts.length,
+    stage: currentStage,
+  });
+  const hydrationCompleteRef = useRef(false);
+  const [hydrationComplete, setHydrationComplete] = useState(false);
 
   const acceptedSafeguardEntries = useMemo<SafeguardEntry[]>(
     () =>
@@ -207,6 +229,7 @@ function ControlPlaneWorkspaceContent({
       setSafeguards([]);
       setSafeguardHistory([]);
       setSafeguardHistoryOpen(false);
+      setPlannerRuns([]);
       hasPinnedBriefRef.current = false;
     }
   }, [objectiveId]);
@@ -370,7 +393,100 @@ function ControlPlaneWorkspaceContent({
   useEffect(() => {
     copilotExitHandledRef.current = false;
     lastHydratedSessionRef.current = null;
+    sessionTelemetrySentRef.current = false;
+    hydrationCompleteRef.current = false;
+    setHydrationComplete(false);
   }, [sessionIdentifier]);
+
+  useEffect(() => {
+    latestExitPayloadRef.current = {
+      tenantId,
+      missionId: objectiveId ?? null,
+      artifactsCount: artifacts.length,
+      stage: currentStage,
+    };
+  }, [tenantId, objectiveId, artifacts.length, currentStage]);
+
+  const missionStageSnapshot = useMemo(() => {
+    const normalizeDate = (value: Date | string | null | undefined) => {
+      if (!value) {
+        return null;
+      }
+      if (typeof value === "string") {
+        return value;
+      }
+      try {
+        return value.toISOString();
+      } catch (error) {
+        console.warn("[ControlPlaneWorkspace] failed to serialise stage timestamp", error);
+        return null;
+      }
+    };
+
+    const snapshot: HydratedMissionStage[] = [];
+    stages.forEach((status, stage) => {
+      snapshot.push({
+        stage,
+        state: status.state,
+        startedAt: normalizeDate(status.startedAt),
+        completedAt: normalizeDate(status.completedAt),
+        locked: status.locked,
+        metadata: status.metadata,
+      });
+    });
+    return snapshot;
+  }, [stages]);
+
+  const markHydrationComplete = useCallback(() => {
+    if (hydrationCompleteRef.current) {
+      return;
+    }
+
+    hydrationCompleteRef.current = true;
+    setHydrationComplete(true);
+  }, [setHydrationComplete]);
+
+  const emitCopilotExitTelemetry = useCallback(() => {
+    if (copilotExitHandledRef.current) {
+      return;
+    }
+
+    copilotExitHandledRef.current = true;
+    const latest = latestExitPayloadRef.current;
+
+    void telemetryClient.sendTelemetryEvent(latest.tenantId, {
+      eventName: "copilotkit_exit",
+      missionId: latest.missionId,
+      eventData: {
+        session_identifier: sessionIdentifier,
+        artifacts_count: latest.artifactsCount,
+        stage: latest.stage,
+      },
+    });
+  }, [sessionIdentifier]);
+
+  useEffect(() => {
+    if (sessionTelemetrySentRef.current) {
+      return;
+    }
+
+    sessionTelemetrySentRef.current = true;
+    void telemetryClient.sendTelemetryEvent(tenantId, {
+      eventName: "copilotkit_session_started",
+      missionId: objectiveId ?? null,
+      eventData: {
+        session_identifier: sessionIdentifier,
+      },
+    });
+  }, [objectiveId, sessionIdentifier, tenantId]);
+
+  useEffect(() => {
+    window.addEventListener("beforeunload", emitCopilotExitTelemetry);
+    return () => {
+      emitCopilotExitTelemetry();
+      window.removeEventListener("beforeunload", emitCopilotExitTelemetry);
+    };
+  }, [emitCopilotExitTelemetry]);
 
   useEffect(() => {
     if (!sessionIdentifier || lastHydratedSessionRef.current === sessionIdentifier) {
@@ -427,11 +543,23 @@ function ControlPlaneWorkspaceContent({
           setSafeguards(snapshot.safeguards);
         }
 
+        if (Array.isArray(snapshot.safeguardHistory)) {
+          setSafeguardHistory(snapshot.safeguardHistory);
+        }
+
         if (
           Object.prototype.hasOwnProperty.call(snapshot, "selectedFeedbackRating") &&
           (typeof snapshot.selectedFeedbackRating === "number" || snapshot.selectedFeedbackRating === null)
         ) {
           setSelectedFeedbackRating(snapshot.selectedFeedbackRating);
+        }
+
+        if (Array.isArray(snapshot.plannerRuns)) {
+          setPlannerRuns(
+            snapshot.plannerRuns.filter((entry): entry is PlannerRunSnapshot =>
+              Boolean(entry && typeof entry.id === "string" && typeof entry.createdAt === "string"),
+            ),
+          );
         }
 
         restoreMissionStages(snapshot.missionStages);
@@ -443,6 +571,7 @@ function ControlPlaneWorkspaceContent({
       } finally {
         if (!cancelled) {
           lastHydratedSessionRef.current = sessionIdentifier;
+          markHydrationComplete();
         }
       }
     };
@@ -453,7 +582,7 @@ function ControlPlaneWorkspaceContent({
       cancelled = true;
       controller.abort();
     };
-  }, [restoreMissionStages, sessionIdentifier, tenantId]);
+  }, [markHydrationComplete, restoreMissionStages, sessionIdentifier, tenantId]);
 
   const handleSafeguardTelemetry = useCallback(
     (eventName: string, data: Record<string, unknown>) => {
@@ -625,6 +754,27 @@ function ControlPlaneWorkspaceContent({
     [handleSafeguardTelemetry, safeguardHistory.length],
   );
 
+  const handlePlannerTimelineUpdate = useCallback((events: TimelineMessage[]) => {
+    if (!Array.isArray(events)) {
+      return;
+    }
+
+    const latest = events
+      .filter((event) => event.stage?.startsWith("planner"))
+      .slice(-10)
+      .map<PlannerRunSnapshot>((event) => ({
+        id: event.id,
+        stage: event.stage,
+        event: event.event,
+        createdAt: event.createdAt,
+        label: event.label,
+        description: event.description,
+        metadata: event.metadata ?? null,
+      }));
+
+    setPlannerRuns(latest);
+  }, []);
+
   const markStageIfNeeded = useCallback(
     (stage: MissionStage) => {
       const status = stages.get(stage);
@@ -658,20 +808,49 @@ function ControlPlaneWorkspaceContent({
     },
   });
 
+  const buildSessionSnapshot = useCallback((): CopilotSessionSnapshot => ({
+    artifacts,
+    objectiveId: objectiveId ?? null,
+    missionStages: missionStageSnapshot,
+    missionBrief,
+    safeguards,
+    safeguardHistory,
+    selectedFeedbackRating,
+    themeColor,
+    plannerRuns,
+  }), [
+    artifacts,
+    objectiveId,
+    missionStageSnapshot,
+    missionBrief,
+    safeguards,
+    safeguardHistory,
+    selectedFeedbackRating,
+    themeColor,
+    plannerRuns,
+  ]);
+
   const syncCopilotSession = useCallback(
-    async (nextArtifacts: Artifact[], newObjectiveId?: string | null) => {
+    async (overrides?: Partial<CopilotSessionSnapshot>) => {
+      const baseSnapshot = buildSessionSnapshot();
+      const sessionState: CopilotSessionSnapshot = overrides
+        ? { ...baseSnapshot, ...overrides }
+        : baseSnapshot;
+      const sessionIdentifierValue = sessionIdentifierRef.current;
+
+      if (!sessionIdentifierValue) {
+        return;
+      }
+
       try {
         await fetch("/api/copilotkit/session", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             agentId: AGENT_ID,
-            sessionIdentifier: sessionIdentifierRef.current,
+            sessionIdentifier: sessionIdentifierValue,
             tenantId,
-            state: {
-              artifacts: nextArtifacts,
-              objectiveId: newObjectiveId ?? objectiveId ?? null,
-            },
+            state: sessionState,
             retentionMinutes: SESSION_RETENTION_MINUTES,
           }),
         });
@@ -679,8 +858,16 @@ function ControlPlaneWorkspaceContent({
         console.error("Failed to sync Copilot session", error);
       }
     },
-    [objectiveId, tenantId],
+    [buildSessionSnapshot, tenantId],
   );
+
+  useEffect(() => {
+    if (!hydrationComplete) {
+      return;
+    }
+
+    void syncCopilotSession();
+  }, [hydrationComplete, syncCopilotSession]);
 
   const persistCopilotMessage = useCallback(
     async ({
@@ -863,13 +1050,11 @@ function ControlPlaneWorkspaceContent({
         } catch (error) {
           console.error("Failed to persist placeholder artifact", error);
         }
-
-        await syncCopilotSession(nextArtifacts, objectiveId ?? null);
       })();
 
       return nextArtifacts;
     });
-  }, [objectiveId, syncCopilotSession, tenantId]);
+  }, [objectiveId, tenantId]);
 
   const handleArtifactUndo = useCallback(
     (artifact: Artifact) => {
@@ -938,8 +1123,6 @@ function ControlPlaneWorkspaceContent({
         return "Copilot session already closed.";
       }
 
-      copilotExitHandledRef.current = true;
-
       try {
         await persistCopilotMessage({
           role: "system",
@@ -947,7 +1130,8 @@ function ControlPlaneWorkspaceContent({
           metadata: { reason: reason ?? "completed" },
         });
 
-        await syncCopilotSession([], null);
+        emitCopilotExitTelemetry();
+        await syncCopilotSession();
         return "Copilot session marked as completed.";
       } catch (error) {
         copilotExitHandledRef.current = false;
@@ -974,7 +1158,7 @@ function ControlPlaneWorkspaceContent({
       } catch (error) {
         console.error("Failed to clear Copilot messages", error);
       }
-      await syncCopilotSession([], objectiveId ?? null);
+      await syncCopilotSession();
       return "Copilot session cleared.";
     },
   });
@@ -1047,7 +1231,7 @@ function ControlPlaneWorkspaceContent({
         ].sort((a, b) => a.title.localeCompare(b.title));
 
         setArtifacts(merged);
-        await syncCopilotSession(merged, objectiveId ?? null);
+        await syncCopilotSession({ artifacts: merged });
 
         return `Artifact ${storedId} registered.`;
       } catch (error) {
@@ -1147,10 +1331,6 @@ function ControlPlaneWorkspaceContent({
     }
   }, [approvalFlow.isOpen]);
 
-  useEffect(() => {
-    void syncCopilotSession(artifacts, objectiveId ?? null);
-  }, [artifacts, objectiveId, syncCopilotSession]);
-
   const handleIntakeAccept = useCallback(
     async ({
       missionId,
@@ -1181,7 +1361,7 @@ function ControlPlaneWorkspaceContent({
             }
           : undefined;
 
-      setMissionBrief({
+      const nextMissionBrief: MissionBriefState = {
         missionId,
         objective: normalizedObjective,
         audience: normalizedAudience,
@@ -1189,8 +1369,12 @@ function ControlPlaneWorkspaceContent({
         safeguards: acceptedSafeguards,
         confidence: normalizedConfidence,
         source: null,
-      });
-      setSafeguards((prev) => normalizeSafeguards(acceptedSafeguards, prev));
+      };
+
+      const nextSafeguards = normalizeSafeguards(acceptedSafeguards, safeguards);
+
+      setMissionBrief(nextMissionBrief);
+      setSafeguards(nextSafeguards);
       setSafeguardHistory([]);
       setSafeguardHistoryOpen(false);
       hasPinnedBriefRef.current = false;
@@ -1204,9 +1388,14 @@ function ControlPlaneWorkspaceContent({
         },
       });
 
-      await syncCopilotSession(artifacts, missionId);
+      await syncCopilotSession({
+        objectiveId: missionId,
+        missionBrief: nextMissionBrief,
+        safeguards: nextSafeguards,
+        safeguardHistory: [],
+      });
     },
-    [artifacts, syncCopilotSession, tenantId],
+    [artifacts, safeguards, syncCopilotSession, tenantId],
   );
 
   const handleIntakeAdvance = useCallback(() => {
@@ -1537,9 +1726,10 @@ function ControlPlaneWorkspaceContent({
         tenantId={tenantId}
         missionId={objectiveId ?? null}
         sessionIdentifier={sessionIdentifier}
-        plannerRuns={[]}
+        plannerRuns={plannerRuns}
         onSelectPlay={handlePlannerSelect}
         onStageAdvance={handlePlanComplete}
+        onTimelineUpdate={handlePlannerTimelineUpdate}
       />
 
       <div className="flex grow flex-col lg:flex-row">
