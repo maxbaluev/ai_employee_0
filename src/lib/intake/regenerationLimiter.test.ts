@@ -1,12 +1,16 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   RegenerationLimiter,
   InMemoryRegenerationStore,
   RedisRegenerationStore,
-  PostgresRegenerationStore,
   createRegenerationLimiterStore,
 } from './regenerationLimiter';
+import {
+  buildRedisLimiterKey,
+  closeRedisLimiterClient,
+  getRedisLimiterClient,
+} from './stores/redisStore';
 
 const TENANT_ID = 'tenant-1';
 const MISSION_ID = 'mission-1';
@@ -151,8 +155,17 @@ describe('createRegenerationLimiterStore factory', () => {
   });
 
   it('creates a RedisRegenerationStore when requested', () => {
+    const originalRedisUrl = process.env.REDIS_URL;
+    process.env.REDIS_URL = originalRedisUrl ?? 'redis://localhost:6379';
+
     const store = createRegenerationLimiterStore('redis');
     expect(store).toBeInstanceOf(RedisRegenerationStore);
+
+    if (originalRedisUrl === undefined) {
+      delete process.env.REDIS_URL;
+    } else {
+      process.env.REDIS_URL = originalRedisUrl;
+    }
   });
 
   it('throws an error for unsupported backend types', () => {
@@ -172,28 +185,40 @@ describe('createRegenerationLimiterStore factory', () => {
   });
 });
 
-describe('RedisRegenerationStore', () => {
+const describeIfRedis = process.env.REDIS_URL ? describe : describe.skip;
+
+describeIfRedis('RedisRegenerationStore (integration)', () => {
+  const testKey = `tenant-${Math.random().toString(36).slice(2)}:mission:test:objective`;
   let store: RedisRegenerationStore;
 
-  beforeEach(() => {
+  beforeAll(async () => {
     store = new RedisRegenerationStore();
+    const client = await getRedisLimiterClient();
+    await client.del(buildRedisLimiterKey(testKey));
   });
 
-  it('throws NotImplemented error on get', async () => {
-    await expect(store.get('key')).rejects.toThrow('NotImplemented: Redis backend not yet implemented');
+  afterAll(async () => {
+    await store.reset(testKey);
+    await store.reset('redisTenant:mission-ttl:objective');
+    await closeRedisLimiterClient();
   });
 
-  it('throws NotImplemented error on set', async () => {
-    await expect(store.set('key', { count: 1, firstAttemptAt: Date.now() })).rejects.toThrow(
-      'NotImplemented: Redis backend not yet implemented'
-    );
+  it('stores and retrieves counter entries', async () => {
+    const now = Date.now();
+    await store.set(testKey, { count: 2, firstAttemptAt: now }, 5_000);
+
+    const value = await store.get(testKey);
+    expect(value).toEqual({ count: 2, firstAttemptAt: now });
   });
 
-  it('throws NotImplemented error on reset', async () => {
-    await expect(store.reset('key')).rejects.toThrow('NotImplemented: Redis backend not yet implemented');
-  });
+  it('respects reset windows via TTL when configured', async () => {
+    const limiter = new RegenerationLimiter({ backend: 'redis', maxAttempts: 1, resetWindowMs: 100 });
 
-  it('throws NotImplemented error on clear', async () => {
-    await expect(store.clear()).rejects.toThrow('NotImplemented: Redis backend not yet implemented');
+    expect(await limiter.checkAndIncrement('redisTenant', 'mission-ttl', 'objective')).toBe(true);
+    expect(await limiter.checkAndIncrement('redisTenant', 'mission-ttl', 'objective')).toBe(false);
+
+    await new Promise((resolve) => setTimeout(resolve, 200));
+
+    expect(await limiter.checkAndIncrement('redisTenant', 'mission-ttl', 'objective')).toBe(true);
   });
 });

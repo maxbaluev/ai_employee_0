@@ -55,7 +55,7 @@ export class PostgresRegenerationStore implements RegenerationLimiterStore {
     return toCounterEntry(data);
   }
 
-  async set(key: string, entry: CounterEntry): Promise<void> {
+  async set(key: string, entry: CounterEntry, _resetWindowMs?: number): Promise<void> {
     const { tenantId, missionId, field } = parseKey(key);
 
     const firstAttemptIso = new Date(entry.firstAttemptAt).toISOString();
@@ -100,5 +100,34 @@ export class PostgresRegenerationStore implements RegenerationLimiterStore {
     if (error) {
       throw new Error(`[postgres limiter] failed to clear counters: ${error.message}`);
     }
+  }
+
+  async increment(
+    key: string,
+    maxAttempts: number,
+    now: number,
+    resetWindowMs?: number,
+  ): Promise<{ allowed: boolean; entry: CounterEntry }>
+  {
+    let entry = await this.get(key);
+
+    if (entry && resetWindowMs && now - entry.firstAttemptAt > resetWindowMs) {
+      entry = undefined;
+      await this.reset(key);
+    }
+
+    if (!entry) {
+      const fresh: CounterEntry = { count: 1, firstAttemptAt: now };
+      await this.set(key, fresh, resetWindowMs);
+      return { allowed: true, entry: fresh };
+    }
+
+    if (entry.count >= maxAttempts) {
+      return { allowed: false, entry };
+    }
+
+    const updated: CounterEntry = { count: entry.count + 1, firstAttemptAt: entry.firstAttemptAt };
+    await this.set(key, updated, resetWindowMs);
+    return { allowed: true, entry: updated };
   }
 }

@@ -1,4 +1,5 @@
 import { PostgresRegenerationStore } from './stores/postgresStore';
+import { RedisRegenerationStore } from './stores/redisStore';
 
 /**
  * RegenerationLimiter
@@ -30,12 +31,25 @@ export interface CounterEntry {
 export interface RegenerationLimiterStore {
   /** Get counter entry for a key, returns undefined if not found */
   get(key: string): Promise<CounterEntry | undefined>;
-  /** Set counter entry for a key */
-  set(key: string, entry: CounterEntry): Promise<void>;
+  /**
+   * Persist a counter entry for a key. Primarily used in tests and maintenance flows.
+   * Implementations may ignore the reset window hint.
+   */
+  set(key: string, entry: CounterEntry, resetWindowMs?: number): Promise<void>;
   /** Delete counter entry for a specific key */
   reset(key: string): Promise<void>;
   /** Clear all counter entries */
   clear(): Promise<void>;
+  /**
+   * Atomically increment the counter while respecting the configured attempt limit.
+   * Returns the resulting entry alongside whether the increment was allowed.
+   */
+  increment(
+    key: string,
+    maxAttempts: number,
+    now: number,
+    resetWindowMs?: number,
+  ): Promise<{ allowed: boolean; entry: CounterEntry }>;
 }
 
 /**
@@ -49,7 +63,7 @@ export class InMemoryRegenerationStore implements RegenerationLimiterStore {
     return this.counters.get(key);
   }
 
-  async set(key: string, entry: CounterEntry): Promise<void> {
+  async set(key: string, entry: CounterEntry, _resetWindowMs?: number): Promise<void> {
     this.counters.set(key, entry);
   }
 
@@ -60,31 +74,39 @@ export class InMemoryRegenerationStore implements RegenerationLimiterStore {
   async clear(): Promise<void> {
     this.counters.clear();
   }
-}
 
-/**
- * Redis-backed implementation of RegenerationLimiterStore.
- * For distributed deployments with shared state across instances.
- */
-export class RedisRegenerationStore implements RegenerationLimiterStore {
-  async get(key: string): Promise<CounterEntry | undefined> {
-    throw new Error('NotImplemented: Redis backend not yet implemented');
-  }
+  async increment(
+    key: string,
+    maxAttempts: number,
+    now: number,
+    resetWindowMs?: number,
+  ): Promise<{ allowed: boolean; entry: CounterEntry }>
+  {
+    let entry = this.counters.get(key);
 
-  async set(key: string, entry: CounterEntry): Promise<void> {
-    throw new Error('NotImplemented: Redis backend not yet implemented');
-  }
+    if (entry && resetWindowMs && now - entry.firstAttemptAt > resetWindowMs) {
+      entry = undefined;
+      this.counters.delete(key);
+    }
 
-  async reset(key: string): Promise<void> {
-    throw new Error('NotImplemented: Redis backend not yet implemented');
-  }
+    if (!entry) {
+      const fresh: CounterEntry = { count: 1, firstAttemptAt: now };
+      this.counters.set(key, fresh);
+      return { allowed: true, entry: fresh };
+    }
 
-  async clear(): Promise<void> {
-    throw new Error('NotImplemented: Redis backend not yet implemented');
+    if (entry.count >= maxAttempts) {
+      return { allowed: false, entry };
+    }
+
+    const updated: CounterEntry = { count: entry.count + 1, firstAttemptAt: entry.firstAttemptAt };
+    this.counters.set(key, updated);
+    return { allowed: true, entry: updated };
   }
 }
 
 export { PostgresRegenerationStore } from './stores/postgresStore';
+export { RedisRegenerationStore } from './stores/redisStore';
 
 /**
  * Factory function to create the appropriate store based on configuration.
@@ -100,6 +122,9 @@ export function createRegenerationLimiterStore(
     case 'memory':
       return new InMemoryRegenerationStore();
     case 'redis':
+      if (!process.env.REDIS_URL) {
+        throw new Error('REDIS_URL must be set to use the redis limiter backend');
+      }
       return new RedisRegenerationStore();
     case 'postgres':
       return new PostgresRegenerationStore();
@@ -126,28 +151,8 @@ export class RegenerationLimiter {
   public async checkAndIncrement(tenantId: string, missionId: string, field: RegenerationType): Promise<boolean> {
     const key = this.buildKey(tenantId, missionId, field);
     const now = Date.now();
-
-    let entry = await this.store.get(key);
-
-    // Reset counter if window has expired
-    if (entry && this.resetWindowMs && now - entry.firstAttemptAt > this.resetWindowMs) {
-      entry = undefined;
-    }
-
-    if (!entry) {
-      await this.store.set(key, { count: 1, firstAttemptAt: now });
-      return true;
-    }
-
-    // Check if we've exceeded the limit BEFORE incrementing
-    if (entry.count >= this.maxAttempts) {
-      return false;
-    }
-
-    // Increment the counter
-    entry.count += 1;
-    await this.store.set(key, entry);
-    return true;
+    const { allowed } = await this.store.increment(key, this.maxAttempts, now, this.resetWindowMs);
+    return allowed;
   }
 
   /**
