@@ -56,3 +56,29 @@ def test_search_library_plays_raises_on_empty_catalog():
             guardrails=["tone"],
             limit=3,
         )
+
+
+def test_fetch_latest_inspection_finding_returns_none_when_disabled():
+    client = SupabaseClient(url=None, api_key=None)
+    assert (
+        client.fetch_latest_inspection_finding(
+            mission_id=VALID_MISSION,
+            tenant_id=VALID_TENANT,
+        )
+        is None
+    )
+
+
+def test_fetch_latest_inspection_finding_returns_latest_row():
+    candidate = {
+        "id": "finding-001",
+        "mission_id": VALID_MISSION,
+        "tenant_id": VALID_TENANT,
+        "readiness": 92,
+    }
+    client = _SupabaseStub(response=[candidate])
+    result = client.fetch_latest_inspection_finding(
+        mission_id=VALID_MISSION,
+        tenant_id=VALID_TENANT,
+    )
+    assert result == candidate

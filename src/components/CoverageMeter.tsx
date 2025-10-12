@@ -88,9 +88,27 @@ function getReadinessTextColor(readiness: number): string {
   return 'text-red-300';
 }
 
+type InspectionCategory = {
+  id: string;
+  label: string;
+  coverage: number;
+  threshold: number;
+  status: 'pass' | 'warn' | 'fail';
+  description?: string;
+};
+
+type GateSummary = {
+  threshold: number;
+  canProceed: boolean;
+  reason: string;
+  overrideAvailable: boolean;
+};
+
 type PreviewState = {
   readiness: number;
   canProceed: boolean;
+  categories: InspectionCategory[];
+  gate: GateSummary;
   summary?: string;
   toolkits?: Array<{
     slug: string;
@@ -118,11 +136,45 @@ export function CoverageMeter({
     [selectedToolkitsCount, hasArtifacts],
   );
 
-  const readiness = preview?.readiness ?? baselineReadiness;
-  const gaps = useMemo(
-    () => generateGaps(readiness, selectedToolkitsCount, hasArtifacts),
-    [readiness, selectedToolkitsCount, hasArtifacts],
+  const fallbackCategories = useMemo(
+    () =>
+      buildFallbackCategories({
+        selectedToolkitsCount,
+        hasArtifacts,
+        readiness: baselineReadiness,
+      }),
+    [baselineReadiness, hasArtifacts, selectedToolkitsCount],
   );
+
+  const fallbackGate = useMemo(
+    () => buildGateSummaryFromCategories(fallbackCategories, baselineReadiness, READINESS_THRESHOLD),
+    [baselineReadiness, fallbackCategories],
+  );
+
+  const readiness = preview?.readiness ?? baselineReadiness;
+  const categories = preview?.categories ?? fallbackCategories;
+  const gate = preview?.gate ?? fallbackGate;
+  const gatedCategories = useMemo(() => applyGateToCategories(categories, gate), [categories, gate]);
+  const canProceed = preview?.canProceed ?? gate.canProceed;
+
+  const gaps = useMemo(() => {
+    if (gatedCategories.length === 0) {
+      return generateGaps(readiness, selectedToolkitsCount, hasArtifacts);
+    }
+
+    return gatedCategories
+      .filter((category) => category.status !== 'pass')
+      .map((category) => ({
+        id: `category-${category.id}`,
+        message:
+          category.id === 'toolkits'
+            ? 'Add at least one mission toolkit before planning.'
+            : category.id === 'evidence'
+              ? category.description ?? 'Run a dry-run to generate evidence before planning.'
+              : category.description ?? 'Address outstanding inspection feedback before continuing.',
+        severity: category.status === 'fail' ? 'error' : 'warning',
+      }));
+  }, [gatedCategories, hasArtifacts, readiness, selectedToolkitsCount]);
 
   const handleRecordInspection = useCallback(async () => {
     if (isRecording) {
@@ -178,6 +230,8 @@ export function CoverageMeter({
           hasArtifacts,
           canProceed,
           toolkit_count: normalized.toolkits?.length ?? 0,
+          categories: normalized.categories,
+          gate: normalized.gate,
         },
       });
 
@@ -194,6 +248,8 @@ export function CoverageMeter({
             selectedToolkitsCount,
             hasArtifacts,
             finding_id: normalized.findingId,
+            categories: normalized.categories,
+            gate: normalized.gate,
           },
         });
 
@@ -223,7 +279,9 @@ export function CoverageMeter({
 
   const readinessColor = getReadinessColor(readiness);
   const readinessTextColor = getReadinessTextColor(readiness);
-  const canProceed = preview?.canProceed ?? readiness >= READINESS_THRESHOLD;
+  const gateReason = canProceed
+    ? 'Coverage meets minimum requirements'
+    : 'Improve coverage to enable inspection recording';
 
   return (
     <section className="border-b border-white/10 px-6 py-6">
@@ -231,8 +289,8 @@ export function CoverageMeter({
         <header>
           <h2 className="text-lg font-semibold text-white">Coverage & Readiness</h2>
           <p className="text-xs text-slate-400 mt-1">
-            Verify toolkit coverage and data readiness before planning execution
-          </p>
+            Verify coverage and data readiness before planning execution
+            </p>
         </header>
 
         <div className="rounded-xl border border-white/10 bg-slate-900/80 p-6 space-y-4">
@@ -276,6 +334,39 @@ export function CoverageMeter({
             </div>
           )}
 
+          {gatedCategories.length > 0 && (
+            <div className="space-y-2">
+              <h3 className="text-sm font-medium text-slate-200">Inspection Categories</h3>
+              <ul className="space-y-2">
+                {gatedCategories.map((category) => (
+                  <li
+                    key={category.id}
+                    className={`rounded-lg border px-3 py-2 text-sm ${getCategoryClasses(category.status)}`}
+                  >
+                    <div className="flex items-center justify-between gap-4">
+                      <div>
+                        <p className="font-semibold text-white">{category.label}</p>
+                        {category.description && (
+                          <p className="mt-1 text-xs text-slate-200/80">{category.description}</p>
+                        )}
+                      </div>
+                      <div className="text-right text-xs text-slate-200/80">
+                        <p>{Math.round(category.coverage)}% • target {Math.round(category.threshold)}%</p>
+                        <p className="mt-0.5 uppercase tracking-wide">
+                          {category.status === 'pass'
+                            ? 'PASS'
+                            : category.status === 'warn'
+                              ? 'WARN'
+                              : 'FAIL'}
+                        </p>
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           {gaps.length > 0 && (
             <div className="space-y-2">
               <h3 className="text-sm font-medium text-slate-200">Coverage Gaps</h3>
@@ -305,34 +396,43 @@ export function CoverageMeter({
               <div className="flex items-center justify-between rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2">
                 <dt className="text-slate-400">Selected toolkits</dt>
                 <dd className="font-semibold text-white">
-                  {preview?.toolkits ? preview.toolkits.length : selectedToolkitsCount}
+                  {(() => {
+                    const count = preview?.toolkits ? preview.toolkits.length : selectedToolkitsCount;
+                    return count > 0 ? count : 'No toolkits selected';
+                  })()}
                 </dd>
               </div>
               <div className="flex items-center justify-between rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2">
-                <dt className="text-slate-400">Prior artifacts</dt>
+                <dt className="text-slate-400">Prior mission artifacts</dt>
                 <dd className="font-semibold text-white">{hasArtifacts ? 'Yes' : 'No'}</dd>
               </div>
             </dl>
           </div>
 
-          <footer className="flex items-center justify-between border-t border-white/10 pt-4">
-            <p className="text-xs text-slate-400">
-              {canProceed
-                ? 'Coverage meets minimum requirements'
-                : 'Improve coverage to enable inspection recording'}
-            </p>
-            <button
-              type="button"
-              onClick={handleRecordInspection}
-              disabled={isRecording || !missionId || selectedToolkitsCount === 0}
-              className={`inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition ${
-                canProceed
-                  ? 'bg-emerald-600 text-white hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-60'
-                  : 'cursor-not-allowed bg-slate-600 text-slate-400 opacity-50'
-              }`}
-            >
-              {isRecording ? 'Recording...' : 'Record Inspection'}
-            </button>
+          <footer className="flex flex-col gap-3 border-t border-white/10 pt-4 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-xs text-slate-400">{gateReason}</p>
+            <div className="flex items-center gap-2">
+              {!canProceed && (
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-2 rounded-md border border-violet-400/40 bg-violet-500/20 px-4 py-2 text-sm font-medium text-violet-200 transition hover:bg-violet-500/30"
+                >
+                  Request override
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={handleRecordInspection}
+                disabled={isRecording || !missionId || selectedToolkitsCount === 0}
+                className={`inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition ${
+                  canProceed
+                    ? 'bg-emerald-600 text-white hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-60'
+                    : 'bg-slate-600 text-slate-300 hover:bg-slate-500 disabled:cursor-not-allowed disabled:opacity-60'
+                }`}
+              >
+                {isRecording ? 'Recording...' : 'Record Inspection'}
+              </button>
+            </div>
           </footer>
         </div>
       </div>
@@ -356,12 +456,32 @@ function normalizePreviewResponse(
     ? ((candidate as PreviewState).toolkits as PreviewState['toolkits'])
     : [];
 
+  const rawCategories = Array.isArray((candidate as PreviewState).categories)
+    ? ((candidate as Record<string, unknown>).categories as Array<Record<string, unknown>>)
+    : [];
+
+  const fallbackFromContext = buildFallbackCategories({
+    selectedToolkitsCount,
+    hasArtifacts,
+    readiness: responseReadiness,
+  });
+
+  const categories = rawCategories.length
+    ? rawCategories
+        .map((category, index) => sanitizeCategory(category, index))
+        .filter((category): category is InspectionCategory => category !== null)
+    : fallbackFromContext;
+
+  const gate = sanitizeGate((candidate as Record<string, unknown>).gate, categories, responseReadiness);
+  const effectiveCategories = gate.canProceed ? categories : fallbackFromContext;
+  const categoriesWithGate = applyGateToCategories(effectiveCategories, gate);
+
   const canProceed = (() => {
     const explicit = (candidate as PreviewState).canProceed;
     if (typeof explicit === 'boolean') {
       return explicit;
     }
-    return responseReadiness >= READINESS_THRESHOLD;
+    return gate.canProceed;
   })();
 
   const summary = typeof (candidate as PreviewState).summary === 'string'
@@ -375,6 +495,8 @@ function normalizePreviewResponse(
   return {
     readiness: responseReadiness,
     canProceed,
+    categories: categoriesWithGate,
+    gate,
     summary,
     toolkits,
     findingId: typeof (candidate as PreviewState).findingId === 'string' ? (candidate as PreviewState).findingId : undefined,
@@ -383,4 +505,168 @@ function normalizePreviewResponse(
         ? (candidate as PreviewState).findingCreatedAt
         : undefined,
   };
+}
+
+function buildFallbackCategories(options: {
+  selectedToolkitsCount: number;
+  hasArtifacts: boolean;
+  readiness: number;
+}): InspectionCategory[] {
+  const { selectedToolkitsCount, hasArtifacts, readiness } = options;
+
+  const toolkitCoverage = clampPercentage(
+    selectedToolkitsCount >= 3 ? 100 : selectedToolkitsCount === 2 ? 88 : selectedToolkitsCount === 1 ? 72 : 25,
+  );
+  const evidenceCoverage = clampPercentage(hasArtifacts ? 80 : 30);
+  const readinessCoverage = clampPercentage(readiness);
+
+  return [
+    {
+      id: 'toolkits',
+      label: 'Toolkit coverage',
+      coverage: toolkitCoverage,
+      threshold: READINESS_THRESHOLD,
+      status: resolveStatus(toolkitCoverage, READINESS_THRESHOLD),
+      description:
+        selectedToolkitsCount > 0
+          ? 'Recommended toolkit mix locked in.'
+          : 'Select at least one mission toolkit',
+    },
+    {
+      id: 'evidence',
+      label: 'Evidence history',
+      coverage: evidenceCoverage,
+      threshold: 70,
+      status: resolveStatus(evidenceCoverage, 70),
+      description: hasArtifacts
+        ? 'Previous artifacts available for validator review.'
+        : 'Run a dry-run to generate evidence before planning.',
+    },
+    {
+      id: 'readiness',
+      label: 'Overall readiness',
+      coverage: readinessCoverage,
+      threshold: READINESS_THRESHOLD,
+      status: resolveStatus(readinessCoverage, READINESS_THRESHOLD),
+    },
+  ];
+}
+
+function buildGateSummaryFromCategories(
+  categories: InspectionCategory[],
+  readiness: number,
+  threshold: number,
+): GateSummary {
+  const canProceed = readiness >= threshold;
+  const reason = canProceed
+    ? 'Inspection readiness meets threshold.'
+    : 'Coverage below inspection requirement.';
+
+  return {
+    threshold,
+    canProceed,
+    reason,
+    overrideAvailable: !canProceed,
+  };
+}
+
+function sanitizeCategory(
+  category: Record<string, unknown>,
+  index: number,
+): InspectionCategory | null {
+  const rawId = typeof category.id === 'string' && category.id.trim() ? category.id.trim() : `category-${index}`;
+  const id = rawId === 'artifacts' ? 'evidence' : rawId;
+  const label = typeof category.label === 'string' && category.label.trim() ? category.label.trim() : id;
+  const coverage = clampPercentage(category.coverage, 0);
+  const threshold = clampPercentage(category.threshold, READINESS_THRESHOLD);
+  const status = resolveStatus(coverage, threshold);
+  const description = typeof category.description === 'string' ? category.description : undefined;
+
+  return {
+    id,
+    label,
+    coverage,
+    threshold,
+    status,
+    description,
+  };
+}
+
+function sanitizeGate(
+  gate: unknown,
+  categories: InspectionCategory[],
+  readiness: number,
+): GateSummary {
+  if (gate && typeof gate === 'object') {
+    const cast = gate as Record<string, unknown>;
+    const threshold = clampPercentage(cast.threshold, READINESS_THRESHOLD);
+    const fallbackCanProceed = readiness >= threshold;
+    const canProceed = typeof cast.canProceed === 'boolean' ? cast.canProceed : fallbackCanProceed;
+    const reason = canProceed
+      ? 'Inspection readiness meets threshold.'
+      : 'Coverage below inspection requirement.';
+    const overrideAvailable = !canProceed;
+
+    return {
+      threshold,
+      canProceed,
+      reason,
+      overrideAvailable,
+    };
+  }
+
+  return buildGateSummaryFromCategories(categories, readiness, READINESS_THRESHOLD);
+}
+
+function resolveStatus(coverage: number, threshold: number): InspectionCategory['status'] {
+  if (coverage >= threshold) {
+    return 'pass';
+  }
+  if (coverage >= threshold * 0.6) {
+    return 'warn';
+  }
+  return 'fail';
+}
+
+function clampPercentage(value: unknown, fallback = 0): number {
+  const numeric = Number(value);
+  if (Number.isFinite(numeric)) {
+    return Math.max(0, Math.min(100, numeric));
+  }
+  return fallback;
+}
+
+function getCategoryClasses(status: InspectionCategory['status']): string {
+  if (status === 'pass') {
+    return 'border-emerald-500/30 bg-emerald-500/10 text-emerald-100';
+  }
+  if (status === 'warn') {
+    return 'border-amber-500/30 bg-amber-500/10 text-amber-100';
+  }
+  return 'border-red-500/30 bg-red-500/10 text-red-100';
+}
+
+function applyGateToCategories(
+  categories: InspectionCategory[],
+  gate: GateSummary,
+): InspectionCategory[] {
+  return categories.map((category) => {
+    if (!gate.canProceed && category.id === 'toolkits') {
+      return {
+        ...category,
+        status: category.status === 'pass' ? 'fail' : category.status,
+        description: 'Select at least one mission toolkit',
+      };
+    }
+
+    if (!gate.canProceed && category.id === 'evidence') {
+      return {
+        ...category,
+        status: category.status === 'pass' ? 'fail' : category.status,
+        description: category.description ?? 'Run a dry-run to generate evidence before planning.',
+      };
+    }
+
+    return category;
+  });
 }

@@ -127,9 +127,27 @@ type ToolkitPreview = {
   sampleRows: string[];
 };
 
+type InspectionCategory = {
+  id: string;
+  label: string;
+  coverage: number;
+  threshold: number;
+  status: 'pass' | 'warn' | 'fail';
+  description?: string;
+};
+
+type GateSummary = {
+  threshold: number;
+  canProceed: boolean;
+  reason: string;
+  overrideAvailable: boolean;
+};
+
 type PreviewResponse = {
   readiness: number;
   canProceed: boolean;
+  categories: InspectionCategory[];
+  gate: GateSummary;
   summary: string;
   toolkits: ToolkitPreview[];
   findingId: string;
@@ -168,7 +186,17 @@ async function buildInspectionPreview(context: PreviewRequestContext): Promise<P
     hasArtifacts,
     providedReadiness,
   });
-  const canProceed = computedReadiness >= 85;
+  const categories = buildInspectionCategories({
+    selectedToolkitsCount,
+    hasArtifacts,
+    readiness: computedReadiness,
+  });
+
+  const gate = buildGateSummary({
+    readiness: computedReadiness,
+    threshold: 85,
+    categories,
+  });
 
   const summary = toolkits.length
     ? `${toolkits.length} toolkit${toolkits.length === 1 ? '' : 's'} ready (${toolkits
@@ -186,6 +214,8 @@ async function buildInspectionPreview(context: PreviewRequestContext): Promise<P
       toolkits,
       hasArtifacts,
       selectedToolkitsCount,
+      categories,
+      gate,
     } as unknown as Database['public']['Tables']['inspection_findings']['Insert']['payload'],
     readiness: computedReadiness,
   };
@@ -202,7 +232,9 @@ async function buildInspectionPreview(context: PreviewRequestContext): Promise<P
 
   return {
     readiness: computedReadiness,
-    canProceed,
+    canProceed: gate.canProceed,
+    categories,
+    gate,
     summary,
     toolkits,
     findingId: finding.id,
@@ -265,4 +297,82 @@ function computeReadiness(options: {
   const toolkitBonus = Math.min(35, Math.max(0, selectedToolkitsCount - 1) * 12 + 15);
   const artifactBonus = hasArtifacts ? 15 : 0;
   return Math.max(0, Math.min(100, base + toolkitBonus + artifactBonus));
+}
+
+function buildInspectionCategories(options: {
+  selectedToolkitsCount: number;
+  hasArtifacts: boolean;
+  readiness: number;
+}): InspectionCategory[] {
+  const { selectedToolkitsCount, hasArtifacts, readiness } = options;
+
+  const toolkitCoverage = Math.max(0, Math.min(100, selectedToolkitsCount >= 3 ? 100 : selectedToolkitsCount === 2 ? 88 : selectedToolkitsCount === 1 ? 72 : 25));
+  const toolkitThreshold = 85;
+
+  const evidenceCoverage = hasArtifacts ? 80 : 30;
+  const evidenceThreshold = 70;
+
+  const categories: InspectionCategory[] = [
+    {
+      id: 'toolkits',
+      label: 'Toolkit coverage',
+      coverage: toolkitCoverage,
+      threshold: toolkitThreshold,
+      status: resolveStatus(toolkitCoverage, toolkitThreshold),
+      description:
+        selectedToolkitsCount > 0
+          ? 'Recommended toolkit mix locked in.'
+          : 'Select at least one mission toolkit before planning.',
+    },
+    {
+      id: 'evidence',
+      label: 'Evidence history',
+      coverage: evidenceCoverage,
+      threshold: evidenceThreshold,
+      status: resolveStatus(evidenceCoverage, evidenceThreshold),
+      description: hasArtifacts
+        ? 'Previous artifacts available for validator review.'
+        : 'Run a dry-run to generate evidence before planning.',
+    },
+    {
+      id: 'readiness',
+      label: 'Overall readiness',
+      coverage: readiness,
+      threshold: 85,
+      status: resolveStatus(readiness, 85),
+    },
+  ];
+
+  return categories;
+}
+
+function buildGateSummary(options: {
+  readiness: number;
+  threshold: number;
+  categories: InspectionCategory[];
+}): GateSummary {
+  const { readiness, threshold, categories } = options;
+  const canProceed = readiness >= threshold;
+  const reason = canProceed
+    ? 'Inspection readiness meets threshold.'
+    : 'Coverage below inspection requirement.';
+
+  const overrideAvailable = !canProceed;
+
+  return {
+    threshold,
+    canProceed,
+    reason,
+    overrideAvailable,
+  };
+}
+
+function resolveStatus(coverage: number, threshold: number): InspectionCategory['status'] {
+  if (coverage >= threshold) {
+    return 'pass';
+  }
+  if (coverage >= threshold * 0.6) {
+    return 'warn';
+  }
+  return 'fail';
 }

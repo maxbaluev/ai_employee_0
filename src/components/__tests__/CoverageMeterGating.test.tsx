@@ -94,6 +94,20 @@ type PreviewState = {
   readiness: number;
   canProceed: boolean;
   summary: string;
+  categories: Array<{
+    id: string;
+    label: string;
+    coverage: number;
+    threshold: number;
+    status: 'pass' | 'fail' | 'warn';
+    description?: string;
+  }>;
+  gate: {
+    threshold: number;
+    canProceed: boolean;
+    reason: string;
+    overrideAvailable: boolean;
+  };
   toolkits?: Array<{ slug: string; name: string; sampleCount?: number }>;
 };
 
@@ -101,6 +115,30 @@ const previewState = vi.hoisted<PreviewState>(() => ({
   readiness: 100,
   canProceed: true,
   summary: 'Ready to proceed',
+  categories: [
+    {
+      id: 'toolkits',
+      label: 'Toolkit coverage',
+      coverage: 100,
+      threshold: 85,
+      status: 'pass',
+      description: 'Recommended toolkit mix locked in.',
+    },
+    {
+      id: 'artifacts',
+      label: 'Evidence history',
+      coverage: 80,
+      threshold: 70,
+      status: 'warn',
+      description: 'Previous dry-run artifacts available for review.',
+    },
+  ],
+  gate: {
+    threshold: 85,
+    canProceed: true,
+    reason: 'Inspection readiness meets threshold.',
+    overrideAvailable: false,
+  },
   toolkits: [
     { slug: 'hubspot-crm', name: 'HubSpot CRM', sampleCount: 3 },
     { slug: 'slack', name: 'Slack', sampleCount: 2 },
@@ -192,6 +230,12 @@ describe('CoverageMeter gating integration', () => {
     previewState.readiness = 82;
     previewState.canProceed = false;
     previewState.summary = 'Inspection requires additional coverage';
+    previewState.gate = {
+      threshold: 85,
+      canProceed: false,
+      reason: 'Coverage below inspection requirement.',
+      overrideAvailable: true,
+    };
 
     render(
       <ControlPlaneWorkspace
@@ -245,6 +289,10 @@ describe('CoverageMeter gating integration', () => {
       hasArtifacts: true,
     });
 
+    expect(screen.getByText(/Toolkit coverage/i)).toBeInTheDocument();
+    expect(screen.getByText(/Select at least one mission toolkit/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Request override/i })).toBeVisible();
+
     await new Promise((resolve) => setTimeout(resolve, 900));
 
     const inspectStage = getStageNode('Inspect');
@@ -263,7 +311,14 @@ describe('CoverageMeter gating integration', () => {
     );
 
     expect(previewTelemetryCall).toBeDefined();
-    expect(previewTelemetryCall?.[1].eventData?.canProceed).toBe(false);
+    expect(previewTelemetryCall?.[1].eventData?.gate?.canProceed).toBe(false);
+    expect(previewTelemetryCall?.[1].eventData?.gate?.threshold).toBe(85);
+    expect(previewTelemetryCall?.[1].eventData?.categories).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: 'toolkits', status: 'fail' }),
+        expect.objectContaining({ id: 'evidence', status: 'fail' }),
+      ]),
+    );
     expect(previewTelemetryCall?.[1].eventData?.toolkit_count).toBe(
       previewState.toolkits?.length ?? 0,
     );
@@ -274,6 +329,12 @@ describe('CoverageMeter gating integration', () => {
     previewState.readiness = 92;
     previewState.canProceed = true;
     previewState.summary = 'Inspection clears gating threshold';
+    previewState.gate = {
+      threshold: 85,
+      canProceed: true,
+      reason: 'Inspection readiness meets threshold.',
+      overrideAvailable: false,
+    };
 
     render(
       <ControlPlaneWorkspace
@@ -349,7 +410,14 @@ describe('CoverageMeter gating integration', () => {
     );
 
     expect(previewTelemetryCall).toBeDefined();
-    expect(previewTelemetryCall?.[1].eventData?.canProceed).toBe(true);
+    expect(previewTelemetryCall?.[1].eventData?.gate?.canProceed).toBe(true);
+    expect(previewTelemetryCall?.[1].eventData?.gate?.threshold).toBe(85);
+    expect(previewTelemetryCall?.[1].eventData?.categories).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: 'toolkits', status: 'pass' }),
+        expect.objectContaining({ id: 'evidence', status: 'pass' }),
+      ]),
+    );
     expect(previewTelemetryCall?.[1].eventData?.toolkit_count).toBe(
       previewState.toolkits?.length ?? 0,
     );

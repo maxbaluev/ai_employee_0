@@ -156,6 +156,33 @@ class SupabaseClient:
             return rows
         return []
 
+    def fetch_latest_inspection_finding(
+        self,
+        *,
+        mission_id: str,
+        tenant_id: str,
+    ) -> Optional[Dict[str, Any]]:
+        """Return the most recent inspection finding for a mission."""
+
+        if not self.enabled:
+            return None
+        if not self._is_uuid(mission_id) or not self._is_uuid(tenant_id):
+            return None
+
+        params = {
+            "mission_id": f"eq.{mission_id}",
+            "tenant_id": f"eq.{tenant_id}",
+            "order": "created_at.desc",
+            "limit": "1",
+        }
+
+        rows = self._request("GET", "/inspection_findings", params=params)
+        if isinstance(rows, list) and rows:
+            candidate = rows[0]
+            if isinstance(candidate, dict):
+                return candidate
+        return None
+
     def upsert_plays(self, plays: Iterable[Dict[str, Any]]) -> None:
         payload = [row for row in plays if row]
         if not payload:

@@ -110,6 +110,7 @@ describe('GET /api/planner/runs', () => {
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
+    createClientMock.mockReset();
     process.env.SUPABASE_URL = 'https://example.supabase.co';
     process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-role-key';
   });
@@ -141,13 +142,13 @@ describe('GET /api/planner/runs', () => {
     const selectMock = vi.fn(() => builder);
     const fromMock = vi.fn(() => ({ select: selectMock }));
 
-    createClientMock.mockReturnValue({ from: fromMock } as unknown as ReturnType<typeof createClient>);
+    createClientMock.mockImplementation(() => ({ from: fromMock } as unknown as ReturnType<typeof createClient>));
 
     const { GET } = await import('@/app/api/planner/runs/route');
 
-    const response = await GET({
-      url: `http://localhost/api/planner/runs?tenantId=${tenantId}&missionId=${missionId}&limit=25`,
-    } as unknown as Request);
+    const response = await GET(
+      new Request(`http://localhost/api/planner/runs?tenantId=${tenantId}&missionId=${missionId}&limit=25`),
+    );
 
     expect(fromMock).toHaveBeenCalledWith('planner_runs');
     expect(selectMock).toHaveBeenCalledWith(
@@ -185,13 +186,11 @@ describe('GET /api/planner/runs', () => {
     const selectMock = vi.fn(() => builder);
     const fromMock = vi.fn(() => ({ select: selectMock }));
 
-    createClientMock.mockReturnValue({ from: fromMock } as unknown as ReturnType<typeof createClient>);
+    createClientMock.mockImplementation(() => ({ from: fromMock } as unknown as ReturnType<typeof createClient>));
 
     const { GET } = await import('@/app/api/planner/runs/route');
 
-    const response = await GET({
-      url: `http://localhost/api/planner/runs?tenantId=${tenantId}`,
-    } as unknown as Request);
+    const response = await GET(new Request(`http://localhost/api/planner/runs?tenantId=${tenantId}`));
 
     expect(filters).toEqual([{ column: 'tenant_id', value: tenantId }]);
     expect(appliedLimit).toBe(50); // default limit

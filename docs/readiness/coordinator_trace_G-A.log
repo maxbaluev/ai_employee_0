@@ -288,3 +288,8 @@
 {"stage": "intake_stage_started", "mission": "00000000-0000-0000-0000-000000000002", "tenant": "00000000-0000-0000-0000-000000000000", "timestamp": "2025-10-12T08:01:28Z"}
 {"stage": "intake_stage_started", "mission": "00000000-0000-0000-0000-000000000001", "tenant": "00000000-0000-0000-0000-000000000000", "timestamp": "2025-10-12T08:01:28Z"}
 {"stage": "intake_stage_started", "mission": "00000000-0000-0000-0000-000000000004", "tenant": "00000000-0000-0000-0000-000000000000", "timestamp": "2025-10-12T08:01:29Z"}
+{"stage": "intake_stage_started", "mission": "00000000-0000-0000-0000-000000000003", "tenant": "00000000-0000-0000-0000-000000000000", "timestamp": "2025-10-12T20:45:12Z"}
+{"stage": "intake_stage_started", "mission": "mission-dry-run", "tenant": "gate-ga-default", "timestamp": "2025-10-12T20:45:14Z"}
+{"stage": "intake_stage_started", "mission": "00000000-0000-0000-0000-000000000002", "tenant": "00000000-0000-0000-0000-000000000000", "timestamp": "2025-10-12T20:45:14Z"}
+{"stage": "intake_stage_started", "mission": "00000000-0000-0000-0000-000000000001", "tenant": "00000000-0000-0000-0000-000000000000", "timestamp": "2025-10-12T20:45:15Z"}
+{"stage": "intake_stage_started", "mission": "00000000-0000-0000-0000-000000000004", "tenant": "00000000-0000-0000-0000-000000000000", "timestamp": "2025-10-12T20:45:15Z"}
