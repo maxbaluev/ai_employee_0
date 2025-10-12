@@ -49,6 +49,9 @@ jobs:
       - name: Install Playwright browsers
         run: pnpm exec playwright install --with-deps chromium
 
+      - name: Run Gate G-A fallback audit
+        run: pnpm run guard:fallbacks
+
       - name: Run Gate G-B integration tests
         run: pnpm run test:gate-gb:integration
 
