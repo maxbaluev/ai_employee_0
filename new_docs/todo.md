@@ -441,7 +441,7 @@ Gate G-B delivers a structured workflow from intake to feedback:
   - **Evidence:** Component screenshot showing toolkit cards; Supabase query confirms persisted selections; integration test validates inspection flow.
   - **File references:** `src/components/RecommendedToolStrip.tsx`, `src/app/api/toolkits/recommend/route.ts`, Composio `tools.get` integration per libs_docs/composio/llms.txt §3.1.
 
-- [x] Harden intake regeneration limiter (async pluggable store) with tests — `src/lib/intake/regenerationLimiter.ts`, `src/lib/intake/regenerationLimiter.test.ts`, `src/app/api/intake/regenerate/route.ts`.
+- [x] Harden intake regeneration limiter (async pluggable store) with tests — `src/lib/intake/regenerationLimiter.ts`, `src/lib/intake/regenerationLimiter.test.ts`, `src/app/api/intake/regenerate/route.ts`, `src/lib/intake/stores/redisStore.ts` (Redis backend honors `resetWindowMs` TTL; Redis tests skip unless `REDIS_URL` is set).
 
 - [x] Align intake regenerate route exports with Next.js handler typing — `src/app/api/intake/regenerate/route.ts`, `src/app/api/intake/regenerate/route.test.ts`.
 
@@ -739,6 +739,7 @@ Gate G-B delivers a structured workflow from intake to feedback:
 - [ ] **Regenerate Supabase types** after any schema edits so the TypeScript client mirrors the updated definitions.
 - [x] Feedback persistence now uses generated Supabase types (`src/lib/feedback/service.ts`); local shim removed.
 - [x] Added CI guard for Supabase types regeneration (`.github/workflows/supabase-types-check.yml`) invoking `supabase gen types …` + `pnpm tsc --noEmit`.
+- [x] Added telemetry audit workflow (`.github/workflows/telemetry-audit.yml`) running `python scripts/audit_telemetry_events.py --gate G-B`; requires Supabase secrets to execute in CI.
 
 #### B. RLS Policy Verification & Governance Access
 
