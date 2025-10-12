@@ -784,6 +784,7 @@ class PlannerAgent(LlmAgent):
         composio_latency_ms: int,
         hybrid_score_avg: float,
         composio_score_avg: float,
+        **extra_metadata: Any,
     ) -> None:
         if not self.supabase or not self.supabase.enabled:
             return
@@ -795,35 +796,34 @@ class PlannerAgent(LlmAgent):
             )[:3]
         ]
 
+        payload = {
+            "tenant_id": context.tenant_id,
+            "mission_id": context.mission_id,
+            "latency_ms": latency_ms,
+            "candidate_count": len(ranked),
+            "embedding_similarity_avg": round(avg_similarity, 4) if ranked else None,
+            "primary_toolkits": primary_toolkits or None,
+            "mode": mission_mode,
+            "metadata": {
+                "objective": context.objective[:120],
+                "audience": context.audience,
+                "guardrails": context.guardrails[:5],
+                "latency_breakdown": {
+                    "library_query_ms": library_latency_ms,
+                    "composio_discovery_ms": composio_latency_ms,
+                },
+                "hybrid_score_avg": round(hybrid_score_avg, 4) if ranked else None,
+                "composio_score_avg": round(composio_score_avg, 4) if ranked else None,
+            },
+        }
+
+        if extra_metadata:
+            metadata = payload["metadata"]
+            for key, value in extra_metadata.items():
+                metadata[key] = value
+
         try:
-            self.supabase.insert_planner_run(
-                {
-                    "tenant_id": context.tenant_id,
-                    "mission_id": context.mission_id,
-                    "latency_ms": latency_ms,
-                    "candidate_count": len(ranked),
-                    "embedding_similarity_avg": round(avg_similarity, 4)
-                    if ranked
-                    else None,
-                    "primary_toolkits": primary_toolkits or None,
-                    "mode": mission_mode,
-                    "metadata": {
-                        "objective": context.objective[:120],
-                        "audience": context.audience,
-                        "guardrails": context.guardrails[:5],
-                        "latency_breakdown": {
-                            "library_query_ms": library_latency_ms,
-                            "composio_discovery_ms": composio_latency_ms,
-                        },
-                        "hybrid_score_avg": round(hybrid_score_avg, 4)
-                        if ranked
-                        else None,
-                        "composio_score_avg": round(composio_score_avg, 4)
-                        if ranked
-                        else None,
-                    },
-                }
-            )
+            self.supabase.insert_planner_run(payload)
         except Exception:  # pragma: no cover - defensive in offline/dev mode
             LOGGER.debug("Skipping planner_runs insert due to Supabase error", exc_info=True)
 
