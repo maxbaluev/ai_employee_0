@@ -441,6 +441,10 @@ Gate G-B delivers a structured workflow from intake to feedback:
   - **Evidence:** Component screenshot showing toolkit cards; Supabase query confirms persisted selections; integration test validates inspection flow.
   - **File references:** `src/components/RecommendedToolStrip.tsx`, `src/app/api/toolkits/recommend/route.ts`, Composio `tools.get` integration per libs_docs/composio/llms.txt §3.1.
 
+- [x] Harden intake regeneration limiter (async pluggable store) with tests — `src/lib/intake/regenerationLimiter.ts`, `src/lib/intake/regenerationLimiter.test.ts`, `src/app/api/intake/regenerate/route.ts`.
+
+- [x] Align intake regenerate route exports with Next.js handler typing — `src/app/api/intake/regenerate/route.ts`, `src/app/api/intake/regenerate/route.test.ts`.
+
 - [x] **Implement Stage 4: Coverage Meter with MCP Inspection**: Build coverage meter component displaying readiness percentage, gap highlights, and inspection preview per ux.md §4.2 and workflow.md §4.1.
   - **Acceptance:** Coverage meter shows percentage (0-100%); gaps highlighted in red; inspection summaries rendered inline; ≥85% required to proceed.
   - **Evidence:** Screenshot of coverage meter at various percentages; unit tests for gap calculation; MCP draft call logs.
@@ -547,10 +551,8 @@ Gate G-B delivers a structured workflow from intake to feedback:
   - **Evidence:** Latency report showing distribution; dashboard screenshot with p95 metrics.
   - **File references:** `src/lib/telemetry.ts:trackLatency`, `src/app/api/analytics/latency/route.ts`.
 
-- [ ] **Implement PII redaction in telemetry**: Ensure no secrets, emails, tokens logged in telemetry payloads per workflow.md §10.3.
-  - **Acceptance:** Automated scan confirms no PII patterns in telemetry payloads; redaction rules documented.
-  - **Evidence:** PII scan report; redaction rule tests; sample telemetry payload audit.
-  - **File references:** `src/lib/telemetry.ts:redactPayload`, PII regex patterns.
+- [x] **Implement PII redaction in telemetry**: Ensure no secrets, emails, tokens logged in telemetry payloads per workflow.md §10.3. (Updated `src/lib/telemetry/redaction.ts`, added `src/lib/telemetry/redaction.test.ts`).
+  - **Evidence:** `pnpm vitest run src/lib/telemetry/redaction.test.ts`.
 
 ### ADK Agent Backend Refactoring
 
@@ -735,6 +737,8 @@ Gate G-B delivers a structured workflow from intake to feedback:
 - [ ] **Verify/Update inspection_findings table** (`0001_init.sql`, inspection_findings block). Confirm coverage payload structure, indexes, and RLS; adjust for new inspection metadata.
 - [ ] **Verify/Update toolkit_selections table** (`0001_init.sql`, toolkit_selections block). Ensure selected_tools JSON schema, uniqueness, indexes, and RLS coverage; update comments/examples as palette model changes.
 - [ ] **Regenerate Supabase types** after any schema edits so the TypeScript client mirrors the updated definitions.
+- [x] Feedback persistence now uses generated Supabase types (`src/lib/feedback/service.ts`); local shim removed.
+- [x] Added CI guard for Supabase types regeneration (`.github/workflows/supabase-types-check.yml`) invoking `supabase gen types …` + `pnpm tsc --noEmit`.
 
 #### B. RLS Policy Verification & Governance Access
 

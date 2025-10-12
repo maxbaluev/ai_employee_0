@@ -1,4 +1,4 @@
-"""Tests for /api/toolkits/selections tenant enforcement."""
+// Tests for /api/toolkits/selections tenant enforcement.
 
 import { NextRequest } from 'next/server';
 import { describe, expect, it, vi } from 'vitest';

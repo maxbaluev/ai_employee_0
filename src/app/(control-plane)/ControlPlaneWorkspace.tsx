@@ -321,7 +321,7 @@ function ControlPlaneWorkspaceContent({
   );
 
   useCopilotReadable({
-    description: "Evidence artifacts tracked in the Gate G-A dry-run workspace",
+    description: "Evidence artifacts tracked in the Gate G-B dry-run workspace",
     value: readableState,
   });
 
@@ -1461,7 +1461,7 @@ function ControlPlaneWorkspaceContent({
       <header className="border-b border-white/10 bg-slate-950/80 backdrop-blur">
         <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-8 py-6">
           <div>
-            <p className="text-xs uppercase tracking-widest text-violet-300">Gate G-A · Foundation ready</p>
+            <p className="text-xs uppercase tracking-widest text-violet-300">Gate G-B · Foundation ready</p>
             <h1 className="mt-1 text-2xl font-semibold">AI Employee Control Plane</h1>
           </div>
           <div className="flex items-center gap-3 text-sm text-slate-300">

@@ -24,7 +24,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, 'src'),
-      '@supabase': path.resolve(__dirname, 'supabase'),
+      '@supabase/types': path.resolve(__dirname, 'supabase/types'),
     },
   },
 });

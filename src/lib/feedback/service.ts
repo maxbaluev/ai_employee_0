@@ -1,39 +1,11 @@
 import { getServiceSupabaseClient } from '@/lib/supabase/service';
-import type { Database, Json } from '@supabase/types';
+import type { Database, Json, TablesInsert, Tables } from '@supabase/types';
 
 type SupabaseClient = ReturnType<typeof getServiceSupabaseClient>;
 
-type MissionFeedbackTable = Database['public']['Tables'] extends {
-  mission_feedback: infer Table;
-}
-  ? Table
-  : null;
-
-// TODO: Replace fallback MissionFeedback types once `supabase/types.ts` is regenerated.
-type MissionFeedbackInsert = MissionFeedbackTable extends { Insert: infer Insert }
-  ? Insert
-  : {
-      mission_id: string;
-      tenant_id: string;
-      artifact_id?: string | null;
-      rating?: number | null;
-      feedback_text?: string | null;
-      learning_signals?: Json | null;
-    };
-
-type MissionFeedbackRow = MissionFeedbackTable extends { Row: infer Row }
-  ? Row
-  : {
-      id: string;
-      mission_id: string;
-      tenant_id: string;
-      artifact_id: string | null;
-      rating: number | null;
-      feedback_text: string | null;
-      learning_signals: Json | null;
-      created_at: string;
-      updated_at: string;
-    };
+// Type aliases for mission_feedback table
+type MissionFeedbackInsert = TablesInsert<'mission_feedback'>;
+type MissionFeedbackRow = Tables<'mission_feedback'>;
 
 export type PersistMissionFeedbackParams = {
   tenantId: string;

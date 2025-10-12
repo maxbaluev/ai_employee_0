@@ -260,6 +260,17 @@ create table public.mission_events (
   created_at timestamptz not null default timezone('utc', now())
 );
 
+-- TODO(Gate G-B): Regenerate Supabase types after schema change.
+
+create table public.mission_regeneration_limits (
+  tenant_id uuid not null references auth.users(id) on delete cascade,
+  mission_id uuid not null references public.objectives(id) on delete cascade,
+  field text not null,
+  attempt_count integer not null default 0,
+  first_attempt_at timestamptz not null default timezone('utc', now()),
+  primary key (tenant_id, mission_id, field)
+);
+
 create table public.safeguard_events (
   id uuid primary key default gen_random_uuid(),
   mission_id uuid references public.objectives(id) on delete cascade,

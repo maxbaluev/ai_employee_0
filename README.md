@@ -101,6 +101,10 @@ before running QA.
 - [Composio resources](https://composio.dev/)
 - [Supabase docs](https://supabase.com/docs)
 
+## Gate G-B Notes
+- `INTAKE_LIMITER_BACKEND=memory|redis|postgres` (defaults to `memory`; Redis/Postgres backends are planned but not yet implemented).
+- After Supabase schema edits run `supabase gen types typescript --linked --schema public,storage,graphql_public > supabase/types.ts` and follow up with `pnpm tsc --noEmit` to confirm the generated bindings compile cleanly.
+
 ## License
 
 This project is licensed under the MIT License. See `LICENSE` for details.

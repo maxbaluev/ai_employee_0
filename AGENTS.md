@@ -71,3 +71,18 @@
 - Inspect currently active tool versions → `mise current`.
 
 Keep this guide current—agents treat AGENTS.md as the single source of truth for local workflows.
+
+## Gate G-B Operational Notes
+
+- `INTAKE_LIMITER_BACKEND=memory|redis|postgres`
+  - Defaults to `memory` (in-memory Map); `redis`/`postgres` modes are scaffolded but not yet implemented.
+  - Set the variable in `.env` if you need to validate backend selection logic.
+- Supabase types
+  - After schema edits run `supabase gen types typescript --linked --schema public,storage,graphql_public > supabase/types.ts`
+  - Follow with `pnpm tsc --noEmit` to confirm the generated bindings compile cleanly before committing
+
+### Telemetry Hygiene
+
+- Scrub PII before sending events—reuse `src/lib/telemetry/redaction.ts` helpers and extend them if new fields appear.
+- CopilotKit runtime supports opt-out/sampling flags; set `telemetryDisabled` or adjust sample rate when needed.
+- Run `pnpm ts-node scripts/audit_telemetry_events.py --gate G-B` as part of Gate reviews to verify required events are emitted.

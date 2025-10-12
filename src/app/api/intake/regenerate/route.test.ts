@@ -1,9 +1,9 @@
 /// <reference types="vitest" />
 
 import { NextRequest } from 'next/server';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { __resetRegenerateAttemptsForTest, POST } from './route';
+import { POST } from './route';
 
 const regenerateFieldMock = vi.hoisted(() => vi.fn());
 const RegenerationLimitErrorMock = vi.hoisted(() => {
@@ -66,14 +66,9 @@ describe('POST /api/intake/regenerate', () => {
     });
   });
 
-  afterEach(() => {
-    vi.clearAllMocks();
-    __resetRegenerateAttemptsForTest();
-  });
-
   it('returns 429 on the fourth regeneration attempt for the same mission', async () => {
     const basePayload = {
-      missionId: DEFAULT_MISSION_ID,
+      missionId: 'mission-429-limit',
       field: 'objective' as const,
     };
 
@@ -91,6 +86,33 @@ describe('POST /api/intake/regenerate', () => {
       field: 'objective',
       limit: 3,
     });
+    expect(regenerateFieldMock).toHaveBeenCalledTimes(3);
+  });
+
+  it('tracks regeneration limits separately per mission', async () => {
+    const missionOnePayload = {
+      missionId: 'mission-one',
+      field: 'audience' as const,
+    };
+
+    const missionTwoPayload = {
+      missionId: 'mission-two',
+      field: 'audience' as const,
+    };
+
+    // Exhaust limit for mission one
+    for (let attempt = 1; attempt <= 3; attempt += 1) {
+      const response = await POST(createRequest(missionOnePayload));
+      expect(response.status).toBe(200);
+    }
+
+    // Mission one should now be blocked
+    const blockedResponse = await POST(createRequest(missionOnePayload));
+    expect(blockedResponse.status).toBe(429);
+
+    // Mission two should still be allowed
+    const missionTwoResponse = await POST(createRequest(missionTwoPayload));
+    expect(missionTwoResponse.status).toBe(200);
     expect(regenerateFieldMock).toHaveBeenCalledTimes(4);
   });
 });

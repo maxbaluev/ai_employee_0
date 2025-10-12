@@ -7,18 +7,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { regenerateField, RegenerationLimitError } from '@/lib/intake/service';
 import { getRouteHandlerSupabaseClient } from '@/lib/supabase/server';
+import {
+  RegenerationLimiter,
+  type RegenerationType,
+} from '@/lib/intake/regenerationLimiter';
 
-// TODO: replace Map with distributed store before production rollout.
-const regenerationAttempts = new Map<string, number>();
 const MAX_REGENERATION_ATTEMPTS = 3;
-
-function getAttemptKey(tenantId: string, missionId: string, field: string) {
-  return `${tenantId}:${missionId}:${field}`;
-}
-
-export function __resetRegenerateAttemptsForTest() {
-  regenerationAttempts.clear();
-}
+const regenerationLimiter = new RegenerationLimiter({
+  maxAttempts: MAX_REGENERATION_ATTEMPTS,
+});
 
 function resolveTenantId(
   bodyTenantId: unknown,
@@ -50,6 +47,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const field = body.field as RegenerationType;
+
     const supabaseRoute = await getRouteHandlerSupabaseClient();
     const {
       data: { session },
@@ -66,29 +65,26 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const counterKey = getAttemptKey(tenantId, body.missionId, body.field);
-    const previousAttempts = regenerationAttempts.get(counterKey) ?? 0;
+    // Check and increment regeneration counter
+    const isAllowed = await regenerationLimiter.checkAndIncrement(tenantId, body.missionId, field);
 
-    const nextAttempts = previousAttempts + 1;
-    regenerationAttempts.set(counterKey, nextAttempts);
-
-    const chips = await regenerateField({
-      missionId: body.missionId,
-      tenantId,
-      field: body.field,
-      context: typeof body.context === 'string' ? body.context : undefined,
-    });
-
-    if (previousAttempts >= MAX_REGENERATION_ATTEMPTS) {
+    if (!isAllowed) {
       return NextResponse.json(
         {
-          error: `Regeneration limit reached for ${body.field}. Please edit manually.`,
-          field: body.field,
+          error: `Regeneration limit reached for ${field}. Please edit manually.`,
+          field,
           limit: MAX_REGENERATION_ATTEMPTS,
         },
         { status: 429 },
       );
     }
+
+    const chips = await regenerateField({
+      missionId: body.missionId,
+      tenantId,
+      field,
+      context: typeof body.context === 'string' ? body.context : undefined,
+    });
 
     return NextResponse.json({ chips });
   } catch (error) {
