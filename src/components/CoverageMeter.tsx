@@ -215,6 +215,7 @@ export function CoverageMeter({
         baselineReadiness,
         selectedToolkitsCount,
         hasArtifacts,
+        threshold: READINESS_THRESHOLD,
       });
       setPreview(normalized);
 
@@ -279,9 +280,8 @@ export function CoverageMeter({
 
   const readinessColor = getReadinessColor(readiness);
   const readinessTextColor = getReadinessTextColor(readiness);
-  const gateReason = canProceed
-    ? 'Coverage meets minimum requirements'
-    : 'Improve coverage to enable inspection recording';
+  const summaryMessage = preview?.summary ?? (canProceed ? 'Coverage verified' : 'Insufficient toolkit coverage');
+  const gateReason = canProceed ? 'Coverage verified' : 'Insufficient toolkit coverage';
 
   return (
     <section className="border-b border-white/10 px-6 py-6">
@@ -328,9 +328,15 @@ export function CoverageMeter({
             </div>
           )}
 
-          {preview?.summary && (
-            <div className="rounded-lg border border-emerald-400/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-200">
-              {preview.summary}
+          {summaryMessage && (
+            <div
+              className={`rounded-lg border px-3 py-2 text-xs ${
+                canProceed
+                  ? 'border-emerald-400/30 bg-emerald-500/10 text-emerald-200'
+                  : 'border-amber-500/40 bg-amber-500/10 text-amber-200'
+              }`}
+            >
+              {summaryMessage}
             </div>
           )}
 
@@ -442,9 +448,14 @@ export function CoverageMeter({
 
 function normalizePreviewResponse(
   payload: PreviewState | Record<string, unknown> | null,
-  context: { baselineReadiness: number; selectedToolkitsCount: number; hasArtifacts: boolean },
+  context: {
+    baselineReadiness: number;
+    selectedToolkitsCount: number;
+    hasArtifacts: boolean;
+    threshold: number;
+  },
 ): PreviewState {
-  const { baselineReadiness, selectedToolkitsCount, hasArtifacts } = context;
+  const { baselineReadiness, selectedToolkitsCount, hasArtifacts, threshold } = context;
 
   const candidate = payload && typeof payload === 'object' && !Array.isArray(payload) ? payload : {};
   const responseReadiness = (() => {
@@ -486,11 +497,9 @@ function normalizePreviewResponse(
 
   const summary = typeof (candidate as PreviewState).summary === 'string'
     ? ((candidate as PreviewState).summary as string)
-    : toolkits.length
-      ? `${toolkits.length} toolkit${toolkits.length === 1 ? '' : 's'} inspected`
-      : hasArtifacts || selectedToolkitsCount > 0
-        ? 'Inspection preview recorded.'
-        : 'No toolkit selections available.';
+    : responseReadiness >= threshold
+      ? 'Coverage verified'
+      : 'Insufficient toolkit coverage';
 
   return {
     readiness: responseReadiness,

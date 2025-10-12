@@ -183,12 +183,15 @@ function ControlPlaneWorkspaceContent({
   const copilotExitHandledRef = useRef(false);
   const lastHydratedSessionRef = useRef<string | null>(null);
   const sessionTelemetrySentRef = useRef(false);
+  const missionId = objectiveId ?? initialObjectiveId ?? null;
   const latestExitPayloadRef = useRef({
     tenantId,
-    missionId: objectiveId ?? null,
+    missionId,
     artifactsCount: artifacts.length,
     stage: currentStage,
   });
+
+  latestExitPayloadRef.current.missionId = missionId;
   const hydrationCompleteRef = useRef(false);
   const [hydrationComplete, setHydrationComplete] = useState(false);
 
@@ -320,7 +323,7 @@ function ControlPlaneWorkspaceContent({
 
     void telemetryClient.sendTelemetryEvent(tenantId, {
       eventName: "mission_brief_pinned",
-      missionId: objectiveId,
+      missionId,
       eventData: {
         kpi_count: missionBrief.kpis.length,
         safeguard_count: missionBrief.safeguards.length,
@@ -338,9 +341,9 @@ function ControlPlaneWorkspaceContent({
   const readableState = useMemo(
     () => ({
       artifacts,
-      objectiveId: objectiveId ?? null,
+      objectiveId: missionId,
     }),
-    [artifacts, objectiveId],
+    [artifacts, missionId],
   );
 
   useCopilotReadable({
@@ -350,7 +353,7 @@ function ControlPlaneWorkspaceContent({
 
   const approvalFlow = useApprovalFlow({
     tenantId,
-    missionId: objectiveId ?? null,
+    missionId,
     onSuccess: ({ decision }) => {
       const label = decision.replace(/_/g, " ");
       setWorkspaceAlert({
@@ -401,11 +404,11 @@ function ControlPlaneWorkspaceContent({
   useEffect(() => {
     latestExitPayloadRef.current = {
       tenantId,
-      missionId: objectiveId ?? null,
+      missionId,
       artifactsCount: artifacts.length,
       stage: currentStage,
     };
-  }, [tenantId, objectiveId, artifacts.length, currentStage]);
+  }, [tenantId, missionId, artifacts.length, currentStage]);
 
   const missionStageSnapshot = useMemo(() => {
     const normalizeDate = (value: Date | string | null | undefined) => {
@@ -473,12 +476,12 @@ function ControlPlaneWorkspaceContent({
     sessionTelemetrySentRef.current = true;
     void telemetryClient.sendTelemetryEvent(tenantId, {
       eventName: "copilotkit_session_started",
-      missionId: objectiveId ?? null,
+      missionId,
       eventData: {
         session_identifier: sessionIdentifier,
       },
     });
-  }, [objectiveId, sessionIdentifier, tenantId]);
+  }, [missionId, sessionIdentifier, tenantId]);
 
   useEffect(() => {
     window.addEventListener("beforeunload", emitCopilotExitTelemetry);
@@ -562,7 +565,47 @@ function ControlPlaneWorkspaceContent({
           );
         }
 
-        restoreMissionStages(snapshot.missionStages);
+        const snapshotMissionId =
+          (typeof snapshot.objectiveId === "string" && snapshot.objectiveId.length > 0
+            ? snapshot.objectiveId
+            : null) ?? missionId;
+
+        const missionStagesEntry = (() => {
+          const candidate = snapshot.missionStages as
+            | HydratedMissionStage[]
+            | Record<string, unknown>
+            | undefined
+            | null;
+
+          if (Array.isArray(candidate)) {
+            return candidate;
+          }
+
+          if (!candidate || typeof candidate !== "object") {
+            return undefined;
+          }
+
+          const stagesByKey = candidate as Record<string, unknown>;
+          const lookupKeys: Array<string | null | undefined> = [snapshotMissionId, missionId, "", null, "null"];
+
+          for (const key of lookupKeys) {
+            if (typeof key === "undefined") {
+              continue;
+            }
+            const value = stagesByKey[key as keyof typeof stagesByKey];
+            if (Array.isArray(value)) {
+              return value as HydratedMissionStage[];
+            }
+          }
+
+          const firstArray = Object.values(stagesByKey).find((value): value is HydratedMissionStage[] =>
+            Array.isArray(value),
+          );
+
+          return firstArray;
+        })();
+
+        restoreMissionStages(missionStagesEntry);
       } catch (error) {
         const isAbort = error instanceof DOMException && error.name === "AbortError";
         if (!isAbort) {
@@ -582,35 +625,35 @@ function ControlPlaneWorkspaceContent({
       cancelled = true;
       controller.abort();
     };
-  }, [markHydrationComplete, restoreMissionStages, sessionIdentifier, tenantId]);
+  }, [markHydrationComplete, missionId, restoreMissionStages, sessionIdentifier, tenantId]);
 
   const handleSafeguardTelemetry = useCallback(
     (eventName: string, data: Record<string, unknown>) => {
       void telemetryClient.sendTelemetryEvent(tenantId, {
         eventName,
-        missionId: objectiveId ?? null,
+        missionId,
         eventData: data,
       });
     },
-    [objectiveId, tenantId],
+    [missionId, tenantId],
   );
 
   const postSafeguardMutation = useCallback(
     async (payload: Record<string, unknown>) => {
-      if (!objectiveId) {
+      if (!missionId) {
         return;
       }
       try {
         await fetch("/api/safeguards", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ tenantId, missionId: objectiveId, ...payload }),
+          body: JSON.stringify({ tenantId, missionId, ...payload }),
         });
       } catch (error) {
         console.warn("[SafeguardDrawer] failed to persist safeguard mutation", error);
       }
     },
-    [objectiveId, tenantId],
+    [missionId, tenantId],
   );
 
   const handleSafeguardAcceptAll = useCallback(() => {
@@ -788,7 +831,7 @@ function ControlPlaneWorkspaceContent({
 
   const undoFlow = useUndoFlow({
     tenantId,
-    missionId: objectiveId ?? null,
+    missionId,
     onCompleted: (status) => {
       setWorkspaceAlert({
         tone: "success",
@@ -810,7 +853,7 @@ function ControlPlaneWorkspaceContent({
 
   const buildSessionSnapshot = useCallback((): CopilotSessionSnapshot => ({
     artifacts,
-    objectiveId: objectiveId ?? null,
+    objectiveId: missionId,
     missionStages: missionStageSnapshot,
     missionBrief,
     safeguards,
@@ -957,7 +1000,7 @@ function ControlPlaneWorkspaceContent({
 
         void telemetryClient.sendTelemetryEvent(tenantId, {
           eventName: "artifact_exported",
-          missionId: objectiveId ?? null,
+          missionId,
           eventData: {
             artifact_id: artifact.artifact_id,
             format,
@@ -971,7 +1014,7 @@ function ControlPlaneWorkspaceContent({
         });
       }
     },
-    [objectiveId, tenantId],
+    [missionId, tenantId],
   );
 
   const handleArtifactShare = useCallback(
@@ -1004,7 +1047,7 @@ function ControlPlaneWorkspaceContent({
 
         void telemetryClient.sendTelemetryEvent(tenantId, {
           eventName: "artifact_share_link_created",
-          missionId: objectiveId ?? null,
+          missionId,
           eventData: {
             artifact_id: artifact.artifact_id,
             copied,
@@ -1018,7 +1061,7 @@ function ControlPlaneWorkspaceContent({
         });
       }
     },
-    [copyToClipboard, objectiveId, tenantId],
+    [copyToClipboard, missionId, tenantId],
   );
 
   const handleAddPlaceholderArtifact = useCallback(() => {
@@ -1044,7 +1087,7 @@ function ControlPlaneWorkspaceContent({
               summary: placeholder.summary,
               status: placeholder.status,
               tenantId,
-              playId: objectiveId ?? undefined,
+              playId: missionId ?? undefined,
             }),
           });
         } catch (error) {
@@ -1054,7 +1097,7 @@ function ControlPlaneWorkspaceContent({
 
       return nextArtifacts;
     });
-  }, [objectiveId, tenantId]);
+  }, [missionId, tenantId]);
 
   const handleArtifactUndo = useCallback(
     (artifact: Artifact) => {
@@ -1082,7 +1125,7 @@ function ControlPlaneWorkspaceContent({
 
       void telemetryClient.sendTelemetryEvent(tenantId, {
         eventName: "evidence_hash_copied",
-        missionId: objectiveId ?? null,
+        missionId,
         eventData: {
           artifact_id: artifact.artifact_id,
           copied,
@@ -1090,7 +1133,7 @@ function ControlPlaneWorkspaceContent({
         },
       });
     },
-    [copyToClipboard, objectiveId, tenantId],
+    [copyToClipboard, missionId, tenantId],
   );
 
   useCopilotAction({
@@ -1287,7 +1330,7 @@ function ControlPlaneWorkspaceContent({
 
       approvalFlow.openApproval({
         toolCallId: resolvedToolCall,
-        missionId: objectiveId ?? null,
+        missionId,
         stage: message.stage ?? null,
         attempt:
           typeof message.metadata?.attempt === "number"
@@ -1297,7 +1340,7 @@ function ControlPlaneWorkspaceContent({
         safeguards: acceptedSafeguardEntries.length ? acceptedSafeguardEntries : undefined,
       });
     },
-    [acceptedSafeguardEntries, approvalFlow, objectiveId],
+    [acceptedSafeguardEntries, approvalFlow, missionId],
   );
 
   const handleSessionCancel = useCallback(() => {
@@ -1699,14 +1742,14 @@ function ControlPlaneWorkspaceContent({
 
       <MissionIntake
         tenantId={tenantId}
-        objectiveId={objectiveId ?? null}
+        objectiveId={missionId}
         onAccept={handleIntakeAccept}
         onStageAdvance={handleIntakeAdvance}
       />
 
       <RecommendedToolStrip
         tenantId={tenantId}
-        missionId={objectiveId ?? null}
+        missionId={missionId}
         onAlert={setWorkspaceAlert}
         onStageAdvance={handleToolkitsAdvance}
         onSelectionChange={handleToolkitSelectionChange}
@@ -1715,7 +1758,7 @@ function ControlPlaneWorkspaceContent({
       {showCoverageMeter && (
         <CoverageMeter
           tenantId={tenantId}
-          missionId={objectiveId ?? null}
+          missionId={missionId}
           selectedToolkitsCount={selectedToolkitsCount}
           hasArtifacts={artifacts.length > 0}
           onComplete={handleInspectionComplete}
@@ -1724,7 +1767,7 @@ function ControlPlaneWorkspaceContent({
 
       <PlannerInsightRail
         tenantId={tenantId}
-        missionId={objectiveId ?? null}
+        missionId={missionId}
         sessionIdentifier={sessionIdentifier}
         plannerRuns={plannerRuns}
         onSelectPlay={handlePlannerSelect}
@@ -1759,7 +1802,7 @@ function ControlPlaneWorkspaceContent({
             {canDisplayFeedbackDrawer ? (
               <FeedbackDrawer
                 tenantId={tenantId}
-                missionId={objectiveId ?? null}
+                missionId={missionId}
                 currentStage={currentStage}
                 isOpen={isFeedbackDrawerOpen}
                 selectedRating={selectedFeedbackRating}
