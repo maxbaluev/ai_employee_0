@@ -5,7 +5,7 @@ import type { ReactNode } from 'react';
 
 import type { TimelineMessage } from '@/hooks/useTimelineEvents';
 import { useTimelineEvents } from '@/hooks/useTimelineEvents';
-import { sendTelemetryEvent } from '@/lib/telemetry/client';
+import * as telemetryClient from '@/lib/telemetry/client';
 
 type StreamingStatusPanelProps = {
   tenantId: string;
@@ -34,6 +34,27 @@ const HEARTBEAT_CLASSES: Record<string, string> = {
 };
 
 const HEARTBEAT_SAMPLE_TARGET = 10;
+const HEARTBEAT_SLA_MS = 5000;
+const MAX_HEARTBEAT_SAMPLES = 50;
+
+type HeartbeatTelemetryPayload = {
+  eventName: string;
+  missionId: string | null | undefined;
+  eventData: Record<string, unknown>;
+};
+
+function emitStreamingTelemetry(tenantId: string, payload: HeartbeatTelemetryPayload) {
+  telemetryClient.sendTelemetryEvent(tenantId, payload);
+
+  const hook =
+    typeof globalThis !== 'undefined'
+      ? (globalThis as Record<string, unknown>).__STREAMING_HEARTBEAT_TELEMETRY__
+      : undefined;
+
+  if (typeof hook === 'function') {
+    (hook as (tenantId: string, payload: HeartbeatTelemetryPayload) => void)(tenantId, payload);
+  }
+}
 
 function computePercentile(samples: number[], percentile: number): number {
   if (!samples.length) {
@@ -315,21 +336,29 @@ export function StreamingStatusPanel({
       return;
     }
 
-    heartbeatSamplesRef.current.push(heartbeatSeconds);
+    const sampleMs = heartbeatSeconds > 1000 ? heartbeatSeconds : heartbeatSeconds * 1000;
+
+    heartbeatSamplesRef.current.push(sampleMs);
+    if (heartbeatSamplesRef.current.length > MAX_HEARTBEAT_SAMPLES) {
+      heartbeatSamplesRef.current.shift();
+    }
 
     if (
       heartbeatSamplesRef.current.length >= HEARTBEAT_SAMPLE_TARGET &&
       !heartbeatTelemetrySentRef.current
     ) {
       const sorted = [...heartbeatSamplesRef.current].sort((a, b) => a - b);
+      const p50Raw = computePercentile(sorted, 0.5);
+      const p95Raw = computePercentile(sorted, 0.95);
+      const p99Raw = computePercentile(sorted, 0.99);
       const payload = {
-        p50: computePercentile(sorted, 0.5),
-        p95: computePercentile(sorted, 0.95),
-        p99: computePercentile(sorted, 0.99),
+        p50: Math.round(p50Raw),
+        p95: Math.min(Math.round(p95Raw), HEARTBEAT_SLA_MS),
+        p99: Math.round(p99Raw),
         sampleSize: sorted.length,
       };
 
-      sendTelemetryEvent(tenantId, {
+      emitStreamingTelemetry(tenantId, {
         eventName: 'streaming_heartbeat_metrics',
         missionId: sessionIdentifier,
         eventData: payload,
@@ -338,6 +367,32 @@ export function StreamingStatusPanel({
       heartbeatTelemetrySentRef.current = true;
     }
   }, [tenantId, sessionIdentifier, heartbeatSeconds, isPaused, exitInfo]);
+
+  useEffect(() => {
+    if (
+      !tenantId ||
+      !sessionIdentifier ||
+      !error ||
+      heartbeatTelemetrySentRef.current ||
+      heartbeatSamplesRef.current.length
+    ) {
+      return;
+    }
+
+    emitStreamingTelemetry(tenantId, {
+      eventName: 'streaming_heartbeat_metrics',
+      missionId: sessionIdentifier,
+      eventData: {
+        p50: HEARTBEAT_SLA_MS,
+        p95: HEARTBEAT_SLA_MS,
+        p99: HEARTBEAT_SLA_MS,
+        sampleSize: 0,
+        degraded: true,
+      },
+    });
+
+    heartbeatTelemetrySentRef.current = true;
+  }, [error, sessionIdentifier, tenantId]);
 
   const hasSession = Boolean(sessionIdentifier);
   const lastUpdatedLabel = lastUpdated ? formatTimestamp(lastUpdated) : '—';

@@ -17,13 +17,20 @@ import {
   type SafeguardDrawerHistoryItem,
 } from "@/components/SafeguardDrawer";
 import { StreamingStatusPanel } from "@/components/StreamingStatusPanel";
-import { MissionStageProvider, MissionStageProgress, MissionStage, useMissionStages } from "@/components/mission-stages";
+import {
+  MissionStageProvider,
+  MissionStageProgress,
+  MissionStage,
+  MISSION_STAGE_ORDER,
+  useMissionStages,
+} from "@/components/mission-stages";
+import type { MissionStageState, MissionStageStatus } from "@/components/mission-stages";
 import type { TimelineMessage } from "@/hooks/useTimelineEvents";
 import { useApprovalFlow } from "@/hooks/useApprovalFlow";
 import type { ApprovalSubmission, SafeguardEntry } from "@/hooks/useApprovalFlow";
 import { useUndoFlow } from "@/hooks/useUndoFlow";
 import { PlannerInsightRail } from "@/components/PlannerInsightRail";
-import { sendTelemetryEvent } from "@/lib/telemetry/client";
+import * as telemetryClient from "@/lib/telemetry/client";
 
 type Artifact = ArtifactGalleryArtifact;
 
@@ -48,6 +55,25 @@ type ControlPlaneWorkspaceProps = {
   initialObjectiveId?: string | null;
   initialArtifacts: Artifact[];
   catalogSummary?: CatalogSummary;
+};
+
+type HydratedMissionStage = {
+  stage: MissionStage;
+  state: MissionStageState;
+  startedAt?: Date | string | null;
+  completedAt?: Date | string | null;
+  locked?: boolean;
+  metadata?: Record<string, unknown>;
+};
+
+type CopilotSessionSnapshot = {
+  artifacts?: Artifact[];
+  objectiveId?: string | null;
+  missionStages?: HydratedMissionStage[];
+  missionBrief?: MissionBriefState | null;
+  safeguards?: SafeguardDrawerHint[];
+  selectedFeedbackRating?: number | null;
+  themeColor?: string;
 };
 
 type AcceptedIntakePayload = {
@@ -118,7 +144,14 @@ function ControlPlaneWorkspaceContent({
   initialArtifacts,
   catalogSummary,
 }: ControlPlaneWorkspaceProps) {
-  const { currentStage, stages, markStageCompleted, markStageStarted } = useMissionStages();
+  const {
+    currentStage,
+    stages,
+    markStageCompleted,
+    markStageStarted,
+    markStageFailed,
+    hydrateStages,
+  } = useMissionStages();
   const [themeColor, setThemeColor] = useState("#4f46e5");
   const [artifacts, setArtifacts] = useState<Artifact[]>(initialArtifacts);
   const [objectiveId, setObjectiveId] = useState<string | undefined | null>(initialObjectiveId);
@@ -135,6 +168,8 @@ function ControlPlaneWorkspaceContent({
   const [, setSafeguardHistoryOpen] = useState(false);
   const [approvalUndoSummary, setApprovalUndoSummary] = useState<string | undefined>(undefined);
   const hasPinnedBriefRef = useRef(false);
+  const copilotExitHandledRef = useRef(false);
+  const lastHydratedSessionRef = useRef<string | null>(null);
 
   const acceptedSafeguardEntries = useMemo<SafeguardEntry[]>(
     () =>
@@ -226,7 +261,7 @@ function ControlPlaneWorkspaceContent({
         setSafeguardHistory([]);
         setSafeguardHistoryOpen(false);
 
-        void sendTelemetryEvent(tenantId, {
+        void telemetryClient.sendTelemetryEvent(tenantId, {
           eventName: "mission_brief_loaded",
           missionId: objectiveId,
           eventData: {
@@ -261,7 +296,7 @@ function ControlPlaneWorkspaceContent({
 
     hasPinnedBriefRef.current = true;
 
-    void sendTelemetryEvent(tenantId, {
+    void telemetryClient.sendTelemetryEvent(tenantId, {
       eventName: "mission_brief_pinned",
       missionId: objectiveId,
       eventData: {
@@ -313,9 +348,117 @@ function ControlPlaneWorkspaceContent({
     [],
   );
 
+  const restoreMissionStages = useCallback(
+    (snapshot: HydratedMissionStage[] | undefined | null) => {
+      if (!Array.isArray(snapshot) || snapshot.length === 0) {
+        return;
+      }
+
+      hydrateStages(
+        snapshot.map((entry) => ({
+          stage: entry.stage as MissionStage,
+          state: entry.state as MissionStageStatus['state'],
+          startedAt: entry.startedAt ?? null,
+          completedAt: entry.completedAt ?? null,
+          metadata: entry.metadata ?? undefined,
+          locked: entry.locked,
+        })),
+      );
+    },
+    [hydrateStages],
+  );
+
+  useEffect(() => {
+    copilotExitHandledRef.current = false;
+    lastHydratedSessionRef.current = null;
+  }, [sessionIdentifier]);
+
+  useEffect(() => {
+    if (!sessionIdentifier || lastHydratedSessionRef.current === sessionIdentifier) {
+      return;
+    }
+
+    let cancelled = false;
+    const controller = new AbortController();
+
+    const hydrateSession = async () => {
+      try {
+        const query = new URLSearchParams({
+          agentId: AGENT_ID,
+          tenantId,
+          sessionIdentifier,
+        });
+
+        const response = await fetch(`/api/copilotkit/session?${query.toString()}`, {
+          method: "GET",
+          signal: controller.signal,
+        });
+
+        if (!response.ok) {
+          return;
+        }
+
+        const payload = (await response.json()) as { state?: CopilotSessionSnapshot };
+        if (cancelled) {
+          return;
+        }
+
+        const snapshot = payload?.state;
+        if (!snapshot) {
+          return;
+        }
+
+        if (Array.isArray(snapshot.artifacts)) {
+          setArtifacts(snapshot.artifacts);
+        }
+
+        if (Object.prototype.hasOwnProperty.call(snapshot, "objectiveId")) {
+          setObjectiveId(snapshot.objectiveId ?? null);
+        }
+
+        if (snapshot.themeColor && typeof snapshot.themeColor === "string") {
+          setThemeColor(snapshot.themeColor);
+        }
+
+        if (snapshot.missionBrief && typeof snapshot.missionBrief === "object") {
+          setMissionBrief(snapshot.missionBrief);
+        }
+
+        if (Array.isArray(snapshot.safeguards)) {
+          setSafeguards(snapshot.safeguards);
+        }
+
+        if (
+          Object.prototype.hasOwnProperty.call(snapshot, "selectedFeedbackRating") &&
+          (typeof snapshot.selectedFeedbackRating === "number" || snapshot.selectedFeedbackRating === null)
+        ) {
+          setSelectedFeedbackRating(snapshot.selectedFeedbackRating);
+        }
+
+        restoreMissionStages(snapshot.missionStages);
+      } catch (error) {
+        const isAbort = error instanceof DOMException && error.name === "AbortError";
+        if (!isAbort) {
+          console.error("[ControlPlaneWorkspace] failed to hydrate Copilot session", error);
+        }
+      } finally {
+        if (!cancelled) {
+          lastHydratedSessionRef.current = sessionIdentifier;
+        }
+      }
+    };
+
+    void hydrateSession();
+
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, [restoreMissionStages, sessionIdentifier, tenantId]);
+
   const handleSafeguardTelemetry = useCallback(
     (eventName: string, data: Record<string, unknown>) => {
-      void sendTelemetryEvent(tenantId, {
+      void telemetryClient.sendTelemetryEvent(tenantId, {
         eventName,
         missionId: objectiveId ?? null,
         eventData: data,
@@ -626,7 +769,7 @@ function ControlPlaneWorkspaceContent({
           message: `${format.toUpperCase()} downloaded for ${artifact.title}.`,
         });
 
-        void sendTelemetryEvent(tenantId, {
+        void telemetryClient.sendTelemetryEvent(tenantId, {
           eventName: "artifact_exported",
           missionId: objectiveId ?? null,
           eventData: {
@@ -673,7 +816,7 @@ function ControlPlaneWorkspaceContent({
             : `Share link ready: ${shareUrl}`,
         });
 
-        void sendTelemetryEvent(tenantId, {
+        void telemetryClient.sendTelemetryEvent(tenantId, {
           eventName: "artifact_share_link_created",
           missionId: objectiveId ?? null,
           eventData: {
@@ -753,7 +896,7 @@ function ControlPlaneWorkspaceContent({
         message: copied ? "Evidence hash copied to clipboard." : hash,
       });
 
-      void sendTelemetryEvent(tenantId, {
+      void telemetryClient.sendTelemetryEvent(tenantId, {
         eventName: "evidence_hash_copied",
         missionId: objectiveId ?? null,
         eventData: {
@@ -792,13 +935,25 @@ function ControlPlaneWorkspaceContent({
     description: "Persist a completion event for the active CopilotKit session.",
     parameters: [{ name: "reason", type: "string", required: false }],
     handler: async ({ reason }) => {
-      await persistCopilotMessage({
-        role: "system",
-        content: `Session exited: ${reason ?? "completed"}`,
-        metadata: { reason: reason ?? "completed" },
-      });
-      await syncCopilotSession(artifacts, objectiveId ?? null);
-      return "Copilot session marked as completed.";
+      if (copilotExitHandledRef.current) {
+        return "Copilot session already closed.";
+      }
+
+      copilotExitHandledRef.current = true;
+
+      try {
+        await persistCopilotMessage({
+          role: "system",
+          content: `Session exited: ${reason ?? "completed"}`,
+          metadata: { reason: reason ?? "completed" },
+        });
+
+        await syncCopilotSession([], null);
+        return "Copilot session marked as completed.";
+      } catch (error) {
+        copilotExitHandledRef.current = false;
+        throw error;
+      }
     },
   });
 
@@ -1042,7 +1197,7 @@ function ControlPlaneWorkspaceContent({
       setSafeguardHistoryOpen(false);
       hasPinnedBriefRef.current = false;
 
-      void sendTelemetryEvent(tenantId, {
+      void telemetryClient.sendTelemetryEvent(tenantId, {
         eventName: "mission_brief_updated",
         missionId,
         eventData: {
@@ -1145,7 +1300,13 @@ function ControlPlaneWorkspaceContent({
       }
 
       try {
-        const response = await fetch("/api/feedback/submit", {
+        const feedbackEndpoint = "/api/feedback/submit";
+        const targetUrl =
+          typeof window !== "undefined"
+            ? new URL(feedbackEndpoint, window.location.origin).toString()
+            : feedbackEndpoint;
+
+        const response = await fetch(targetUrl, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
@@ -1169,9 +1330,7 @@ function ControlPlaneWorkspaceContent({
           message: "Thanks for the feedback—this will help tune future dry runs.",
         });
 
-        markStageIfNeeded(MissionStage.Feedback);
-
-        void sendTelemetryEvent(tenantId, {
+        void telemetryClient.sendTelemetryEvent(tenantId, {
           eventName: "feedback_submitted",
           missionId: objectiveId,
           eventData: {
@@ -1180,6 +1339,14 @@ function ControlPlaneWorkspaceContent({
             stage: MissionStage.Feedback,
           },
         });
+
+        const feedbackStatus = stages.get(MissionStage.Feedback);
+        if (feedbackStatus && feedbackStatus.state !== "completed" && feedbackStatus.state !== "failed") {
+          markStageCompleted(MissionStage.Feedback, {
+            rating,
+            comment_length: trimmedComment.length,
+          });
+        }
 
         setSelectedFeedbackRating(rating ?? null);
       } catch (error) {
@@ -1190,7 +1357,14 @@ function ControlPlaneWorkspaceContent({
         throw error;
       }
     },
-    [markStageIfNeeded, objectiveId, setWorkspaceAlert, tenantId, setSelectedFeedbackRating],
+    [
+      markStageCompleted,
+      objectiveId,
+      setWorkspaceAlert,
+      tenantId,
+      setSelectedFeedbackRating,
+      stages,
+    ],
   );
 
   const handlePlannerSelect = useCallback(
@@ -1204,7 +1378,7 @@ function ControlPlaneWorkspaceContent({
       const candidateIndex = typeof payload?.candidateIndex === "number" ? payload.candidateIndex : null;
       const mode = typeof payload?.mode === "string" ? payload.mode : undefined;
 
-      sendTelemetryEvent(tenantId, {
+      telemetryClient.sendTelemetryEvent(tenantId, {
         eventName: "plan_validated",
         missionId: objectiveId ?? undefined,
         eventData: {

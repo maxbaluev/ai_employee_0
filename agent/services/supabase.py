@@ -264,6 +264,19 @@ class SupabaseClient:
             self._buffer_offline("planner_runs", [payload])
             return
 
+        metadata = dict(payload.get("metadata") or {})
+        for key in (
+            "latency_breakdown",
+            "hybrid_score_avg",
+            "composio_score_avg",
+            "palette_catalog_size",
+        ):
+            if key in payload:
+                metadata[key] = payload.pop(key)
+
+        if metadata:
+            payload["metadata"] = metadata
+
         self._write("planner_runs", [payload])
 
     def upsert_copilot_session(self, session: Dict[str, Any]) -> None:

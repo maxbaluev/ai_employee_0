@@ -13,6 +13,14 @@ type MissionStageContextValue = {
   markStageStarted: (stage: MissionStage, metadata?: Record<string, unknown>) => void;
   markStageCompleted: (stage: MissionStage, metadata?: Record<string, unknown>) => void;
   markStageFailed: (stage: MissionStage, metadata?: Record<string, unknown>) => void;
+  hydrateStages: (snapshot: Array<{
+    stage: MissionStage;
+    state: MissionStageStatus['state'];
+    startedAt?: Date | string | null;
+    completedAt?: Date | string | null;
+    metadata?: Record<string, unknown> | null;
+    locked?: boolean;
+  }> | null | undefined) => void;
   getNextStage: (stage: MissionStage) => MissionStage | null;
   getStageDuration: (stage: MissionStage) => number | null;
 };
@@ -259,6 +267,77 @@ export function MissionStageProvider({
     [enqueueTelemetry]
   );
 
+  const hydrateStages = useCallback<
+    MissionStageContextValue['hydrateStages']
+  >((entries) => {
+    if (!Array.isArray(entries) || entries.length === 0) {
+      return;
+    }
+
+    const coerceDate = (value: Date | string | number | null | undefined): Date | null => {
+      if (value instanceof Date) {
+        return Number.isNaN(value.getTime()) ? null : value;
+      }
+      if (typeof value === 'string' || typeof value === 'number') {
+        const candidate = new Date(value);
+        return Number.isNaN(candidate.getTime()) ? null : candidate;
+      }
+      return null;
+    };
+
+    setStages((prev) => {
+      let mutated = false;
+      const next = new Map(prev);
+
+      entries.forEach((entry) => {
+        if (!entry || typeof entry.stage !== 'string' || typeof entry.state !== 'string') {
+          return;
+        }
+
+        const stage = entry.stage as MissionStage;
+        if (!MISSION_STAGE_ORDER.includes(stage)) {
+          return;
+        }
+
+        const status = next.get(stage);
+        if (!status) {
+          return;
+        }
+
+        const nextStatus: MissionStageStatus = {
+          ...status,
+          state: entry.state,
+          startedAt:
+            entry.startedAt !== undefined ? coerceDate(entry.startedAt) : status.startedAt,
+          completedAt:
+            entry.completedAt !== undefined ? coerceDate(entry.completedAt) : status.completedAt,
+          metadata:
+            entry.metadata !== undefined && entry.metadata !== null
+              ? { ...entry.metadata }
+              : status.metadata,
+          locked:
+            entry.locked !== undefined ? entry.locked : entry.state === 'failed' ? true : status.locked,
+        };
+
+        const original = next.get(stage);
+        next.set(stage, nextStatus);
+
+        if (
+          !original ||
+          original.state !== nextStatus.state ||
+          (original.startedAt?.getTime() ?? null) !== (nextStatus.startedAt?.getTime() ?? null) ||
+          (original.completedAt?.getTime() ?? null) !== (nextStatus.completedAt?.getTime() ?? null) ||
+          original.locked !== nextStatus.locked ||
+          original.metadata !== nextStatus.metadata
+        ) {
+          mutated = true;
+        }
+      });
+
+      return mutated ? next : prev;
+    });
+  }, []);
+
   useEffect(() => {
     if (pendingTelemetryRef.current.length === 0) {
       return;
@@ -310,6 +389,7 @@ export function MissionStageProvider({
       markStageStarted,
       markStageCompleted,
       markStageFailed,
+      hydrateStages,
       getNextStage,
       getStageDuration,
     }),
@@ -319,6 +399,7 @@ export function MissionStageProvider({
       markStageStarted,
       markStageCompleted,
       markStageFailed,
+      hydrateStages,
       getNextStage,
       getStageDuration,
     ]

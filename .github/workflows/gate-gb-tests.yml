@@ -1,0 +1,86 @@
+name: Gate G-B Tests
+
+on:
+  pull_request:
+    paths:
+      - 'tests/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - '.github/workflows/gate-gb-tests.yml'
+      - 'playwright.config.ts'
+      - '.mise.toml'
+  push:
+    branches: [ main ]
+    paths:
+      - 'tests/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - '.github/workflows/gate-gb-tests.yml'
+      - 'playwright.config.ts'
+      - '.mise.toml'
+
+env:
+  GATE_GB_STREAMING_URL: ${{ vars.GATE_GB_STREAMING_URL }}
+
+jobs:
+  gate-gb:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.18.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.20.0
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+        env:
+          PNPM_SKIP_POSTINSTALL: '1'
+
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run Gate G-B integration tests
+        run: pnpm run test:gate-gb:integration
+
+  gate-gb-playwright:
+    runs-on: ubuntu-latest
+    needs: gate-gb
+    if: ${{ env.GATE_GB_STREAMING_URL != '' }}
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.18.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.20.0
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+        env:
+          PNPM_SKIP_POSTINSTALL: '1'
+
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run Gate G-B Playwright tests
+        env:
+          GATE_GB_STREAMING_URL: ${{ env.GATE_GB_STREAMING_URL }}
+        run: pnpm run test:gate-gb:playwright

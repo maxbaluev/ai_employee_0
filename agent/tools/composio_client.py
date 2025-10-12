@@ -103,15 +103,70 @@ class ComposioCatalogClient:
             LOGGER.error("Failed to fetch tools via Composio SDK: %s", exc)
             return []
 
-        return [
-            {
-                "name": getattr(tool, "name", "unknown"),
-                "slug": getattr(tool, "slug", ""),
-                "description": getattr(tool, "description", ""),
-                "toolkit": getattr(tool, "toolkit", ""),
+        tool_list = list(tools) if not isinstance(tools, list) else tools
+
+        results: List[Dict[str, Any]] = []
+        fallback_span = max(len(tool_list), 1)
+
+        for position, tool in enumerate(tool_list):
+            name = getattr(tool, "name", "unknown")
+            slug = getattr(tool, "slug", "")
+            description = getattr(tool, "description", "")
+            toolkit = getattr(tool, "toolkit", slug)
+
+            raw_meta = getattr(tool, "meta", None)
+            if hasattr(raw_meta, "model_dump"):
+                meta: Dict[str, Any] = raw_meta.model_dump()
+            elif hasattr(raw_meta, "dict"):
+                meta = raw_meta.dict()
+            elif isinstance(raw_meta, dict):
+                meta = raw_meta
+            elif hasattr(raw_meta, "__dict__"):
+                meta = dict(raw_meta.__dict__)
+            else:
+                meta = {}
+
+            raw_score = getattr(tool, "score", None)
+            if raw_score is None and isinstance(meta, dict):
+                raw_score = meta.get("score") or meta.get("weight") or meta.get("popularity")
+
+            try:
+                score = float(raw_score) if raw_score is not None else 1.0 - (position / fallback_span)
+            except (TypeError, ValueError):
+                score = 1.0 - (position / fallback_span)
+
+            score = max(0.0, min(score, 1.0))
+
+            category = getattr(tool, "category", None) or meta.get("category") or "general"
+            raw_auth = getattr(tool, "auth_schemes", [])
+            if isinstance(raw_auth, (list, tuple)):
+                auth_schemes = [str(item) for item in raw_auth if item]
+            else:
+                auth_schemes = []
+
+            palette = {
+                "name": name,
+                "slug": slug,
+                "toolkit": toolkit,
+                "category": category,
+                "description": description or meta.get("description", ""),
+                "logo": meta.get("logo"),
+                "no_auth": bool(getattr(tool, "no_auth", False)),
+                "auth_schemes": auth_schemes,
             }
-            for tool in tools
-        ]
+
+            results.append(
+                {
+                    "name": name,
+                    "slug": slug,
+                    "description": description,
+                    "toolkit": toolkit,
+                    "score": score,
+                    "palette": palette,
+                }
+            )
+
+        return results
 
     async def refresh(self) -> CatalogSummary:
         """Force a fresh SDK fetch and cache the summary."""

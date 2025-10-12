@@ -6,7 +6,7 @@ import hashlib
 import logging
 import time
 from dataclasses import asdict
-from typing import Any, AsyncGenerator, Dict, List, Optional
+from typing import Any, AsyncGenerator, Dict, List, Optional, Tuple
 
 from google.adk.agents import LlmAgent
 from google.adk.agents.invocation_context import InvocationContext
@@ -77,9 +77,21 @@ class PlannerAgent(LlmAgent):
         # Emit planner_stage_started
         self._emit_stage_started(mission_context, mission_mode)
 
+        self.telemetry.emit(
+            "planner_run_started",
+            tenant_id=mission_context.tenant_id,
+            mission_id=mission_context.mission_id,
+            payload={
+                "mode": mission_mode,
+                "objective_preview": mission_context.objective[:120],
+                "audience": mission_context.audience,
+                "guardrail_count": len(mission_context.guardrails or []),
+            },
+        )
+
         rank_started_at = time.perf_counter()
 
-        ranked = self._rank_plays(mission_context, mission_mode)
+        ranked, rank_metrics = self._rank_plays(mission_context, mission_mode)
         latency_ms = int((time.perf_counter() - rank_started_at) * 1000)
 
         ctx.session.state[RANKED_PLAYS_KEY] = [asdict(play) for play in ranked]
@@ -95,10 +107,19 @@ class PlannerAgent(LlmAgent):
             if isinstance(play.telemetry, dict)
         ]
         avg_similarity = sum(similarities) / max(len(similarities), 1)
+        hybrid_score_avg = float(rank_metrics.get("hybrid_score_avg", 0.0))
+        composio_score_avg = float(rank_metrics.get("composio_score_avg", 0.0))
+        palette_catalog_size = int(rank_metrics.get("palette_catalog_size", 0))
         top_confidence = ranked[0].confidence if ranked else None
         top_reason = (
             ranked[0].reason_markdown[:200] if ranked and ranked[0].reason_markdown else ""
         )
+
+        latency_breakdown = {
+            "rank_total_ms": latency_ms,
+            "library_query_ms": int(rank_metrics.get("library_latency_ms", 0)),
+            "composio_discovery_ms": int(rank_metrics.get("composio_latency_ms", 0)),
+        }
 
         self._record_planner_run(
             context=mission_context,
@@ -107,10 +128,15 @@ class PlannerAgent(LlmAgent):
             latency_ms=latency_ms,
             avg_similarity=avg_similarity,
             toolkit_counts=toolkit_counts,
+            library_latency_ms=latency_breakdown["library_query_ms"],
+            composio_latency_ms=latency_breakdown["composio_discovery_ms"],
+            hybrid_score_avg=hybrid_score_avg,
+            composio_score_avg=composio_score_avg,
+            palette_catalog_size=palette_catalog_size,
         )
 
         self.telemetry.emit(
-            "planner_rank_complete",
+            "planner_run_completed",
             tenant_id=mission_context.tenant_id,
             mission_id=mission_context.mission_id,
             payload={
@@ -124,6 +150,10 @@ class PlannerAgent(LlmAgent):
                 "top_confidence": top_confidence,
                 "top_reason_preview": top_reason,
                 "latency_ms": latency_ms,
+                "latency_breakdown": latency_breakdown,
+                "hybrid_score_avg": round(hybrid_score_avg, 4),
+                "composio_score_avg": round(composio_score_avg, 4),
+                "palette_catalog_size": palette_catalog_size,
             },
         )
 
@@ -134,6 +164,9 @@ class PlannerAgent(LlmAgent):
             latency_ms=latency_ms,
             avg_similarity=avg_similarity,
             toolkit_counts=toolkit_counts,
+            latency_breakdown=latency_breakdown,
+            hybrid_score_avg=hybrid_score_avg,
+            composio_score_avg=composio_score_avg,
         )
 
         self._emit_candidate_summary(
@@ -178,20 +211,18 @@ class PlannerAgent(LlmAgent):
 
     def _rank_plays(
         self, mission_context: MissionContext, mission_mode: str
-    ) -> List[RankedPlay]:
+    ) -> Tuple[List[RankedPlay], Dict[str, Any]]:
         audience = mission_context.audience or "Pilot revenue team"
 
-        # Emit library query status
-        self._emit_planner_status(
-            mission_context,
-            "library_query",
-            f"Querying library plays for {audience}...",
-            {
-                "audience": audience,
-                "objective": mission_context.objective[:80],
-            },
-        )
+        metrics: Dict[str, Any] = {
+            "library_latency_ms": 0,
+            "composio_latency_ms": 0,
+            "hybrid_score_avg": 0.0,
+            "composio_score_avg": 0.0,
+            "palette_catalog_size": 0,
+        }
 
+        library_started_at = time.perf_counter()
         library_rows = self.supabase.search_library_plays(
             tenant_id=mission_context.tenant_id,
             mission_id=mission_context.mission_id,
@@ -200,33 +231,96 @@ class PlannerAgent(LlmAgent):
             guardrails=mission_context.guardrails,
             limit=3,
         )
+        metrics["library_latency_ms"] = int((time.perf_counter() - library_started_at) * 1000)
 
-        # Emit Composio discovery status
-        toolkit_refs = self._toolkit_refs(audience)
+        self._emit_planner_status(
+            mission_context,
+            "library_query",
+            f"Fetched {len(library_rows)} library plays for {audience} in {metrics['library_latency_ms']} ms",
+            {
+                "audience": audience,
+                "objective": mission_context.objective[:80],
+                "result_count": len(library_rows),
+                "latency_ms": metrics["library_latency_ms"],
+            },
+        )
+
+        composio_started_at = time.perf_counter()
+        catalog = self.composio.get_tools(search=audience, limit=12) if self.composio else []
+        metrics["composio_latency_ms"] = int((time.perf_counter() - composio_started_at) * 1000)
+        ordered_toolkits, toolkit_catalog = self._prepare_toolkit_catalog(catalog)
+        metrics["palette_catalog_size"] = len(toolkit_catalog)
+
         self._emit_planner_status(
             mission_context,
             "composio_discovery",
-            f"Discovered {len(toolkit_refs)} toolkit references from Composio",
+            (
+                f"Discovered {len(ordered_toolkits)} toolkit references from Composio "
+                f"in {metrics['composio_latency_ms']} ms"
+            ),
             {
-                "toolkit_count": len(toolkit_refs),
-                "toolkits": toolkit_refs[:6],
+                "toolkit_count": len(ordered_toolkits),
+                "toolkits": ordered_toolkits[:6],
+                "latency_ms": metrics["composio_latency_ms"],
             },
         )
 
         candidates: List[RankedPlay] = []
+        combined_scores: List[float] = []
+        composio_scores: List[float] = []
 
+        ranked_inputs: List[Dict[str, Any]] = []
         for index, row in enumerate(library_rows):
             metadata = row.get("metadata", {}) or {}
-            impact = metadata.get("impact") or self._impact_scale(index)
-            risk = metadata.get("risk") or self._risk_scale(index)
-            undo_plan = metadata.get("undo_plan") or "Document undo path via evidence service"
             similarity = float(row.get("_similarity", 0.6))
-            confidence = self._confidence(similarity, mission_mode, index)
-            toolkit_slice = toolkit_refs[index * 2 : index * 2 + 2] or toolkit_refs[:2]
+            toolkit_slice = self._select_toolkits(ordered_toolkits, index)
+            palette = [
+                toolkit_catalog[slug]["palette"]
+                for slug in toolkit_slice
+                if slug in toolkit_catalog and toolkit_catalog[slug].get("palette")
+            ]
+            composio_score = self._composio_score(toolkit_slice, toolkit_catalog)
+            combined_score = self._hybrid_score(similarity, composio_score)
+
+            ranked_inputs.append(
+                {
+                    "row": row,
+                    "metadata": metadata,
+                    "similarity": similarity,
+                    "toolkits": toolkit_slice,
+                    "palette": palette,
+                    "composio_score": composio_score,
+                    "combined_score": combined_score,
+                    "seed_index": index,
+                }
+            )
+
+        ranked_inputs.sort(
+            key=lambda item: (
+                -item["combined_score"],
+                -item["similarity"],
+                str(item["row"].get("title", "")),
+                str(item["row"].get("id", "")),
+                item.get("seed_index", 0),
+            )
+        )
+
+        for position, item in enumerate(ranked_inputs):
+            row = item["row"]
+            metadata = item["metadata"]
+            impact = metadata.get("impact") or self._impact_scale(position)
+            risk = metadata.get("risk") or self._risk_scale(position)
+            undo_plan = metadata.get("undo_plan") or "Document undo path via evidence service"
+            similarity = item["similarity"]
+            composio_score = item["composio_score"]
+            combined_score = item["combined_score"]
+            toolkit_slice = item["toolkits"] or self._select_toolkits(ordered_toolkits, position)
+            palette = item["palette"]
+            confidence = self._confidence(similarity, mission_mode, position)
 
             rationale = (
-                f"Ranked #{index + 1} using library entry '{row.get('title', 'Unnamed play')}' "
-                f"(similarity={similarity:.2f}) with {len(toolkit_slice)} toolkit refs"
+                f"Ranked #{position + 1} using library entry '{row.get('title', 'Unnamed play')}' "
+                f"(hybrid_score={combined_score:.2f}, similarity={similarity:.2f})"
             )
             reason_markdown = self._build_reason_markdown(
                 title=row.get("title"),
@@ -236,53 +330,88 @@ class PlannerAgent(LlmAgent):
                 risk=risk,
                 undo_plan=undo_plan,
                 guardrails=mission_context.guardrails,
+                hybrid_score=combined_score,
+                composio_score=composio_score,
             )
 
-            candidates.append(
-                RankedPlay(
-                    title=row.get("title", f"Play {index + 1}"),
-                    description=row.get(
-                        "description",
-                        f"Tailor artifact for {audience} respecting mission guardrails",
-                    ),
-                    impact=impact,
-                    risk=risk,
-                    undo_plan=undo_plan,
-                    toolkit_refs=toolkit_slice,
-                    confidence=confidence,
-                    mission_id=mission_context.mission_id,
-                    tenant_id=mission_context.tenant_id,
-                    mode=mission_mode,
-                    play_id=str(row.get("id")) if row.get("id") else None,
-                    rationale=rationale,
-                    reason_markdown=reason_markdown,
-                    telemetry={
-                        "library_entry_id": row.get("id"),
-                        "similarity": similarity,
-                        "success_score": row.get("success_score"),
-                        "persona": row.get("persona"),
-                        "reason_excerpt": reason_markdown[:200],
-                    },
-                )
+            toolkit_scores = {
+                slug: round(float(toolkit_catalog.get(slug, {}).get("score", 0.0)), 4)
+                for slug in toolkit_slice
+                if slug
+            }
+
+            candidate = RankedPlay(
+                title=row.get("title", f"Play {position + 1}"),
+                description=row.get(
+                    "description",
+                    f"Tailor artifact for {audience} respecting mission guardrails",
+                ),
+                impact=impact,
+                risk=risk,
+                undo_plan=undo_plan,
+                toolkit_refs=toolkit_slice,
+                confidence=confidence,
+                mission_id=mission_context.mission_id,
+                tenant_id=mission_context.tenant_id,
+                mode=mission_mode,
+                play_id=str(row.get("id")) if row.get("id") else None,
+                rationale=rationale,
+                reason_markdown=reason_markdown,
+                telemetry={
+                    "library_entry_id": row.get("id"),
+                    "similarity": similarity,
+                    "combined_score": combined_score,
+                    "composio_score": composio_score,
+                    "success_score": row.get("success_score"),
+                    "persona": row.get("persona"),
+                    "reason_excerpt": reason_markdown[:200],
+                    "toolkit_scores": toolkit_scores,
+                    "palette": palette,
+                },
             )
 
-            # Emit candidate ranked status
+            candidates.append(candidate)
+            combined_scores.append(combined_score)
+            composio_scores.append(composio_score)
+
             self._emit_planner_status(
                 mission_context,
                 "candidate_ranked",
-                f"Ranked candidate #{index + 1}: {row.get('title', 'Unnamed play')}",
+                f"Ranked candidate #{position + 1}: {row.get('title', 'Unnamed play')}",
                 {
-                    "position": index + 1,
+                    "position": position + 1,
                     "title": row.get("title"),
                     "similarity": similarity,
+                    "combined_score": round(combined_score, 3),
+                    "composio_score": round(composio_score, 3),
                     "confidence": confidence,
                     "toolkit_count": len(toolkit_slice),
                     "play_id": row.get("id"),
-                    "reason_markdown": reason_markdown,
+                    "palette_refs": [p.get("slug") for p in palette][:3],
                 },
             )
 
         if not candidates:
+            fallback_toolkits = ordered_toolkits[:2]
+            palette = [
+                toolkit_catalog[slug]["palette"]
+                for slug in fallback_toolkits
+                if slug in toolkit_catalog and toolkit_catalog[slug].get("palette")
+            ]
+            composio_score = self._composio_score(fallback_toolkits, toolkit_catalog)
+            combined_score = self._hybrid_score(0.5, composio_score)
+            fallback_reason = self._build_reason_markdown(
+                title="Baseline dry-run proof",
+                similarity=0.5,
+                toolkit_refs=fallback_toolkits,
+                impact="Medium",
+                risk="Low",
+                undo_plan="Manual review only",
+                guardrails=mission_context.guardrails,
+                hybrid_score=combined_score,
+                composio_score=composio_score,
+            )
+
             fallback = RankedPlay(
                 title=f"Dry-run scaffolding for {audience}",
                 description=(
@@ -292,24 +421,23 @@ class PlannerAgent(LlmAgent):
                 impact="Medium",
                 risk="Low",
                 undo_plan="Manual review only",
-                toolkit_refs=toolkit_refs[:2],
+                toolkit_refs=fallback_toolkits,
                 confidence=self._confidence(0.5, mission_mode, 0),
                 mission_id=mission_context.mission_id,
                 tenant_id=mission_context.tenant_id,
                 mode=mission_mode,
                 rationale="Fallback play generated due to missing library entries",
-                reason_markdown=self._build_reason_markdown(
-                    title="Baseline dry-run proof",
-                    similarity=0.5,
-                    toolkit_refs=toolkit_refs[:2],
-                    impact="Medium",
-                    risk="Low",
-                    undo_plan="Manual review only",
-                    guardrails=mission_context.guardrails,
-                ),
-                telemetry={"fallback": True},
+                reason_markdown=fallback_reason,
+                telemetry={
+                    "fallback": True,
+                    "combined_score": combined_score,
+                    "composio_score": composio_score,
+                    "palette": palette,
+                },
             )
             candidates.append(fallback)
+            combined_scores.append(combined_score)
+            composio_scores.append(composio_score)
             self._emit_planner_status(
                 mission_context,
                 "fallback_generated",
@@ -318,10 +446,16 @@ class PlannerAgent(LlmAgent):
                     "title": fallback.title,
                     "reason": "no_library_candidates",
                     "confidence": fallback.confidence,
+                    "combined_score": round(combined_score, 3),
                 },
             )
 
-        return candidates
+        if combined_scores:
+            metrics["hybrid_score_avg"] = sum(combined_scores) / len(combined_scores)
+        if composio_scores:
+            metrics["composio_score_avg"] = sum(composio_scores) / len(composio_scores)
+
+        return candidates, metrics
 
     def _persist_rankings(
         self, mission_context: MissionContext, ranked: List[RankedPlay]
@@ -411,6 +545,9 @@ class PlannerAgent(LlmAgent):
         latency_ms: int,
         avg_similarity: float,
         toolkit_counts: Dict[str, int],
+        latency_breakdown: Dict[str, int],
+        hybrid_score_avg: float,
+        composio_score_avg: float,
     ) -> None:
         if not self.streamer:
             return
@@ -431,6 +568,9 @@ class PlannerAgent(LlmAgent):
                 "primary_toolkits": [tk[0] for tk in primary_toolkits],
                 "toolkit_counts": toolkit_counts,
                 "latency_ms": latency_ms,
+                "latency_breakdown": latency_breakdown,
+                "hybrid_score_avg": round(hybrid_score_avg, 3),
+                "composio_score_avg": round(composio_score_avg, 3),
             },
         )
 
@@ -463,13 +603,81 @@ class PlannerAgent(LlmAgent):
             },
         )
 
-    def _toolkit_refs(self, audience: str) -> List[str]:
-        tools = self.composio.get_tools(search=audience)[:6]
-        refs = [tool.get("toolkit") or tool.get("slug", "") for tool in tools]
-        cleaned = [ref for ref in refs if ref]
-        if not cleaned:
-            cleaned = ["google_docs", "sheets", "gmail"]
-        return cleaned
+    def _prepare_toolkit_catalog(
+        self, catalog: List[Dict[str, Any]]
+    ) -> Tuple[List[str], Dict[str, Dict[str, Any]]]:
+        ordered: List[str] = []
+        lookup: Dict[str, Dict[str, Any]] = {}
+
+        for position, entry in enumerate(catalog):
+            slug = entry.get("toolkit") or entry.get("slug")
+            if not slug:
+                continue
+            if slug in lookup:
+                continue
+
+            score = entry.get("score")
+            try:
+                score_val = float(score) if score is not None else 1.0 - (position / max(len(catalog), 1))
+            except (TypeError, ValueError):
+                score_val = 1.0 - (position / max(len(catalog), 1))
+            score_val = max(0.0, min(score_val, 1.0))
+
+            palette = entry.get("palette") or {}
+            if not isinstance(palette, dict):
+                palette = {}
+            palette.setdefault("slug", slug)
+            palette.setdefault("toolkit", slug)
+            palette.setdefault("name", entry.get("name", slug))
+
+            lookup[slug] = {
+                "score": score_val,
+                "palette": palette,
+                "position": position,
+            }
+            ordered.append(slug)
+
+        if not ordered:
+            fallback = ["google_docs", "sheets", "gmail"]
+            for index, slug in enumerate(fallback):
+                lookup.setdefault(
+                    slug,
+                    {
+                        "score": max(0.0, 1.0 - (index * 0.1)),
+                        "palette": {"slug": slug, "toolkit": slug, "name": slug},
+                        "position": index,
+                    },
+                )
+            ordered = fallback
+
+        return ordered, lookup
+
+    @staticmethod
+    def _select_toolkits(toolkits: List[str], index: int, *, per_candidate: int = 2) -> List[str]:
+        if not toolkits:
+            return []
+        start = index * per_candidate
+        slice_refs = toolkits[start : start + per_candidate]
+        if slice_refs:
+            return slice_refs
+        return toolkits[:per_candidate]
+
+    @staticmethod
+    def _composio_score(
+        toolkit_refs: List[str], catalog: Dict[str, Dict[str, Any]]
+    ) -> float:
+        if not toolkit_refs:
+            return 0.3
+        scores = [float(catalog.get(ref, {}).get("score", 0.3)) for ref in toolkit_refs if ref]
+        if not scores:
+            return 0.3
+        return sum(scores) / len(scores)
+
+    @staticmethod
+    def _hybrid_score(similarity: float, composio_score: float) -> float:
+        similarity_clamped = max(0.0, min(float(similarity), 1.0))
+        composio_clamped = max(0.0, min(float(composio_score), 1.0))
+        return round((0.65 * similarity_clamped) + (0.35 * composio_clamped), 4)
 
     def _build_reason_markdown(
         self,
@@ -481,19 +689,39 @@ class PlannerAgent(LlmAgent):
         risk: str,
         undo_plan: str,
         guardrails: List[str],
+        hybrid_score: Optional[float] = None,
+        composio_score: Optional[float] = None,
     ) -> str:
         name = title or "Recommended play"
         toolkits = ", ".join(toolkit_refs) if toolkit_refs else "—"
         guardrail_summary = ", ".join(guardrails[:3]) if guardrails else "—"
         lines = [
             f"### Why “{name}”",
-            f"- **Similarity**: {similarity:.2f} match to the mission objective",
+        ]
+
+        if hybrid_score is not None:
+            if composio_score is not None:
+                lines.append(
+                    f"- **Hybrid score**: {hybrid_score:.2f} (similarity={similarity:.2f}, composio={composio_score:.2f})"
+                )
+            else:
+                lines.append(
+                    f"- **Hybrid score**: {hybrid_score:.2f} (similarity={similarity:.2f})"
+                )
+        lines.append(f"- **Similarity**: {similarity:.2f} match to the mission objective")
+        if composio_score is not None:
+            lines.append(
+                f"- **Composio discovery**: {composio_score:.2f} average toolkit score"
+            )
+        lines.extend(
+            [
             f"- **Toolkits**: {toolkits}",
             f"- **Impact**: {impact}",
             f"- **Risk**: {risk}",
             f"- **Undo plan**: {undo_plan}",
             f"- **Guardrail focus**: {guardrail_summary}",
-        ]
+            ]
+        )
         return "\n".join(lines)
 
     @staticmethod
@@ -531,6 +759,10 @@ class PlannerAgent(LlmAgent):
         latency_ms: int,
         avg_similarity: float,
         toolkit_counts: Dict[str, int],
+        library_latency_ms: int,
+        composio_latency_ms: int,
+        hybrid_score_avg: float,
+        composio_score_avg: float,
     ) -> None:
         if not self.supabase or not self.supabase.enabled:
             return
@@ -558,6 +790,16 @@ class PlannerAgent(LlmAgent):
                         "objective": context.objective[:120],
                         "audience": context.audience,
                         "guardrails": context.guardrails[:5],
+                        "latency_breakdown": {
+                            "library_query_ms": library_latency_ms,
+                            "composio_discovery_ms": composio_latency_ms,
+                        },
+                        "hybrid_score_avg": round(hybrid_score_avg, 4)
+                        if ranked
+                        else None,
+                        "composio_score_avg": round(composio_score_avg, 4)
+                        if ranked
+                        else None,
                     },
                 }
             )

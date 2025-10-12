@@ -44,3 +44,10 @@ run = [
   "uv run --with agent/requirements.txt adk eval agent/evals/smoke_g_a_v2.json",
   "uv run --with agent/requirements.txt adk eval agent/evals/dry_run_ranking_G-B.json"
 ]
+
+[tasks.test-gate-gb]
+description = "Run Gate G-B readiness integration and Playwright suites"
+run = [
+  "pnpm run test:gate-gb:integration",
+  "pnpm run test:gate-gb:playwright"
+]
