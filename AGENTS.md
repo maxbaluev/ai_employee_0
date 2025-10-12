@@ -75,8 +75,10 @@ Keep this guide current—agents treat AGENTS.md as the single source of truth f
 ## Gate G-B Operational Notes
 
 - `INTAKE_LIMITER_BACKEND=memory|redis|postgres`
-  - Defaults to `memory` (in-memory Map); `redis`/`postgres` modes are scaffolded but not yet implemented.
-  - Set the variable in `.env` if you need to validate backend selection logic.
+  - Default `memory` keeps counters local.
+  - `redis` now uses the implemented Redis-backed limiter; requires `REDIS_URL` (e.g. `redis://localhost:6379`) and honors `resetWindowMs` via key TTL.
+  - `postgres` remains available; the store still casts Supabase client calls until `mission_regeneration_limits` exists in `supabase/types.ts`.
+- Redis limiter tests (`src/lib/intake/regenerationLimiter.test.ts`) are env-guarded and skip unless `REDIS_URL` is present—set it before running the suite.
 - Supabase types
   - After schema edits run `supabase gen types typescript --linked --schema public,storage,graphql_public > supabase/types.ts`
   - Follow with `pnpm tsc --noEmit` to confirm the generated bindings compile cleanly before committing

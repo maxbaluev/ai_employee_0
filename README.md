@@ -102,8 +102,11 @@ before running QA.
 - [Supabase docs](https://supabase.com/docs)
 
 ## Gate G-B Notes
-- `INTAKE_LIMITER_BACKEND=memory|redis|postgres` (defaults to `memory`; Redis/Postgres backends are planned but not yet implemented).
-- After Supabase schema edits run `supabase gen types typescript --linked --schema public,storage,graphql_public > supabase/types.ts` and follow up with `pnpm tsc --noEmit` to confirm the generated bindings compile cleanly.
+- `INTAKE_LIMITER_BACKEND=memory|redis|postgres` (default `memory`).
+  - `redis` backend now implemented: requires `REDIS_URL` and enforces `resetWindowMs` via key TTL.
+  - `postgres` backend remains available; client calls still use temporary casts until `mission_regeneration_limits` appears in `supabase/types.ts`.
+- Redis limiter Vitest coverage is env-guarded—set `REDIS_URL` before running limiter suites.
+- After Supabase schema edits run `supabase gen types typescript --linked --schema public,storage,graphql_public > supabase/types.ts` and follow up with `pnpm tsc --noEmit` to confirm generated bindings compile cleanly (regenerate once the new table is in place to drop casts).
 
 ## License
 
