@@ -15,7 +15,12 @@ from google.genai import types
 
 from pydantic import Field
 
-from ..services import CopilotKitStreamer, SupabaseClient, TelemetryEmitter
+from ..services import (
+    CatalogUnavailableError,
+    CopilotKitStreamer,
+    SupabaseClient,
+    TelemetryEmitter,
+)
 from ..tools.composio_client import ComposioCatalogClient
 from .state import (
     InspectionPreview,
@@ -26,6 +31,15 @@ from .state import (
     RANKED_PLAYS_KEY,
     SELECTED_PLAY_KEY,
 )
+
+
+class CatalogEmptyInterrupt(RuntimeError):
+    """Raised when planner catalog discovery returns no viable candidates."""
+
+
+class CatalogUnavailableInterrupt(RuntimeError):
+    """Raised when planner cannot reach the Supabase catalog."""
+
 LOGGER = logging.getLogger(__name__)
 
 
@@ -223,14 +237,28 @@ class PlannerAgent(LlmAgent):
         }
 
         library_started_at = time.perf_counter()
-        library_rows = self.supabase.search_library_plays(
-            tenant_id=mission_context.tenant_id,
-            mission_id=mission_context.mission_id,
-            objective=mission_context.objective,
-            audience=audience,
-            guardrails=mission_context.guardrails,
-            limit=3,
-        )
+        try:
+            library_rows = self.supabase.search_library_plays(
+                tenant_id=mission_context.tenant_id,
+                mission_id=mission_context.mission_id,
+                objective=mission_context.objective,
+                audience=audience,
+                guardrails=mission_context.guardrails,
+                limit=3,
+            )
+        except CatalogUnavailableError as exc:
+            metadata = {
+                "reason": str(exc) or "supabase_unavailable",
+                "library_status": "unavailable",
+                "candidate_count": 0,
+            }
+            self._emit_planner_status(
+                mission_context,
+                "catalog_unavailable",
+                "Supabase library unavailable; planner halted",
+                metadata,
+            )
+            raise CatalogUnavailableInterrupt(str(exc)) from exc
         metrics["library_latency_ms"] = int((time.perf_counter() - library_started_at) * 1000)
 
         self._emit_planner_status(
@@ -264,6 +292,45 @@ class PlannerAgent(LlmAgent):
                 "latency_ms": metrics["composio_latency_ms"],
             },
         )
+
+        all_scores_missing = (
+            bool(toolkit_catalog)
+            and all(not lookup.get("score_available", True) for lookup in toolkit_catalog.values())
+        )
+        if all_scores_missing:
+            self._emit_planner_status(
+                mission_context,
+                "catalog_unavailable",
+                "Composio toolkit catalog missing scores; planner halted",
+                {
+                    "reason": "composio_scores_missing",
+                    "library_status": "available" if library_rows else "empty",
+                    "composio_status": "score_missing",
+                    "candidate_count": 0,
+                    "toolkit_refs": [],
+                },
+            )
+            raise CatalogUnavailableInterrupt(
+                "Composio toolkit scores unavailable; cannot rank candidates"
+            )
+
+        if toolkit_catalog:
+            if all(not lookup.get("score_available", True) for lookup in toolkit_catalog.values()):
+                self._emit_planner_status(
+                    mission_context,
+                    "catalog_unavailable",
+                    "Composio toolkit catalog missing scores; planner halted",
+                    {
+                        "reason": "composio_scores_missing",
+                        "library_status": "available" if library_rows else "empty",
+                        "composio_status": "score_missing",
+                        "candidate_count": 0,
+                        "toolkit_refs": [],
+                    },
+                )
+                raise CatalogUnavailableInterrupt(
+                    "Composio toolkit scores unavailable; cannot rank candidates"
+                )
 
         candidates: List[RankedPlay] = []
         combined_scores: List[float] = []
@@ -392,62 +459,28 @@ class PlannerAgent(LlmAgent):
             )
 
         if not candidates:
-            fallback_toolkits = ordered_toolkits[:2]
-            palette = [
-                toolkit_catalog[slug]["palette"]
-                for slug in fallback_toolkits
-                if slug in toolkit_catalog and toolkit_catalog[slug].get("palette")
-            ]
-            composio_score = self._composio_score(fallback_toolkits, toolkit_catalog)
-            combined_score = self._hybrid_score(0.5, composio_score)
-            fallback_reason = self._build_reason_markdown(
-                title="Baseline dry-run proof",
-                similarity=0.5,
-                toolkit_refs=fallback_toolkits,
-                impact="Medium",
-                risk="Low",
-                undo_plan="Manual review only",
-                guardrails=mission_context.guardrails,
-                hybrid_score=combined_score,
-                composio_score=composio_score,
-            )
+            catalog_empty_metadata = {
+                "reason": "library_and_composio_empty"
+                if not ranked_inputs and not ordered_toolkits
+                else "library_empty",
+                "library_status": "empty" if not ranked_inputs else "partial",
+                "composio_status": "empty" if not ordered_toolkits else "partial",
+                "candidate_count": 0,
+                "toolkit_refs": [],
+            }
 
-            fallback = RankedPlay(
-                title=f"Dry-run scaffolding for {audience}",
-                description=(
-                    "Generate baseline artifact demonstrating guardrail adherence "
-                    "while awaiting curated library plays."
-                ),
-                impact="Medium",
-                risk="Low",
-                undo_plan="Manual review only",
-                toolkit_refs=fallback_toolkits,
-                confidence=self._confidence(0.5, mission_mode, 0),
-                mission_id=mission_context.mission_id,
-                tenant_id=mission_context.tenant_id,
-                mode=mission_mode,
-                rationale="Fallback play generated due to missing library entries",
-                reason_markdown=fallback_reason,
-                telemetry={
-                    "fallback": True,
-                    "combined_score": combined_score,
-                    "composio_score": composio_score,
-                    "palette": palette,
-                },
-            )
-            candidates.append(fallback)
-            combined_scores.append(combined_score)
-            composio_scores.append(composio_score)
             self._emit_planner_status(
                 mission_context,
-                "fallback_generated",
-                "Generated fallback play due to missing library candidates",
-                {
-                    "title": fallback.title,
-                    "reason": "no_library_candidates",
-                    "confidence": fallback.confidence,
-                    "combined_score": round(combined_score, 3),
-                },
+                "catalog_empty",
+                "Planner catalog empty: awaiting curated library or toolkit selection",
+                catalog_empty_metadata,
+            )
+
+            raise CatalogEmptyInterrupt(
+                (
+                    "Planner catalog empty: no library plays or Composio toolkits available. "
+                    "Ensure library entries exist or select toolkits before continuing."
+                )
             )
 
         if combined_scores:
@@ -616,11 +649,12 @@ class PlannerAgent(LlmAgent):
             if slug in lookup:
                 continue
 
+            score_available = bool(entry.get("score_available", True))
             score = entry.get("score")
             try:
-                score_val = float(score) if score is not None else 1.0 - (position / max(len(catalog), 1))
+                score_val = float(score) if score is not None else 0.0
             except (TypeError, ValueError):
-                score_val = 1.0 - (position / max(len(catalog), 1))
+                score_val = 0.0
             score_val = max(0.0, min(score_val, 1.0))
 
             palette = entry.get("palette") or {}
@@ -634,22 +668,9 @@ class PlannerAgent(LlmAgent):
                 "score": score_val,
                 "palette": palette,
                 "position": position,
+                "score_available": score_available,
             }
             ordered.append(slug)
-
-        if not ordered:
-            fallback = ["google_docs", "sheets", "gmail"]
-            for index, slug in enumerate(fallback):
-                lookup.setdefault(
-                    slug,
-                    {
-                        "score": max(0.0, 1.0 - (index * 0.1)),
-                        "palette": {"slug": slug, "toolkit": slug, "name": slug},
-                        "position": index,
-                    },
-                )
-            ordered = fallback
-
         return ordered, lookup
 
     @staticmethod

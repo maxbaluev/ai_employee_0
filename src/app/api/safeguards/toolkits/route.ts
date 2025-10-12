@@ -3,6 +3,7 @@ import { createHash } from "crypto";
 
 import type { Json, TablesInsert } from "@supabase/types";
 import { getRouteHandlerSupabaseClient } from "@/lib/supabase/server";
+import { requireTenantId, TenantResolutionError } from "@/app/api/_shared/tenant";
 
 type ToolkitSelection = {
   slug: string;
@@ -12,22 +13,6 @@ type ToolkitSelection = {
   logo?: string | null;
   noAuth: boolean;
 };
-
-function resolveTenantId(
-  candidate: string | null,
-  sessionTenantId: string | undefined,
-) {
-  if (candidate && candidate.trim()) {
-    return candidate.trim();
-  }
-  if (sessionTenantId) {
-    return sessionTenantId;
-  }
-  if (process.env.GATE_GA_DEFAULT_TENANT_ID) {
-    return process.env.GATE_GA_DEFAULT_TENANT_ID;
-  }
-  return null;
-}
 
 /**
  * POST /api/safeguards/toolkits
@@ -66,16 +51,23 @@ export async function POST(req: NextRequest) {
       data: { session },
     } = await supabase.auth.getSession();
 
-    const tenantId = resolveTenantId(tenantFromBody ?? null, session?.user?.id);
-
-    if (!tenantId) {
-      return NextResponse.json(
-        {
-          error: "Unable to determine tenant context",
-          hint: "Authenticate with Supabase or include tenantId in the request body",
-        },
-        { status: 401 },
-      );
+    let tenantId: string;
+    try {
+      tenantId = requireTenantId({
+        providedTenantId: tenantFromBody,
+        session,
+        missingTenantHint: "Authenticate with Supabase or include tenantId in the request body",
+        invalidTenantHint: "Provide tenantId or authenticate before persisting toolkit selections.",
+      });
+    } catch (err) {
+      if (err instanceof TenantResolutionError) {
+        const responseBody: { error: string; hint?: string } = { error: err.message };
+        if (err.hint !== undefined) {
+          responseBody.hint = err.hint;
+        }
+        return NextResponse.json(responseBody, { status: err.status });
+      }
+      throw err;
     }
 
     const { data: existingRows } = await supabase

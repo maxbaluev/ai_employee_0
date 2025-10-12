@@ -34,11 +34,9 @@ export function MissionBriefCard({ brief, headerSlot }: MissionBriefCardProps) {
             <p className="text-xs text-slate-400">Pinned summary of accepted intake chips</p>
           </div>
           <div className="flex flex-wrap items-center gap-2 text-[11px] uppercase tracking-wide">
-            {source && (
-              <span className="rounded-full bg-violet-500/15 px-3 py-1 font-semibold text-violet-200">
-                {source === "fallback" ? "Manual" : "Gemini"}
-              </span>
-            )}
+            <span className="rounded-full bg-violet-500/15 px-3 py-1 font-semibold text-violet-200">
+              Gemini
+            </span>
             {headerSlot}
           </div>
         </header>

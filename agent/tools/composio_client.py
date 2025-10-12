@@ -106,7 +106,6 @@ class ComposioCatalogClient:
         tool_list = list(tools) if not isinstance(tools, list) else tools
 
         results: List[Dict[str, Any]] = []
-        fallback_span = max(len(tool_list), 1)
 
         for position, tool in enumerate(tool_list):
             name = getattr(tool, "name", "unknown")
@@ -130,12 +129,15 @@ class ComposioCatalogClient:
             if raw_score is None and isinstance(meta, dict):
                 raw_score = meta.get("score") or meta.get("weight") or meta.get("popularity")
 
+            score_available = True
             try:
-                score = float(raw_score) if raw_score is not None else 1.0 - (position / fallback_span)
+                score = float(raw_score) if raw_score is not None else None
             except (TypeError, ValueError):
-                score = 1.0 - (position / fallback_span)
-
-            score = max(0.0, min(score, 1.0))
+                score = None
+            if score is not None:
+                score = max(0.0, min(score, 1.0))
+            else:
+                score_available = False
 
             category = getattr(tool, "category", None) or meta.get("category") or "general"
             raw_auth = getattr(tool, "auth_schemes", [])
@@ -153,6 +155,7 @@ class ComposioCatalogClient:
                 "logo": meta.get("logo"),
                 "no_auth": bool(getattr(tool, "no_auth", False)),
                 "auth_schemes": auth_schemes,
+                "score_available": score_available,
             }
 
             results.append(
@@ -162,6 +165,7 @@ class ComposioCatalogClient:
                     "description": description,
                     "toolkit": toolkit,
                     "score": score,
+                    "score_available": score_available,
                     "palette": palette,
                 }
             )

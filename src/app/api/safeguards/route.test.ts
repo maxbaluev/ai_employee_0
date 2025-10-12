@@ -77,11 +77,6 @@ describe('POST /api/safeguards', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    process.env.GATE_GA_DEFAULT_TENANT_ID = tenantId;
-  });
-
-  afterEach(() => {
-    delete process.env.GATE_GA_DEFAULT_TENANT_ID;
   });
 
   it('returns 400 when payload fails validation', async () => {
@@ -481,20 +476,4 @@ describe('POST /api/safeguards', () => {
     });
   });
 
-  describe('tenant resolution', () => {
-    it('returns 400 when tenant context is missing without fallback', async () => {
-      delete process.env.GATE_GA_DEFAULT_TENANT_ID;
-
-      const response = await POST(
-        createRequest({
-          action: 'accept_all',
-          missionId,
-        }),
-      );
-
-      expect(response.status).toBe(400);
-      const payload = await response.json();
-      expect(payload).toMatchObject({ error: 'Missing tenant context' });
-    });
-  });
 });

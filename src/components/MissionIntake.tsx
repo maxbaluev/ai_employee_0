@@ -17,7 +17,6 @@ type IntakeViewState = {
   kpis: KPI[];
   safeguards: GeneratedSafeguard[];
   confidence: number;
-  source: 'gemini';
 };
 
 type AcceptedIntakePayload = {
@@ -27,7 +26,6 @@ type AcceptedIntakePayload = {
   guardrailSummary: string;
   kpis: KPI[];
   confidence: number;
-  source: 'gemini';
 };
 
 type RegenerationField = 'objective' | 'audience' | 'kpis' | 'safeguards';
@@ -75,7 +73,6 @@ export function MissionIntake({ tenantId, objectiveId, onAccept, onStageAdvance 
       kpis: intakeState?.kpis ?? [],
       safeguards: intakeState?.safeguards ?? [],
       confidence: intakeState?.confidence ?? null,
-      source: intakeState?.source ?? null,
     },
   });
 
@@ -131,7 +128,6 @@ export function MissionIntake({ tenantId, objectiveId, onAccept, onStageAdvance 
         kpis: payload.chips.kpis,
         safeguards: payload.chips.safeguardHints,
         confidence: payload.chips.confidence,
-        source: payload.chips.source,
       };
 
       setIntakeState(nextState);
@@ -192,7 +188,6 @@ export function MissionIntake({ tenantId, objectiveId, onAccept, onStageAdvance 
                 kpis: field === 'kpis' ? payload.chips.kpis : prev.kpis,
                 safeguards: field === 'safeguards' ? payload.chips.safeguardHints : prev.safeguards,
                 confidence: payload.chips.confidence,
-                source: payload.chips.source,
               }
             : prev,
         );
@@ -284,7 +279,6 @@ export function MissionIntake({ tenantId, objectiveId, onAccept, onStageAdvance 
         guardrailSummary: intakeState.safeguards.map((hint) => hint.text).join('\n'),
         kpis: intakeState.kpis,
         confidence: intakeState.confidence,
-        source: intakeState.source,
       });
 
       setIntakeState((prev) =>
@@ -373,10 +367,9 @@ export function MissionIntake({ tenantId, objectiveId, onAccept, onStageAdvance 
               Paste context once—objective, audience, KPIs, tone. We will scaffold the mission brief and safeguards.
             </p>
           </div>
-          {intakeState && intakeState.source === 'gemini' && (
+          {intakeState && (
             <div className="flex items-center gap-3 rounded-full bg-white/5 px-3 py-1.5 text-xs text-slate-200">
               <ConfidenceBadge confidence={intakeState.confidence} />
-              <span className="text-slate-400">Source: {intakeState.source}</span>
             </div>
           )}
         </header>

@@ -1,29 +1,14 @@
 /**
  * POST /api/intake/generate
  *
- * Generates mission intake chips from freeform user input.
- * Supports Gemini AI with deterministic fallback.
+ * Generates mission intake chips from freeform user input using Gemini AI.
+ * Throws an error if Gemini generation fails.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { generateIntake } from '@/lib/intake/service';
 import { getRouteHandlerSupabaseClient } from '@/lib/supabase/server';
-
-function resolveTenantId(
-  bodyTenantId: unknown,
-  sessionTenantId: string | undefined,
-): string | null {
-  if (typeof bodyTenantId === 'string' && bodyTenantId.trim()) {
-    return bodyTenantId;
-  }
-  if (sessionTenantId) {
-    return sessionTenantId;
-  }
-  if (process.env.GATE_GA_DEFAULT_TENANT_ID) {
-    return process.env.GATE_GA_DEFAULT_TENANT_ID;
-  }
-  return null;
-}
+import { requireTenantId, TenantResolutionError } from '@/app/api/_shared/tenant';
 
 export async function POST(request: NextRequest) {
   try {
@@ -38,15 +23,22 @@ export async function POST(request: NextRequest) {
       data: { session },
     } = await supabaseRoute.auth.getSession();
 
-    const tenantId = resolveTenantId(body.tenantId, session?.user?.id);
-    if (!tenantId) {
-      return NextResponse.json(
-        {
-          error: 'Unable to determine tenant context',
-          hint: 'Authenticate with Supabase or supply tenantId in the request body',
-        },
-        { status: 401 },
-      );
+    let tenantId: string;
+    try {
+      tenantId = requireTenantId({
+        providedTenantId: body.tenantId,
+        session,
+        missingTenantHint: 'Authenticate with Supabase or supply tenantId in the request body',
+      });
+    } catch (err) {
+      if (err instanceof TenantResolutionError) {
+        const responseBody: { error: string; hint?: string } = { error: err.message };
+        if (err.hint !== undefined) {
+          responseBody.hint = err.hint;
+        }
+        return NextResponse.json(responseBody, { status: err.status });
+      }
+      throw err;
     }
 
     const links = Array.isArray(body.links)

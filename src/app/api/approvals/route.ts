@@ -3,6 +3,7 @@ import { z } from 'zod';
 
 import { logTelemetryEvent } from '@/lib/intake/service';
 import { getServiceSupabaseClient } from '@/lib/supabase/service';
+import { requireTenantId, TenantResolutionError } from '@/app/api/_shared/tenant';
 import type { Database, Json } from '@supabase/types';
 import type { PostgrestError } from '@supabase/supabase-js';
 
@@ -56,17 +57,22 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const defaultTenant = process.env.GATE_GA_DEFAULT_TENANT_ID ?? '00000000-0000-0000-0000-000000000000';
-  const tenantId = parsed.data.tenantId ?? defaultTenant;
-
-  if (!tenantId) {
-    return NextResponse.json(
-      {
-        error: 'Missing tenant identifier',
-        hint: 'Provide tenantId or configure GATE_GA_DEFAULT_TENANT_ID',
-      },
-      { status: 400 },
-    );
+  let tenantId: string;
+  try {
+    tenantId = requireTenantId({
+      providedTenantId: parsed.data.tenantId,
+      session: null,
+      missingTenantHint: 'Authenticate with Supabase or include tenantId in the request body',
+    });
+  } catch (error) {
+    if (error instanceof TenantResolutionError) {
+      const body: { error: string; hint?: string } = { error: error.message };
+      if (error.hint) {
+        body.hint = error.hint;
+      }
+      return NextResponse.json(body, { status: error.status });
+    }
+    throw error;
   }
 
   const supabase = getServiceSupabaseClient();

@@ -10,7 +10,7 @@ vi.mock('@copilotkit/react-core', () => ({
   useCopilotAction: vi.fn(),
 }));
 
-describe('MissionIntake fallback removal gate', () => {
+describe('MissionIntake Gemini-only behavior', () => {
   let fetchSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
@@ -33,39 +33,65 @@ describe('MissionIntake fallback removal gate', () => {
     );
   }
 
-  it('does not surface skip/manual UI and hides fallback badges', async () => {
-    const fallbackResponse = {
-      missionId: 'mission-fallback',
+  it('displays confidence badge and generated chips', async () => {
+    const geminiResponse = {
+      missionId: 'mission-gemini',
       chips: {
-        objective: 'Fallback mission objective',
-        audience: 'Fallback audience',
-        kpis: [],
-        safeguardHints: [],
-        confidence: 0.42,
-        source: 'fallback',
+        objective: 'Gemini mission objective',
+        audience: 'Gemini audience',
+        kpis: [{ label: 'Test KPI', target: '100%' }],
+        safeguardHints: [
+          {
+            id: 'sg-1',
+            hintType: 'tone',
+            text: 'Maintain professional tone',
+            confidence: 0.8,
+            status: 'suggested',
+          },
+        ],
+        confidence: 0.92,
       },
     };
 
     fetchSpy.mockResolvedValueOnce({
       ok: true,
-      json: async () => fallbackResponse,
+      json: async () => geminiResponse,
     } as Response);
 
     const user = userEvent.setup();
     renderIntake();
 
     const textarea = screen.getByLabelText(/Mission input/i);
-    await user.type(textarea, 'Fallback test input');
+    await user.type(textarea, 'Test Gemini input');
 
     await user.click(screen.getByRole('button', { name: /Generate mission/i }));
 
     await waitFor(() => {
-      expect(screen.getByText('Fallback mission objective')).toBeInTheDocument();
+      expect(screen.getByText('Gemini mission objective')).toBeInTheDocument();
     });
 
-    expect(screen.queryByRole('button', { name: /skip/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /manual/i })).not.toBeInTheDocument();
-    expect(screen.queryByText(/Source: fallback/i)).not.toBeInTheDocument();
+    expect(screen.getByText('Gemini audience')).toBeInTheDocument();
+    expect(screen.getByText(/Test KPI/i)).toBeInTheDocument();
+    expect(screen.getByText(/High confidence/i)).toBeInTheDocument();
+  });
+
+  it('shows error message when generation fails', async () => {
+    fetchSpy.mockResolvedValueOnce({
+      ok: false,
+      json: async () => ({ error: 'Failed to generate intake with Gemini' }),
+    } as Response);
+
+    const user = userEvent.setup();
+    renderIntake();
+
+    const textarea = screen.getByLabelText(/Mission input/i);
+    await user.type(textarea, 'Test input');
+
+    await user.click(screen.getByRole('button', { name: /Generate mission/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Failed to generate intake with Gemini/i)).toBeInTheDocument();
+    });
   });
 
   it('does not allow accepting a mission before chips are generated', () => {

@@ -2,7 +2,13 @@
 
 from .copilotkit import CopilotKitStreamer
 from .evidence_service import EvidenceService
-from .supabase import SupabaseClient
+from .supabase import CatalogUnavailableError, SupabaseClient
 from .telemetry import TelemetryEmitter
 
-__all__ = ["SupabaseClient", "TelemetryEmitter", "CopilotKitStreamer", "EvidenceService"]
+__all__ = [
+    "SupabaseClient",
+    "TelemetryEmitter",
+    "CopilotKitStreamer",
+    "EvidenceService",
+    "CatalogUnavailableError",
+]

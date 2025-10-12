@@ -18,6 +18,10 @@ from typing import Any, Dict, Iterable, List, Optional, Sequence
 LOGGER = logging.getLogger(__name__)
 
 
+class CatalogUnavailableError(RuntimeError):
+    """Raised when Supabase catalog data cannot be retrieved."""
+
+
 class SupabaseClient:
     """Minimal REST wrapper with graceful degradation when unset."""
 
@@ -63,7 +67,7 @@ class SupabaseClient:
         limit: int = 10,
     ) -> List[Dict[str, Any]]:
         if not self.enabled or not self._is_uuid(mission_id) or not self._is_uuid(tenant_id):
-            return self._fallback_safeguards(mission_id)
+            raise CatalogUnavailableError("Supabase client unavailable for safeguards fetch")
 
         params = {
             "mission_id": f"eq.{mission_id}",
@@ -71,9 +75,9 @@ class SupabaseClient:
             "limit": str(limit),
         }
         rows = self._request("GET", "/mission_safeguards", params=params)
-        if isinstance(rows, list):
+        if isinstance(rows, list) and rows:
             return rows
-        return self._fallback_safeguards(mission_id)
+        raise CatalogUnavailableError("No safeguards available for mission")
 
     def search_library_plays(
         self,
@@ -89,7 +93,7 @@ class SupabaseClient:
 
         persona_hint = audience.lower()
         if not self.enabled or not self._is_uuid(tenant_id) or not self._is_uuid(mission_id):
-            return self._fallback_library_plays(persona_hint, limit)
+            raise CatalogUnavailableError("Supabase client unavailable for library search")
 
         embedding = self._fake_embedding(" ".join([objective, audience] + list(guardrails)))
         payload = {
@@ -97,12 +101,12 @@ class SupabaseClient:
             "match_count": limit,
         }
         rows = self._request("POST", "/rpc/match_library_entries", body=payload)
-        if not isinstance(rows, list):
-            return self._fallback_library_plays(persona_hint, limit)
+        if not isinstance(rows, list) or not rows:
+            raise CatalogUnavailableError("No matching library embeddings returned")
 
         identifiers = [row.get("id") for row in rows if row.get("id")]
         if not identifiers:
-            return self._fallback_library_plays(persona_hint, limit)
+            raise CatalogUnavailableError("Library embeddings returned without identifiers")
 
         similarity = {
             str(row.get("id")): float(row.get("similarity", 0.0))
@@ -121,7 +125,7 @@ class SupabaseClient:
 
         plays = self._request("GET", "/library_entries", params=params)
         if not isinstance(plays, list) or not plays:
-            return self._fallback_library_plays(persona_hint, limit)
+            raise CatalogUnavailableError("Library catalog returned no entries")
 
         ranked = sorted(
             plays,
@@ -400,122 +404,8 @@ class SupabaseClient:
 
     @staticmethod
     def _fallback_library_plays(persona_hint: str, limit: int) -> List[Dict[str, Any]]:
-        persona = persona_hint.lower()
-        catalog = {
-            "marketing": [
-                {
-                    "id": str(uuid.uuid5(uuid.NAMESPACE_DNS, "fallback-marketing-1")),
-                    "title": "Campaign ROI Readout",
-                    "description": "Summarise paid campaign performance and outline next experiments.",
-                    "persona": "marketing",
-                    "success_score": 0.82,
-                    "metadata": {
-                        "impact": "High",
-                        "risk": "Low",
-                        "undo_plan": "Rollback to previous campaign messaging",
-                    },
-                },
-                {
-                    "id": str(uuid.uuid5(uuid.NAMESPACE_DNS, "fallback-marketing-2")),
-                    "title": "Launch Warmup Sequence",
-                    "description": "Prep nurture emails and social cues for upcoming launch window.",
-                    "persona": "marketing",
-                    "success_score": 0.78,
-                    "metadata": {
-                        "impact": "Medium",
-                        "risk": "Low",
-                        "undo_plan": "Pause nurture flow and notify stakeholders",
-                    },
-                },
-            ],
-            "ops": [
-                {
-                    "id": str(uuid.uuid5(uuid.NAMESPACE_DNS, "fallback-ops-1")),
-                    "title": "Revenue Ops Diagnostics",
-                    "description": "Assess pipeline hygiene and Salesforce hygiene alerts.",
-                    "persona": "revenue-ops",
-                    "success_score": 0.8,
-                    "metadata": {
-                        "impact": "High",
-                        "risk": "Moderate",
-                        "undo_plan": "Restore previous field mappings",
-                    },
-                },
-                {
-                    "id": str(uuid.uuid5(uuid.NAMESPACE_DNS, "fallback-ops-2")),
-                    "title": "Quarter Close Checklist",
-                    "description": "Dry-run close plan covering approvals, discounting exceptions, and billing.",
-                    "persona": "revenue-ops",
-                    "success_score": 0.76,
-                    "metadata": {
-                        "impact": "Medium",
-                        "risk": "Low",
-                        "undo_plan": "Reinstate prior approval routing",
-                    },
-                },
-            ],
-            "sales": [
-                {
-                    "id": str(uuid.uuid5(uuid.NAMESPACE_DNS, "fallback-sales-1")),
-                    "title": "Sales Play Calibration",
-                    "description": "Draft outreach template and meeting agenda for warm enterprise prospects.",
-                    "persona": "sales",
-                    "success_score": 0.81,
-                    "metadata": {
-                        "impact": "High",
-                        "risk": "Low",
-                        "undo_plan": "Revert to previous messaging variant",
-                    },
-                },
-                {
-                    "id": str(uuid.uuid5(uuid.NAMESPACE_DNS, "fallback-sales-2")),
-                    "title": "Executive Brief Prep",
-                    "description": "Compile win themes, blockers, and ask ladder for exec sponsor sync.",
-                    "persona": "sales",
-                    "success_score": 0.73,
-                    "metadata": {
-                        "impact": "Medium",
-                        "risk": "Moderate",
-                        "undo_plan": "Share prior QBR deck instead",
-                    },
-                },
-            ],
-        }
-        if "sales" in persona:
-            bucket = catalog["sales"]
-        elif "ops" in persona or "rev" in persona:
-            bucket = catalog["ops"]
-        elif "marketing" in persona:
-            bucket = catalog["marketing"]
-        else:
-            bucket = catalog["marketing"] + catalog["ops"] + catalog["sales"]
-
-        enriched: List[Dict[str, Any]] = []
-        for index, item in enumerate(bucket[:limit]):
-            clone = dict(item)
-            clone.setdefault("metadata", {})
-            clone.setdefault("_similarity", 0.65 - 0.05 * index)
-            enriched.append(clone)
-        return enriched
+        raise CatalogUnavailableError("Supabase library fallback is not supported")
 
     @staticmethod
     def _fallback_safeguards(mission_id: str) -> List[Dict[str, Any]]:
-        timestamp = int(time.time())
-        return [
-            {
-                "mission_id": mission_id,
-                "hint_type": "tone",
-                "suggested_value": "Keep tone warm-professional",
-                "status": "suggested",
-                "confidence": 0.82,
-                "updated_at": timestamp,
-            },
-            {
-                "mission_id": mission_id,
-                "hint_type": "quiet_window",
-                "suggested_value": "Respect quiet hours 20:00-07:00 tenant local",
-                "status": "suggested",
-                "confidence": 0.74,
-                "updated_at": timestamp,
-            },
-        ]
+        raise CatalogUnavailableError("Supabase safeguard fallback is not supported")

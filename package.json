@@ -16,7 +16,8 @@
     "test:ui": "vitest run",
     "test:gate-gb:integration": "vitest run tests/integration",
     "test:gate-gb:playwright": "playwright test",
-    "test:gate-gb": "pnpm run test:gate-gb:integration && pnpm run test:gate-gb:playwright"
+    "test:gate-gb": "pnpm run test:gate-gb:integration && pnpm run test:gate-gb:playwright",
+    "guard:fallbacks": "ts-node scripts/audit_fallbacks.ts"
   },
   "dependencies": {
     "@ag-ui/client": "^0.0.39",
@@ -37,6 +38,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
+    "@playwright/test": "^1.48.0",
     "@tailwindcss/postcss": "^4",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.0.1",
@@ -49,8 +51,8 @@
     "eslint-config-next": "15.3.2",
     "jsdom": "^25.0.1",
     "msw": "^2.4.10",
-    "@playwright/test": "^1.48.0",
     "tailwindcss": "^4",
+    "ts-node": "^10.9.2",
     "typescript": "^5",
     "vitest": "^2.1.1"
   }

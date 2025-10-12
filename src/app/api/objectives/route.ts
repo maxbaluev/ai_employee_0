@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { getRouteHandlerSupabaseClient } from "@/lib/supabase/server";
 import { getServiceSupabaseClient } from "@/lib/supabase/service";
+import { requireTenantId, TenantResolutionError } from "@/app/api/_shared/tenant";
 import type { Database, Json } from "@supabase/types";
 
 const payloadSchema = z.object({
@@ -46,17 +47,22 @@ export async function POST(request: NextRequest) {
     data: { session },
   } = await supabaseRoute.auth.getSession();
 
-  const fallbackTenant = process.env.GATE_GA_DEFAULT_TENANT_ID;
-  const tenantId = parsed.data.tenantId ?? session?.user?.id ?? fallbackTenant;
-
-  if (!tenantId) {
-    return NextResponse.json(
-      {
-        error: "No tenant context provided",
-        hint: "Authenticate with Supabase or supply tenantId in the payload",
-      },
-      { status: 401 },
-    );
+  let tenantId: string;
+  try {
+    tenantId = requireTenantId({
+      providedTenantId: parsed.data.tenantId,
+      session,
+      missingTenantHint: "Authenticate with Supabase or supply tenantId in the payload",
+    });
+  } catch (error) {
+    if (error instanceof TenantResolutionError) {
+      const body: { error: string; hint?: string } = { error: error.message };
+      if (error.hint) {
+        body.hint = error.hint;
+      }
+      return NextResponse.json(body, { status: error.status });
+    }
+    throw error;
   }
 
   let guardrails: Record<string, unknown>;

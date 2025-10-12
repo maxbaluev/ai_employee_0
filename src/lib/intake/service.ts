@@ -31,7 +31,6 @@ export type IntakeChips = {
   kpis: KPI[];
   safeguardHints: GeneratedSafeguard[];
   confidence: number;
-  source: 'gemini' | 'fallback';
 };
 
 export type IntakeResult = {
@@ -44,6 +43,8 @@ type TelemetryPayload = Record<string, unknown>;
 const GEMINI_MODEL = process.env.GEMINI_MODEL ?? 'gemini-1.5-flash-latest';
 const GEMINI_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 const DEFAULT_REGEN_LIMIT = Number.parseInt(process.env.MISSION_REGEN_LIMIT ?? '3', 10) || 3;
+// Source is now always 'gemini' since fallback has been removed
+const GEMINI_SOURCE = 'gemini' as const;
 
 export class RegenerationLimitError extends Error {
   constructor(
@@ -67,8 +68,11 @@ export async function generateIntake(input: IntakeInput): Promise<IntakeResult> 
     link_count: input.links?.length ?? 0,
   });
 
-  const generated =
-    (await generateWithGemini(input)) ?? generateWithFallback(input.rawText, input.links);
+  const generated = await generateWithGemini(input);
+
+  if (!generated) {
+    throw new Error('Failed to generate intake with Gemini. Please try again or check your API configuration.');
+  }
 
   const guardrailSummary = generated.safeguardHints.map((hint) => hint.text).join('\n');
 
@@ -80,7 +84,6 @@ export async function generateIntake(input: IntakeInput): Promise<IntakeResult> 
     audience: generated.audience,
     guardrailSummary,
     metadata: {
-      source: generated.source,
       kpis: generated.kpis,
     },
   });
@@ -97,12 +100,10 @@ export async function generateIntake(input: IntakeInput): Promise<IntakeResult> 
     tenantId: input.tenantId,
     missionId,
     hints: generated.safeguardHints,
-    source: generated.source,
   });
 
   await emitTelemetry(supabase, input.tenantId, 'brief_generated', {
     mission_id: missionId,
-    source: generated.source,
     confidence_scores: {
       overall: generated.confidence,
       fields: metadata.fieldConfidences,
@@ -131,7 +132,11 @@ export async function regenerateField(params: {
   await ensureRegenerationAllowance({ supabase, tenantId, missionId, field });
 
   const baseText = context ?? (await fetchCurrentMissionSummary(supabase, missionId, tenantId));
-  const generated = generateWithFallback(baseText, undefined);
+  const generated = await generateWithGemini({ rawText: baseText, tenantId, missionId });
+
+  if (!generated) {
+    throw new Error('Gemini intake generation failed');
+  }
 
   if (field === 'objective' || field === 'audience') {
     await upsertObjective({
@@ -169,7 +174,6 @@ export async function regenerateField(params: {
       tenantId,
       missionId,
       hints: generated.safeguardHints,
-      source: generated.source,
       incrementGeneration: true,
     });
   }
@@ -178,7 +182,6 @@ export async function regenerateField(params: {
     mission_id: missionId,
     field,
     action: 'regenerate',
-    source: generated.source,
   });
 
   const updatedSafeguards = await fetchSafeguards(supabase, missionId, tenantId);
@@ -357,7 +360,7 @@ async function persistMissionMetadata(params: {
           field,
           value: value as Json,
           confidence: chips.confidence,
-          source: chips.source,
+          source: GEMINI_SOURCE,
           regeneration_count: nextCount,
           accepted_at: null,
         } as Database['public']['Tables']['mission_metadata']['Insert'],
@@ -379,10 +382,9 @@ async function persistSafeguards(params: {
   tenantId: string;
   missionId: string;
   hints: GeneratedSafeguard[];
-  source: 'gemini' | 'fallback';
   incrementGeneration?: boolean;
 }): Promise<GeneratedSafeguard[]> {
-  const { supabase, tenantId, missionId, hints, source, incrementGeneration } = params;
+  const { supabase, tenantId, missionId, hints, incrementGeneration } = params;
 
   const { data: existingCounts, error: fetchCountError } = await supabase
     .from('mission_safeguards')
@@ -420,7 +422,7 @@ async function persistSafeguards(params: {
         suggested_value: { text: hint.text } as Json,
         confidence: hint.confidence,
         status: 'suggested',
-        source,
+        source: GEMINI_SOURCE,
         generation_count: nextCount,
       })) as Database['public']['Tables']['mission_safeguards']['Insert'][],
     )
@@ -636,7 +638,6 @@ async function generateWithGemini(input: IntakeInput): Promise<IntakeChips | nul
       kpis,
       safeguardHints,
       confidence,
-      source: 'gemini',
     };
   } catch (error) {
     console.error('[intake] Gemini generation failed', error);
@@ -688,80 +689,6 @@ function extractGeminiText(response: any): string | null {
     .trim();
 
   return text || null;
-}
-
-// ---------------------------------------------------------------------------
-// Fallback generator
-// ---------------------------------------------------------------------------
-
-function generateWithFallback(rawText: string, links?: string[]): IntakeChips {
-  const text = rawText.trim();
-  const sentences = text.split(/(?<=[.!?])\s+/);
-  const objective = sentences[0]?.trim() || 'Define mission objective';
-
-  const audienceKeywords: Array<[RegExp, string]> = [
-    [/executive/i, 'Executives'],
-    [/board/i, 'Board stakeholders'],
-    [/customer|client/i, 'Customers'],
-    [/marketing|sales|revenue/i, 'Revenue team'],
-    [/support|service/i, 'Support team'],
-  ];
-
-  const audience =
-    audienceKeywords.find(([regex]) => regex.test(text))?.[1] ?? 'General audience';
-
-  const kpis: KPI[] = [
-    { label: 'Completion rate', target: '100%' },
-  ];
-
-  if (text.split(/\s+/).length > 40) {
-    kpis.push({ label: 'Time to value', target: '14 days' });
-  }
-
-  const safeguards: GeneratedSafeguard[] = [
-    createFallbackSafeguard('tone', 'Maintain warm-professional tone in all communications', 0.75),
-    createFallbackSafeguard('quiet_hours', 'Respect quiet hours between 20:00 and 07:00 local time', 0.8),
-  ];
-
-  if (/budget|spend|cost/i.test(text)) {
-    safeguards.push(
-      createFallbackSafeguard('budget', 'Flag actions that exceed the planned budget threshold', 0.7),
-    );
-  }
-
-  if (/urgent|critical|escalat/i.test(text)) {
-    safeguards.push(
-      createFallbackSafeguard('escalation', 'Escalate high-risk steps to the governance reviewer', 0.72),
-    );
-  }
-
-  let confidence = 0.6;
-  if (text.length > 160) confidence += 0.1;
-  if (links?.length) confidence += 0.05;
-  confidence = Math.min(confidence, 0.85);
-
-  return {
-    objective,
-    audience,
-    kpis,
-    safeguardHints: safeguards,
-    confidence,
-    source: 'fallback',
-  };
-}
-
-function createFallbackSafeguard(
-  hintType: SafeguardType,
-  text: string,
-  confidence: number,
-): GeneratedSafeguard {
-  return {
-    id: null,
-    hintType,
-    text,
-    confidence,
-    status: 'suggested',
-  };
 }
 
 // ---------------------------------------------------------------------------

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 
+import { requireTenantId, TenantResolutionError } from '@/app/api/_shared/tenant';
 import { getRouteHandlerSupabaseClient } from '@/lib/supabase/server';
 
 const selectionSchema = z.object({
@@ -17,22 +18,6 @@ const requestSchema = z.object({
   tenantId: z.string().uuid('Invalid tenant ID format').optional(),
   selections: z.array(selectionSchema),
 });
-
-function resolveTenantId(
-  sessionTenantId: string | undefined,
-  bodyTenantId: string | undefined,
-) {
-  if (sessionTenantId) {
-    return sessionTenantId;
-  }
-  if (bodyTenantId) {
-    return bodyTenantId;
-  }
-  if (process.env.GATE_GA_DEFAULT_TENANT_ID) {
-    return process.env.GATE_GA_DEFAULT_TENANT_ID;
-  }
-  return null;
-}
 
 export async function POST(request: NextRequest) {
   const rawBody = await request.json().catch(() => null);
@@ -64,15 +49,22 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const tenantId = resolveTenantId(session?.user?.id, parsed.data.tenantId);
-  if (!tenantId) {
-    return NextResponse.json(
-      {
-        error: 'Missing tenant context',
-        hint: 'Authenticate, provide tenantId, or configure GATE_GA_DEFAULT_TENANT_ID',
-      },
-      { status: 400 },
-    );
+  let tenantId: string;
+  try {
+    tenantId = requireTenantId({
+      providedTenantId: parsed.data.tenantId,
+      session,
+      missingTenantHint: 'Authenticate with Supabase or include tenantId in the request body',
+    });
+  } catch (error) {
+    if (error instanceof TenantResolutionError) {
+      const body: { error: string; hint?: string } = { error: error.message };
+      if (error.hint) {
+        body.hint = error.hint;
+      }
+      return NextResponse.json(body, { status: error.status });
+    }
+    throw error;
   }
 
   try {
@@ -140,4 +132,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

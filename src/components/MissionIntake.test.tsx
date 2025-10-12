@@ -29,7 +29,7 @@ describe('MissionIntake', () => {
     fetchSpy.mockRestore();
   });
 
-  it('omits the source badge when source is fallback but keeps other chips', async () => {
+  it('displays confidence badge for generated chips', async () => {
     const mockGenerateResponse = {
       missionId: 'mission-123',
       chips: {
@@ -48,7 +48,6 @@ describe('MissionIntake', () => {
           },
         ],
         confidence: 0.75,
-        source: 'fallback',
       },
     };
 
@@ -81,7 +80,8 @@ describe('MissionIntake', () => {
     expect(screen.getByText('Enterprise customers')).toBeInTheDocument();
     expect(screen.getByText(/Completion rate/i)).toBeInTheDocument();
     expect(screen.getByText(/Maintain professional tone/i)).toBeInTheDocument();
-    expect(screen.queryByText(/Source:/i)).not.toBeInTheDocument();
+    // Should display confidence badge in header and for safeguards
+    expect(screen.getAllByText(/Medium confidence/i).length).toBeGreaterThan(0);
   });
 
   it('renders generated chips for objective, audience, KPIs, and safeguards', async () => {
@@ -103,7 +103,6 @@ describe('MissionIntake', () => {
           },
         ],
         confidence: 0.88,
-        source: 'gemini',
       },
     };
 
@@ -158,7 +157,6 @@ describe('MissionIntake', () => {
           },
         ],
         confidence: 0.8,
-        source: 'gemini',
       },
     };
 

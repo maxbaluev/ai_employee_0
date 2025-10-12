@@ -83,7 +83,6 @@ type AcceptedIntakePayload = {
   guardrailSummary?: string;
   kpis?: Array<{ label: string; target?: string }>;
   confidence?: number;
-  source?: "gemini" | "fallback";
 };
 
 const AGENT_ID = "control_plane_foundation";
@@ -1160,7 +1159,6 @@ function ControlPlaneWorkspaceContent({
       guardrailSummary,
       kpis,
       confidence,
-      source,
     }: AcceptedIntakePayload) => {
       setObjectiveId(missionId);
 
@@ -1190,7 +1188,7 @@ function ControlPlaneWorkspaceContent({
         kpis: normalizedKpis,
         safeguards: acceptedSafeguards,
         confidence: normalizedConfidence,
-        source: source ?? null,
+        source: null,
       });
       setSafeguards((prev) => normalizeSafeguards(acceptedSafeguards, prev));
       setSafeguardHistory([]);
@@ -1201,7 +1199,6 @@ function ControlPlaneWorkspaceContent({
         eventName: "mission_brief_updated",
         missionId,
         eventData: {
-          source,
           kpi_count: normalizedKpis.length,
           safeguard_count: acceptedSafeguards.length,
         },

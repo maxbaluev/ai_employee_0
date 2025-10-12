@@ -99,8 +99,25 @@ const STAGE_DESCRIPTORS: Record<string, StageDescriptor> = {
         const base = title ? `Ranked ${display}: ${title}` : `Ranked ${display}`;
         return similarity !== null ? `${base} (similarity ${similarity.toFixed(2)}).` : `${base}.`;
       }
-      if (statusType === 'fallback_generated') {
-        return 'Generated fallback play while catalogue warms up.';
+      if (statusType === 'catalog_empty') {
+        const reason = typeof metadata.reason === 'string' ? metadata.reason : 'unknown';
+        if (reason === 'library_and_composio_empty') {
+          return 'Planner catalog empty: add library plays or select toolkits to continue.';
+        }
+        if (reason === 'library_empty') {
+          return 'No matching library plays found. Review library coverage before continuing.';
+        }
+        return 'Planner catalog empty. Awaiting user input.';
+      }
+      if (statusType === 'catalog_unavailable') {
+        const reason = typeof metadata.reason === 'string' ? metadata.reason : 'unknown';
+        if (reason === 'composio_scores_missing') {
+          return 'Composio catalog missing scores; refresh or curate toolkits before continuing.';
+        }
+        if (reason === 'supabase_unavailable') {
+          return 'Supabase catalog unavailable; retry once connectivity is restored.';
+        }
+        return 'Planner catalog unavailable. Awaiting resolution.';
       }
       return 'Planner progressing through ranking steps.';
     },
