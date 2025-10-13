@@ -116,12 +116,14 @@ create table public.tool_calls (
   undo_plan text,
   undo_plan_json jsonb,  -- Gate G-B structured undo plan
   guardrail_snapshot jsonb,
+  validator_summary jsonb,
   latency_ms integer,
   quiet_hour_override boolean not null default false,
   executed_at timestamptz not null default timezone('utc', now())
 );
 
 comment on column public.tool_calls.undo_plan_json is 'Structured undo plan for evidence service execution';
+comment on column public.tool_calls.validator_summary is 'Validator agent structured summary captured at approval time';
 
 create table public.approvals (
   id uuid primary key default gen_random_uuid(),
@@ -181,34 +183,9 @@ before update on public.library_entries
 for each row execute function public.touch_updated_at();
 
 -- ------------------------------------------------------------------
--- Guardrail configuration
+-- Gate G-B: Guardrail tables removed (guardrail_profiles, mission_guardrails)
+-- Guardrail configuration now embedded in mission_safeguards and objectives.guardrails
 -- ------------------------------------------------------------------
-
-create table public.guardrail_profiles (
-  id uuid primary key default gen_random_uuid(),
-  tenant_id uuid not null references auth.users(id),
-  label text not null,
-  tone_policy jsonb not null default '{"forbidden": [], "required": ["professional"]}'::jsonb,
-  quiet_hours jsonb not null default '{"start": 20, "end": 7, "timezone": "UTC"}'::jsonb,
-  rate_limit jsonb not null default '{"per_hour": 30, "burst": 10}'::jsonb,
-  budget_cap jsonb not null default '{"currency": "USD", "max_cents": 5000, "period": "daily"}'::jsonb,
-  undo_required boolean not null default true,
-  escalation_contacts jsonb not null default '{}'::jsonb,
-  created_at timestamptz not null default timezone('utc', now()),
-  updated_at timestamptz not null default timezone('utc', now())
-);
-
-create trigger trg_guardrail_profiles_updated_at
-before update on public.guardrail_profiles
-for each row execute function public.touch_updated_at();
-
-create table public.mission_guardrails (
-  mission_id uuid not null references public.objectives(id) on delete cascade,
-  guardrail_profile_id uuid not null references public.guardrail_profiles(id) on delete cascade,
-  custom_overrides jsonb,
-  effective_at timestamptz not null default timezone('utc', now()),
-  primary key (mission_id, guardrail_profile_id)
-);
 
 -- ------------------------------------------------------------------
 -- Mission metadata & safeguard hints (Generative intake)
@@ -260,16 +237,7 @@ create table public.mission_events (
   created_at timestamptz not null default timezone('utc', now())
 );
 
--- TODO(Gate G-B): Regenerate Supabase types after schema change.
-
-create table public.mission_regeneration_limits (
-  tenant_id uuid not null references auth.users(id) on delete cascade,
-  mission_id uuid not null references public.objectives(id) on delete cascade,
-  field text not null,
-  attempt_count integer not null default 0,
-  first_attempt_at timestamptz not null default timezone('utc', now()),
-  primary key (tenant_id, mission_id, field)
-);
+-- Gate G-B: mission_regeneration_limits removed (rate limiting moved to Redis)
 
 create table public.safeguard_events (
   id uuid primary key default gen_random_uuid(),
@@ -334,19 +302,39 @@ create table public.toolkit_selections (
   id uuid primary key default gen_random_uuid(),
   tenant_id uuid not null references auth.users(id),
   mission_id uuid not null references public.objectives(id) on delete cascade,
-  selected_tools jsonb not null default '[]'::jsonb,
+  toolkit_id text not null,
+  auth_mode text,
+  undo_token text,
+  connection_status text not null default 'not_linked',
+  metadata jsonb not null default '{}'::jsonb,
   rationale text,
-  created_at timestamptz not null default timezone('utc', now())
+  created_by uuid references auth.users(id),
+  created_at timestamptz not null default timezone('utc', now()),
+  updated_at timestamptz not null default timezone('utc', now())
 );
 
-comment on table public.toolkit_selections is 'Mission-level toolkit selections and rationale for recommended palette';
-comment on column public.toolkit_selections.selected_tools is 'Array of selected toolkit identifiers and metadata';
+comment on table public.toolkit_selections is 'Mission-level toolkit selections stored per toolkit for Gate G-B flow';
+comment on column public.toolkit_selections.toolkit_id is 'Identifier of the recommended toolkit (slug)';
+comment on column public.toolkit_selections.auth_mode is 'Authentication mode required for the toolkit (none, oauth, key, etc.)';
+comment on column public.toolkit_selections.connection_status is 'Connect Link connection state for this toolkit selection';
+comment on column public.toolkit_selections.metadata is 'Structured metadata for toolkit recommendation rationale and capabilities';
+comment on column public.toolkit_selections.undo_token is 'Validator-issued undo token associated with the selection';
+
+create trigger trg_toolkit_selections_updated_at
+before update on public.toolkit_selections
+for each row execute function public.touch_updated_at();
+
+create unique index toolkit_selections_mission_toolkit_uq
+  on public.toolkit_selections (mission_id, toolkit_id);
 
 create index toolkit_selections_mission_created_idx
   on public.toolkit_selections (mission_id, created_at desc);
 
 create index toolkit_selections_tenant_created_idx
   on public.toolkit_selections (tenant_id, created_at);
+
+create index toolkit_selections_status_idx
+  on public.toolkit_selections (connection_status);
 
 alter table public.toolkit_selections enable row level security;
 
@@ -360,7 +348,60 @@ create policy "Tenant insert toolkit selections"
   for insert
   with check (tenant_id = auth.uid());
 
--- TODO: Regenerate Supabase types after adding toolkit_selections table
+create policy "Tenant update toolkit selections"
+  on public.toolkit_selections
+  for update
+  using (tenant_id = auth.uid())
+  with check (tenant_id = auth.uid());
+
+-- ------------------------------------------------------------------
+-- Toolkit connections (Stage 3 Connect Link OAuth status)
+-- ------------------------------------------------------------------
+
+create table public.toolkit_connections (
+  id uuid primary key default gen_random_uuid(),
+  tenant_id uuid not null references auth.users(id),
+  mission_id uuid references public.objectives(id) on delete cascade,
+  toolkit text not null,
+  connection_id text not null,
+  status text not null default 'pending',
+  auth_mode text,
+  metadata jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default timezone('utc', now()),
+  updated_at timestamptz not null default timezone('utc', now())
+);
+
+comment on table public.toolkit_connections is 'Connect Link OAuth connection status per mission and toolkit';
+comment on column public.toolkit_connections.status is 'Connection status: pending, linked, failed, revoked';
+
+create trigger trg_toolkit_connections_updated_at
+before update on public.toolkit_connections
+for each row execute function public.touch_updated_at();
+
+create unique index toolkit_connections_tenant_mission_toolkit_uq
+  on public.toolkit_connections (tenant_id, mission_id, toolkit);
+
+create index toolkit_connections_tenant_idx on public.toolkit_connections(tenant_id);
+create index toolkit_connections_mission_idx on public.toolkit_connections(mission_id);
+create index toolkit_connections_status_idx on public.toolkit_connections(status);
+
+alter table public.toolkit_connections enable row level security;
+
+create policy "Tenant select toolkit connections"
+  on public.toolkit_connections
+  for select
+  using (tenant_id = auth.uid());
+
+create policy "Tenant insert toolkit connections"
+  on public.toolkit_connections
+  for insert
+  with check (tenant_id = auth.uid());
+
+create policy "Tenant update toolkit connections"
+  on public.toolkit_connections
+  for update
+  using (tenant_id = auth.uid())
+  with check (tenant_id = auth.uid());
 
 -- ------------------------------------------------------------------
 -- Inspection findings (Stage 4 readiness)
@@ -398,7 +439,125 @@ create policy "Tenant insert inspection findings"
   for insert
   with check (tenant_id = auth.uid());
 
--- TODO: Regenerate Supabase types after adding inspection_findings table
+-- ------------------------------------------------------------------
+-- Inspection requests (Stage 4 execution tracking)
+-- ------------------------------------------------------------------
+
+create table public.inspection_requests (
+  id uuid primary key default gen_random_uuid(),
+  tenant_id uuid not null references auth.users(id),
+  mission_id uuid not null references public.objectives(id) on delete cascade,
+  request_payload jsonb not null default '{}'::jsonb,
+  response_payload jsonb,
+  status text not null default 'pending',
+  latency_ms integer,
+  created_at timestamptz not null default timezone('utc', now()),
+  completed_at timestamptz
+);
+
+comment on table public.inspection_requests is 'Inspection agent execution requests and responses';
+
+create index inspection_requests_mission_idx on public.inspection_requests(mission_id);
+create index inspection_requests_status_idx on public.inspection_requests(status);
+create index inspection_requests_created_idx on public.inspection_requests(created_at desc);
+
+alter table public.inspection_requests enable row level security;
+
+create policy "Tenant select inspection requests"
+  on public.inspection_requests
+  for select
+  using (tenant_id = auth.uid());
+
+create policy "Tenant insert inspection requests"
+  on public.inspection_requests
+  for insert
+  with check (tenant_id = auth.uid());
+
+create policy "Tenant update inspection requests"
+  on public.inspection_requests
+  for update
+  using (tenant_id = auth.uid())
+  with check (tenant_id = auth.uid());
+
+-- ------------------------------------------------------------------
+-- Undo events (Stage 7 evidence undo tracking)
+-- ------------------------------------------------------------------
+
+create table public.undo_events (
+  id uuid primary key default gen_random_uuid(),
+  tenant_id uuid not null references auth.users(id),
+  mission_id uuid references public.objectives(id) on delete cascade,
+  tool_call_id uuid references public.tool_calls(id) on delete cascade,
+  artifact_id uuid references public.artifacts(id) on delete set null,
+  undo_token text,
+  status text not null default 'pending',
+  reason text,
+  executed_at timestamptz,
+  completed_at timestamptz,
+  error_message text,
+  metadata jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default timezone('utc', now())
+);
+
+comment on table public.undo_events is 'Undo execution events for artifact rollback and evidence verification';
+comment on column public.undo_events.undo_token is 'Validator-generated token for undo authorization';
+
+create index undo_events_mission_idx on public.undo_events(mission_id);
+create index undo_events_tool_call_idx on public.undo_events(tool_call_id);
+create index undo_events_status_idx on public.undo_events(status);
+create index undo_events_created_idx on public.undo_events(created_at desc);
+
+alter table public.undo_events enable row level security;
+
+create policy "Tenant select undo events"
+  on public.undo_events
+  for select
+  using (tenant_id = auth.uid());
+
+create policy "Tenant insert undo events"
+  on public.undo_events
+  for insert
+  with check (tenant_id = auth.uid());
+
+create policy "Tenant update undo events"
+  on public.undo_events
+  for update
+  using (tenant_id = auth.uid())
+  with check (tenant_id = auth.uid());
+
+-- ------------------------------------------------------------------
+-- Simulated results (Stage 6 dry-run evidence)
+-- ------------------------------------------------------------------
+
+create table public.simulated_results (
+  id uuid primary key default gen_random_uuid(),
+  tenant_id uuid not null references auth.users(id),
+  mission_id uuid references public.objectives(id) on delete cascade,
+  tool_call_id uuid references public.tool_calls(id) on delete cascade,
+  simulated_output jsonb not null default '{}'::jsonb,
+  execution_mode text not null default 'simulation',
+  evidence_hash text,
+  created_at timestamptz not null default timezone('utc', now())
+);
+
+comment on table public.simulated_results is 'Dry-run simulated outputs for evidence bundle verification';
+comment on column public.simulated_results.execution_mode is 'Execution mode: simulation or live';
+
+create index simulated_results_mission_idx on public.simulated_results(mission_id);
+create index simulated_results_tool_call_idx on public.simulated_results(tool_call_id);
+create index simulated_results_created_idx on public.simulated_results(created_at desc);
+
+alter table public.simulated_results enable row level security;
+
+create policy "Tenant select simulated results"
+  on public.simulated_results
+  for select
+  using (tenant_id = auth.uid());
+
+create policy "Tenant insert simulated results"
+  on public.simulated_results
+  for insert
+  with check (tenant_id = auth.uid());
 
 -- ------------------------------------------------------------------
 -- CopilotKit persistence
@@ -491,8 +650,6 @@ create policy "Tenant scoped update" on public.oauth_tokens
 create policy "Tenant scoped delete" on public.oauth_tokens
   for delete using (tenant_id = auth.uid());
 
--- TODO: Regenerate Supabase types after applying OAuth credential changes
-
 -- ------------------------------------------------------------------
 -- Planner runs telemetry (Gate G-B)
 -- ------------------------------------------------------------------
@@ -506,11 +663,22 @@ create table public.planner_runs (
   embedding_similarity_avg numeric,
   primary_toolkits text[] default array[]::text[],
   mode text not null default 'dry_run',
+  reason_markdown text,
+  impact_score numeric,
+  pinned_at timestamptz,
   metadata jsonb default '{}'::jsonb,
-  created_at timestamptz not null default timezone('utc', now())
+  created_at timestamptz not null default timezone('utc', now()),
+  updated_at timestamptz not null default timezone('utc', now())
 );
 
 comment on table public.planner_runs is 'Planner execution telemetry for Gate G-B analytics';
+comment on column public.planner_runs.reason_markdown is 'Markdown-formatted planner rationale surfaced in Gate G-B stage 5';
+comment on column public.planner_runs.impact_score is 'Planner-assigned impact score (0-1) for selected plan';
+comment on column public.planner_runs.pinned_at is 'Timestamp when planner run was pinned for evidence replay';
+
+create trigger trg_planner_runs_updated_at
+before update on public.planner_runs
+for each row execute function public.touch_updated_at();
 
 -- ------------------------------------------------------------------
 -- Vector helpers
@@ -559,9 +727,7 @@ create index library_entries_embedding_idx
   on public.library_entries using ivfflat (embedding vector_cosine_ops)
   with (lists = 100);
 
-create index guardrail_profiles_tenant_id_idx on public.guardrail_profiles(tenant_id);
-
-create index mission_guardrails_mission_id_idx on public.mission_guardrails(mission_id);
+-- Gate G-B: Removed guardrail_profiles and mission_guardrails indexes
 
 create index mission_metadata_mission_id_idx on public.mission_metadata(mission_id);
 create index mission_metadata_tenant_idx on public.mission_metadata(tenant_id);
@@ -592,6 +758,7 @@ create index idx_copilot_messages_soft_deleted on public.copilot_messages(soft_d
 
 create index idx_planner_runs_mission on public.planner_runs(mission_id, created_at desc);
 create index idx_planner_runs_latency on public.planner_runs(latency_ms);
+create index idx_planner_runs_pinned on public.planner_runs(pinned_at) where pinned_at is not null;
 
 -- ------------------------------------------------------------------
 -- Row Level Security
@@ -603,8 +770,7 @@ alter table public.tool_calls enable row level security;
 alter table public.approvals enable row level security;
 alter table public.artifacts enable row level security;
 alter table public.library_entries enable row level security;
-alter table public.guardrail_profiles enable row level security;
-alter table public.mission_guardrails enable row level security;
+-- Gate G-B: Removed guardrail_profiles and mission_guardrails RLS
 alter table public.copilot_sessions enable row level security;
 alter table public.copilot_messages enable row level security;
 alter table public.mission_metadata enable row level security;
@@ -655,43 +821,7 @@ create policy "Tenant scoped write" on public.library_entries
 create policy "Tenant scoped update" on public.library_entries
   for update using (tenant_id = auth.uid()) with check (tenant_id = auth.uid());
 
-create policy "Tenant scoped read" on public.guardrail_profiles
-  for select using (tenant_id = auth.uid());
-create policy "Tenant scoped write" on public.guardrail_profiles
-  for insert with check (tenant_id = auth.uid());
-create policy "Tenant scoped update" on public.guardrail_profiles
-  for update using (tenant_id = auth.uid()) with check (tenant_id = auth.uid());
-
-create policy "Tenant scoped read" on public.mission_guardrails
-  for select using (
-    exists (
-      select 1 from public.objectives obj
-      where obj.id = mission_guardrails.mission_id
-        and obj.tenant_id = auth.uid()
-    )
-  );
-create policy "Tenant scoped write" on public.mission_guardrails
-  for insert with check (
-    exists (
-      select 1 from public.objectives obj
-      where obj.id = mission_guardrails.mission_id
-        and obj.tenant_id = auth.uid()
-    )
-  );
-create policy "Tenant scoped update" on public.mission_guardrails
-  for update using (
-    exists (
-      select 1 from public.objectives obj
-      where obj.id = mission_guardrails.mission_id
-        and obj.tenant_id = auth.uid()
-    )
-  ) with check (
-    exists (
-      select 1 from public.objectives obj
-      where obj.id = mission_guardrails.mission_id
-        and obj.tenant_id = auth.uid()
-    )
-  );
+-- Gate G-B: Removed guardrail_profiles and mission_guardrails policies
 
 create policy "Tenant scoped read" on public.mission_metadata
   for select using (tenant_id = auth.uid());

@@ -1,5 +1,6 @@
 /// <reference types="vitest" />
 
+import * as React from 'react';
 import { act, render, screen, within, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MissionStage, MissionStageProvider, useMissionStages } from '@/components/mission-stages';
@@ -25,7 +26,7 @@ vi.mock('@/lib/telemetry/client', () => ({
 }));
 
 const missionIntakeMock = vi.hoisted(() =>
-  vi.fn((props: { onAccept: (payload: any) => void; onStageAdvance?: () => void }) => (
+  vi.fn((props: { onAccept: (payload: unknown) => void; onStageAdvance?: () => void }) => (
     <section aria-label="Mock Mission Intake">
       <button
         type="button"
@@ -81,7 +82,7 @@ const plannerSelectSpy = vi.fn();
 const plannerInsightMock = vi.hoisted(() =>
   vi.fn(
     (props: {
-      onSelectPlay?: (payload: any) => void;
+      onSelectPlay?: (payload: unknown) => void;
       onStageAdvance?: () => void;
     }) => (
       <section aria-label="Mock Planner Insight">
@@ -169,7 +170,6 @@ const feedbackDrawerPropsRef = vi.hoisted(
 vi.mock(
   '@/components/FeedbackDrawer',
   () => {
-    const React = require('react') as typeof import('react');
     const { useEffect, useRef, useState } = React;
 
     const FeedbackDrawer = (props: MockFeedbackDrawerProps) => {
@@ -178,7 +178,6 @@ vi.mock(
       const [comment, setComment] = useState('');
       const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
-      // eslint-disable-next-line no-console
       useEffect(() => {
         if (props.isOpen && textareaRef.current) {
           textareaRef.current.focus();
@@ -290,7 +289,6 @@ beforeEach(() => {
         try {
           parsedBody = JSON.parse(init.body) as Record<string, unknown>;
         } catch (error) {
-          // eslint-disable-next-line no-console
           console.warn('Failed to parse feedback payload in test mock', error);
         }
       }
@@ -434,6 +432,37 @@ function StageFailureHarness({
 }
 
 describe('ControlPlaneWorkspace stage 5 flow', () => {
+  it('emits mission telemetry with updated missionId immediately after intake', async () => {
+    const user = userEvent.setup();
+    telemetryMock.mockReset();
+
+    render(
+      <ControlPlaneWorkspace
+        tenantId={tenantId}
+        initialObjectiveId={null}
+        initialArtifacts={[]}
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Complete Intake' }));
+
+    await waitFor(() => {
+      const pinnedCall = telemetryMock.mock.calls.find(([, payload]) => {
+        return payload.eventName === 'mission_brief_pinned';
+      });
+
+      expect(pinnedCall).toBeDefined();
+      const [tenantArg, payload] = pinnedCall!;
+      expect(tenantArg).toBe(tenantId);
+      expect(payload).toEqual(
+        expect.objectContaining({
+          eventName: 'mission_brief_pinned',
+          missionId: '11111111-1111-1111-1111-111111111111',
+        }),
+      );
+    });
+  });
+
   const tenantId = '00000000-0000-0000-0000-000000000000';
 
   it('marks Plan stage complete and emits telemetry when planner selection occurs', async () => {
@@ -1043,7 +1072,7 @@ describe('ControlPlaneWorkspace reviewer integration', () => {
         if (init && typeof init.body === 'string') {
           try {
             capturedApprovalPayload = JSON.parse(init.body) as Record<string, unknown>;
-          } catch (error) {
+          } catch {
             capturedApprovalPayload = null;
           }
         }

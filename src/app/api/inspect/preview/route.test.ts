@@ -37,17 +37,26 @@ describe('POST /api/inspect/preview', () => {
 
     const toolkitQueryBuilder = createToolkitSelectionQueryBuilder([
       {
-        slug: 'hubspot-crm',
-        name: 'HubSpot CRM',
-        authType: 'oauth',
-        category: 'crm',
+        toolkit_id: 'hubspot-crm',
+        auth_mode: 'oauth',
+        connection_status: 'not_linked',
+        metadata: {
+          name: 'HubSpot CRM',
+          category: 'crm',
+          noAuth: false,
+          authType: 'oauth',
+        },
       },
       {
-        slug: 'slack',
-        name: 'Slack',
-        authType: 'oauth',
-        category: 'collaboration',
-        noAuth: false,
+        toolkit_id: 'slack',
+        auth_mode: 'oauth',
+        connection_status: 'not_required',
+        metadata: {
+          name: 'Slack',
+          category: 'collaboration',
+          noAuth: true,
+          authType: 'none',
+        },
       },
     ]);
 
@@ -135,24 +144,18 @@ type ToolkitSelectionQueryBuilder = {
   select: vi.Mock;
   eq: vi.Mock;
   order: vi.Mock;
-  limit: vi.Mock;
-  maybeSingle: vi.Mock;
 };
 
-function createToolkitSelectionQueryBuilder(selectedTools: unknown[]): ToolkitSelectionQueryBuilder {
+function createToolkitSelectionQueryBuilder(rows: unknown[]): ToolkitSelectionQueryBuilder {
   const builder: ToolkitSelectionQueryBuilder = {
     select: vi.fn(),
     eq: vi.fn(),
     order: vi.fn(),
-    limit: vi.fn(),
-    maybeSingle: vi.fn(),
   };
 
   builder.select.mockReturnValue(builder);
   builder.eq.mockReturnValue(builder);
-  builder.order.mockReturnValue(builder);
-  builder.limit.mockReturnValue(builder);
-  builder.maybeSingle.mockResolvedValue({ data: { selected_tools: selectedTools }, error: null });
+  builder.order.mockResolvedValue({ data: rows, error: null });
 
   return builder;
 }

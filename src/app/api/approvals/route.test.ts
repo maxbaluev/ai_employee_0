@@ -23,9 +23,16 @@ function createRequest(body: unknown): NextRequest {
 
 describe('POST /api/approvals', () => {
   it('returns 401 when tenant context missing', async () => {
+    const maybeSingleMock = vi.fn().mockResolvedValue({ data: null, error: null });
+    const selectChain = {
+      eq: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({ maybeSingle: maybeSingleMock }),
+      }),
+    };
+
     getServiceSupabaseClientMock.mockReturnValue({
       from: vi.fn().mockReturnValue({
-        select: vi.fn().mockReturnValue({ maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }) }),
+        select: vi.fn().mockReturnValue(selectChain),
         update: vi.fn(),
         insert: vi.fn(),
       }),
@@ -41,19 +48,26 @@ describe('POST /api/approvals', () => {
     expect(response.status).toBe(401);
     const payload = await response.json();
     expect(payload).toEqual({
-      error: 'Authenticate with Supabase or include tenantId in the request body.',
-      hint: 'Authenticate with Supabase or include tenantId in the request body.',
+      error: 'Unable to determine tenant context',
+      hint: 'Authenticate with Supabase or include tenantId in the request body',
     });
   });
 
   it('persists approval when tenant supplied', async () => {
+    const maybeSingleMock = vi.fn().mockResolvedValue({ data: null, error: null });
+    const selectChain = {
+      eq: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({ maybeSingle: maybeSingleMock }),
+      }),
+    };
+
     const updateMock = vi.fn().mockReturnValue({
       select: vi.fn().mockReturnValue({ maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }) }),
     });
 
     getServiceSupabaseClientMock.mockReturnValue({
       from: vi.fn().mockReturnValue({
-        select: vi.fn().mockReturnValue({ maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }) }),
+        select: vi.fn().mockReturnValue(selectChain),
         insert: vi.fn().mockReturnValue({
           select: vi.fn().mockReturnValue({ maybeSingle: vi.fn().mockResolvedValue({
             data: {

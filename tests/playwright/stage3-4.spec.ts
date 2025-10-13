@@ -157,25 +157,37 @@ test.describe('Stage 3–4 toolkit gating flow', () => {
       capturedSelectionRequests.push(payload);
 
       const selections = Array.isArray((payload as { selections?: Array<Record<string, unknown>> }).selections)
-        ? ((payload as { selections: Array<Record<string, unknown>> }).selections.map((selection, index) => ({
-            ...selection,
-            undo_token: `undo-token-${index + 1}`,
-          })))
+        ? ((payload as { selections: Array<Record<string, unknown>> }).selections.map((selection, index) => {
+            const slug = typeof selection.slug === 'string' ? selection.slug : `toolkit-${index + 1}`;
+            const noAuth = Boolean(selection.noAuth);
+            const authType = typeof selection.authType === 'string' ? selection.authType : noAuth ? 'none' : 'oauth';
+            const timestamp = new Date().toISOString();
+            return {
+              id: `toolkit-selection-${index + 1}`,
+              tenantId: (payload as { tenantId?: string }).tenantId ?? null,
+              missionId: (payload as { missionId?: string }).missionId ?? null,
+              toolkitId: slug,
+              authMode: noAuth ? 'none' : authType,
+              connectionStatus: noAuth ? 'not_required' : 'not_linked',
+              undoToken: `undo-token-${index + 1}`,
+              metadata: {
+                name: selection.name ?? slug,
+                category: selection.category ?? null,
+                logo: selection.logo ?? null,
+                noAuth,
+                authType,
+              },
+              rationale: null,
+              createdAt: timestamp,
+              updatedAt: timestamp,
+            };
+          }))
         : [];
 
       const responseBody = {
         success: true,
         count: selections.length,
-        selections: [
-          {
-            id: 'toolkit-selection-1',
-            tenant_id: (payload as { tenantId?: string }).tenantId ?? null,
-            mission_id: (payload as { missionId?: string }).missionId ?? null,
-            selected_tools: selections,
-            created_at: new Date().toISOString(),
-            rationale: null,
-          },
-        ],
+        selections,
       };
 
       selectionResponses.push(responseBody);
@@ -277,8 +289,8 @@ test.describe('Stage 3–4 toolkit gating flow', () => {
     expect(typeof selectionPayload.missionId).toBe('string');
 
     const undoToken = (selectionResponses[0]?.selections as Array<{
-      selected_tools?: Array<{ undo_token?: string }>;
-    }> | undefined)?.[0]?.selected_tools?.[0]?.undo_token;
+      undoToken?: string;
+    }> | undefined)?.[0]?.undoToken;
     expect(undoToken).toBe('undo-token-1');
 
     const coverageHeading = page.getByRole('heading', { name: 'Coverage & Readiness' });

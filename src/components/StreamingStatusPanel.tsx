@@ -351,10 +351,14 @@ export function StreamingStatusPanel({
       const p50Raw = computePercentile(sorted, 0.5);
       const p95Raw = computePercentile(sorted, 0.95);
       const p99Raw = computePercentile(sorted, 0.99);
+
+      const p50 = Math.min(Math.round(p50Raw), HEARTBEAT_SLA_MS);
+      const p95 = Math.max(p50, Math.min(Math.round(p95Raw), HEARTBEAT_SLA_MS));
+      const p99 = Math.max(p95, Math.round(p99Raw));
       const payload = {
-        p50: Math.round(p50Raw),
-        p95: Math.min(Math.round(p95Raw), HEARTBEAT_SLA_MS),
-        p99: Math.round(p99Raw),
+        p50,
+        p95,
+        p99,
         sampleSize: sorted.length,
       };
 
@@ -397,6 +401,8 @@ export function StreamingStatusPanel({
   const hasSession = Boolean(sessionIdentifier);
   const lastUpdatedLabel = lastUpdated ? formatTimestamp(lastUpdated) : '—';
   const lastEventLabel = lastEventAt ? formatTimestamp(lastEventAt) : '—';
+  const isMissionComplete = Boolean(exitInfo);
+  const isMissionExhausted = exitInfo?.missionStatus === 'exhausted';
 
   const handlePauseToggle = () => {
     if (exitInfo) {
@@ -404,6 +410,20 @@ export function StreamingStatusPanel({
     }
     setIsPaused((prev) => !prev);
   };
+
+  const handleCancelClick = useCallback(() => {
+    if (isMissionComplete || !onCancelSession) {
+      return;
+    }
+    onCancelSession();
+  }, [isMissionComplete, onCancelSession]);
+
+  const handleRetryClick = useCallback(() => {
+    if (!onRetrySession || !isMissionExhausted) {
+      return;
+    }
+    onRetrySession();
+  }, [onRetrySession, isMissionExhausted]);
 
   const heartbeatIndicator = useMemo(() => {
     if (isPaused || !hasSession || exitInfo || heartbeatSeconds === null) {
@@ -444,23 +464,7 @@ export function StreamingStatusPanel({
     );
   }
 
-  const isMissionComplete = Boolean(exitInfo);
-  const isMissionExhausted = exitInfo?.missionStatus === 'exhausted';
   const showReviewerHeaderButton = Boolean(onReviewerRequested && latestReviewerEvent);
-
-  const handleCancelClick = useCallback(() => {
-    if (isMissionComplete || !onCancelSession) {
-      return;
-    }
-    onCancelSession();
-  }, [isMissionComplete, onCancelSession]);
-
-  const handleRetryClick = useCallback(() => {
-    if (!onRetrySession || !isMissionExhausted) {
-      return;
-    }
-    onRetrySession();
-  }, [onRetrySession, isMissionExhausted]);
 
   return (
     <section className="flex w-full flex-col border-b border-white/10 bg-slate-950/60 px-6 py-8 lg:w-2/5 lg:border-x">

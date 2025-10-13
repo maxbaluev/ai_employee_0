@@ -23,15 +23,7 @@ class StubQueryBuilder {
     return this;
   }
 
-  order(): this {
-    return this;
-  }
-
-  limit(): this {
-    return this;
-  }
-
-  maybeSingle() {
+  order() {
     return Promise.resolve({ data: this.#data, error: this.#error });
   }
 
@@ -54,17 +46,19 @@ class StubServiceClient {
 
   from(table: string) {
     if (table === 'toolkit_selections') {
-      const toolkitSelection = {
-        selected_tools: [
-          {
-            slug: 'hubspot-crm',
+      const toolkitSelection = [
+        {
+          toolkit_id: 'hubspot-crm',
+          auth_mode: 'oauth',
+          connection_status: 'not_linked',
+          metadata: {
             name: 'HubSpot CRM',
-            authType: 'oauth',
             category: 'crm',
             noAuth: false,
+            authType: 'oauth',
           },
-        ],
-      };
+        },
+      ];
 
       return new StubQueryBuilder(toolkitSelection);
     }
@@ -149,4 +143,3 @@ describe('POST /api/inspect/preview', () => {
     });
   });
 });
-

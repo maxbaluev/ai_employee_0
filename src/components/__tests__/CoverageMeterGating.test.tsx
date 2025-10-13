@@ -289,7 +289,7 @@ describe('CoverageMeter gating integration', () => {
       hasArtifacts: true,
     });
 
-    expect(screen.getByText(/Toolkit coverage/i)).toBeInTheDocument();
+    expect(screen.getByText(/^Toolkit coverage$/i)).toBeInTheDocument();
     expect(screen.getByText(/Select at least one mission toolkit/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Request override/i })).toBeVisible();
 
@@ -439,8 +439,12 @@ describe('CoverageMeter gating integration', () => {
     expect(screen.getByText(/No toolkits selected/i)).toBeInTheDocument();
     expect(screen.getByText(/Prior mission artifacts/i)).toBeInTheDocument();
 
-    const footer = screen.getByText(/Improve coverage to enable inspection recording/i)
-      .closest('footer') as HTMLElement;
+    const footerMessage = screen
+      .getAllByText(/^Insufficient toolkit coverage$/i)
+      .find((node) => node.closest('footer')) as HTMLElement | undefined;
+    expect(footerMessage).toBeDefined();
+
+    const footer = footerMessage?.closest('footer') as HTMLElement;
     const recordButton = within(footer).getByRole('button', { name: /Record Inspection/i });
     expect(recordButton).toBeDisabled();
   });

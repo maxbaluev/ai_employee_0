@@ -109,12 +109,11 @@ type PreviewRequestContext = {
   findingType: string;
 };
 
-type ToolkitSelection = {
-  slug: string;
-  name: string;
-  authType?: string;
-  category?: string;
-  noAuth?: boolean;
+type ToolkitSelectionRow = {
+  toolkit_id: string;
+  metadata: Record<string, unknown> | null;
+  auth_mode: string | null;
+  connection_status: string;
 };
 
 type ToolkitPreview = {
@@ -157,24 +156,18 @@ type PreviewResponse = {
 async function buildInspectionPreview(context: PreviewRequestContext): Promise<PreviewResponse> {
   const { serviceClient, tenantId, missionId, payload, providedReadiness, findingType } = context;
 
-  const selectionRows = await serviceClient
+  const { data: toolkitRows, error: toolkitError } = await serviceClient
     .from('toolkit_selections')
-    .select('selected_tools')
+    .select('toolkit_id, metadata, auth_mode, connection_status')
     .eq('tenant_id', tenantId)
     .eq('mission_id', missionId)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .order('created_at', { ascending: false });
 
-  if (selectionRows.error) {
-    throw new Error(selectionRows.error.message);
+  if (toolkitError) {
+    throw new Error(toolkitError.message);
   }
 
-  const selectedTools = Array.isArray(selectionRows.data?.selected_tools)
-    ? (selectionRows.data?.selected_tools as ToolkitSelection[])
-    : [];
-
-  const toolkits = selectedTools
+  const toolkits = ((toolkitRows ?? []) as ToolkitSelectionRow[])
     .map(normalizeToolkitPreview)
     .filter((preview): preview is ToolkitPreview => preview !== null);
 
@@ -242,16 +235,24 @@ async function buildInspectionPreview(context: PreviewRequestContext): Promise<P
   };
 }
 
-function normalizeToolkitPreview(entry: ToolkitSelection): ToolkitPreview | null {
-  const slug = typeof entry.slug === 'string' ? entry.slug.trim() : '';
+function normalizeToolkitPreview(entry: ToolkitSelectionRow): ToolkitPreview | null {
+  const slug = typeof entry.toolkit_id === 'string' ? entry.toolkit_id.trim() : '';
   if (!slug) {
     return null;
   }
 
-  const name = typeof entry.name === 'string' && entry.name.trim() ? entry.name.trim() : slug;
-  const authType = typeof entry.authType === 'string' && entry.authType.trim() ? entry.authType.trim() : 'oauth';
-  const category = typeof entry.category === 'string' && entry.category.trim() ? entry.category.trim() : 'general';
-  const noAuth = Boolean(entry.noAuth || authType === 'none');
+  const metadata = entry.metadata ?? {};
+  const rawName = typeof metadata.name === 'string' && metadata.name.trim() ? metadata.name.trim() : null;
+  const name = rawName ?? slug;
+  const rawAuthType = typeof metadata.authType === 'string' && metadata.authType.trim()
+    ? metadata.authType.trim()
+    : entry.auth_mode ?? 'oauth';
+  const category = typeof metadata.category === 'string' && metadata.category?.trim()
+    ? metadata.category.trim()
+    : 'general';
+  const noAuthFlag = typeof metadata.noAuth === 'boolean' ? metadata.noAuth : entry.auth_mode === 'none';
+  const noAuth = Boolean(noAuthFlag || entry.connection_status === 'not_required');
+  const authType = noAuth ? 'none' : rawAuthType ?? 'oauth';
 
   const sampleCount = deriveSampleCount(slug);
   const sampleRows = Array.from({ length: sampleCount }, (_, index) =>

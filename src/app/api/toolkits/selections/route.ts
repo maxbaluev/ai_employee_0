@@ -10,8 +10,22 @@ const selectionSchema = z.object({
   authType: z.string().optional(),
   category: z.string().optional(),
   logo: z.string().nullable().optional(),
-  noAuth: z.boolean(),
+  noAuth: z.boolean().optional(),
 });
+
+type ToolkitSelectionRow = {
+  id: string;
+  tenant_id: string;
+  mission_id: string;
+  toolkit_id: string;
+  auth_mode: string | null;
+  connection_status: string;
+  undo_token: string | null;
+  metadata: Record<string, unknown> | null;
+  rationale: string | null;
+  created_at: string;
+  updated_at: string;
+};
 
 const requestSchema = z.object({
   missionId: z.string().uuid('Invalid mission ID format'),
@@ -90,33 +104,65 @@ export async function POST(request: NextRequest) {
       .eq('mission_id', parsed.data.missionId)
       .eq('tenant_id', tenantId);
 
-    let insertedRows: unknown[] = [];
+    let insertedRows: ToolkitSelectionRow[] = [];
+    const sessionUserId = session?.user?.id ?? null;
 
     if (parsed.data.selections.length > 0) {
-      const rows = parsed.data.selections.map((selection) => ({
-        tenant_id: tenantId,
-        mission_id: parsed.data.missionId,
-        selected_tools: [selection] as unknown,
-        rationale: null,
-      }));
+      const rows = parsed.data.selections.map((selection) => {
+        const slug = selection.slug.trim();
+        const authMode = selection.noAuth ? 'none' : selection.authType?.toLowerCase() ?? 'oauth';
+        const connectionStatus = selection.noAuth ? 'not_required' : 'not_linked';
+
+        return {
+          tenant_id: tenantId,
+          mission_id: parsed.data.missionId,
+          toolkit_id: slug,
+          auth_mode: authMode,
+          connection_status: connectionStatus,
+          undo_token: null,
+          metadata: {
+            name: selection.name,
+            category: selection.category ?? null,
+            logo: selection.logo ?? null,
+            noAuth: selection.noAuth ?? false,
+            authType: selection.authType ?? null,
+          },
+          rationale: null,
+          created_by: sessionUserId,
+        } as Record<string, unknown>;
+      });
 
       const { data, error } = await supabase
         .from('toolkit_selections')
         .insert(rows as never)
-        .select('id, tenant_id, mission_id, selected_tools, rationale, created_at');
+        .select(
+          'id, tenant_id, mission_id, toolkit_id, auth_mode, connection_status, undo_token, metadata, rationale, created_at, updated_at',
+        );
 
       if (error || !data) {
         throw new Error(error?.message ?? 'Failed to persist toolkit selections');
       }
 
-      insertedRows = data;
+      insertedRows = data as ToolkitSelectionRow[];
     }
 
     return NextResponse.json(
       {
         success: true,
         count: insertedRows.length,
-        selections: insertedRows,
+        selections: insertedRows.map((row) => ({
+          id: row.id,
+          tenantId: row.tenant_id,
+          missionId: row.mission_id,
+          toolkitId: row.toolkit_id,
+          authMode: row.auth_mode,
+          connectionStatus: row.connection_status,
+          undoToken: row.undo_token,
+          metadata: row.metadata ?? {},
+          rationale: row.rationale,
+          createdAt: row.created_at,
+          updatedAt: row.updated_at,
+        })),
       },
       { status: 201 },
     );

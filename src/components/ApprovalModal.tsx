@@ -28,6 +28,7 @@ type ApprovalModalProps = {
   impactEstimate?: string;
   effortEstimate?: string;
   latestDecision?: ApprovalDecision | null;
+  emitTelemetry?: (eventName: string, eventData?: Record<string, unknown>) => void;
 };
 
 const DECISION_OPTIONS: Array<{ value: ApprovalDecision; label: string; helper: string }> = [
@@ -73,6 +74,7 @@ export function ApprovalModal({
   impactEstimate,
   effortEstimate,
   latestDecision = null,
+  emitTelemetry,
 }: ApprovalModalProps) {
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const previouslyFocusedRef = useRef<Element | null>(null);
@@ -81,6 +83,8 @@ export function ApprovalModal({
   const [violationChecked, setViolationChecked] = useState(false);
   const [violationNotes, setViolationNotes] = useState('');
   const [localError, setLocalError] = useState<string | null>(null);
+  const [isInlineEditing, setInlineEditing] = useState(false);
+  const [inlineDraft, setInlineDraft] = useState('');
 
   const toolCallId = useMemo(() => request?.toolCallId ?? null, [request?.toolCallId]);
 
@@ -92,6 +96,8 @@ export function ApprovalModal({
       setViolationChecked(false);
       setViolationNotes('');
       setLocalError(null);
+      setInlineEditing(false);
+      setInlineDraft('');
 
       requestAnimationFrame(() => {
         const focusable = getFocusableElements(dialogRef.current);
@@ -178,13 +184,126 @@ export function ApprovalModal({
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [handleSubmit, isOpen, onClose]);
 
-  if (!isOpen) {
-    return null;
-  }
-
   const combinedError = localError ?? error ?? null;
   const hasConflict = combinedError?.includes('already recorded') ?? false;
   const isOptimisticUpdate = isSubmitting && latestDecision !== null && latestDecision !== decision;
+
+  const metadata =
+    request?.metadata && typeof request.metadata === 'object'
+      ? (request.metadata as Record<string, unknown>)
+      : null;
+  const validatorSummary =
+    typeof metadata?.validatorSummary === 'string' ? (metadata.validatorSummary as string) : null;
+  const quickFixRaw = metadata?.['quickFix'];
+  const quickFix =
+    quickFixRaw && typeof quickFixRaw === 'object'
+      ? (quickFixRaw as { summary?: string; suggestion?: string })
+      : null;
+  const inlineEditEnabled = Boolean(metadata?.['enableInlineEdit']) && safeguardChips.length > 0;
+  const conflictRaw = metadata?.['conflict'];
+  const conflictDetails =
+    conflictRaw && typeof conflictRaw === 'object'
+      ? (conflictRaw as {
+          reviewer?: string;
+          decision?: string;
+          timestamp?: string;
+        })
+      : null;
+
+  const primarySafeguardLabel = safeguardChips[0]?.value ?? '';
+
+  const emitQuickFixTelemetry = useCallback(
+    (eventName: string, eventData: Record<string, unknown>) => {
+      emitTelemetry?.(eventName, eventData);
+    },
+    [emitTelemetry],
+  );
+
+  const handleQuickFixApply = useCallback(() => {
+    if (!quickFix?.summary) {
+      return;
+    }
+
+    emitQuickFixTelemetry('validator_quick_fix_applied', {
+      tool_call_id: toolCallId,
+      quick_fix_summary: quickFix.summary,
+      quick_fix_suggestion: quickFix.suggestion,
+    });
+  }, [emitQuickFixTelemetry, quickFix, toolCallId]);
+
+  const handleQuickFixEdit = useCallback(() => {
+    if (!quickFix?.summary) {
+      return;
+    }
+
+    emitQuickFixTelemetry('validator_quick_fix_edit', {
+      tool_call_id: toolCallId,
+      quick_fix_summary: quickFix.summary,
+    });
+  }, [emitQuickFixTelemetry, quickFix, toolCallId]);
+
+  const handleQuickFixSendAnyway = useCallback(() => {
+    if (!quickFix?.summary) {
+      return;
+    }
+
+    emitQuickFixTelemetry('validator_quick_fix_send_anyway', {
+      tool_call_id: toolCallId,
+      quick_fix_summary: quickFix.summary,
+      decision: decision,
+    });
+  }, [decision, emitQuickFixTelemetry, quickFix, toolCallId]);
+
+  const handleInlineEditStart = useCallback(() => {
+    if (!inlineEditEnabled) {
+      return;
+    }
+    setInlineEditing(true);
+    setInlineDraft(primarySafeguardLabel);
+  }, [inlineEditEnabled, primarySafeguardLabel]);
+
+  const handleInlineEditCancel = useCallback(() => {
+    setInlineEditing(false);
+    setInlineDraft('');
+  }, []);
+
+  const handleInlineEditSave = useCallback(() => {
+    const trimmed = inlineDraft.trim();
+    if (!trimmed || trimmed === primarySafeguardLabel) {
+      handleInlineEditCancel();
+      return;
+    }
+
+    emitTelemetry?.('modal_safeguard_edit_saved', {
+      tool_call_id: toolCallId,
+      safeguard_label: trimmed,
+    });
+    setInlineEditing(false);
+    setInlineDraft('');
+  }, [emitTelemetry, handleInlineEditCancel, inlineDraft, primarySafeguardLabel, toolCallId]);
+
+  const conflictTelemetrySentRef = useRef(false);
+
+  useEffect(() => {
+    if (!hasConflict || !conflictDetails) {
+      conflictTelemetrySentRef.current = false;
+      return;
+    }
+
+    if (!conflictTelemetrySentRef.current) {
+      emitTelemetry?.('approval_conflict_detected', {
+        tool_call_id: toolCallId,
+        conflicting_reviewer: conflictDetails.reviewer,
+        conflicting_decision: conflictDetails.decision,
+        conflicting_timestamp: conflictDetails.timestamp,
+      });
+      conflictTelemetrySentRef.current = true;
+    }
+  }, [conflictDetails, emitTelemetry, hasConflict, toolCallId]);
+
+  if (!isOpen) {
+    return null;
+  }
 
   return (
     <div
@@ -236,6 +355,83 @@ export function ApprovalModal({
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {(validatorSummary || quickFix) && (
+          <div className="mt-4 space-y-3 rounded-lg border border-violet-500/30 bg-violet-500/10 p-4">
+            {validatorSummary && <p className="text-sm text-slate-100">{validatorSummary}</p>}
+            {quickFix?.summary && (
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleQuickFixApply}
+                  className="inline-flex items-center gap-2 rounded-md border border-emerald-500/40 bg-emerald-500/20 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-emerald-100 transition hover:bg-emerald-500/30"
+                >
+                  Apply fix
+                </button>
+                <button
+                  type="button"
+                  onClick={handleQuickFixEdit}
+                  className="inline-flex items-center gap-2 rounded-md border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-100 transition hover:bg-white/20"
+                >
+                  Edit manually
+                </button>
+                <button
+                  type="button"
+                  onClick={handleQuickFixSendAnyway}
+                  className="inline-flex items-center gap-2 rounded-md border border-amber-400/40 bg-amber-500/20 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-amber-100 transition hover:bg-amber-500/30"
+                >
+                  Send anyway
+                </button>
+              </div>
+            )}
+            {quickFix?.suggestion && (
+              <p className="text-xs text-slate-300">{quickFix.suggestion}</p>
+            )}
+          </div>
+        )}
+
+        {inlineEditEnabled && (
+          <div className="mt-4 rounded-lg border border-white/15 bg-white/5 p-4">
+            {!isInlineEditing ? (
+              <button
+                type="button"
+                onClick={handleInlineEditStart}
+                className="inline-flex items-center gap-2 rounded-md border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-100 transition hover:bg-white/20"
+              >
+                Edit safeguard inline
+              </button>
+            ) : (
+              <div className="space-y-2">
+                <label htmlFor="inline-safeguard-edit" className="text-xs font-semibold uppercase tracking-wide text-slate-300">
+                  Edit safeguard
+                </label>
+                <div className="flex flex-wrap items-center gap-2">
+                  <input
+                    id="inline-safeguard-edit"
+                    name="inline-safeguard-edit"
+                    value={inlineDraft}
+                    onChange={(event) => setInlineDraft(event.target.value)}
+                    className="min-w-0 flex-1 rounded-lg border border-white/10 bg-slate-900/80 p-2 text-sm text-slate-100 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-400/40"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleInlineEditSave}
+                    className="inline-flex items-center gap-2 rounded-md border border-emerald-500/40 bg-emerald-500/20 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-emerald-100 transition hover:bg-emerald-500/30"
+                  >
+                    Save safeguard edit
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleInlineEditCancel}
+                    className="inline-flex items-center gap-2 rounded-md border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-100 transition hover:bg-white/20"
+                  >
+                    Cancel edit
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -364,6 +560,15 @@ export function ApprovalModal({
               <div className="flex-1">
                 <p className="font-semibold">{hasConflict ? 'Concurrent reviewer detected' : 'Submission failed'}</p>
                 <p className="mt-1">{combinedError}</p>
+                {hasConflict && conflictDetails?.decision && (
+                  <p className="mt-1">{`Another reviewer marked this as ${conflictDetails.decision}.`}</p>
+                )}
+                {hasConflict && conflictDetails?.reviewer && (
+                  <p className="text-xs text-slate-300">{conflictDetails.reviewer}</p>
+                )}
+                {hasConflict && conflictDetails?.timestamp && (
+                  <p className="text-xs text-slate-400">{conflictDetails.timestamp}</p>
+                )}
                 {hasConflict && latestDecision && (
                   <p className="mt-2 text-xs">
                     Current state: <span className="font-mono rounded bg-white/10 px-1.5 py-0.5">{latestDecision}</span>

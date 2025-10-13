@@ -57,6 +57,7 @@ describe('ApprovalModal', () => {
         error={null}
         onClose={onClose}
         onSubmit={onSubmit}
+        emitTelemetry={approvalFlowTelemetryMock}
         request={{
           toolCallId: '11111111-2222-3333-4444-555555555555',
           stage: 'validator_reviewer_requested',
@@ -101,6 +102,7 @@ describe('ApprovalModal', () => {
         error={null}
         onClose={onClose}
         onSubmit={onSubmit}
+        emitTelemetry={approvalFlowTelemetryMock}
         request={{
           toolCallId: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
           stage: 'validator_reviewer_requested',
@@ -138,6 +140,7 @@ describe('ApprovalModal', () => {
         error={null}
         onClose={onClose}
         onSubmit={onSubmit}
+        emitTelemetry={approvalFlowTelemetryMock}
         request={{
           toolCallId: 'quickfix-tool-call',
           stage: 'validator_reviewer_requested',
@@ -207,6 +210,7 @@ describe('ApprovalModal', () => {
         error={null}
         onClose={onClose}
         onSubmit={onSubmit}
+        emitTelemetry={approvalFlowTelemetryMock}
         request={{
           toolCallId: 'inline-edit-tool-call',
           stage: 'validator_reviewer_requested',
@@ -256,6 +260,7 @@ describe('ApprovalModal', () => {
         error={null}
         onClose={onClose}
         onSubmit={onSubmit}
+        emitTelemetry={approvalFlowTelemetryMock}
         request={{
           toolCallId: 'conflict-test-tool-call',
           stage: 'validator_reviewer_requested',

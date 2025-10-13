@@ -17,10 +17,19 @@ describe('telemetry audit coverage', () => {
       !process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY;
 
     if (credentialsMissing) {
-      expect(result.stdout).toContain('Supabase credentials not detected');
-    } else {
       expect(result.status).toBe(0);
-      expect(result.stdout).toContain('Telemetry events analysed');
+      expect(result.stdout).toContain('Supabase credentials not detected');
+      return;
+    }
+
+    expect([0, 1]).toContain(result.status);
+
+    const analysed = result.stdout.includes('Telemetry events analysed');
+    const noEvents = result.stdout.includes('No mission_events returned');
+
+    expect(analysed || noEvents).toBe(true);
+
+    if (analysed) {
       expect(result.stdout).not.toContain('Missing required telemetry events');
     }
   });

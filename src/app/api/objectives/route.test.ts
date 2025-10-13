@@ -45,8 +45,8 @@ describe("POST /api/objectives", () => {
     expect(response.status).toBe(401);
     const payload = await response.json();
     expect(payload).toEqual({
-      error: "Authenticate with Supabase or supply tenantId in the payload",
-      hint: "Authenticate with Supabase or include tenantId in the request body.",
+      error: 'Unable to determine tenant context',
+      hint: 'Authenticate with Supabase or supply tenantId in the payload',
     });
   });
 

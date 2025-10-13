@@ -21,7 +21,6 @@ import {
   MissionStageProvider,
   MissionStageProgress,
   MissionStage,
-  MISSION_STAGE_ORDER,
   useMissionStages,
 } from "@/components/mission-stages";
 import type { MissionStageState, MissionStageStatus } from "@/components/mission-stages";
@@ -160,7 +159,6 @@ function ControlPlaneWorkspaceContent({
     stages,
     markStageCompleted,
     markStageStarted,
-    markStageFailed,
     hydrateStages,
   } = useMissionStages();
   const [themeColor, setThemeColor] = useState("#4f46e5");
@@ -329,7 +327,7 @@ function ControlPlaneWorkspaceContent({
         safeguard_count: missionBrief.safeguards.length,
       },
     });
-  }, [missionBrief, objectiveId, tenantId]);
+  }, [missionBrief, objectiveId, tenantId, missionId]);
 
   const sessionIdentifierRef = useRef<string>(
     typeof crypto !== "undefined" && "randomUUID" in crypto
@@ -863,7 +861,7 @@ function ControlPlaneWorkspaceContent({
     plannerRuns,
   }), [
     artifacts,
-    objectiveId,
+    missionId,
     missionStageSnapshot,
     missionBrief,
     safeguards,
@@ -1376,14 +1374,15 @@ function ControlPlaneWorkspaceContent({
 
   const handleIntakeAccept = useCallback(
     async ({
-      missionId,
+      missionId: nextMissionId,
       objective,
       audience,
       guardrailSummary,
       kpis,
       confidence,
     }: AcceptedIntakePayload) => {
-      setObjectiveId(missionId);
+      const currentMissionId = nextMissionId;
+      setObjectiveId(currentMissionId);
 
       const normalizedObjective = objective ?? "";
       const normalizedAudience = audience ?? "";
@@ -1405,7 +1404,7 @@ function ControlPlaneWorkspaceContent({
           : undefined;
 
       const nextMissionBrief: MissionBriefState = {
-        missionId,
+        missionId: currentMissionId,
         objective: normalizedObjective,
         audience: normalizedAudience,
         kpis: normalizedKpis,
@@ -1424,7 +1423,7 @@ function ControlPlaneWorkspaceContent({
 
       void telemetryClient.sendTelemetryEvent(tenantId, {
         eventName: "mission_brief_updated",
-        missionId,
+        missionId: currentMissionId,
         eventData: {
           kpi_count: normalizedKpis.length,
           safeguard_count: acceptedSafeguards.length,
@@ -1432,13 +1431,13 @@ function ControlPlaneWorkspaceContent({
       });
 
       await syncCopilotSession({
-        objectiveId: missionId,
+        objectiveId: currentMissionId,
         missionBrief: nextMissionBrief,
         safeguards: nextSafeguards,
         safeguardHistory: [],
       });
     },
-    [artifacts, safeguards, syncCopilotSession, tenantId],
+    [safeguards, syncCopilotSession, tenantId],
   );
 
   const handleIntakeAdvance = useCallback(() => {
@@ -1866,6 +1865,7 @@ function ControlPlaneWorkspaceContent({
         safeguardChips={safeguardChips}
         undoSummary={approvalUndoSummary}
         latestDecision={approvalFlow.latestDecision}
+        emitTelemetry={approvalFlow.emitTelemetry}
       />
     </main>
   );

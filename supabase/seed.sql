@@ -33,33 +33,8 @@ on conflict (id)
   do update set identity_data = excluded.identity_data;
 
 -- ------------------------------------------------------------------
--- Guardrail defaults
+-- Gate G-B: Guardrail profiles removed (embedded in objectives.guardrails)
 -- ------------------------------------------------------------------
-
-insert into public.guardrail_profiles (
-  id,
-  tenant_id,
-  label,
-  tone_policy,
-  quiet_hours,
-  rate_limit,
-  budget_cap,
-  undo_required,
-  escalation_contacts
-)
-values (
-  '11111111-1111-1111-1111-111111111111',
-  '00000000-0000-0000-0000-000000000000',
-  'Default Safeguards',
-  jsonb_build_object('forbidden', array['aggressive'], 'required', array['warm-professional']),
-  jsonb_build_object('start', 20, 'end', 7, 'timezone', 'America/Los_Angeles'),
-  jsonb_build_object('per_hour', 25, 'burst', 8),
-  jsonb_build_object('currency', 'USD', 'max_cents', 100000, 'period', 'daily'),
-  true,
-  jsonb_build_array(jsonb_build_object('name', 'Rina Patel', 'email', 'rina@example.com'))
-)
-on conflict (id)
-  do update set label = excluded.label;
 
 -- ------------------------------------------------------------------
 -- Sample mission & metadata chips

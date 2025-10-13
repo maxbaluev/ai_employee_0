@@ -1,4 +1,3 @@
-import { PostgresRegenerationStore } from './stores/postgresStore';
 import { RedisRegenerationStore } from './stores/redisStore';
 
 /**
@@ -16,7 +15,7 @@ export interface RegenerationLimiterConfig {
   /** Time window in milliseconds after which counters reset (default: no reset) */
   resetWindowMs?: number;
   /** Storage backend to use (default: uses INTAKE_LIMITER_BACKEND env var or 'memory') */
-  backend?: 'memory' | 'redis' | 'postgres';
+  backend?: 'memory' | 'redis';
 }
 
 export interface CounterEntry {
@@ -105,18 +104,17 @@ export class InMemoryRegenerationStore implements RegenerationLimiterStore {
   }
 }
 
-export { PostgresRegenerationStore } from './stores/postgresStore';
 export { RedisRegenerationStore } from './stores/redisStore';
 
 /**
  * Factory function to create the appropriate store based on configuration.
- * @param backend - Backend type ('memory', 'redis', or 'postgres')
+ * @param backend - Backend type ('memory' or 'redis')
  * @returns Instance of the appropriate RegenerationLimiterStore implementation
  */
 export function createRegenerationLimiterStore(
-  backend?: 'memory' | 'redis' | 'postgres'
+  backend?: 'memory' | 'redis'
 ): RegenerationLimiterStore {
-  const storeType = backend ?? (process.env.INTAKE_LIMITER_BACKEND as 'memory' | 'redis' | 'postgres') ?? 'memory';
+  const storeType = backend ?? (process.env.INTAKE_LIMITER_BACKEND as 'memory' | 'redis' | undefined) ?? 'memory';
 
   switch (storeType) {
     case 'memory':
@@ -126,8 +124,6 @@ export function createRegenerationLimiterStore(
         throw new Error('REDIS_URL must be set to use the redis limiter backend');
       }
       return new RedisRegenerationStore();
-    case 'postgres':
-      return new PostgresRegenerationStore();
     default:
       throw new Error(`Unknown limiter backend: ${storeType}`);
   }

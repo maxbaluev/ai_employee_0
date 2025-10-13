@@ -679,8 +679,12 @@ export type Database = {
           metadata: Json | null
           mission_id: string
           mode: string
+          impact_score: number | null
+          pinned_at: string | null
           primary_toolkits: string[] | null
+          reason_markdown: string | null
           tenant_id: string
+          updated_at: string
         }
         Insert: {
           candidate_count: number
@@ -691,8 +695,12 @@ export type Database = {
           metadata?: Json | null
           mission_id: string
           mode?: string
+          impact_score?: number | null
+          pinned_at?: string | null
           primary_toolkits?: string[] | null
+          reason_markdown?: string | null
           tenant_id: string
+          updated_at?: string
         }
         Update: {
           candidate_count?: number
@@ -703,8 +711,12 @@ export type Database = {
           metadata?: Json | null
           mission_id?: string
           mode?: string
+          impact_score?: number | null
+          pinned_at?: string | null
           primary_toolkits?: string[] | null
+          reason_markdown?: string | null
           tenant_id?: string
+          updated_at?: string
         }
         Relationships: [
           {
@@ -833,6 +845,7 @@ export type Database = {
           toolkit: string
           undo_plan: string | null
           undo_plan_json: Json | null
+          validator_summary: Json | null
         }
         Insert: {
           arguments?: Json
@@ -850,6 +863,7 @@ export type Database = {
           toolkit: string
           undo_plan?: string | null
           undo_plan_json?: Json | null
+          validator_summary?: Json | null
         }
         Update: {
           arguments?: Json
@@ -867,6 +881,7 @@ export type Database = {
           toolkit?: string
           undo_plan?: string | null
           undo_plan_json?: Json | null
+          validator_summary?: Json | null
         }
         Relationships: [
           {
@@ -880,30 +895,55 @@ export type Database = {
       }
       toolkit_selections: {
         Row: {
+          auth_mode: string | null
+          connection_status: string
           created_at: string
+          created_by: string | null
           id: string
+          metadata: Json
           mission_id: string
           rationale: string | null
-          selected_tools: Json
           tenant_id: string
+          toolkit_id: string
+          undo_token: string | null
+          updated_at: string
         }
         Insert: {
+          auth_mode?: string | null
+          connection_status?: string
           created_at?: string
+          created_by?: string | null
           id?: string
+          metadata?: Json
           mission_id: string
           rationale?: string | null
-          selected_tools?: Json
           tenant_id: string
+          toolkit_id: string
+          undo_token?: string | null
+          updated_at?: string
         }
         Update: {
+          auth_mode?: string | null
+          connection_status?: string
           created_at?: string
+          created_by?: string | null
           id?: string
+          metadata?: Json
           mission_id?: string
           rationale?: string | null
-          selected_tools?: Json
           tenant_id?: string
+          toolkit_id?: string
+          undo_token?: string | null
+          updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "toolkit_selections_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "toolkit_selections_mission_id_fkey"
             columns: ["mission_id"]
@@ -911,6 +951,13 @@ export type Database = {
             referencedRelation: "objectives"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "toolkit_selections_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
         ]
       }
     }

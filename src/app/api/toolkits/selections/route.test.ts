@@ -38,19 +38,49 @@ describe('POST /api/toolkits/selections', () => {
     expect(response.status).toBe(401);
     const payload = await response.json();
     expect(payload).toEqual({
-      error: 'Authenticate with Supabase or include tenantId in the request body.',
-      hint: 'Authenticate with Supabase or include tenantId in the request body.',
+      error: 'Unable to determine tenant context',
+      hint: 'Authenticate with Supabase or include tenantId in the request body',
     });
   });
 
   it('persists selections when session provides tenant', async () => {
     const deleteMock = vi.fn().mockReturnValue({
-      eq: vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({}) }),
+      eq: vi.fn().mockReturnValue({
+        eq: vi.fn().mockResolvedValue({ data: null, error: null }),
+      }),
     });
-    const insertMock = vi.fn().mockReturnValue({
-      select: vi.fn().mockReturnValue({ maybeSingle: vi.fn().mockResolvedValue({ data: [], error: null }) }),
+
+    const insertedRows = [
+      {
+        id: 'selection-1',
+        tenant_id: 'tenant-123',
+        mission_id: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+        toolkit_id: 'alpha',
+        auth_mode: 'oauth',
+        connection_status: 'not_linked',
+        undo_token: null,
+        metadata: {
+          name: 'Alpha',
+          category: 'general',
+          logo: null,
+          noAuth: false,
+          authType: 'oauth',
+        },
+        rationale: null,
+        created_at: '2025-10-09T19:30:00.000Z',
+        updated_at: '2025-10-09T19:30:00.000Z',
+      },
+    ];
+
+    const insertSelectMock = vi.fn().mockResolvedValue({ data: insertedRows, error: null });
+    const insertMock = vi.fn().mockReturnValue({ select: insertSelectMock });
+
+    const selectSingleMock = vi.fn().mockResolvedValue({ data: { id: 'mission-1' }, error: null });
+    const selectMock = vi.fn().mockReturnValue({
+      eq: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({ single: selectSingleMock }),
+      }),
     });
-    const selectMock = vi.fn().mockReturnValue({ maybeSingle: vi.fn().mockResolvedValue({ data: { id: 'mission-1' }, error: null }) });
 
     getRouteHandlerSupabaseClientMock.mockResolvedValue({
       auth: {
@@ -83,7 +113,7 @@ describe('POST /api/toolkits/selections', () => {
             authType: 'oauth',
             category: 'general',
             logo: null,
-            noAuth: False,
+            noAuth: false,
           },
         ],
       }),
@@ -91,6 +121,26 @@ describe('POST /api/toolkits/selections', () => {
 
     expect(response.status).toBe(201);
     const payload = await response.json();
-    expect(payload.success).toBe(True);
+    expect(payload.success).toBe(true);
+    expect(payload.count).toBe(insertedRows.length);
+    expect(payload.selections).toMatchObject([
+      {
+        id: 'selection-1',
+        toolkitId: 'alpha',
+        connectionStatus: 'not_linked',
+        metadata: expect.objectContaining({ name: 'Alpha', noAuth: false }),
+      },
+    ]);
+
+    const insertedPayload = insertMock.mock.calls[0][0] as Array<Record<string, unknown>>;
+    expect(insertedPayload).toHaveLength(1);
+    expect(insertedPayload[0]).toMatchObject({
+      tenant_id: 'tenant-123',
+      mission_id: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+      toolkit_id: 'alpha',
+      auth_mode: 'oauth',
+      connection_status: 'not_linked',
+      undo_token: null,
+    });
   });
 });
