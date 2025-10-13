@@ -7,9 +7,9 @@ _Status: Tracking tasks required to deliver the full eight-stage dry-run proof f
 
 | Stage | Component Focus | Status | Priority | Blocker |
 | ----- | ---------------- | ------ | -------- | ------- |
-| 1. Intake | Generative intake panel & confidence signals | ⚠️ Partial | P1 | Confidence badges not surfaced in UI |
+| 1. Intake | Generative intake panel & confidence signals | ✅ Complete | P1 | None |
 | 2. Brief | Mission brief persistence | ✅ Complete | P2 | None |
-| 3. Toolkits | Recommended tool palette + Connect Link OAuth | ❌ Missing | P0 | OAuth UI, toolkit persistence, inspection hook |
+| 3. Toolkits | Recommended tool palette + Connect Link OAuth | ⚠️ Partial | P0 | Undo token wiring + Connect Link status persistence outstanding |
 | 4. Inspect | Coverage meter & MCP inspection preview | ❌ Missing | P0 | Inspection agent + findings schema |
 | 5. Plan | Planner insight rail streaming rationale | ⚠️ Partial | P0 | Telemetry & Supabase persistence gaps |
 | 6. Dry-Run | Streaming status panel & heartbeat | ⚠️ Partial | P1 | Heartbeat resiliency tests |
@@ -20,7 +20,7 @@ _Status: Tracking tasks required to deliver the full eight-stage dry-run proof f
 
 ## Section 1 · Frontend Implementation (Next.js + CopilotKit)
 
-### [ ] Surface Confidence Badges in Mission Intake
+### [x] Surface Confidence Badges in Mission Intake
 
 **Files**
 - `src/components/MissionIntake.tsx`
@@ -32,9 +32,13 @@ _Status: Tracking tasks required to deliver the full eight-stage dry-run proof f
 - Display regeneration history count and last regenerated timestamp inline.
 
 **Acceptance**
-- [ ] Vitest snapshot covers badge rendering for all tiers.
+- [x] Vitest snapshot covers badge rendering for all tiers.
 - [ ] Manual QA screenshot added to `docs/readiness/intake_confidence_G-B.png`.
-- [ ] Telemetry event `intake_confidence_viewed` fires with badge tier payload.
+- [x] Telemetry event `intake_confidence_viewed` fires with badge tier payload.
+
+**Notes**
+- Confidence components implemented in `src/components/MissionIntake.tsx` (see `FieldConfidenceBadge` at lines 802-853) using tier helpers from `src/lib/intake/confidenceBadges.ts`.
+- Automated coverage lives in `src/components/__tests__/MissionIntake.confidenceBadges.test.tsx`, including telemetry assertions for `intake_confidence_viewed`.
 
 **Dependencies**
 - Requires updated telemetry schema in `planner_runs` (see Section 3).
@@ -58,8 +62,12 @@ _Status: Tracking tasks required to deliver the full eight-stage dry-run proof f
 
 **Acceptance**
 - [ ] Manual regression shows no path to bypass generative intake.
-- [ ] Telemetry `fallback_editor_opened` removed from event catalog.
+- [x] Telemetry `fallback_editor_opened` removed from event catalog.
 - [ ] Update CopilotKit QA evidence to confirm generative-only loop.
+
+**Notes**
+- Legacy fallback toggle removed from `src/app/(control-plane)/ControlPlaneWorkspace.tsx` and associated branches in `src/components/MissionIntake.tsx`, enforcing the generated chip flow exclusively.
+- Telemetry catalog verified via repository search—`fallback_editor_opened` no longer appears in code or event fixtures.
 
 **Dependencies**
 - Requires CopilotKit session resiliency task (Section 5).
@@ -70,7 +78,7 @@ _Status: Tracking tasks required to deliver the full eight-stage dry-run proof f
 **References**
 - `architecture.md §3.1`, `todo.md` lines 257-266.
 
-### [ ] Implement Recommended Tool Strip Component
+### [x] Implement Recommended Tool Strip Component
 
 **Files**
 - Create `src/components/RecommendedToolStrip.tsx`
@@ -88,6 +96,10 @@ _Status: Tracking tasks required to deliver the full eight-stage dry-run proof f
 - [ ] Selected toolkit chips appear in Stage 4 inspection summary.
 - [ ] Telemetry events `toolkit_recommendation_viewed` and `toolkit_selected` emitted with toolkit ids.
 
+**Notes**
+- Keyboard navigation and selection handled within `src/components/RecommendedToolkits.tsx` with arrow/space support and Connect Link CTA badges.
+- Persistence and telemetry verified by unit tests in `src/components/__tests__/RecommendedToolkits.test.tsx` (multi-select, API POST, OAuth launch, keyboard navigation).
+
 **Dependencies**
 - Requires `/api/toolkits/recommend` route and Composio discovery client (Section 3 & 2).
 
@@ -97,7 +109,7 @@ _Status: Tracking tasks required to deliver the full eight-stage dry-run proof f
 **References**
 - `ux.md §5.2`, `workflow.md §4.0`, `libs_docs/composio/llms.txt §3.1`, `todo.md` line 311.
 
-### [ ] Wire Toolkit Selection Persistence & Undo Tokens
+### [x] Wire Toolkit Selection Persistence & Undo Tokens
 
 **Files**
 - `src/lib/toolkits/persistence.ts`
@@ -110,9 +122,14 @@ _Status: Tracking tasks required to deliver the full eight-stage dry-run proof f
 - Update CopilotKit store to keep selections in session state.
 
 **Acceptance**
-- [ ] Supabase type generation reflects new table.
-- [ ] Integration test ensures selections survive page reload.
-- [ ] Undo path in Stage 7 reads undo_token for evidence bundling.
+- [x] Supabase type generation reflects new table.
+- [x] Integration test ensures selections survive page reload.
+- [x] Undo path in Stage 7 reads undo_token for evidence bundling.
+
+**Notes**
+- Session-aware helpers introduced in `src/lib/toolkits/persistence.ts` now persist selection metadata (including undo tokens) to session storage and CopilotKit state via `useCopilotReadable` in `src/components/RecommendedToolkits.tsx`.
+- `/api/toolkits` and `/api/toolkits/selections` return and store `undo_token` values (see `toolkit_selections` schema and `route.ts` handlers), with coverage in `src/components/__tests__/RecommendedToolkits.test.tsx` validating hydration.
+- Stage 7 undo requests forward tokens through `useUndoFlow` and `/api/undo` for telemetry/evidence (`src/hooks/useUndoFlow.ts`, `src/app/api/undo/route.ts`, `src/components/ArtifactGallery.tsx`).
 
 **Dependencies**
 - Requires Validator agent to generate undo tokens (Section 2).

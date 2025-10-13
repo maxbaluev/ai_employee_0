@@ -58,7 +58,7 @@ describe('POST /api/toolkits/selections', () => {
         toolkit_id: 'alpha',
         auth_mode: 'oauth',
         connection_status: 'not_linked',
-        undo_token: null,
+        undo_token: 'token-123',
         metadata: {
           name: 'Alpha',
           category: 'general',
@@ -128,6 +128,7 @@ describe('POST /api/toolkits/selections', () => {
         id: 'selection-1',
         toolkitId: 'alpha',
         connectionStatus: 'not_linked',
+        undoToken: 'token-123',
         metadata: expect.objectContaining({ name: 'Alpha', noAuth: false }),
       },
     ]);
@@ -140,7 +141,7 @@ describe('POST /api/toolkits/selections', () => {
       toolkit_id: 'alpha',
       auth_mode: 'oauth',
       connection_status: 'not_linked',
-      undo_token: null,
     });
+    expect(typeof insertedPayload[0].undo_token).toBe('string');
   });
 });

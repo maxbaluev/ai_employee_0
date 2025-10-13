@@ -1,17 +1,22 @@
 /// <reference types="vitest" />
 
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { RecommendedToolkits } from '../RecommendedToolkits';
 
 const sendTelemetryEventMock = vi.hoisted(() => vi.fn());
+const useCopilotReadableMock = vi.hoisted(() => vi.fn());
 
 const originalFetch = globalThis.fetch;
 const originalOpen = globalThis.open;
 
 vi.mock('@/lib/telemetry/client', () => ({
   sendTelemetryEvent: sendTelemetryEventMock,
+}));
+
+vi.mock('@copilotkit/react-core', () => ({
+  useCopilotReadable: useCopilotReadableMock,
 }));
 
 describe('RecommendedToolkits', () => {
@@ -24,6 +29,10 @@ describe('RecommendedToolkits', () => {
     fetchMock = vi.fn();
     globalThis.fetch = fetchMock;
     sendTelemetryEventMock.mockReset();
+    useCopilotReadableMock.mockReset();
+    if (typeof window !== 'undefined' && window.sessionStorage) {
+      window.sessionStorage.clear();
+    }
   });
 
   afterEach(() => {
@@ -98,7 +107,21 @@ describe('RecommendedToolkits', () => {
 
     fetchMock.mockResolvedValueOnce({
       ok: true,
-      json: async () => ({ success: true }),
+      json: async () => ({
+        success: true,
+        selections: [
+          {
+            id: 'selection-1',
+            tenantId,
+            missionId,
+            toolkitId: 'hubspot_crm',
+            authMode: 'none',
+            connectionStatus: 'not_required',
+            undoToken: 'token-123',
+            metadata: { name: 'HubSpot CRM', category: 'CRM', noAuth: true },
+          },
+        ],
+      }),
     } as Response);
 
     render(
@@ -208,5 +231,97 @@ describe('RecommendedToolkits', () => {
       tone: 'info',
       message: expect.stringContaining('Launching Clearbit Connect Link'),
     });
+  });
+
+  it('supports keyboard navigation and selection using arrow keys + space', async () => {
+    const alertSpy = vi.fn();
+    const stageAdvanceSpy = vi.fn();
+
+    mockToolkitLoad();
+
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        success: true,
+        selections: [
+          {
+            id: 'selection-1',
+            tenantId,
+            missionId,
+            toolkitId: 'clearbit',
+            authMode: 'oauth',
+            connectionStatus: 'not_linked',
+            undoToken: 'token-xyz',
+            metadata: { name: 'Clearbit', category: 'Data Enrichment', noAuth: false },
+          },
+        ],
+      }),
+    } as Response);
+
+    render(
+      <RecommendedToolkits
+        tenantId={tenantId}
+        missionId={missionId}
+        onAlert={alertSpy}
+        onStageAdvance={stageAdvanceSpy}
+      />,
+    );
+
+    await screen.findByText('Recommended Tools');
+
+    const firstToolkit = screen.getByTestId('toolkit-toggle-hubspot_crm');
+    firstToolkit.focus();
+    expect(firstToolkit).toHaveFocus();
+
+    fireEvent.keyDown(firstToolkit, { key: 'ArrowRight' });
+
+    const secondToolkit = screen.getByTestId('toolkit-toggle-clearbit');
+    expect(secondToolkit).toHaveFocus();
+
+    fireEvent.keyDown(secondToolkit, { key: ' ' });
+
+    await screen.findByRole('button', { name: /Save \(1\)/i });
+
+    const saveButton = screen.getByRole('button', { name: /Save \(1\)/i });
+    await userEvent.click(saveButton);
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    });
+
+    expect(stageAdvanceSpy).toHaveBeenCalled();
+    expect(sendTelemetryEventMock).toHaveBeenCalledWith(tenantId, expect.objectContaining({
+      eventName: 'toolkit_selection_saved',
+      missionId,
+    }));
+  });
+
+  it('hydrates selection state from API selectionDetails payload', async () => {
+    const selectionChangeSpy = vi.fn();
+
+    mockToolkitLoad({
+      selectionDetails: [
+        {
+          slug: 'hubspot_crm',
+          metadata: { name: 'HubSpot CRM', category: 'CRM', noAuth: true },
+          authMode: 'none',
+          connectionStatus: 'not_required',
+          undoToken: 'token-seeded',
+        },
+      ],
+    });
+
+    render(
+      <RecommendedToolkits
+        tenantId={tenantId}
+        missionId={missionId}
+        onSelectionChange={selectionChangeSpy}
+      />,
+    );
+
+    await screen.findByText('Recommended Tools');
+
+    expect(selectionChangeSpy).toHaveBeenCalledWith(1);
+    expect(screen.getByRole('button', { name: /Save \(1\)/i })).toBeInTheDocument();
   });
 });

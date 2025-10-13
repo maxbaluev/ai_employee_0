@@ -198,3 +198,24 @@ def test_planner_gate_allows_override_when_backend_permits():
     assert payload["can_proceed"] is True
     assert payload["readiness"] == pytest.approx(72.0)
     assert payload["threshold"] == pytest.approx(85.0)
+
+
+def test_planner_gate_uses_inline_state_when_supabase_unavailable():
+    coordinator, telemetry = _make_coordinator(finding={})
+    inline_gate = {
+        "readiness": 90,
+        "threshold": 85,
+        "canProceed": True,
+        "override": False,
+        "categories": [{"id": "toolkits", "status": "pass"}],
+    }
+
+    state = {
+        MISSION_CONTEXT_KEY: {"mission_id": MISSION_ID, "tenant_id": TENANT_ID},
+        "inspection_gate": inline_gate,
+    }
+
+    coordinator._enforce_planner_gate_from_state(state)
+
+    passed_events = [event for event in telemetry.events if event["event"] == "inspection_gate_passed"]
+    assert passed_events, "expected inspection_gate_passed telemetry event when inline gate present"

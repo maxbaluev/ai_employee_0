@@ -250,6 +250,48 @@ class SupabaseClient:
             return
         self._write("tool_calls", payload)
 
+    def insert_inspection_finding(
+        self, finding: Dict[str, Any]
+    ) -> Optional[Dict[str, Any]]:
+        payload = {key: value for key, value in (finding or {}).items() if value is not None}
+        if not payload:
+            return None
+
+        tenant_id = payload.get("tenant_id")
+        mission_id = payload.get("mission_id")
+        if not self._is_uuid(tenant_id) or not self._is_uuid(mission_id):
+            self._buffer_offline("inspection_findings", [payload])
+            return None
+
+        readiness = payload.get("readiness")
+        if readiness is not None:
+            try:
+                payload["readiness"] = int(max(0, min(100, int(readiness))))
+            except (TypeError, ValueError):
+                payload.pop("readiness", None)
+
+        if not self.enabled or self._degraded or not self.allow_writes:
+            self._buffer_offline("inspection_findings", [payload])
+            return None
+
+        try:
+            response = self._request(
+                "POST",
+                "/inspection_findings",
+                body=[payload],
+                headers={"Prefer": "return=representation"},
+            )
+        except Exception as exc:  # pragma: no cover - defensive fallback
+            LOGGER.warning("inspection finding insert failed: %s", exc)
+            self._buffer_offline("inspection_findings", [payload])
+            return None
+
+        if isinstance(response, list) and response:
+            record = response[0]
+            if isinstance(record, dict):
+                return record
+        return None
+
     def upload_storage_object(
         self,
         bucket: str,

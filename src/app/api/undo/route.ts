@@ -8,6 +8,7 @@ const payloadSchema = z.object({
   missionId: z.string().uuid().optional(),
   toolCallId: z.string().min(1),
   reason: z.string().trim().max(500).optional(),
+  undoToken: z.string().min(1).optional(),
 });
 
 export async function POST(request: NextRequest) {
@@ -35,6 +36,7 @@ export async function POST(request: NextRequest) {
       eventData: {
         tool_call_id: parsed.data.toolCallId,
         reason: parsed.data.reason ?? null,
+        undo_token: parsed.data.undoToken ?? null,
       },
     });
 
@@ -46,6 +48,7 @@ export async function POST(request: NextRequest) {
         tool_call_id: parsed.data.toolCallId,
         success: true,
         mode: 'dry_run_stub',
+        undo_token: parsed.data.undoToken ?? null,
       },
     });
 

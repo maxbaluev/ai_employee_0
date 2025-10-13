@@ -1,9 +1,15 @@
 "use client";
 
 import Image from "next/image";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
+import { useCopilotReadable } from "@copilotkit/react-core";
 
 import { sendTelemetryEvent } from "@/lib/telemetry/client";
+import {
+  loadToolkitSelections,
+  persistToolkitSelections,
+  type ToolkitSelectionDetail,
+} from "@/lib/toolkits/persistence";
 
 type ToolkitMetadata = {
   name: string;
@@ -35,11 +41,101 @@ type RecommendedToolkitsProps = {
 export function RecommendedToolkits({ tenantId, missionId, onAlert, onStageAdvance, onSelectionChange }: RecommendedToolkitsProps) {
   const [toolkits, setToolkits] = useState<ToolkitMetadata[]>([]);
   const [selectedSlugs, setSelectedSlugs] = useState<Set<string>>(new Set());
+  const [selectionDetails, setSelectionDetails] = useState<ToolkitSelectionDetail[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [connectingSlug, setConnectingSlug] = useState<string | null>(null);
   const [connectError, setConnectError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const toolkitButtonRefs = useRef<HTMLButtonElement[]>([]);
+  const toolkitsRef = useRef<ToolkitMetadata[]>([]);
+  const persistedLoadedRef = useRef(false);
+
+  useEffect(() => {
+    toolkitButtonRefs.current = [];
+  }, [toolkits]);
+
+  useEffect(() => {
+    toolkitsRef.current = toolkits;
+  }, [toolkits]);
+
+  const buildSelectionDetail = useCallback(
+    (slug: string): ToolkitSelectionDetail | null => {
+      const existing = selectionDetails.find((item) => item.slug === slug);
+      if (existing) {
+        return existing;
+      }
+
+      const toolkit = toolkitsRef.current.find((candidate) => candidate.slug === slug);
+      if (!toolkit) {
+        return null;
+      }
+
+      return {
+        slug,
+        name: toolkit.name,
+        category: toolkit.category,
+        authMode: toolkit.no_auth ? "none" : toolkit.auth_schemes[0] ?? "oauth",
+        noAuth: toolkit.no_auth,
+        connectionStatus: toolkit.no_auth ? "not_required" : "not_linked",
+        undoToken: null,
+      };
+    },
+    [selectionDetails],
+  );
+
+  const syncSelectionState = useCallback(
+    (
+      selections: Array<{
+        slug: string;
+        name?: string;
+        category?: string;
+        authMode?: string | null;
+        noAuth?: boolean;
+        undoToken?: string | null;
+        connectionStatus?: string | null;
+      }>,
+    ) => {
+      const detailList: ToolkitSelectionDetail[] = selections
+        .map((selection) => {
+          const toolkit = toolkitsRef.current.find((item) => item.slug === selection.slug);
+          const name = selection.name ?? toolkit?.name ?? selection.slug;
+          const category = selection.category ?? toolkit?.category ?? "general";
+          const noAuth = typeof selection.noAuth === "boolean" ? selection.noAuth : Boolean(toolkit?.no_auth);
+          const authMode = selection.authMode ?? (noAuth ? "none" : toolkit?.auth_schemes[0] ?? "oauth");
+          return {
+            slug: selection.slug,
+            name,
+            category,
+            authMode,
+            noAuth,
+            connectionStatus: selection.connectionStatus ?? (noAuth ? "not_required" : "not_linked"),
+            undoToken: selection.undoToken ?? null,
+          } satisfies ToolkitSelectionDetail;
+        })
+        .filter((detail) => detail.slug.length > 0);
+
+      setSelectionDetails(detailList);
+      setSelectedSlugs(new Set(detailList.map((detail) => detail.slug)));
+      onSelectionChange?.(detailList.length);
+    },
+    [onSelectionChange],
+  );
+
+  useEffect(() => {
+    if (!tenantId || !missionId || persistedLoadedRef.current) {
+      return;
+    }
+    const persisted = loadToolkitSelections(tenantId, missionId);
+    if (persisted && persisted.length > 0) {
+      syncSelectionState(persisted);
+    }
+    persistedLoadedRef.current = true;
+  }, [missionId, syncSelectionState, tenantId]);
+
+  useEffect(() => {
+    persistToolkitSelections(tenantId, missionId, selectionDetails);
+  }, [missionId, selectionDetails, tenantId]);
 
   const fetchToolkits = useCallback(async () => {
     if (!tenantId) return;
@@ -59,10 +155,24 @@ export function RecommendedToolkits({ tenantId, missionId, onAlert, onStageAdvan
       }
 
       const data = await response.json();
-      setToolkits(data.toolkits || []);
-      const initialSelections = new Set<string>(data.selected || []);
-      setSelectedSlugs(initialSelections);
-      onSelectionChange?.(initialSelections.size);
+      const fetchedToolkits = (data.toolkits || []) as ToolkitMetadata[];
+      setToolkits(fetchedToolkits);
+
+      const selectionPayload: Array<{
+        slug: string;
+        name?: string;
+        category?: string;
+        authMode?: string | null;
+        noAuth?: boolean;
+        undoToken?: string | null;
+        connectionStatus?: string | null;
+      }> = Array.isArray(data.selectionDetails)
+        ? data.selectionDetails
+        : Array.isArray(data.selected)
+          ? (data.selected as string[]).map((slug) => ({ slug }))
+          : [];
+
+      syncSelectionState(selectionPayload);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to load toolkits";
       setError(message);
@@ -70,11 +180,20 @@ export function RecommendedToolkits({ tenantId, missionId, onAlert, onStageAdvan
     } finally {
       setIsLoading(false);
     }
-  }, [tenantId, missionId, onAlert]);
+  }, [tenantId, missionId, onAlert, syncSelectionState]);
 
   useEffect(() => {
     void fetchToolkits();
   }, [fetchToolkits]);
+
+  useCopilotReadable({
+    description: "Gate G-B toolkit selections",
+    value: {
+      missionId: missionId ?? null,
+      tenantId,
+      selections: selectionDetails,
+    },
+  });
 
   const toggleSelection = (slug: string) => {
     setSelectedSlugs((prev) => {
@@ -87,7 +206,45 @@ export function RecommendedToolkits({ tenantId, missionId, onAlert, onStageAdvan
       onSelectionChange?.(next.size);
       return next;
     });
+
+    setSelectionDetails((prev) => {
+      const exists = prev.find((detail) => detail.slug === slug);
+      if (exists) {
+        return prev.filter((detail) => detail.slug !== slug);
+      }
+      const detail = buildSelectionDetail(slug);
+      if (!detail) {
+        return prev;
+      }
+      return [...prev, detail];
+    });
   };
+
+  const focusToolkitByIndex = useCallback((index: number) => {
+    const buttons = toolkitButtonRefs.current;
+    if (!buttons.length) {
+      return;
+    }
+    const normalised = (index + buttons.length) % buttons.length;
+    buttons[normalised]?.focus();
+  }, []);
+
+  const handleToolkitKeyDown = useCallback(
+    (event: ReactKeyboardEvent<HTMLButtonElement>, slug: string, index: number) => {
+      if (event.key === "ArrowRight" || event.key === "ArrowLeft") {
+        event.preventDefault();
+        const delta = event.key === "ArrowRight" ? 1 : -1;
+        focusToolkitByIndex(index + delta);
+        return;
+      }
+
+      if (event.key === " " || event.key === "Spacebar") {
+        event.preventDefault();
+        toggleSelection(slug);
+      }
+    },
+    [focusToolkitByIndex, toggleSelection],
+  );
 
   const handleSave = async () => {
     if (!missionId) {
@@ -134,6 +291,18 @@ export function RecommendedToolkits({ tenantId, missionId, onAlert, onStageAdvan
         throw new Error("Failed to save selections");
       }
 
+      const payload = (await response.json().catch(() => null)) as
+        | {
+            selections?: Array<{
+              toolkitId: string;
+              metadata?: Record<string, unknown> | null;
+              authMode?: string | null;
+              undoToken?: string | null;
+              connectionStatus?: string | null;
+            }>;
+          }
+        | null;
+
       void sendTelemetryEvent(tenantId, {
         eventName: "toolkit_selected",
         missionId,
@@ -147,6 +316,29 @@ export function RecommendedToolkits({ tenantId, missionId, onAlert, onStageAdvan
         tone: "success",
         message: `Saved ${selections.length} toolkit recommendation(s)`,
       });
+
+      if (payload?.selections) {
+        const detailList: ToolkitSelectionDetail[] = payload.selections.map((row) => {
+          const toolkit = toolkits.find((item) => item.slug === row.toolkitId);
+          const metadata = (row.metadata ?? {}) as Record<string, unknown>;
+          const name = typeof metadata.name === "string" ? metadata.name : toolkit?.name ?? row.toolkitId;
+          const category = typeof metadata.category === "string" ? metadata.category : toolkit?.category ?? "general";
+          const noAuth = typeof metadata.noAuth === "boolean" ? metadata.noAuth : Boolean(toolkit?.no_auth);
+          const authMode = row.authMode ?? (noAuth ? "none" : toolkit?.auth_schemes[0] ?? "oauth");
+          return {
+            slug: row.toolkitId,
+            name,
+            category,
+            authMode,
+            noAuth,
+            connectionStatus: row.connectionStatus ?? (noAuth ? "not_required" : "not_linked"),
+            undoToken: row.undoToken ?? null,
+          } satisfies ToolkitSelectionDetail;
+        });
+        setSelectionDetails(detailList);
+        setSelectedSlugs(new Set(detailList.map((detail) => detail.slug)));
+        persistToolkitSelections(tenantId, missionId, detailList);
+      }
 
       // Notify stage advancement after successful save
       onStageAdvance?.();
@@ -311,7 +503,7 @@ export function RecommendedToolkits({ tenantId, missionId, onAlert, onStageAdvan
       </div>
 
       <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent">
-        {toolkits.slice(0, 20).map((toolkit) => {
+        {toolkits.slice(0, 20).map((toolkit, index) => {
           const isSelected = selectedSlugs.has(toolkit.slug);
           const requiresOAuth = !toolkit.no_auth;
           const authBadge = toolkit.no_auth ? (
@@ -336,7 +528,14 @@ export function RecommendedToolkits({ tenantId, missionId, onAlert, onStageAdvan
               <button
                 type="button"
                 onClick={() => toggleSelection(toolkit.slug)}
-                className="w-full text-left"
+                onKeyDown={(event) => handleToolkitKeyDown(event, toolkit.slug, index)}
+                ref={(element) => {
+                  if (element) {
+                    toolkitButtonRefs.current[index] = element;
+                  }
+                }}
+                data-testid={`toolkit-toggle-${toolkit.slug}`}
+                className="w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
               >
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-2">

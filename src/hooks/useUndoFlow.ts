@@ -8,6 +8,7 @@ export type UndoRequestPayload = {
   toolCallId: string;
   missionId?: string | null;
   reason?: string;
+  undoToken?: string | null;
 };
 
 export type UndoResult =
@@ -25,7 +26,7 @@ export function useUndoFlow(options: UseUndoFlowOptions) {
   const [error, setError] = useState<string | null>(null);
 
   const requestUndo = useCallback(
-    async ({ toolCallId, missionId, reason }: UndoRequestPayload): Promise<UndoResult> => {
+    async ({ toolCallId, missionId, reason, undoToken }: UndoRequestPayload): Promise<UndoResult> => {
       if (!toolCallId) {
         const message = 'Missing tool call identifier.';
         setError(message);
@@ -44,6 +45,7 @@ export function useUndoFlow(options: UseUndoFlowOptions) {
           eventData: {
             tool_call_id: toolCallId,
             reason: reason ?? null,
+            undo_token: undoToken ?? null,
           },
         });
 
@@ -55,6 +57,7 @@ export function useUndoFlow(options: UseUndoFlowOptions) {
             missionId: resolvedMissionId ?? undefined,
             toolCallId,
             reason,
+            undoToken: undoToken ?? undefined,
           }),
         });
 

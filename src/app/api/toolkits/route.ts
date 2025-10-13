@@ -145,15 +145,22 @@ export async function GET(req: NextRequest) {
 
     // Fetch existing selections if missionId provided
     let selectedSlugs: string[] = [];
+    let selectionDetails: Array<{
+      slug: string;
+      metadata: Record<string, unknown> | null;
+      authMode: string | null;
+      connectionStatus: string | null;
+      undoToken: string | null;
+    }> = [];
     if (missionId) {
       type ToolkitSelection = Pick<
         Database["public"]["Tables"]["toolkit_selections"]["Row"],
-        "toolkit_id"
+        "toolkit_id" | "metadata" | "auth_mode" | "connection_status" | "undo_token"
       >;
 
       const { data: selectionRows } = await dbClient
         .from("toolkit_selections")
-        .select("toolkit_id")
+        .select("toolkit_id, metadata, auth_mode, connection_status, undo_token")
         .eq("mission_id", missionId)
         .eq("tenant_id", tenantId);
 
@@ -162,6 +169,22 @@ export async function GET(req: NextRequest) {
         selectedSlugs = rows
           .map((row) => row.toolkit_id)
           .filter((slug): slug is string => typeof slug === "string" && slug.length > 0);
+        const normalizedDetails = rows
+          .map((row) => ({
+            slug: typeof row.toolkit_id === "string" ? row.toolkit_id : null,
+            metadata: (row.metadata ?? {}) as Record<string, unknown> | null,
+            authMode: row.auth_mode,
+            connectionStatus: row.connection_status,
+            undoToken: row.undo_token,
+          }))
+          .filter((entry) => entry.slug !== null);
+        selectionDetails = normalizedDetails as Array<{
+          slug: string;
+          metadata: Record<string, unknown> | null;
+          authMode: string | null;
+          connectionStatus: string | null;
+          undoToken: string | null;
+        }>;
       }
     }
 
@@ -180,6 +203,18 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       toolkits,
       selected: selectedSlugs,
+      selectionDetails: selectionDetails.map((detail) => ({
+        slug: detail.slug,
+        name: typeof detail.metadata?.name === "string" ? detail.metadata?.name : null,
+        category: typeof detail.metadata?.category === "string" ? detail.metadata?.category : null,
+        authMode: detail.authMode,
+        noAuth:
+          detail.metadata && typeof detail.metadata.noAuth === "boolean"
+            ? detail.metadata.noAuth
+            : undefined,
+        undoToken: detail.undoToken,
+        connectionStatus: detail.connectionStatus,
+      })),
     });
   } catch (error) {
     console.error("Error fetching toolkits:", error);

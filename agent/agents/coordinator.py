@@ -18,6 +18,7 @@ from ..tools.composio_client import ComposioCatalogClient
 from .evidence import EvidenceAgent
 from .execution_loop import ExecutionLoopAgent
 from .executor import DryRunExecutorAgent
+from .inspection import InspectionAgent
 from .intake import IntakeAgent
 from .planner import PlannerAgent
 from .state import MISSION_CONTEXT_KEY
@@ -159,6 +160,11 @@ class CoordinatorAgent(SequentialAgent):
             telemetry=shared_telemetry,
             streamer=shared_streamer,
         )
+        inspection = InspectionAgent(
+            supabase=shared_supabase,
+            telemetry=shared_telemetry,
+            streamer=shared_streamer,
+        )
         planner = PlannerAgent(
             supabase=shared_supabase,
             telemetry=shared_telemetry,
@@ -190,6 +196,7 @@ class CoordinatorAgent(SequentialAgent):
         )
 
         intake.before_agent_callback = self._stage_callback("intake_stage_started")
+        inspection.before_agent_callback = self._stage_callback("inspection_stage_started")
         planner.before_agent_callback = self._planner_gate_callback()
         execution_loop.before_agent_callback = self._stage_callback(
             "execution_loop_started"
@@ -200,7 +207,7 @@ class CoordinatorAgent(SequentialAgent):
             supabase=shared_supabase,
             telemetry=shared_telemetry,
             max_retries=max_retries,
-            sub_agents=[intake, planner, execution_loop],
+            sub_agents=[intake, inspection, planner, execution_loop],
         )
 
         object.__setattr__(self, "supabase", shared_supabase)

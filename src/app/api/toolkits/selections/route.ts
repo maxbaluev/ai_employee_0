@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 
@@ -113,13 +114,15 @@ export async function POST(request: NextRequest) {
         const authMode = selection.noAuth ? 'none' : selection.authType?.toLowerCase() ?? 'oauth';
         const connectionStatus = selection.noAuth ? 'not_required' : 'not_linked';
 
+        const undoToken = randomUUID();
+
         return {
           tenant_id: tenantId,
           mission_id: parsed.data.missionId,
           toolkit_id: slug,
           auth_mode: authMode,
           connection_status: connectionStatus,
-          undo_token: null,
+          undo_token: undoToken,
           metadata: {
             name: selection.name,
             category: selection.category ?? null,

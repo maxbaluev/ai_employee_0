@@ -13,6 +13,7 @@ export type ArtifactGalleryArtifact = {
   hash?: string | null;
   checksum?: string | null;
   evidence_hash?: string | null;
+  undo_token?: string | null;
 };
 
 type ArtifactGalleryProps = PropsWithChildren<{
@@ -125,6 +126,7 @@ export function ArtifactGallery({
           artifact_id: artifact.artifact_id,
           title: artifact.title,
           status: artifact.status,
+          undo_token: artifact.undo_token ?? null,
         },
       });
     }

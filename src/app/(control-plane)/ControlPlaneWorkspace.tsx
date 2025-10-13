@@ -1055,6 +1055,7 @@ function ControlPlaneWorkspaceContent({
       void undoFlow.requestUndo({
         toolCallId: artifact.artifact_id,
         reason: "User requested dry-run rollback",
+        undoToken: artifact.undo_token ?? undefined,
       });
     },
     [undoFlow],

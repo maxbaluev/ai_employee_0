@@ -1236,6 +1236,7 @@ describe('ControlPlaneWorkspace Evidence Gallery Stage 7 flow', () => {
           title: 'Test Artifact',
           summary: 'This artifact should be rolled back',
           status: 'draft',
+          undo_token: 'token-rollback-123',
         },
       ];
 
@@ -1282,6 +1283,10 @@ describe('ControlPlaneWorkspace Evidence Gallery Stage 7 flow', () => {
             body: expect.stringContaining('artifact-rollback-123'),
           }),
         );
+        const [, requestInit] = fetchMock.mock.calls.find((call) => call[0] === '/api/undo') ?? [];
+        if (requestInit && typeof requestInit.body === 'string') {
+          expect(requestInit.body).toContain('token-rollback-123');
+        }
       });
     });
 
@@ -1293,6 +1298,7 @@ describe('ControlPlaneWorkspace Evidence Gallery Stage 7 flow', () => {
           title: 'Telemetry Test Artifact',
           summary: 'Testing undo telemetry',
           status: 'draft',
+          undo_token: 'token-telemetry',
         },
       ];
 
@@ -1337,6 +1343,7 @@ describe('ControlPlaneWorkspace Evidence Gallery Stage 7 flow', () => {
             eventData: expect.objectContaining({
               tool_call_id: 'artifact-telemetry-test',
               reason: 'User requested dry-run rollback',
+              undo_token: 'token-telemetry',
             }),
           }),
         );

@@ -1,6 +1,6 @@
 /plan see on all files at /new_docs after see on all txt filex inside /libs_docs folder, read full txt content. After plan next steps for Gate G-B source code implementation
 
-/code see on all files at /new_docs after see on all txt filex inside /libs_docs folder, read full txt content. After Understand current codebase and implement source code for Gate G-B — Code Refactoring & Cleanup Checkpoints, after implementation run tests, fix errors in them and fill todo checkboxes
+/code see on all files at /new_docs after see on all txt filex inside /libs_docs folder, read full txt content. After understand current codebase, and implement next logical steps at new_docs/todo.md, test and verify it.
 
 
 /auto Read all full files at /new_docs. After Understand current codebase and implement source code based on todo.md. See /libs_docs when you need library knowledge
