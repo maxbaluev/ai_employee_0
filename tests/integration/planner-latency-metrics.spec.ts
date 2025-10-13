@@ -1,5 +1,6 @@
 import { spawnSync } from 'node:child_process';
 
+import { NextRequest } from 'next/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createClient } from '@supabase/supabase-js';
@@ -147,7 +148,9 @@ describe('GET /api/planner/runs', () => {
     const { GET } = await import('@/app/api/planner/runs/route');
 
     const response = await GET(
-      new Request(`http://localhost/api/planner/runs?tenantId=${tenantId}&missionId=${missionId}&limit=25`),
+      new NextRequest(
+        `http://localhost/api/planner/runs?tenantId=${tenantId}&missionId=${missionId}&limit=25`,
+      ),
     );
 
     expect(fromMock).toHaveBeenCalledWith('planner_runs');
@@ -190,7 +193,7 @@ describe('GET /api/planner/runs', () => {
 
     const { GET } = await import('@/app/api/planner/runs/route');
 
-    const response = await GET(new Request(`http://localhost/api/planner/runs?tenantId=${tenantId}`));
+    const response = await GET(new NextRequest(`http://localhost/api/planner/runs?tenantId=${tenantId}`));
 
     expect(filters).toEqual([{ column: 'tenant_id', value: tenantId }]);
     expect(appliedLimit).toBe(50); // default limit

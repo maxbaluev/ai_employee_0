@@ -1,4 +1,4 @@
-import { render, waitFor, screen, within } from '@testing-library/react';
+import { act, render, waitFor, screen, within } from '@testing-library/react';
 import { beforeAll, afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MissionStageProvider } from '@/components/mission-stages';
 
@@ -43,16 +43,18 @@ function getStageNode(label: string) {
 
 describe('Gate G-B CopilotKit session restore', () => {
   it('loads persisted session state on mount', async () => {
-    render(
-      <MissionStageProvider tenantId="tenant-copilot" missionId={null}>
-        <ControlPlaneWorkspace
-          tenantId="tenant-copilot"
-          initialObjectiveId={null}
-          initialArtifacts={[]}
-          catalogSummary={{ total_entries: 0, toolkits: 0, categories: [] }}
-        />
-      </MissionStageProvider>,
-    );
+    await act(async () => {
+      render(
+        <MissionStageProvider tenantId="tenant-copilot" missionId={null}>
+          <ControlPlaneWorkspace
+            tenantId="tenant-copilot"
+            initialObjectiveId={null}
+            initialArtifacts={[]}
+            catalogSummary={{ total_entries: 0, toolkits: 0, categories: [] }}
+          />
+        </MissionStageProvider>,
+      );
+    });
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
@@ -96,16 +98,18 @@ describe('Gate G-B CopilotKit session restore', () => {
       } as Response;
     });
 
-    render(
-      <MissionStageProvider tenantId="tenant-copilot" missionId="mission-resume">
-        <ControlPlaneWorkspace
-          tenantId="tenant-copilot"
-          initialObjectiveId="mission-resume"
-          initialArtifacts={[]}
-          catalogSummary={{ total_entries: 0, toolkits: 0, categories: [] }}
-        />
-      </MissionStageProvider>,
-    );
+    await act(async () => {
+      render(
+        <MissionStageProvider tenantId="tenant-copilot" missionId="mission-resume">
+          <ControlPlaneWorkspace
+            tenantId="tenant-copilot"
+            initialObjectiveId="mission-resume"
+            initialArtifacts={[]}
+            catalogSummary={{ total_entries: 0, toolkits: 0, categories: [] }}
+          />
+        </MissionStageProvider>,
+      );
+    });
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(

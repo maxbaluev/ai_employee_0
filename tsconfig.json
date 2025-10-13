@@ -13,6 +13,7 @@
     "isolatedModules": true,
     "jsx": "preserve",
     "incremental": true,
+    "types": ["vitest/globals", "node"],
     "plugins": [
       {
         "name": "next"
@@ -23,6 +24,12 @@
       "@supabase/types": ["./supabase/types"]
     }
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-  "exclude": ["node_modules"]
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", "types/**/*.d.ts"],
+  "exclude": [
+    "node_modules",
+    ".next",
+    "tests",
+    "**/*.test.ts",
+    "**/*.test.tsx"
+  ]
 }

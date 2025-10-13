@@ -235,48 +235,6 @@ export type Database = {
         }
         Relationships: []
       }
-      guardrail_profiles: {
-        Row: {
-          budget_cap: Json
-          created_at: string
-          escalation_contacts: Json
-          id: string
-          label: string
-          quiet_hours: Json
-          rate_limit: Json
-          tenant_id: string
-          tone_policy: Json
-          undo_required: boolean
-          updated_at: string
-        }
-        Insert: {
-          budget_cap?: Json
-          created_at?: string
-          escalation_contacts?: Json
-          id?: string
-          label: string
-          quiet_hours?: Json
-          rate_limit?: Json
-          tenant_id: string
-          tone_policy?: Json
-          undo_required?: boolean
-          updated_at?: string
-        }
-        Update: {
-          budget_cap?: Json
-          created_at?: string
-          escalation_contacts?: Json
-          id?: string
-          label?: string
-          quiet_hours?: Json
-          rate_limit?: Json
-          tenant_id?: string
-          tone_policy?: Json
-          undo_required?: boolean
-          updated_at?: string
-        }
-        Relationships: []
-      }
       inspection_findings: {
         Row: {
           created_at: string
@@ -308,6 +266,50 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "inspection_findings_mission_id_fkey"
+            columns: ["mission_id"]
+            isOneToOne: false
+            referencedRelation: "objectives"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inspection_requests: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          id: string
+          latency_ms: number | null
+          mission_id: string
+          request_payload: Json
+          response_payload: Json | null
+          status: string
+          tenant_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          latency_ms?: number | null
+          mission_id: string
+          request_payload?: Json
+          response_payload?: Json | null
+          status?: string
+          tenant_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          latency_ms?: number | null
+          mission_id?: string
+          request_payload?: Json
+          response_payload?: Json | null
+          status?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inspection_requests_mission_id_fkey"
             columns: ["mission_id"]
             isOneToOne: false
             referencedRelation: "objectives"
@@ -439,42 +441,6 @@ export type Database = {
           },
           {
             foreignKeyName: "mission_feedback_mission_id_fkey"
-            columns: ["mission_id"]
-            isOneToOne: false
-            referencedRelation: "objectives"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      mission_guardrails: {
-        Row: {
-          custom_overrides: Json | null
-          effective_at: string
-          guardrail_profile_id: string
-          mission_id: string
-        }
-        Insert: {
-          custom_overrides?: Json | null
-          effective_at?: string
-          guardrail_profile_id: string
-          mission_id: string
-        }
-        Update: {
-          custom_overrides?: Json | null
-          effective_at?: string
-          guardrail_profile_id?: string
-          mission_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "mission_guardrails_guardrail_profile_id_fkey"
-            columns: ["guardrail_profile_id"]
-            isOneToOne: false
-            referencedRelation: "guardrail_profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "mission_guardrails_mission_id_fkey"
             columns: ["mission_id"]
             isOneToOne: false
             referencedRelation: "objectives"
@@ -675,11 +641,11 @@ export type Database = {
           created_at: string
           embedding_similarity_avg: number | null
           id: string
+          impact_score: number | null
           latency_ms: number
           metadata: Json | null
           mission_id: string
           mode: string
-          impact_score: number | null
           pinned_at: string | null
           primary_toolkits: string[] | null
           reason_markdown: string | null
@@ -691,11 +657,11 @@ export type Database = {
           created_at?: string
           embedding_similarity_avg?: number | null
           id?: string
+          impact_score?: number | null
           latency_ms: number
           metadata?: Json | null
           mission_id: string
           mode?: string
-          impact_score?: number | null
           pinned_at?: string | null
           primary_toolkits?: string[] | null
           reason_markdown?: string | null
@@ -707,11 +673,11 @@ export type Database = {
           created_at?: string
           embedding_similarity_avg?: number | null
           id?: string
+          impact_score?: number | null
           latency_ms?: number
           metadata?: Json | null
           mission_id?: string
           mode?: string
-          impact_score?: number | null
           pinned_at?: string | null
           primary_toolkits?: string[] | null
           reason_markdown?: string | null
@@ -828,6 +794,54 @@ export type Database = {
           },
         ]
       }
+      simulated_results: {
+        Row: {
+          created_at: string
+          evidence_hash: string | null
+          execution_mode: string
+          id: string
+          mission_id: string | null
+          simulated_output: Json
+          tenant_id: string
+          tool_call_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          evidence_hash?: string | null
+          execution_mode?: string
+          id?: string
+          mission_id?: string | null
+          simulated_output?: Json
+          tenant_id: string
+          tool_call_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          evidence_hash?: string | null
+          execution_mode?: string
+          id?: string
+          mission_id?: string | null
+          simulated_output?: Json
+          tenant_id?: string
+          tool_call_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "simulated_results_mission_id_fkey"
+            columns: ["mission_id"]
+            isOneToOne: false
+            referencedRelation: "objectives"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "simulated_results_tool_call_id_fkey"
+            columns: ["tool_call_id"]
+            isOneToOne: false
+            referencedRelation: "tool_calls"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tool_calls: {
         Row: {
           arguments: Json
@@ -893,6 +907,53 @@ export type Database = {
           },
         ]
       }
+      toolkit_connections: {
+        Row: {
+          auth_mode: string | null
+          connection_id: string
+          created_at: string
+          id: string
+          metadata: Json
+          mission_id: string | null
+          status: string
+          tenant_id: string
+          toolkit: string
+          updated_at: string
+        }
+        Insert: {
+          auth_mode?: string | null
+          connection_id: string
+          created_at?: string
+          id?: string
+          metadata?: Json
+          mission_id?: string | null
+          status?: string
+          tenant_id: string
+          toolkit: string
+          updated_at?: string
+        }
+        Update: {
+          auth_mode?: string | null
+          connection_id?: string
+          created_at?: string
+          id?: string
+          metadata?: Json
+          mission_id?: string | null
+          status?: string
+          tenant_id?: string
+          toolkit?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "toolkit_connections_mission_id_fkey"
+            columns: ["mission_id"]
+            isOneToOne: false
+            referencedRelation: "objectives"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       toolkit_selections: {
         Row: {
           auth_mode: string | null
@@ -938,26 +999,82 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "toolkit_selections_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "toolkit_selections_mission_id_fkey"
             columns: ["mission_id"]
             isOneToOne: false
             referencedRelation: "objectives"
             referencedColumns: ["id"]
           },
+        ]
+      }
+      undo_events: {
+        Row: {
+          artifact_id: string | null
+          completed_at: string | null
+          created_at: string
+          error_message: string | null
+          executed_at: string | null
+          id: string
+          metadata: Json
+          mission_id: string | null
+          reason: string | null
+          status: string
+          tenant_id: string
+          tool_call_id: string | null
+          undo_token: string | null
+        }
+        Insert: {
+          artifact_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          error_message?: string | null
+          executed_at?: string | null
+          id?: string
+          metadata?: Json
+          mission_id?: string | null
+          reason?: string | null
+          status?: string
+          tenant_id: string
+          tool_call_id?: string | null
+          undo_token?: string | null
+        }
+        Update: {
+          artifact_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          error_message?: string | null
+          executed_at?: string | null
+          id?: string
+          metadata?: Json
+          mission_id?: string | null
+          reason?: string | null
+          status?: string
+          tenant_id?: string
+          tool_call_id?: string | null
+          undo_token?: string | null
+        }
+        Relationships: [
           {
-            foreignKeyName: "toolkit_selections_tenant_id_fkey"
-            columns: ["tenant_id"]
+            foreignKeyName: "undo_events_artifact_id_fkey"
+            columns: ["artifact_id"]
             isOneToOne: false
-            referencedRelation: "users"
+            referencedRelation: "artifacts"
             referencedColumns: ["id"]
-          }
+          },
+          {
+            foreignKeyName: "undo_events_mission_id_fkey"
+            columns: ["mission_id"]
+            isOneToOne: false
+            referencedRelation: "objectives"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "undo_events_tool_call_id_fkey"
+            columns: ["tool_call_id"]
+            isOneToOne: false
+            referencedRelation: "tool_calls"
+            referencedColumns: ["id"]
+          },
         ]
       }
     }
@@ -1070,7 +1187,7 @@ export type Database = {
       }
       l2_normalize: {
         Args: { "": string } | { "": unknown } | { "": unknown }
-        Returns: string
+        Returns: unknown
       }
       match_library_entries: {
         Args: { match_count: number; query_embedding: string }

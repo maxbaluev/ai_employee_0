@@ -12,8 +12,14 @@ const querySchema = z.object({
   tenantId: z.string().uuid().optional(),
 });
 
-type MissionMetadataRow = Database["public"]["Tables"]["mission_metadata"]["Row"];
-type MissionSafeguardRow = Database["public"]["Tables"]["mission_safeguards"]["Row"];
+type MissionMetadataRow = Pick<
+  Database["public"]["Tables"]["mission_metadata"]["Row"],
+  "field" | "value" | "confidence"
+>;
+type MissionSafeguardRow = Pick<
+  Database["public"]["Tables"]["mission_safeguards"]["Row"],
+  "hint_type" | "suggested_value" | "status"
+>;
 
 export const runtime = "nodejs";
 
@@ -126,9 +132,10 @@ function normalizeMetadata(
     .map((hint) => {
       const suggested = hint.suggested_value as { text?: string } | null;
       const text = suggested?.text;
-      return text ? { hintType: hint.hint_type, text } : null;
+      const hintType = hint.hint_type ?? "unspecified";
+      return text ? { hintType, text } : null;
     })
-    .filter((entry): entry is { hintType: string | null; text: string } => entry !== null);
+    .filter((entry): entry is { hintType: string; text: string } => entry !== null);
 
   return {
     objective,

@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ControlPlaneWorkspace } from '@/app/(control-plane)/ControlPlaneWorkspace';
@@ -66,14 +66,16 @@ beforeEach(() => {
 
 describe('Gate G-B Copilot session hydration telemetry regression', () => {
   it('does not emit duplicate stage telemetry or advance pending stages on hydration', async () => {
-    render(
-      <ControlPlaneWorkspace
-        tenantId="tenant-hydration"
-        initialObjectiveId={null}
-        initialArtifacts={[]}
-        catalogSummary={{ total_entries: 0, toolkits: 0, categories: [] }}
-      />,
-    );
+    await act(async () => {
+      render(
+        <ControlPlaneWorkspace
+          tenantId="tenant-hydration"
+          initialObjectiveId={null}
+          initialArtifacts={[]}
+          catalogSummary={{ total_entries: 0, toolkits: 0, categories: [] }}
+        />,
+      );
+    });
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(

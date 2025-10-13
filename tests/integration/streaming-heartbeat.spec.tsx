@@ -1,4 +1,4 @@
-import { render, waitFor } from '@testing-library/react';
+import { act, render, waitFor } from '@testing-library/react';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { StreamingStatusPanel } from '@/components/StreamingStatusPanel';
@@ -56,18 +56,9 @@ afterAll(() => {
 
 describe('Gate G-B streaming heartbeat telemetry', () => {
   it('enforces 5s p95 heartbeat SLA with a single telemetry dispatch', async () => {
-    const { rerender } = render(
-      <StreamingStatusPanel
-        tenantId="tenant-telemetry"
-        agentId="agent-x"
-        sessionIdentifier="session-alpha"
-        pollIntervalMs={1000}
-      />,
-    );
-
-    for (let i = 1; i < heartbeatState.samples.length; i += 1) {
-      heartbeatState.index = i;
-      rerender(
+    let rerenderResult: ReturnType<typeof render> | undefined;
+    await act(async () => {
+      rerenderResult = render(
         <StreamingStatusPanel
           tenantId="tenant-telemetry"
           agentId="agent-x"
@@ -75,6 +66,22 @@ describe('Gate G-B streaming heartbeat telemetry', () => {
           pollIntervalMs={1000}
         />,
       );
+    });
+
+    const { rerender } = rerenderResult!;
+
+    for (let i = 1; i < heartbeatState.samples.length; i += 1) {
+      heartbeatState.index = i;
+      await act(async () => {
+        rerender(
+          <StreamingStatusPanel
+            tenantId="tenant-telemetry"
+            agentId="agent-x"
+            sessionIdentifier="session-alpha"
+            pollIntervalMs={1000}
+          />,
+        );
+      });
     }
 
     await waitFor(() => {

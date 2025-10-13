@@ -83,7 +83,10 @@ export function PlannerInsightRail({
 
   const stats = useMemo<PlannerStats>(() => {
     const telemetryRow = plannerRuns[0] ?? {};
-    const metadata = typeof telemetryRow.metadata === 'object' && telemetryRow.metadata !== null ? telemetryRow.metadata : {};
+    const metadata =
+      typeof telemetryRow.metadata === 'object' && telemetryRow.metadata !== null
+        ? (telemetryRow.metadata as Record<string, unknown>)
+        : {};
 
     const latencyMs = pickNumber([
       rankEvent?.metadata?.latency_ms,
@@ -105,7 +108,8 @@ export function PlannerInsightRail({
       telemetryRow.primary_toolkits,
     ]);
 
-    const objective = typeof metadata.objective === 'string' ? metadata.objective : undefined;
+    const rawObjective = metadata['objective'];
+    const objective = typeof rawObjective === 'string' ? rawObjective : undefined;
 
     return {
       latencyMs,

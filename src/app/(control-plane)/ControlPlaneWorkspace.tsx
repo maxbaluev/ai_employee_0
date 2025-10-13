@@ -166,7 +166,7 @@ function ControlPlaneWorkspaceContent({
   const [objectiveId, setObjectiveId] = useState<string | undefined | null>(initialObjectiveId);
   const [isSidebarReady, setIsSidebarReady] = useState(false);
   const [workspaceAlert, setWorkspaceAlert] = useState<
-    { tone: "success" | "error" | "info"; message: string } | null
+    { tone: "success" | "error" | "info" | "warning"; message: string } | null
   >(null);
   const [selectedToolkitsCount, setSelectedToolkitsCount] = useState(0);
   const [isFeedbackDrawerOpen, setFeedbackDrawerOpen] = useState(false);

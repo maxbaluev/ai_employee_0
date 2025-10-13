@@ -1,4 +1,4 @@
-import { render } from '@testing-library/react';
+import { act, render } from '@testing-library/react';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ControlPlaneWorkspace } from '@/app/(control-plane)/ControlPlaneWorkspace';
@@ -37,14 +37,16 @@ beforeEach(() => {
 
 describe('Gate G-B CopilotKit session exit determinism', () => {
   it('persists a single terminal message even if exit is invoked twice', async () => {
-    render(
-      <ControlPlaneWorkspace
-        tenantId="tenant-copilot"
-        initialObjectiveId={null}
-        initialArtifacts={[]}
-        catalogSummary={{ total_entries: 0, toolkits: 0, categories: [] }}
-      />,
-    );
+    await act(async () => {
+      render(
+        <ControlPlaneWorkspace
+          tenantId="tenant-copilot"
+          initialObjectiveId={null}
+          initialArtifacts={[]}
+          catalogSummary={{ total_entries: 0, toolkits: 0, categories: [] }}
+        />,
+      );
+    });
 
     const exitAction = actionRegistry.actions.find((action) => action.name === 'copilotkit_exit');
     expect(exitAction).toBeDefined();
@@ -53,8 +55,10 @@ describe('Gate G-B CopilotKit session exit determinism', () => {
       ([url]) => typeof url === 'string' && url.includes('/api/copilotkit/message'),
     ).length;
 
-    await exitAction?.handler({ reason: 'completed' });
-    await exitAction?.handler({ reason: 'completed' });
+    await act(async () => {
+      await exitAction?.handler({ reason: 'completed' });
+      await exitAction?.handler({ reason: 'completed' });
+    });
 
     const messageCallsAfter = fetchMock.mock.calls.filter(
       ([url]) => typeof url === 'string' && url.includes('/api/copilotkit/message'),

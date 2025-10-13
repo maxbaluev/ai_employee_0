@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useEffect } from 'react';
@@ -141,14 +141,16 @@ describe('Gate G-B eight-stage flow readiness', () => {
     try {
       const user = userEvent.setup();
 
-      render(
-        <ControlPlaneWorkspace
-          tenantId="tenant-under-test"
-          initialObjectiveId={null}
-          initialArtifacts={[]}
-          catalogSummary={{ total_entries: 0, toolkits: 0, categories: [] }}
-        />,
-      );
+      await act(async () => {
+        render(
+          <ControlPlaneWorkspace
+            tenantId="tenant-under-test"
+            initialObjectiveId={null}
+            initialArtifacts={[]}
+            catalogSummary={{ total_entries: 0, toolkits: 0, categories: [] }}
+          />,
+        );
+      });
 
       await user.click(await screen.findByRole('button', { name: 'Complete Intake' }));
       await user.click(await screen.findByRole('button', { name: 'Continue Toolkits' }));

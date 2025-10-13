@@ -6,7 +6,10 @@ import { getServiceSupabaseClient } from '@/lib/supabase/service';
 import type { Database, Json } from '@supabase/types';
 
 type SupabaseClient = ReturnType<typeof getServiceSupabaseClient>;
-type MissionSafeguardRow = Database['public']['Tables']['mission_safeguards']['Row'];
+type MissionSafeguardRow = Pick<
+  Database['public']['Tables']['mission_safeguards']['Row'],
+  'id' | 'hint_type' | 'suggested_value' | 'status' | 'generation_count'
+>;
 type MissionSafeguardUpdate = Database['public']['Tables']['mission_safeguards']['Update'];
 
 const acceptAllSchema = z.object({
@@ -225,7 +228,7 @@ async function handleEdit(
   text: string,
 ): Promise<MutationResult> {
   const existing = await fetchSafeguard(supabase, tenantId, missionId, hintId);
-  const suggestedValue = normalizeSuggestedValue(existing?.suggested_value);
+  const suggestedValue = normalizeSuggestedValue(existing?.suggested_value ?? null);
   suggestedValue.text = text;
 
   const update: MissionSafeguardUpdate = {
@@ -273,7 +276,7 @@ async function handleTogglePin(
   pinned: boolean,
 ): Promise<MutationResult> {
   const existing = await fetchSafeguard(supabase, tenantId, missionId, hintId);
-  const suggestedValue = normalizeSuggestedValue(existing?.suggested_value);
+  const suggestedValue = normalizeSuggestedValue(existing?.suggested_value ?? null);
   suggestedValue.pinned = pinned;
 
   const update: MissionSafeguardUpdate = {
@@ -368,7 +371,7 @@ async function fetchSafeguard(
 ): Promise<MissionSafeguardRow | null> {
   const { data, error } = await supabase
     .from('mission_safeguards')
-    .select('id, suggested_value, generation_count')
+    .select('id, hint_type, suggested_value, status, generation_count')
     .eq('tenant_id', tenantId)
     .eq('mission_id', missionId)
     .eq('id', hintId)
@@ -385,9 +388,14 @@ async function fetchSafeguard(
   return data;
 }
 
-function normalizeSuggestedValue(value: MissionSafeguardRow['suggested_value']): Record<string, unknown> {
-  if (value && typeof value === 'object') {
-    return { ...(value as Record<string, unknown>) };
+type SuggestedValue = Record<string, Json | undefined> & {
+  text?: string;
+  pinned?: boolean;
+};
+
+function normalizeSuggestedValue(value: MissionSafeguardRow['suggested_value']): SuggestedValue {
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    return { ...(value as SuggestedValue) };
   }
   return {};
 }

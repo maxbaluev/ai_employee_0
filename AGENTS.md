@@ -13,6 +13,7 @@
 - Bootstrap the toolchain (trust→install) from the repo root:
   - `mise trust`
   - `mise install`
+  - `mise env`
   - `mise run install` (wraps `pnpm install` for the workspace)
   - `mise run agent-deps` (syncs Python deps via `uv` and `agent/requirements.txt`)
 - Expected pinned versions (`mise current`): Node `22.20.0`, Python `3.13.7`, pnpm `10.18.0`, uv `0.9.2`.

@@ -359,6 +359,12 @@ afterEach(() => {
 
 const { ControlPlaneWorkspace } = await import('@/app/(control-plane)/ControlPlaneWorkspace');
 
+async function renderWithAct(ui: React.ReactElement) {
+  await act(async () => {
+    render(ui);
+  });
+}
+
 function getStageNode(label: string) {
   const nav = screen.getByRole('navigation', { name: /mission stage progression/i });
   const allStages = within(nav).getAllByRole('listitem');
@@ -436,7 +442,7 @@ describe('ControlPlaneWorkspace stage 5 flow', () => {
     const user = userEvent.setup();
     telemetryMock.mockReset();
 
-    render(
+    await renderWithAct(
       <ControlPlaneWorkspace
         tenantId={tenantId}
         initialObjectiveId={null}
@@ -468,7 +474,7 @@ describe('ControlPlaneWorkspace stage 5 flow', () => {
   it('marks Plan stage complete and emits telemetry when planner selection occurs', async () => {
     const user = userEvent.setup();
 
-    render(
+    await renderWithAct(
       <ControlPlaneWorkspace
         tenantId={tenantId}
         initialObjectiveId={null}
@@ -552,7 +558,7 @@ describe('ControlPlaneWorkspace Gate G-B gating', () => {
   it('keeps Dry Run active (not completed) immediately after plan selection', async () => {
     const user = userEvent.setup();
 
-    render(
+    await renderWithAct(
       <ControlPlaneWorkspace
         tenantId={tenantId}
         initialObjectiveId={null}
@@ -578,7 +584,7 @@ describe('ControlPlaneWorkspace Gate G-B gating', () => {
   it('completes Dry Run only after StreamingStatusPanel exit callback is invoked', async () => {
     const user = userEvent.setup();
 
-    render(
+    await renderWithAct(
       <ControlPlaneWorkspace
         tenantId={tenantId}
         initialObjectiveId={null}
@@ -625,7 +631,7 @@ describe('ControlPlaneWorkspace Gate G-B gating', () => {
   it('marks Feedback stage as current when the drawer is opened', async () => {
     const user = userEvent.setup();
 
-    render(
+    await renderWithAct(
       <ControlPlaneWorkspace
         tenantId={tenantId}
         initialObjectiveId={null}
@@ -668,7 +674,7 @@ describe('ControlPlaneWorkspace mission brief integration', () => {
   it('renders Mission Brief card after intake acceptance', async () => {
     const user = userEvent.setup();
 
-    render(
+    await renderWithAct(
       <ControlPlaneWorkspace
         tenantId={tenantId}
         initialObjectiveId={null}
@@ -727,7 +733,7 @@ describe('ControlPlaneWorkspace mission brief integration', () => {
           );
     });
 
-    render(
+    await renderWithAct(
       <ControlPlaneWorkspace
         tenantId={tenantId}
         initialObjectiveId={missionIdentifier}
@@ -843,7 +849,7 @@ describe('ControlPlaneWorkspace copilot session persistence', () => {
     });
 
     try {
-      render(
+      await renderWithAct(
         <ControlPlaneWorkspace
           tenantId={tenantId}
           initialObjectiveId={null}
@@ -878,8 +884,8 @@ describe('ControlPlaneWorkspace Feedback Drawer integration', () => {
   const tenantId = '00000000-0000-0000-0000-000000000000';
   const missionId = '11111111-1111-1111-1111-111111111111';
 
-  function renderWorkspace(initialArtifacts: ArtifactGalleryArtifact[] = []) {
-    render(
+  async function renderWorkspace(initialArtifacts: ArtifactGalleryArtifact[] = []) {
+    await renderWithAct(
       <ControlPlaneWorkspace
         tenantId={tenantId}
         initialObjectiveId={null}
@@ -891,7 +897,7 @@ describe('ControlPlaneWorkspace Feedback Drawer integration', () => {
 
   it('renders feedback drawer trigger once Evidence stage is active', async () => {
     const user = userEvent.setup();
-    renderWorkspace();
+    await renderWorkspace();
 
     expect(screen.queryByRole('button', { name: 'Open Feedback Drawer' })).not.toBeInTheDocument();
 
@@ -909,7 +915,7 @@ describe('ControlPlaneWorkspace Feedback Drawer integration', () => {
 
   it('opens feedback drawer, focuses comments field, and closes on Escape', async () => {
     const user = userEvent.setup();
-    renderWorkspace();
+    await renderWorkspace();
 
     await advanceToEvidenceStage(user);
 
@@ -934,7 +940,7 @@ describe('ControlPlaneWorkspace Feedback Drawer integration', () => {
 
   it('renders safeguard drawer and Accept All emits telemetry', async () => {
     const user = userEvent.setup();
-    renderWorkspace();
+    await renderWorkspace();
 
     await advanceToEvidenceStage(user);
 
@@ -956,7 +962,7 @@ describe('ControlPlaneWorkspace Feedback Drawer integration', () => {
 
   it('submits mission feedback via API, records telemetry, and keeps Feedback stage current', async () => {
     const user = userEvent.setup();
-    renderWorkspace([
+    await renderWorkspace([
       {
         artifact_id: 'artifact-initial-001',
         title: 'Initial Evidence',
@@ -1104,7 +1110,7 @@ describe('ControlPlaneWorkspace reviewer integration', () => {
           );
     });
 
-    render(
+    await renderWithAct(
       <ControlPlaneWorkspace
         tenantId={tenantId}
         initialObjectiveId={null}
@@ -1198,7 +1204,7 @@ describe('ControlPlaneWorkspace Evidence Gallery Stage 7 flow', () => {
         },
       ];
 
-      render(
+      await renderWithAct(
         <ControlPlaneWorkspace
           tenantId={tenantId}
           initialObjectiveId={missionId}
@@ -1253,7 +1259,7 @@ describe('ControlPlaneWorkspace Evidence Gallery Stage 7 flow', () => {
         );
       });
 
-      render(
+      await renderWithAct(
         <ControlPlaneWorkspace
           tenantId={tenantId}
           initialObjectiveId={missionId}
@@ -1310,7 +1316,7 @@ describe('ControlPlaneWorkspace Evidence Gallery Stage 7 flow', () => {
         );
       });
 
-      render(
+      await renderWithAct(
         <ControlPlaneWorkspace
           tenantId={tenantId}
           initialObjectiveId={missionId}
@@ -1368,7 +1374,7 @@ describe('ControlPlaneWorkspace Evidence Gallery Stage 7 flow', () => {
         );
       });
 
-      render(
+      await renderWithAct(
         <ControlPlaneWorkspace
           tenantId={tenantId}
           initialObjectiveId={missionId}
@@ -1416,7 +1422,7 @@ describe('ControlPlaneWorkspace Evidence Gallery Stage 7 flow', () => {
         );
       });
 
-      render(
+      await renderWithAct(
         <ControlPlaneWorkspace
           tenantId={tenantId}
           initialObjectiveId={missionId}
@@ -1464,7 +1470,7 @@ describe('ControlPlaneWorkspace Evidence Gallery Stage 7 flow', () => {
         );
       });
 
-      render(
+      await renderWithAct(
         <ControlPlaneWorkspace
           tenantId={tenantId}
           initialObjectiveId={missionId}
@@ -1512,7 +1518,7 @@ describe('ControlPlaneWorkspace Evidence Gallery Stage 7 flow', () => {
         );
       });
 
-      render(
+      await renderWithAct(
         <ControlPlaneWorkspace
           tenantId={tenantId}
           initialObjectiveId={missionId}
@@ -1555,7 +1561,7 @@ describe('ControlPlaneWorkspace Evidence Gallery Stage 7 flow', () => {
     it('marks Evidence stage complete when artifacts are added during Evidence stage', async () => {
       const user = userEvent.setup();
 
-      render(
+      await renderWithAct(
         <ControlPlaneWorkspace
           tenantId={tenantId}
           initialObjectiveId={missionId}
@@ -1621,7 +1627,7 @@ describe('ControlPlaneWorkspace Evidence Gallery Stage 7 flow', () => {
         },
       ];
 
-      render(
+      await renderWithAct(
         <ControlPlaneWorkspace
           tenantId={tenantId}
           initialObjectiveId={missionId}
@@ -1648,7 +1654,7 @@ describe('ControlPlaneWorkspace Evidence Gallery Stage 7 flow', () => {
     it('emits stage completion telemetry when Evidence stage completes', async () => {
       const user = userEvent.setup();
 
-      render(
+      await renderWithAct(
         <ControlPlaneWorkspace
           tenantId={tenantId}
           initialObjectiveId={missionId}
@@ -1758,7 +1764,7 @@ describe('ControlPlaneWorkspace Evidence Gallery Stage 7 flow', () => {
             );
       });
 
-      render(
+      await renderWithAct(
         <ControlPlaneWorkspace
           tenantId={tenantId}
           initialObjectiveId={missionId}
@@ -1829,7 +1835,7 @@ describe('ControlPlaneWorkspace Evidence Gallery Stage 7 flow', () => {
 
   describe('evidence gallery UI', () => {
     it('shows empty state when no artifacts exist', async () => {
-      render(
+      await renderWithAct(
         <ControlPlaneWorkspace
           tenantId={tenantId}
           initialObjectiveId={missionId}
@@ -1865,7 +1871,7 @@ describe('ControlPlaneWorkspace Evidence Gallery Stage 7 flow', () => {
         },
       ];
 
-      render(
+      await renderWithAct(
         <ControlPlaneWorkspace
           tenantId={tenantId}
           initialObjectiveId={missionId}
@@ -1889,7 +1895,7 @@ describe('ControlPlaneWorkspace Evidence Gallery Stage 7 flow', () => {
         },
       ];
 
-      render(
+      await renderWithAct(
         <ControlPlaneWorkspace
           tenantId={tenantId}
           initialObjectiveId={missionId}
@@ -1950,7 +1956,7 @@ describe('ControlPlaneWorkspace Evidence Gallery Stage 7 flow', () => {
       clipboardWriteMockRef.current.mockClear();
       telemetryMock.mockClear();
 
-      render(
+      await renderWithAct(
         <ControlPlaneWorkspace
           tenantId={tenantId}
           initialObjectiveId={missionId}
@@ -1994,7 +2000,7 @@ describe('ControlPlaneWorkspace Evidence Gallery Stage 7 flow', () => {
       telemetryMock.mockClear();
       clipboardWriteMockRef.current.mockClear();
 
-      render(
+      await renderWithAct(
         <ControlPlaneWorkspace
           tenantId={tenantId}
           initialObjectiveId={missionId}
@@ -2036,7 +2042,7 @@ describe('MissionStageProvider failure path', () => {
     const user = userEvent.setup();
     telemetryMock.mockClear();
 
-    render(
+    await renderWithAct(
       <MissionStageProvider tenantId={tenantId} missionId={missionId}>
         <StageFailureHarness
           stage={MissionStage.Plan}

@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import PDFDocument from "pdfkit";
 
 type ArtifactPayload = {
@@ -38,11 +38,11 @@ async function createPdfBuffer(artifact: ArtifactPayload): Promise<Buffer> {
     const chunks: Buffer[] = [];
     const hash = artifact.evidence_hash ?? artifact.checksum ?? artifact.hash ?? null;
 
-    doc.on("data", (chunk) => {
+    doc.on("data", (chunk: Buffer) => {
       chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
     });
 
-    doc.on("error", (error) => {
+    doc.on("error", (error: unknown) => {
       reject(error);
     });
 
@@ -72,7 +72,7 @@ async function createPdfBuffer(artifact: ArtifactPayload): Promise<Buffer> {
   });
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   let body: ExportRequest | null = null;
   try {
     body = (await request.json()) as ExportRequest;
@@ -108,7 +108,8 @@ export async function POST(request: Request) {
   if (body.format === "pdf") {
     try {
       const pdfBuffer = await createPdfBuffer(artifact);
-      return new NextResponse(pdfBuffer, {
+      const pdfBytes = new Uint8Array(pdfBuffer);
+      return new NextResponse(pdfBytes, {
         status: 200,
         headers: {
           "Content-Type": "application/pdf",
