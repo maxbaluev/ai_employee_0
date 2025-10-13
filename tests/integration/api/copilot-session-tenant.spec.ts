@@ -31,7 +31,7 @@ describe('CopilotKit session tenant enforcement', () => {
     expect(response.status).toBe(400);
 
     const payload = (await response.json()) as { error?: string; details?: { fieldErrors?: Record<string, unknown> } };
-    expect(payload.error).toEqual('Invalid Copilot session query');
+    expect(payload.error).toEqual('Invalid Copilot session payload');
     expect(payload.details?.fieldErrors?.tenantId).toBeDefined();
   });
 
@@ -41,7 +41,8 @@ describe('CopilotKit session tenant enforcement', () => {
     const response = await GET(request as NextRequest);
     expect(response.status).toBe(400);
 
-    const payload = (await response.json()) as { hint?: string };
-    expect(payload.hint).toMatch(/tenant/i);
+    const payload = (await response.json()) as { error?: string; details?: { fieldErrors?: Record<string, unknown> } };
+    expect(payload.error).toEqual('Invalid Copilot session query');
+    expect(payload.details?.fieldErrors?.tenantId).toBeDefined();
   });
 });
