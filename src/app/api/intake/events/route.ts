@@ -12,9 +12,6 @@ function resolveTenantId(
   if (sessionTenantId) {
     return sessionTenantId;
   }
-  if (process.env.GATE_GA_DEFAULT_TENANT_ID) {
-    return process.env.GATE_GA_DEFAULT_TENANT_ID;
-  }
   return null;
 }
 

@@ -48,7 +48,8 @@ mise run agent  # Terminal 2 (Agent backend)
 - `NEXT_PUBLIC_SUPABASE_URL` - Supabase project URL
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY` - Supabase anon key
 - `SUPABASE_SERVICE_ROLE_KEY` - Supabase service role key
-- `GATE_GA_DEFAULT_TENANT_ID` - Default tenant UUID
+
+**Note:** Gate G-B requires explicit tenant context. All API routes and agents now require `tenantId` in request payloads or authenticated Supabase sessions. No default tenant fallbacks are supported.
 
 ---
 

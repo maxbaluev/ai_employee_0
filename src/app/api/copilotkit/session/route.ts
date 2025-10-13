@@ -13,7 +13,7 @@ type SessionUpsertResult = {
 const payloadSchema = z.object({
   agentId: z.string().min(1),
   sessionIdentifier: z.string().min(1),
-  tenantId: z.string().uuid().optional(),
+  tenantId: z.string().uuid(),
   state: z.record(z.any()).default({}),
   retentionMinutes: z.number().int().positive().optional(),
 });
@@ -21,15 +21,13 @@ const payloadSchema = z.object({
 const querySchema = z.object({
   agentId: z.string().min(1).optional(),
   sessionIdentifier: z.string().min(1),
-  tenantId: z.string().uuid().optional(),
+  tenantId: z.string().uuid(),
 });
 
 type SessionSelectResult = {
   data: Pick<Database["public"]["Tables"]["copilot_sessions"]["Row"], "state" | "expires_at"> | null;
   error: PostgrestError | null;
 };
-
-const DEFAULT_TENANT = "00000000-0000-0000-0000-000000000000";
 
 // TODO(Gate G-B): Wire a scheduled job that deletes expired CopilotKit sessions after 7 days.
 
@@ -42,19 +40,19 @@ export async function POST(request: NextRequest) {
       {
         error: "Invalid Copilot session payload",
         details: parsed.error.flatten(),
+        hint: "tenantId (UUID) is required",
       },
       { status: 400 },
     );
   }
 
-  const defaultTenant = process.env.GATE_GA_DEFAULT_TENANT_ID ?? DEFAULT_TENANT;
-  const tenantId = parsed.data.tenantId ?? defaultTenant;
+  const tenantId = parsed.data.tenantId;
 
   if (!tenantId) {
     return NextResponse.json(
       {
         error: "Missing tenant identifier",
-        hint: "Provide tenantId or configure GATE_GA_DEFAULT_TENANT_ID",
+        hint: "tenantId (UUID) is required in the request payload",
       },
       { status: 400 },
     );
@@ -116,14 +114,13 @@ export async function GET(request: NextRequest) {
   }
 
   const agentIdParam = parsed.data.agentId ?? process.env.NEXT_PUBLIC_COPILOT_AGENT_ID ?? "control_plane_foundation";
-  const defaultTenant = process.env.GATE_GA_DEFAULT_TENANT_ID ?? DEFAULT_TENANT;
-  const tenantId = parsed.data.tenantId ?? defaultTenant;
+  const tenantId = parsed.data.tenantId;
 
   if (!tenantId) {
     return NextResponse.json(
       {
         error: "Missing tenant identifier",
-        hint: "Provide tenantId or configure GATE_GA_DEFAULT_TENANT_ID",
+        hint: "tenantId (UUID) is required in the query parameters",
       },
       { status: 400 },
     );

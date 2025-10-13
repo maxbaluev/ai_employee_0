@@ -9,7 +9,7 @@ const paramsSchema = z.object({
 });
 
 const querySchema = z.object({
-  tenantId: z.string().uuid().optional(),
+  tenantId: z.string().uuid(),
 });
 
 type MissionMetadataRow = Pick<
@@ -47,16 +47,13 @@ export async function GET(request: NextRequest, context: { params: { missionId?:
   }
 
   const missionId = parsedParams.data.missionId;
-  const tenantId =
-    searchParams.data.tenantId ??
-    process.env.GATE_GA_DEFAULT_TENANT_ID ??
-    null;
+  const tenantId = searchParams.data.tenantId;
 
   if (!tenantId) {
     return NextResponse.json(
       {
         error: "Tenant context required",
-        hint: "Authenticate with Supabase or supply tenantId in the query string",
+        hint: "Supply tenantId (UUID) in the query string or authenticate with Supabase",
       },
       { status: 401 },
     );

@@ -30,6 +30,7 @@ import type { ApprovalSubmission, SafeguardEntry } from "@/hooks/useApprovalFlow
 import { useUndoFlow } from "@/hooks/useUndoFlow";
 import { PlannerInsightRail } from "@/components/PlannerInsightRail";
 import * as telemetryClient from "@/lib/telemetry/client";
+import { normalizeSafeguards } from "@/lib/safeguards/normalization";
 
 type Artifact = ArtifactGalleryArtifact;
 
@@ -99,54 +100,6 @@ type AcceptedIntakePayload = {
 const AGENT_ID = "control_plane_foundation";
 const SESSION_RETENTION_MINUTES = 60 * 24 * 7; // 7 days
 const MAX_SAFEGUARD_HISTORY = 20;
-
-const hashString = (value: string): string => {
-  let hash = 0;
-  for (let index = 0; index < value.length; index += 1) {
-    hash = (hash << 5) - hash + value.charCodeAt(index);
-    hash |= 0;
-  }
-  return Math.abs(hash).toString(36);
-};
-
-const buildSafeguardId = (
-  hint: { hintType: string | null; text: string },
-  occurrence: number,
-): string => {
-  const type = hint.hintType ?? "hint";
-  return `${type}-${hashString(hint.text)}-${occurrence}`;
-};
-
-const normalizeSafeguards = (
-  hints: Array<{ hintType: string | null; text: string }>,
-  previous: SafeguardDrawerHint[],
-): SafeguardDrawerHint[] => {
-  const previousById = new Map(previous.map((hint) => [hint.id, hint]));
-  const seen: Record<string, number> = {};
-
-  return hints.map((hint) => {
-    const key = `${hint.hintType ?? "hint"}|${hint.text}`;
-    const occurrence = seen[key] ?? 0;
-    seen[key] = occurrence + 1;
-    const id = buildSafeguardId(hint, occurrence);
-    const existing = previousById.get(id);
-
-    if (existing) {
-      return existing;
-    }
-
-    return {
-      id,
-      label: hint.text,
-      hintType: hint.hintType ?? "unspecified",
-      status: "accepted",
-      confidence: null,
-      pinned: false,
-      rationale: null,
-      lastUpdatedAt: null,
-    } satisfies SafeguardDrawerHint;
-  });
-};
 
 function ControlPlaneWorkspaceContent({
   tenantId,

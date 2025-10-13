@@ -43,7 +43,6 @@ type TelemetryPayload = Record<string, unknown>;
 const GEMINI_MODEL = process.env.GEMINI_MODEL ?? 'gemini-1.5-flash-latest';
 const GEMINI_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 const DEFAULT_REGEN_LIMIT = Number.parseInt(process.env.MISSION_REGEN_LIMIT ?? '3', 10) || 3;
-// Source is now always 'gemini' since fallback has been removed
 const GEMINI_SOURCE = 'gemini' as const;
 
 export class RegenerationLimitError extends Error {

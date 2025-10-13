@@ -7,7 +7,7 @@ import type { PostgrestError } from "@supabase/supabase-js";
 
 const payloadSchema = z.object({
   agentId: z.string().min(1).default("control_plane_foundation"),
-  tenantId: z.string().uuid().optional(),
+  tenantId: z.string().uuid(),
   sessionId: z.string().uuid().optional(),
   sessionIdentifier: z.string().optional(),
   missionId: z.string().uuid().optional(),
@@ -85,18 +85,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const defaultTenant = process.env.GATE_GA_DEFAULT_TENANT_ID ?? "00000000-0000-0000-0000-000000000000";
-  const tenantId = parsed.data.tenantId ?? defaultTenant;
-
-  if (!tenantId) {
-    return NextResponse.json(
-      {
-        error: "Missing tenant identifier",
-        hint: "Provide tenantId or configure GATE_GA_DEFAULT_TENANT_ID",
-      },
-      { status: 400 },
-    );
-  }
+  const tenantId = parsed.data.tenantId;
 
   const supabase = getServiceSupabaseClient();
   const sessionId =
@@ -173,14 +162,13 @@ export async function GET(request: NextRequest) {
   const limit = parseLimit(url.searchParams.get("limit"));
   const since = parseSince(url.searchParams.get("since"));
 
-  const defaultTenant = process.env.GATE_GA_DEFAULT_TENANT_ID ?? "00000000-0000-0000-0000-000000000000";
-  const tenantId = tenantQuery && uuidPattern.test(tenantQuery) ? tenantQuery : defaultTenant;
+  const tenantId = tenantQuery && uuidPattern.test(tenantQuery) ? tenantQuery : null;
 
   if (!tenantId) {
     return NextResponse.json(
       {
         error: "Missing tenant identifier",
-        hint: "Provide tenantId or configure GATE_GA_DEFAULT_TENANT_ID",
+        hint: "tenantId (UUID) is required in query parameters",
       },
       { status: 400 },
     );

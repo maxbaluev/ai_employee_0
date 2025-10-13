@@ -148,6 +148,25 @@ def _install_supabase_stub() -> None:
         ) -> List[Dict[str, Any]]:
             return canned_safeguards[:limit]
 
+        def fetch_toolkit_selections(
+            self,
+            *,
+            mission_id: str,
+            tenant_id: str,
+            limit: int = 20,
+        ) -> List[Dict[str, Any]]:
+            return [
+                {
+                    "toolkit_id": "composio-slack",
+                    "auth_mode": "oauth",
+                    "metadata": {
+                        "name": "Slack",
+                        "category": "communication",
+                        "noAuth": False,
+                    },
+                }
+            ][:limit]
+
         def search_library_plays(
             self,
             *,

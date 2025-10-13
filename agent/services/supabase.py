@@ -79,6 +79,29 @@ class SupabaseClient:
             return rows
         raise CatalogUnavailableError("No safeguards available for mission")
 
+    def fetch_toolkit_selections(
+        self,
+        *,
+        mission_id: str,
+        tenant_id: str,
+        limit: int = 20,
+    ) -> List[Dict[str, Any]]:
+        if not self.enabled or not self._is_uuid(mission_id) or not self._is_uuid(tenant_id):
+            raise CatalogUnavailableError(
+                "Supabase client unavailable for toolkit selections"
+            )
+
+        params = {
+            "mission_id": f"eq.{mission_id}",
+            "tenant_id": f"eq.{tenant_id}",
+            "order": "created_at.desc",
+            "limit": str(limit),
+        }
+        rows = self._request("GET", "/toolkit_selections", params=params)
+        if isinstance(rows, list):
+            return rows
+        return []
+
     def search_library_plays(
         self,
         *,

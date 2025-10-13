@@ -22,9 +22,6 @@ from .state import (
 )
 
 
-DEFAULT_TENANT_ID = os.getenv("GATE_GA_DEFAULT_TENANT_ID", "gate-ga-default")
-
-
 class IntakeAgent(BaseAgent):
     """Initialises mission context, safeguards, and telemetry anchors."""
 
@@ -103,7 +100,12 @@ class IntakeAgent(BaseAgent):
             raw = existing
 
         mission_id = raw.get("mission_id") or getattr(ctx.session, "id", "mission-dry-run")
-        tenant_id = raw.get("tenant_id") or DEFAULT_TENANT_ID
+        tenant_id = raw.get("tenant_id")
+        if not tenant_id:
+            raise ValueError(
+                "tenant_id is required in mission context. "
+                "Ensure the session state includes explicit tenant_id."
+            )
         objective = raw.get("objective") or "Prove value in dry-run mode"
         audience = raw.get("audience") or "Pilot revenue team"
         timeframe = raw.get("timeframe") or "Next 14 days"

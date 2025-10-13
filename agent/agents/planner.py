@@ -879,7 +879,7 @@ class PlannerAgent(LlmAgent):
     def _build_inspection_preview(
         self, mission_context: MissionContext
     ) -> List[InspectionPreview]:
-        rows = self.supabase.fetch_safeguards(
+        rows = self.supabase.fetch_toolkit_selections(
             mission_id=mission_context.mission_id,
             tenant_id=mission_context.tenant_id,
             limit=20,
@@ -887,20 +887,20 @@ class PlannerAgent(LlmAgent):
 
         previews: List[InspectionPreview] = []
         for row in rows:
-            if row.get("hint_type") != "toolkit_recommendation":
-                continue
-            suggested = row.get("suggested_value")
-            if not isinstance(suggested, dict):
-                continue
-
-            slug = str(suggested.get("slug") or "").strip()
+            slug = str(row.get("toolkit_id") or "").strip()
             if not slug:
                 continue
 
-            name = str(suggested.get("name") or slug).strip()
-            auth_type = str(suggested.get("authType") or "oauth").strip() or "oauth"
-            category = str(suggested.get("category") or "general").strip() or "general"
-            no_auth = bool(suggested.get("noAuth", auth_type == "none"))
+            metadata = {}
+            meta_candidate = row.get("metadata")
+            if isinstance(meta_candidate, dict):
+                metadata = meta_candidate
+
+            name = str(metadata.get("name") or slug).strip()
+            auth_mode = str(row.get("auth_mode") or metadata.get("authType") or "oauth").strip()
+            category = str(metadata.get("category") or "general").strip() or "general"
+            no_auth = bool(metadata.get("noAuth", auth_mode == "none"))
+            auth_type = "none" if no_auth else (auth_mode or "oauth")
 
             sample_count = self._sample_count(slug)
             sample_rows = [
@@ -912,7 +912,7 @@ class PlannerAgent(LlmAgent):
                 InspectionPreview(
                     slug=slug,
                     name=name,
-                    auth_type="none" if no_auth else auth_type,
+                    auth_type=auth_type,
                     sample_rows=sample_rows,
                     sample_count=sample_count,
                     no_auth=no_auth,

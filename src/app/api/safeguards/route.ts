@@ -49,7 +49,7 @@ const actionSchema = z.discriminatedUnion('action', [
 
 const payloadSchema = z
   .object({
-    tenantId: z.string().uuid().optional(),
+    tenantId: z.string().uuid(),
     missionId: z.string().uuid(),
   })
   .and(actionSchema);
@@ -89,16 +89,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const tenantId = resolveTenant(parsed.data.tenantId);
-  if (!tenantId) {
-    return NextResponse.json(
-      {
-        error: 'Missing tenant context',
-        hint: 'Provide tenantId or configure GATE_GA_DEFAULT_TENANT_ID',
-      },
-      { status: 400 },
-    );
-  }
+  const tenantId = parsed.data.tenantId;
 
   const supabase = getServiceSupabaseClient();
   const missionId = parsed.data.missionId;
@@ -150,9 +141,6 @@ export async function POST(request: NextRequest) {
 function resolveTenant(tenantId?: string): string | null {
   if (tenantId) {
     return tenantId;
-  }
-  if (process.env.GATE_GA_DEFAULT_TENANT_ID) {
-    return process.env.GATE_GA_DEFAULT_TENANT_ID;
   }
   return null;
 }

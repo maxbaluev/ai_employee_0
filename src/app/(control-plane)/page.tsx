@@ -21,8 +21,14 @@ export default async function ControlPlanePage() {
 
   const objective = (objectiveRecord as ObjectiveRow | null) ?? null;
 
-  const defaultTenant = process.env.GATE_GA_DEFAULT_TENANT_ID ?? "00000000-0000-0000-0000-000000000000";
-  const tenantId = objective?.tenant_id ?? defaultTenant;
+  // Gate G-B: Require explicit tenant context - no fallback
+  const tenantId = objective?.tenant_id;
+
+  if (!tenantId) {
+    throw new Error(
+      "No tenant context available. Ensure authenticated user or objectives table has tenant_id populated."
+    );
+  }
 
   const artifactsQuery = supabase
     .from("artifacts")

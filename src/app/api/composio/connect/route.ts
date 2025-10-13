@@ -70,7 +70,7 @@ type ComposioTokenResponse = {
 const payloadSchema = z.discriminatedUnion('mode', [
   z.object({
     mode: z.literal('init'),
-    tenantId: z.string().uuid().optional(),
+    tenantId: z.string().uuid(),
     missionId: z.string().uuid().optional(),
     redirectUri: z.string().url(),
     provider: z.string().min(1).default('composio'),
@@ -78,7 +78,7 @@ const payloadSchema = z.discriminatedUnion('mode', [
   }),
   z.object({
     mode: z.literal('callback'),
-    tenantId: z.string().uuid().optional(),
+    tenantId: z.string().uuid(),
     missionId: z.string().uuid().optional(),
     provider: z.string().min(1).default('composio'),
     code: z.string().min(1),
@@ -106,14 +106,13 @@ export async function POST(request: NextRequest) {
 
   const payload = parsed.data as Payload;
 
-  const defaultTenant = process.env.GATE_GA_DEFAULT_TENANT_ID ?? '00000000-0000-0000-0000-000000000000';
-  const tenantId = payload.tenantId ?? defaultTenant;
+  const tenantId = payload.tenantId;
 
   if (!tenantId) {
     return NextResponse.json(
       {
         error: 'Missing tenant context',
-        hint: 'Provide tenantId or configure GATE_GA_DEFAULT_TENANT_ID',
+        hint: 'tenantId (UUID) is required in the request payload',
       },
       { status: 400 },
     );

@@ -72,7 +72,8 @@ describe('MissionIntake Gemini-only behavior', () => {
 
     expect(screen.getByText('Gemini audience')).toBeInTheDocument();
     expect(screen.getByText(/Test KPI/i)).toBeInTheDocument();
-    expect(screen.getByText(/High confidence/i)).toBeInTheDocument();
+    // Confidence badges now appear for all fields (objective, audience, KPIs, safeguards)
+    expect(screen.getAllByText(/High confidence/i).length).toBeGreaterThanOrEqual(4);
   });
 
   it('shows error message when generation fails', async () => {

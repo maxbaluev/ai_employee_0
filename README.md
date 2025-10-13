@@ -44,11 +44,12 @@ This repository delivers the Gate G-A foundation for the AI Employee Control Pla
    export NEXT_PUBLIC_SUPABASE_URL="http://localhost:54321"
    export NEXT_PUBLIC_SUPABASE_ANON_KEY="anon-key-from-supabase"
    export SUPABASE_SERVICE_ROLE_KEY="service-role-key-from-supabase"
-   export GATE_GA_DEFAULT_TENANT_ID="00000000-0000-0000-0000-000000000000"
    export NEXT_PUBLIC_COPILOT_RUNTIME_URL="/api/copilotkit"
    export NEXT_PUBLIC_COPILOT_AGENT_ID="control_plane_foundation"
    export AGENT_HTTP_URL="http://localhost:8000/"
    ```
+
+   **Note:** Gate G-B requires explicit tenant context. All API routes now require `tenantId` in request payloads or authenticated Supabase sessions. No default tenant fallbacks are supported.
 
 5. **Run the full stack**
    ```bash

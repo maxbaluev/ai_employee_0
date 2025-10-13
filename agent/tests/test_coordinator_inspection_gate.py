@@ -43,6 +43,15 @@ class _StubSupabase(SupabaseClient):
     ) -> list[Dict[str, Any]]:
         return []
 
+    def fetch_toolkit_selections(  # type: ignore[override]
+        self,
+        *,
+        mission_id: str,
+        tenant_id: str,
+        limit: int = 20,
+    ) -> list[Dict[str, Any]]:
+        return []
+
 
 class _TelemetryRecorder(TelemetryEmitter):
     """Telemetry stub storing emitted events for assertions."""

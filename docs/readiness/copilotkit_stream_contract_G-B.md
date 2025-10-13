@@ -8,7 +8,7 @@ This document captures the payload schema emitted by the Gemini ADK coordinator 
 ## Session Resolution
 
 - `sessionIdentifier`: Defaults to the mission id but can be overridden by `MissionContext.metadata.session_identifier`.
-- `tenantId`: Only included when the value is a UUID. When omitted, the Next.js handler falls back to `GATE_GA_DEFAULT_TENANT_ID`.
+- `tenantId`: **Required** - must be a valid UUID. Gate G-B requires explicit tenant context; no fallback is supported.
 - `agentId`: `control_plane_foundation` unless overridden via `NEXT_PUBLIC_COPILOT_AGENT_ID`.
 
 The streamer first upserts the session payload:

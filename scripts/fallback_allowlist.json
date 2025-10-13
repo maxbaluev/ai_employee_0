@@ -1,31 +1,7 @@
 {
-  "GATE_GA_DEFAULT_TENANT_ID": [
-    "README.md",
-    "scripts/audit_fallbacks.ts",
-    "scripts/fallback_allowlist.json",
-    "docs/readiness/copilotkit_stream_contract_G-B.md",
-    "docs/readiness/gate_g_b_verification_guide.md",
-    "agent/agents/intake.py",
-    "src/app/(control-plane)/page.tsx",
-    "src/app/api/undo/route.ts",
-    "src/app/api/inspect/preview/route.ts",
-    "src/app/api/toolkits/route.ts",
-    "src/app/api/copilotkit/message/route.ts",
-    "src/app/api/copilotkit/session/route.ts",
-    "src/app/api/composio/connect/route.ts",
-    "src/app/api/intake/regenerate/route.ts",
-    "src/app/api/safeguards/route.ts",
-    "src/app/api/intake/accept/route.ts",
-    "src/app/api/artifacts/route.ts",
-    "src/app/api/intake/events/route.ts",
-    "src/app/api/missions/[missionId]/brief/route.ts",
-    "src/app/api/feedback/submit/route.ts"
-  ],
-  "gate-ga-default": [
-    "scripts/fallback_allowlist.json",
-    "agent/agents/**",
-    "docs/readiness/coordinator_trace_G-A.log"
-  ],
+  "comment": "Gate G-B: All GATE_GA_DEFAULT_TENANT_ID fallbacks have been eliminated. API routes, agents, and frontend components now require explicit tenant context.",
+  "GATE_GA_DEFAULT_TENANT_ID": [],
+  "gate-ga-default": [],
   "coordinator_trace_G-A": [
     "scripts/fallback_allowlist.json",
     "agent/agents/coordinator.py",

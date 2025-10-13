@@ -363,7 +363,7 @@ The mission workspace is a persistent, chat-first interface powered by CopilotKi
 1. Planner responds to mission brief by streaming a row of tool cards sourced from `Composio.tools.get` and `toolkits.list` (see `libs_docs/composio/llms.txt`).
 2. Each card displays: toolkit logo, short description, badge for `No credentials needed` / `Requires OAuth`, impact estimate, precedent missions, and undo confidence.
 3. Users toggle cards on/off or expand to adjust optional parameters (scope, sandbox, sample size). Multi-select is supported with keyboard and pointer.
-4. Selections persist immediately to Supabase (`mission_safeguards` with `hint_type='toolkit_recommendation'`) and drive a draft MCP inspection pass.
+4. Selections persist immediately to Supabase `toolkit_selections` table via `/api/toolkits/selections` endpoint and drive a draft MCP inspection pass.
 5. CopilotKit shows inspection results inline (e.g., "Fetched 5 sample contacts"), highlighting any guardrail mismatches before the plan crystalizes.
 6. Users can regenerate suggestions, pin favorites, or request alternatives ("Show me finance tools") via quick actions.
 

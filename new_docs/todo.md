@@ -78,9 +78,9 @@ _Status: Tracking tasks required to deliver the full eight-stage dry-run proof f
 - Update `src/app/(control-plane)/ControlPlaneWorkspace.tsx`
 
 **Requirements**
-- Render carousel of recommended toolkits with metadata (auth type, category, capability tags) from `/api/toolkits/recommend`.
+- Render carousel of recommended toolkits with metadata (auth type, category, capability tags) from `/api/toolkits`.
 - Support multi-select with keyboard navigation (arrow keys + space) per `ux.md §5.2`.
-- Persist selections to Supabase `mission_safeguards` (hint_type = `toolkit_recommendation`).
+- Persist selections to Supabase `toolkit_selections` table via `/api/toolkits/selections`.
 - Show Connect Link badge for OAuth required kits.
 
 **Acceptance**

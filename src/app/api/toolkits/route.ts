@@ -36,9 +36,6 @@ function resolveTenantId(candidate: string | null, sessionTenantId: string | und
   if (sessionTenantId) {
     return sessionTenantId;
   }
-  if (process.env.GATE_GA_DEFAULT_TENANT_ID) {
-    return process.env.GATE_GA_DEFAULT_TENANT_ID;
-  }
   return null;
 }
 
@@ -149,28 +146,21 @@ export async function GET(req: NextRequest) {
     // Fetch existing selections if missionId provided
     let selectedSlugs: string[] = [];
     if (missionId) {
-      type MissionSafeguardSuggestion = Pick<
-        Database["public"]["Tables"]["mission_safeguards"]["Row"],
-        "suggested_value"
+      type ToolkitSelection = Pick<
+        Database["public"]["Tables"]["toolkit_selections"]["Row"],
+        "toolkit_id"
       >;
 
-      const { data: safeguardRows } = await dbClient
-        .from("mission_safeguards")
-        .select("suggested_value")
+      const { data: selectionRows } = await dbClient
+        .from("toolkit_selections")
+        .select("toolkit_id")
         .eq("mission_id", missionId)
-        .eq("tenant_id", tenantId)
-        .eq("hint_type", "toolkit_recommendation")
-        .eq("status", "accepted");
+        .eq("tenant_id", tenantId);
 
-      // Supabase's current type inference widens single-column selects to never; cast to the generated row type.
-      const suggestions = (safeguardRows ?? []) as MissionSafeguardSuggestion[];
-
-      if (suggestions.length > 0) {
-        selectedSlugs = suggestions
-          .map((row) => {
-            const value = row.suggested_value as { slug?: unknown } | null;
-            return typeof value?.slug === "string" ? value.slug : undefined;
-          })
+      const rows = (selectionRows ?? []) as ToolkitSelection[];
+      if (rows.length > 0) {
+        selectedSlugs = rows
+          .map((row) => row.toolkit_id)
           .filter((slug): slug is string => typeof slug === "string" && slug.length > 0);
       }
     }

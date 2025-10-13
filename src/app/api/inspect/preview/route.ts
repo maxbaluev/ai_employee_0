@@ -25,9 +25,6 @@ function resolveTenantId(
   if (bodyTenantId) {
     return bodyTenantId;
   }
-  if (process.env.GATE_GA_DEFAULT_TENANT_ID) {
-    return process.env.GATE_GA_DEFAULT_TENANT_ID;
-  }
   return null;
 }
 
@@ -66,7 +63,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         error: 'Missing tenant context',
-        hint: 'Authenticate, provide tenantId, or configure GATE_GA_DEFAULT_TENANT_ID',
+        hint: 'Authenticate with Supabase or provide tenantId in request body',
       },
       { status: 400 },
     );

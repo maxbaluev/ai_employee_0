@@ -32,6 +32,29 @@ def test_fetch_safeguards_raises_on_empty_response():
         client.fetch_safeguards(mission_id=VALID_MISSION, tenant_id=VALID_TENANT)
 
 
+def test_fetch_toolkit_selections_raises_when_disabled():
+    client = SupabaseClient(url=None, api_key=None)
+    with pytest.raises(CatalogUnavailableError):
+        client.fetch_toolkit_selections(
+            mission_id=VALID_MISSION,
+            tenant_id=VALID_TENANT,
+        )
+
+
+def test_fetch_toolkit_selections_returns_list():
+    row = {
+        "toolkit_id": "composio-slack",
+        "auth_mode": "oauth",
+        "metadata": {"name": "Slack", "category": "communication"},
+    }
+    client = _SupabaseStub(response=[row])
+    result = client.fetch_toolkit_selections(
+        mission_id=VALID_MISSION,
+        tenant_id=VALID_TENANT,
+    )
+    assert result == [row]
+
+
 def test_search_library_plays_raises_when_unavailable():
     client = SupabaseClient(url=None, api_key=None)
     with pytest.raises(CatalogUnavailableError):

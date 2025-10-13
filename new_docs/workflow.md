@@ -164,7 +164,7 @@ Dry runs prove value without credentials; they should finish within 15 minutes p
 
 Once reviewers approve scopes and plays, governed execution proceeds with live credentials.
 
-- **Prereqs:** Accepted connection plan entries in `mission_safeguards` (`status='accepted'`), at least one connected account per required toolkit.
+- **Prereqs:** Accepted toolkit selections in `toolkit_selections` table, at least one connected account per required toolkit.
 - **OAuth flow:**
   - CopilotKit renders approval drawer with `authorize` links; user completes auth via Composio `toolkits.authorize` (`libs_docs/composio/llms.txt §4.1`).
   - Backend stores encrypted token in `oauth_tokens` with `connection_id`, `scopes`, `status`.

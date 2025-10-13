@@ -5,6 +5,8 @@ import type { ReactNode } from 'react';
 import { useCopilotAction, useCopilotReadable } from '@copilotkit/react-core';
 
 import { sendTelemetryEvent } from '@/lib/telemetry/client';
+import { getConfidenceBadgeData, getConfidenceTier } from '@/lib/intake/confidenceBadges';
+import type { ConfidenceTier } from '@/lib/intake/confidenceBadges';
 
 import type { GeneratedSafeguard, IntakeChips, KPI } from '@/lib/intake/service';
 
@@ -17,6 +19,13 @@ type IntakeViewState = {
   kpis: KPI[];
   safeguards: GeneratedSafeguard[];
   confidence: number;
+};
+
+type FieldTimestamps = {
+  objective?: Date;
+  audience?: Date;
+  kpis?: Date;
+  safeguards?: Date;
 };
 
 type AcceptedIntakePayload = {
@@ -54,6 +63,7 @@ export function MissionIntake({ tenantId, objectiveId, onAccept, onStageAdvance 
   const [editDraft, setEditDraft] = useState('');
   const [localEdits, setLocalEdits] = useState<Set<'objective' | 'audience'>>(() => new Set());
   const [regenerationCounts, setRegenerationCounts] = useState<Record<RegenerationField, number>>(INITIAL_REGEN_COUNTS);
+  const [fieldTimestamps, setFieldTimestamps] = useState<FieldTimestamps>({});
 
   const links = useMemo(() => extractLinks(rawInput), [rawInput]);
   const approximateTokens = useMemo(() => {
@@ -133,6 +143,27 @@ export function MissionIntake({ tenantId, objectiveId, onAccept, onStageAdvance 
       setIntakeState(nextState);
       setLocalEdits(new Set());
       setRegenerationCounts({ ...INITIAL_REGEN_COUNTS });
+
+      // Set initial timestamps for all fields
+      const now = new Date();
+      setFieldTimestamps({
+        objective: now,
+        audience: now,
+        kpis: now,
+        safeguards: now,
+      });
+
+      // Emit telemetry for confidence badges being viewed
+      const tier = getConfidenceTier(nextState.confidence);
+      await sendTelemetryEvent(tenantId, {
+        eventName: 'intake_confidence_viewed',
+        missionId: nextState.missionId,
+        eventData: {
+          tier,
+          confidence: nextState.confidence,
+          regenerationCount: 0,
+        },
+      });
     } catch (error) {
       console.error('[MissionIntake] generate failed', error);
       setErrorMessage(error instanceof Error ? error.message : 'Generation failed');
@@ -191,7 +222,27 @@ export function MissionIntake({ tenantId, objectiveId, onAccept, onStageAdvance 
               }
             : prev,
         );
-        setRegenerationCounts((prev) => ({ ...prev, [field]: prev[field] + 1 }));
+
+        const newCount = regenerationCounts[field] + 1;
+        setRegenerationCounts((prev) => ({ ...prev, [field]: newCount }));
+
+        // Update timestamp for the regenerated field
+        setFieldTimestamps((prev) => ({ ...prev, [field]: new Date() }));
+
+        // Emit telemetry for confidence badge after regeneration
+        if (intakeState) {
+          const tier = getConfidenceTier(payload.chips.confidence);
+          await sendTelemetryEvent(tenantId, {
+            eventName: 'intake_confidence_viewed',
+            missionId: intakeState.missionId,
+            eventData: {
+              tier,
+              confidence: payload.chips.confidence,
+              regenerationCount: newCount,
+            },
+          });
+        }
+
         setLocalEdits((prev) => {
           if (!prev.size) return prev;
           const next = new Set(prev);
@@ -429,6 +480,9 @@ export function MissionIntake({ tenantId, objectiveId, onAccept, onStageAdvance 
               isEditing={editingField === 'objective'}
               hasLocalEdit={localEdits.has('objective')}
               editValue={editingField === 'objective' ? editDraft : intakeState.objective}
+              confidence={intakeState.confidence}
+              regenerationCount={regenerationCounts.objective}
+              lastRegeneratedAt={fieldTimestamps.objective}
               onEdit={() => {
                 setEditingField('objective');
                 setEditDraft(intakeState.objective);
@@ -449,6 +503,9 @@ export function MissionIntake({ tenantId, objectiveId, onAccept, onStageAdvance 
               isEditing={editingField === 'audience'}
               hasLocalEdit={localEdits.has('audience')}
               editValue={editingField === 'audience' ? editDraft : intakeState.audience}
+              confidence={intakeState.confidence}
+              regenerationCount={regenerationCounts.audience}
+              lastRegeneratedAt={fieldTimestamps.audience}
               onEdit={() => {
                 setEditingField('audience');
                 setEditDraft(intakeState.audience);
@@ -463,10 +520,20 @@ export function MissionIntake({ tenantId, objectiveId, onAccept, onStageAdvance 
               isBusy={isGenerating}
             />
 
-            <KPICards kpis={intakeState.kpis} onRegenerate={() => void handleRegenerateField('kpis')} isBusy={isGenerating} />
+            <KPICards
+              kpis={intakeState.kpis}
+              confidence={intakeState.confidence}
+              regenerationCount={regenerationCounts.kpis}
+              lastRegeneratedAt={fieldTimestamps.kpis}
+              onRegenerate={() => void handleRegenerateField('kpis')}
+              isBusy={isGenerating}
+            />
 
             <SafeguardList
               safeguards={intakeState.safeguards}
+              confidence={intakeState.confidence}
+              regenerationCount={regenerationCounts.safeguards}
+              lastRegeneratedAt={fieldTimestamps.safeguards}
               onToggle={(id) => {
                 const current = intakeState.safeguards.find((hint) => hint.id === id);
                 if (!current) return;
@@ -509,6 +576,9 @@ type MissionChipProps = {
   hasLocalEdit: boolean;
   isBusy: boolean;
   editValue: string;
+  confidence?: number | null;
+  regenerationCount?: number;
+  lastRegeneratedAt?: Date;
   onEdit: () => void;
   onCancel: () => void;
   onSave: () => void;
@@ -523,6 +593,9 @@ function MissionChip({
   hasLocalEdit,
   isBusy,
   editValue,
+  confidence,
+  regenerationCount,
+  lastRegeneratedAt,
   onEdit,
   onCancel,
   onSave,
@@ -538,6 +611,11 @@ function MissionChip({
             Edited
           </span>
         )}
+        <FieldConfidenceBadge
+          confidence={confidence}
+          regenerationCount={regenerationCount}
+          lastRegeneratedAt={lastRegeneratedAt}
+        />
       </div>
       {isEditing ? (
         <div className="flex flex-wrap items-center gap-2" suppressHydrationWarning>
@@ -605,15 +683,25 @@ function MissionChip({
 
 type KPICardsProps = {
   kpis: KPI[];
+  confidence?: number | null;
+  regenerationCount?: number;
+  lastRegeneratedAt?: Date;
   onRegenerate: () => void;
   isBusy: boolean;
 };
 
-function KPICards({ kpis, onRegenerate, isBusy }: KPICardsProps) {
+function KPICards({ kpis, confidence, regenerationCount, lastRegeneratedAt, onRegenerate, isBusy }: KPICardsProps) {
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <span className="text-sm font-medium text-slate-200">KPIs</span>
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium text-slate-200">KPIs</span>
+          <FieldConfidenceBadge
+            confidence={confidence}
+            regenerationCount={regenerationCount}
+            lastRegeneratedAt={lastRegeneratedAt}
+          />
+        </div>
         <button
           type="button"
           onClick={() => onRegenerate()}
@@ -645,16 +733,26 @@ function KPICards({ kpis, onRegenerate, isBusy }: KPICardsProps) {
 
 type SafeguardListProps = {
   safeguards: GeneratedSafeguard[];
+  confidence?: number | null;
+  regenerationCount?: number;
+  lastRegeneratedAt?: Date;
   onToggle: (id: string) => void;
   onRefresh: () => void;
   isBusy: boolean;
 };
 
-function SafeguardList({ safeguards, onToggle, onRefresh, isBusy }: SafeguardListProps) {
+function SafeguardList({ safeguards, confidence, regenerationCount, lastRegeneratedAt, onToggle, onRefresh, isBusy }: SafeguardListProps) {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <span className="text-sm font-medium text-slate-200">Safeguard hints</span>
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium text-slate-200">Safeguard hints</span>
+          <FieldConfidenceBadge
+            confidence={confidence}
+            regenerationCount={regenerationCount}
+            lastRegeneratedAt={lastRegeneratedAt}
+          />
+        </div>
         <button
           type="button"
           onClick={() => onRefresh()}
@@ -692,6 +790,29 @@ function SafeguardList({ safeguards, onToggle, onRefresh, isBusy }: SafeguardLis
         ))}
       </div>
     </div>
+  );
+}
+
+type FieldConfidenceBadgeProps = {
+  confidence?: number | null;
+  regenerationCount?: number;
+  lastRegeneratedAt?: Date;
+};
+
+function FieldConfidenceBadge({ confidence, regenerationCount, lastRegeneratedAt }: FieldConfidenceBadgeProps) {
+  if (confidence === undefined || confidence === null) {
+    return null;
+  }
+
+  const badgeData = getConfidenceBadgeData(confidence, regenerationCount, lastRegeneratedAt);
+
+  return (
+    <span
+      className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${badgeData.bgColor} ${badgeData.color}`}
+      title={badgeData.tooltipText}
+    >
+      {badgeData.label}
+    </span>
   );
 }
 

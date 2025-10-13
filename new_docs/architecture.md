@@ -78,7 +78,7 @@ This blueprint describes the generative-first architecture that powers Gates G-A
 
 - **Discovery:** `Composio.tools.get` with persona filters and semantic search; suggestions highlight `no_auth` options first and include reasoning (success rate, precedent). UI surfaces badges with tooltips sourced from Composio docs.
 - **Toolkit Palette:** User-curated Composio palette renders as recommended tool strip with badges (`No credentials needed`, `Requires OAuth`), impact estimates, precedent missions, and undo confidence. Multi-select supported with keyboard and pointer.
-- **Connection Planner:** Planner generates connection plan (toolkits, scopes, quiet window suggestions) stored in `mission_safeguards`. Reviewers can accept, edit, or regenerate; accepted items emit `toolkit_suggestion_applied`.
+- **Connection Planner:** Planner generates connection plan (toolkits, scopes, quiet window suggestions) stored in `toolkit_selections` table and `mission_safeguards` for other safeguard hints. Reviewers can accept, edit, or regenerate; accepted items emit `toolkit_suggestion_applied`.
 - **Managed Auth:** `toolkits.authorize` and `waitForConnection` persist tokens encrypted in Supabase `oauth_tokens` with `connection_id`, `scopes`, `status`, `last_verified_at`. Connect Link provides hosted auth flow.
 
 **Inspection & Validation (Data Inspect stage):**
@@ -132,7 +132,7 @@ Supporting infrastructure:
 ### 3.8 Collaborative Tool Selection & Plan Validation
 
 - **Recommended palette:** Planner surfaces a ranked strip of Composio toolkits with badges for **no-auth**, **OAuth-ready**, expected impact, and precedent missions. Cards cite data from `Composio.tools.get` and `toolkits.list` (see `libs_docs/composio/llms.txt §3–§5`).
-- **Selection workflow:** Users curate one or multiple tools directly in the generative UI. Each selection writes to `mission_safeguards` (`hint_type='toolkit_recommendation'`) and adds structured intent for the MCP plan.
+- **Selection workflow:** Users curate one or multiple tools directly in the generative UI. Each selection writes to `toolkit_selections` table via `/api/toolkits/selections` endpoint and adds structured intent for the MCP plan.
 - **Plan preview:** After curation, the ADK planner composes a data inspection pass via MCP (e.g., summarise CRM snapshot) before issuing actions. CopilotKit renders the reasoning chain so the user can approve or adjust inputs prior to execution.
 - **Validation gate:** The validator cross-checks chosen toolkits, accepted safeguards, and the data inspection results. If mismatches arise (missing scope, stale data), the loop returns to the user with fixes or alternative suggestions rather than auto-executing.
 - **Telemetry:** `toolkit_recommendation_viewed`, `toolkit_selected`, and `plan_validated` events feed analytics to confirm the co-planning experience remains fast (<2 minutes from suggestion to approval) and trusted.
