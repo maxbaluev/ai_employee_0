@@ -143,8 +143,9 @@ _Status: Tracking tasks required to deliver the full eight-stage dry-run proof f
 ### [ ] Add Connect Link OAuth CTA Flow
 
 **Files**
-- `src/components/RecommendedToolStrip.tsx`
+- `src/components/RecommendedToolkits.tsx`
 - `src/components/ConnectLinkModal.tsx`
+- `src/app/api/toolkits/connections/route.ts`
 - `src/app/api/composio/connect/route.ts`
 
 **Requirements**
@@ -155,8 +156,8 @@ _Status: Tracking tasks required to deliver the full eight-stage dry-run proof f
 
 **Acceptance**
 - [ ] Manual QA shows OAuth completion updates status badge.
-- [ ] Telemetry `connect_link_launched` and `connect_link_completed` emitted with toolkit ids.
-- [ ] Error states captured with toast and log instrumentation.
+- [x] Telemetry `connect_link_launched` and `connect_link_completed` emitted with toolkit ids.
+- [x] Error states captured with toast and log instrumentation.
 
 **Dependencies**
 - Requires backend Connect Link route and Supabase table (Section 3).

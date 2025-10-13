@@ -13,6 +13,7 @@ type InitPayload = {
   redirectUri: string;
   provider: string;
   scopes?: string[];
+  toolkitSlug?: string | null;
 };
 
 type CallbackPayload = {
@@ -24,6 +25,7 @@ type CallbackPayload = {
   state: string;
   redirectUri: string;
   codeVerifier?: string;
+  toolkitSlug?: string | null;
 };
 
 type Payload = InitPayload | CallbackPayload;
@@ -32,6 +34,7 @@ type StatePayload = {
   tenantId: string;
   missionId?: string | null;
   scopes: string[];
+  toolkit?: string | null;
   nonce: string;
   issuedAt: string;
 };
@@ -75,6 +78,7 @@ const payloadSchema = z.discriminatedUnion('mode', [
     redirectUri: z.string().url(),
     provider: z.string().min(1).default('composio'),
     scopes: z.array(z.string().min(1).max(128)).max(40).optional(),
+    toolkitSlug: z.string().min(1).optional(),
   }),
   z.object({
     mode: z.literal('callback'),
@@ -85,6 +89,7 @@ const payloadSchema = z.discriminatedUnion('mode', [
     state: z.string().min(1),
     redirectUri: z.string().url(),
     codeVerifier: z.string().min(32).max(128).optional(),
+    toolkitSlug: z.string().min(1).optional(),
   }),
 ]);
 
@@ -151,6 +156,7 @@ export async function POST(request: NextRequest) {
       tenantId,
       missionId: payload.missionId ?? null,
       scopes,
+      toolkit: payload.toolkitSlug ?? null,
       nonce: randomBytes(8).toString('hex'),
       issuedAt: new Date().toISOString(),
     });
@@ -166,6 +172,40 @@ export async function POST(request: NextRequest) {
         tenantId,
       });
 
+      if (payload.toolkitSlug && payload.missionId) {
+        try {
+          const placeholderConnectionId = `pending:${session.state}`;
+          await supabase
+            .from('toolkit_connections')
+            .upsert(
+              {
+                tenant_id: tenantId,
+                mission_id: payload.missionId,
+                toolkit: payload.toolkitSlug,
+                connection_id: placeholderConnectionId,
+                status: 'pending',
+                auth_mode: payload.scopes?.length ? 'oauth' : null,
+                metadata: {
+                  redirect_uri: payload.redirectUri,
+                  scopes,
+                  state: session.state,
+                  initiated_at: new Date().toISOString(),
+                },
+              } as never,
+              { onConflict: 'tenant_id,mission_id,toolkit' },
+            );
+
+          await supabase
+            .from('toolkit_selections')
+            .update({ connection_status: 'pending' })
+            .eq('tenant_id', tenantId)
+            .eq('mission_id', payload.missionId)
+            .eq('toolkit_id', payload.toolkitSlug);
+        } catch (statusError) {
+          console.warn('[api:composio-connect] failed to seed connection status', statusError);
+        }
+      }
+
       try {
         await logTelemetryEvent({
           tenantId,
@@ -179,6 +219,23 @@ export async function POST(request: NextRequest) {
         });
       } catch (telemetryError) {
         console.warn('[api:composio-connect] telemetry failed', telemetryError);
+      }
+
+      if (payload.toolkitSlug) {
+        try {
+          await logTelemetryEvent({
+            tenantId,
+            missionId: payload.missionId ?? undefined,
+            eventName: 'connect_link_launched',
+            eventData: {
+              toolkit_slug: payload.toolkitSlug,
+              scopes,
+              state,
+            },
+          });
+        } catch (telemetryError) {
+          console.warn('[api:composio-connect] connect_link telemetry failed', telemetryError);
+        }
       }
 
       return NextResponse.json({
@@ -262,6 +319,43 @@ export async function POST(request: NextRequest) {
 
     const inserted = data as SupabaseInsertResult | null;
 
+    const missionForConnection = decodedState.missionId ?? payload.missionId ?? null;
+    const toolkitSlug = decodedState.toolkit ?? payload.toolkitSlug ?? null;
+
+    if (toolkitSlug && missionForConnection) {
+      try {
+        await supabase
+          .from('toolkit_connections')
+          .upsert(
+            {
+              tenant_id: resolvedTenant,
+              mission_id: missionForConnection,
+              toolkit: toolkitSlug,
+              connection_id: tokenResponse.connectionId,
+              status: 'linked',
+              auth_mode: tokenResponse.metadata && typeof tokenResponse.metadata === 'object'
+                ? ((tokenResponse.metadata as Record<string, unknown>).auth_mode as string | null) ?? 'oauth'
+                : 'oauth',
+              metadata: {
+                ...(tokenResponse.metadata ?? {}),
+                scopes,
+                connected_at: new Date().toISOString(),
+              },
+            } as never,
+            { onConflict: 'tenant_id,mission_id,toolkit' },
+          );
+
+        await supabase
+          .from('toolkit_selections')
+          .update({ connection_status: 'linked' })
+          .eq('tenant_id', resolvedTenant)
+          .eq('mission_id', missionForConnection)
+          .eq('toolkit_id', toolkitSlug);
+      } catch (statusError) {
+        console.warn('[api:composio-connect] failed to update connect link status', statusError);
+      }
+    }
+
     try {
       await logTelemetryEvent({
         tenantId: resolvedTenant,
@@ -278,6 +372,23 @@ export async function POST(request: NextRequest) {
       console.warn('[api:composio-connect] telemetry failed', telemetryError);
     }
 
+    if (toolkitSlug) {
+      try {
+        await logTelemetryEvent({
+          tenantId: resolvedTenant,
+          missionId: decodedState.missionId ?? payload.missionId ?? undefined,
+          eventName: 'connect_link_completed',
+          eventData: {
+            toolkit_slug: toolkitSlug,
+            connection_id: tokenResponse.connectionId,
+            token_id: inserted?.id ?? null,
+          },
+        });
+      } catch (telemetryError) {
+        console.warn('[api:composio-connect] connect_link completion telemetry failed', telemetryError);
+      }
+    }
+
     return NextResponse.json({
       provider: payload.provider,
       connectionId: tokenResponse.connectionId,
@@ -286,6 +397,21 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('[api:composio-connect] OAuth callback failed', error);
+
+    try {
+      await logTelemetryEvent({
+        tenantId: resolvedTenant ?? tenantId,
+        missionId: decodedState?.missionId ?? payload.missionId ?? undefined,
+        eventName: 'connect_link_failed',
+        eventData: {
+          toolkit_slug: decodedState?.toolkit ?? payload.toolkitSlug ?? null,
+          hint: error instanceof Error ? error.message : 'Unexpected error',
+        },
+      });
+    } catch (telemetryError) {
+      console.warn('[api:composio-connect] connect_link failure telemetry failed', telemetryError);
+    }
+
     return NextResponse.json(
       {
         error: 'Failed to exchange Composio authorization code',
@@ -384,6 +510,7 @@ function decodeState(state: string): StatePayload | null {
       scopes: Array.isArray(parsed.scopes) && parsed.scopes.every((value) => typeof value === 'string')
         ? (parsed.scopes as string[])
         : DEFAULT_SCOPES,
+      toolkit: typeof parsed.toolkit === 'string' ? parsed.toolkit : null,
       nonce: typeof parsed.nonce === 'string' ? parsed.nonce : '',
       issuedAt: typeof parsed.issuedAt === 'string' ? parsed.issuedAt : new Date().toISOString(),
     };

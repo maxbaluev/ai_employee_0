@@ -174,7 +174,7 @@ describe('RecommendedToolkits', () => {
     });
   });
 
-  it('initiates OAuth connect flow for toolkits requiring auth', async () => {
+  it('opens Connect Link modal and completes OAuth flow', async () => {
     const alertSpy = vi.fn();
 
     mockToolkitLoad();
@@ -182,7 +182,20 @@ describe('RecommendedToolkits', () => {
     const authorizationUrl = 'https://connect.composio.dev/oauth';
     fetchMock.mockResolvedValueOnce({
       ok: true,
-      json: async () => ({ authorizationUrl, state: 'state', expiresAt: new Date().toISOString() }),
+      json: async () => ({ authorizationUrl, state: 'state-token', expiresAt: new Date().toISOString() }),
+    } as Response);
+
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        connections: [
+          {
+            toolkit: 'clearbit',
+            status: 'linked',
+            connectionId: 'con_123',
+          },
+        ],
+      }),
     } as Response);
 
     const openSpy = vi
@@ -202,11 +215,19 @@ describe('RecommendedToolkits', () => {
     const connectButton = screen.getByRole('button', { name: /Connect Clearbit/i });
     await userEvent.click(connectButton);
 
+    const modal = await screen.findByRole('dialog', { name: /Connect Clearbit/i });
+    expect(modal).toBeInTheDocument();
+
+    expect(fetchMock).toHaveBeenCalledTimes(1); // initial toolkit load only
+
+    const launchButton = screen.getByRole('button', { name: /Launch Connect Link/i });
+    await userEvent.click(launchButton);
+
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledTimes(2);
+      expect(fetchMock).toHaveBeenCalledTimes(3);
     });
 
-    const [, connectCall] = fetchMock.mock.calls;
+    const [, connectCall, pollCall] = fetchMock.mock.calls;
     expect(connectCall?.[0]).toBe('/api/composio/connect');
     const connectPayload = JSON.parse(connectCall?.[1]?.body as string);
     expect(connectPayload).toMatchObject({
@@ -214,22 +235,31 @@ describe('RecommendedToolkits', () => {
       tenantId,
       missionId,
       provider: 'composio',
+      toolkitSlug: 'clearbit',
     });
-    expect(connectPayload.redirectUri).toContain('/api/composio/connect');
 
     expect(openSpy).toHaveBeenCalledWith(authorizationUrl, '_blank', 'noopener');
-    expect(sendTelemetryEventMock).toHaveBeenCalledWith(tenantId, {
-      eventName: 'oauth_initiated',
+
+    expect(pollCall?.[0]).toContain('/api/toolkits/connections');
+
+    expect(sendTelemetryEventMock).toHaveBeenNthCalledWith(1, tenantId, {
+      eventName: 'connect_link_launched',
+      missionId,
+      eventData: expect.objectContaining({ toolkit_slug: 'clearbit' }),
+    });
+
+    expect(sendTelemetryEventMock).toHaveBeenNthCalledWith(2, tenantId, {
+      eventName: 'connect_link_completed',
       missionId,
       eventData: expect.objectContaining({
-        provider: 'composio',
         toolkit_slug: 'clearbit',
+        connection_id: 'con_123',
       }),
     });
 
     expect(alertSpy).toHaveBeenCalledWith({
-      tone: 'info',
-      message: expect.stringContaining('Launching Clearbit Connect Link'),
+      tone: 'success',
+      message: expect.stringContaining('Clearbit successfully linked'),
     });
   });
 
@@ -290,10 +320,14 @@ describe('RecommendedToolkits', () => {
     });
 
     expect(stageAdvanceSpy).toHaveBeenCalled();
-    expect(sendTelemetryEventMock).toHaveBeenCalledWith(tenantId, expect.objectContaining({
-      eventName: 'toolkit_selection_saved',
+    expect(sendTelemetryEventMock).toHaveBeenCalledWith(tenantId, {
+      eventName: 'toolkit_selected',
       missionId,
-    }));
+      eventData: expect.objectContaining({
+        selected_count: 1,
+        selection_slugs: ['clearbit'],
+      }),
+    });
   });
 
   it('hydrates selection state from API selectionDetails payload', async () => {
@@ -323,5 +357,6 @@ describe('RecommendedToolkits', () => {
 
     expect(selectionChangeSpy).toHaveBeenCalledWith(1);
     expect(screen.getByRole('button', { name: /Save \(1\)/i })).toBeInTheDocument();
+    expect(screen.getByTestId('toolkit-status-hubspot_crm')).toHaveTextContent('No Auth Needed');
   });
 });

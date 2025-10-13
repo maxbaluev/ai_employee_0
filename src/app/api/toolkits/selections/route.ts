@@ -108,11 +108,30 @@ export async function POST(request: NextRequest) {
     let insertedRows: ToolkitSelectionRow[] = [];
     const sessionUserId = session?.user?.id ?? null;
 
+    let connectionStatusMap = new Map<string, string>();
     if (parsed.data.selections.length > 0) {
+      const { data: existingConnections } = await supabase
+        .from('toolkit_connections')
+        .select('toolkit, status')
+        .eq('tenant_id', tenantId)
+        .eq('mission_id', parsed.data.missionId);
+
+      if (Array.isArray(existingConnections)) {
+        connectionStatusMap = new Map(
+          existingConnections
+            .filter((row): row is { toolkit: string; status: string } =>
+              typeof row?.toolkit === 'string' && typeof row?.status === 'string',
+            )
+            .map((row) => [row.toolkit, row.status]),
+        );
+      }
+
       const rows = parsed.data.selections.map((selection) => {
         const slug = selection.slug.trim();
         const authMode = selection.noAuth ? 'none' : selection.authType?.toLowerCase() ?? 'oauth';
-        const connectionStatus = selection.noAuth ? 'not_required' : 'not_linked';
+        const connectionStatus = selection.noAuth
+          ? 'not_required'
+          : connectionStatusMap.get(slug) ?? 'not_linked';
 
         const undoToken = randomUUID();
 

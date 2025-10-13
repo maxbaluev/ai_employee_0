@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { useCopilotReadable } from "@copilotkit/react-core";
 
 import { sendTelemetryEvent } from "@/lib/telemetry/client";
@@ -10,6 +10,7 @@ import {
   persistToolkitSelections,
   type ToolkitSelectionDetail,
 } from "@/lib/toolkits/persistence";
+import { ConnectLinkModal } from "./ConnectLinkModal";
 
 type ToolkitMetadata = {
   name: string;
@@ -30,6 +31,52 @@ type ToolkitSelection = {
   noAuth: boolean;
 };
 
+const CONNECTION_STATUS_META: Record<
+  string,
+  { label: string; className: string; helper: string }
+> = {
+  linked: {
+    label: "Linked",
+    className: "bg-emerald-500/20 text-emerald-200",
+    helper: "Connect Link handshake complete.",
+  },
+  pending: {
+    label: "Pending",
+    className: "bg-amber-500/20 text-amber-200",
+    helper: "Waiting for Connect Link confirmation.",
+  },
+  failed: {
+    label: "Failed",
+    className: "bg-red-500/20 text-red-200",
+    helper: "Connect Link reported an error.",
+  },
+  revoked: {
+    label: "Revoked",
+    className: "bg-orange-500/20 text-orange-200",
+    helper: "Access revoked. Relaunch Connect Link.",
+  },
+  timeout: {
+    label: "Timed out",
+    className: "bg-orange-500/20 text-orange-200",
+    helper: "Connect Link did not finish in time.",
+  },
+  error: {
+    label: "Error",
+    className: "bg-red-500/20 text-red-200",
+    helper: "Unexpected error while linking toolkit.",
+  },
+  not_linked: {
+    label: "Not Linked",
+    className: "bg-slate-500/20 text-slate-200",
+    helper: "Requires Connect Link before dry-run execution.",
+  },
+  not_required: {
+    label: "No Auth Needed",
+    className: "bg-emerald-500/15 text-emerald-200",
+    helper: "This toolkit does not require OAuth.",
+  },
+};
+
 type RecommendedToolkitsProps = {
   tenantId: string;
   missionId: string | null;
@@ -44,8 +91,7 @@ export function RecommendedToolkits({ tenantId, missionId, onAlert, onStageAdvan
   const [selectionDetails, setSelectionDetails] = useState<ToolkitSelectionDetail[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [connectingSlug, setConnectingSlug] = useState<string | null>(null);
-  const [connectError, setConnectError] = useState<string | null>(null);
+  const [connectModalToolkit, setConnectModalToolkit] = useState<ToolkitMetadata | null>(null);
   const [error, setError] = useState<string | null>(null);
   const toolkitButtonRefs = useRef<HTMLButtonElement[]>([]);
   const toolkitsRef = useRef<ToolkitMetadata[]>([]);
@@ -82,6 +128,31 @@ export function RecommendedToolkits({ tenantId, missionId, onAlert, onStageAdvan
       };
     },
     [selectionDetails],
+  );
+
+  const updateConnectionStatus = useCallback(
+    (slug: string, status: string) => {
+      setSelectionDetails((prev) => {
+        let updated = false;
+        const next = prev.map((detail) => {
+          if (detail.slug === slug) {
+            updated = true;
+            return { ...detail, connectionStatus: status };
+          }
+          return detail;
+        });
+
+        if (!updated) {
+          const fallback = buildSelectionDetail(slug);
+          if (fallback) {
+            return [...next, { ...fallback, connectionStatus: status }];
+          }
+        }
+
+        return next;
+      });
+    },
+    [buildSelectionDetail],
   );
 
   const syncSelectionState = useCallback(
@@ -136,6 +207,96 @@ export function RecommendedToolkits({ tenantId, missionId, onAlert, onStageAdvan
   useEffect(() => {
     persistToolkitSelections(tenantId, missionId, selectionDetails);
   }, [missionId, selectionDetails, tenantId]);
+
+  const openConnectModal = useCallback(
+    (toolkit: ToolkitMetadata) => {
+      if (!tenantId) {
+        onAlert?.({
+          tone: "error",
+          message: "Missing tenant context for OAuth connect.",
+        });
+        return;
+      }
+
+      if (!missionId) {
+        onAlert?.({
+          tone: "error",
+          message: "Accept the mission before connecting toolkits.",
+        });
+        return;
+      }
+
+      setConnectModalToolkit(toolkit);
+    },
+    [missionId, onAlert, tenantId],
+  );
+
+  const closeConnectModal = useCallback(() => {
+    setConnectModalToolkit(null);
+  }, []);
+
+  const handleModalStatusChange = useCallback(
+    ({ toolkitSlug, status }: { toolkitSlug: string; status: string }) => {
+      updateConnectionStatus(toolkitSlug, status);
+    },
+    [updateConnectionStatus],
+  );
+
+  const handleModalLaunched = useCallback(
+    ({ toolkitSlug, state }: { toolkitSlug: string; state: string }) => {
+      void sendTelemetryEvent(tenantId, {
+        eventName: "connect_link_launched",
+        missionId,
+        eventData: {
+          toolkit_slug: toolkitSlug,
+          state,
+        },
+      });
+    },
+    [missionId, tenantId],
+  );
+
+  const handleModalLinked = useCallback(
+    ({ toolkitSlug, connectionId }: { toolkitSlug: string; connectionId?: string | null }) => {
+      updateConnectionStatus(toolkitSlug, "linked");
+
+      const toolkitMeta = toolkitsRef.current.find((candidate) => candidate.slug === toolkitSlug);
+      onAlert?.({
+        tone: "success",
+        message: toolkitMeta
+          ? `${toolkitMeta.name} successfully linked via Connect Link.`
+          : "Connect Link completed successfully.",
+      });
+
+      void sendTelemetryEvent(tenantId, {
+        eventName: "connect_link_completed",
+        missionId,
+        eventData: {
+          toolkit_slug: toolkitSlug,
+          connection_id: connectionId ?? null,
+        },
+      });
+    },
+    [missionId, onAlert, tenantId, updateConnectionStatus],
+  );
+
+  const handleModalError = useCallback(
+    ({ toolkitSlug, status, message }: { toolkitSlug: string; status: string; message: string }) => {
+      updateConnectionStatus(toolkitSlug, status);
+      onAlert?.({ tone: "error", message });
+
+      void sendTelemetryEvent(tenantId, {
+        eventName: "connect_link_error",
+        missionId,
+        eventData: {
+          toolkit_slug: toolkitSlug,
+          status,
+          message,
+        },
+      });
+    },
+    [missionId, onAlert, tenantId, updateConnectionStatus],
+  );
 
   const fetchToolkits = useCallback(async () => {
     if (!tenantId) return;
@@ -350,102 +511,11 @@ export function RecommendedToolkits({ tenantId, missionId, onAlert, onStageAdvan
     }
   };
 
-  const oauthRedirectUri = useMemo(() => {
-    if (typeof window === "undefined") {
-      return "";
-    }
-
-    try {
-      const url = new URL(window.location.origin);
-      url.pathname = "/api/composio/connect";
-      url.search = "";
-      return url.toString();
-    } catch (error) {
-      console.warn("[RecommendedToolkits] Failed to compute redirect URI", error);
-      return "";
-    }
-  }, []);
-
   const handleConnect = useCallback(
-    async (toolkit: ToolkitMetadata) => {
-      if (!tenantId) {
-        onAlert?.({
-          tone: "error",
-          message: "Missing tenant context for OAuth connect.",
-        });
-        return;
-      }
-
-      if (!missionId) {
-        onAlert?.({
-          tone: "error",
-          message: "Accept the mission before connecting toolkits.",
-        });
-        return;
-      }
-
-      if (!oauthRedirectUri) {
-        onAlert?.({
-          tone: "error",
-          message: "Unable to resolve OAuth redirect URI.",
-        });
-        return;
-      }
-
-      setConnectError(null);
-      setConnectingSlug(toolkit.slug);
-
-      const requestBody = {
-        mode: "init" as const,
-        tenantId,
-        missionId,
-        provider: "composio",
-        redirectUri: oauthRedirectUri,
-        scopes: ["connections:read"],
-      };
-
-      try {
-        const response = await fetch("/api/composio/connect", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(requestBody),
-        });
-
-        if (!response.ok) {
-          throw new Error("Failed to initiate Composio connect link");
-        }
-
-        const data = await response.json();
-        const authorizationUrl: string | undefined = data.authorizationUrl ?? data.authUrl;
-
-        void sendTelemetryEvent(tenantId, {
-          eventName: "oauth_initiated",
-          missionId,
-          eventData: {
-            provider: "composio",
-            toolkit_slug: toolkit.slug,
-            scopes_requested: requestBody.scopes,
-          },
-        });
-
-        if (authorizationUrl) {
-          window.open(authorizationUrl, "_blank", "noopener");
-        }
-
-        onAlert?.({
-          tone: "info",
-          message: `Launching ${toolkit.name} Connect Link...`,
-        });
-      } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "Failed to launch Composio connect flow";
-        setConnectError(message);
-        onAlert?.({ tone: "error", message });
-      } finally {
-        setConnectingSlug(null);
-      }
+    (toolkit: ToolkitMetadata) => {
+      openConnectModal(toolkit);
     },
-    [missionId, oauthRedirectUri, onAlert, tenantId],
+    [openConnectModal],
   );
 
   if (isLoading) {
@@ -485,12 +555,13 @@ export function RecommendedToolkits({ tenantId, missionId, onAlert, onStageAdvan
   }
 
   return (
-    <section className="border-b border-white/10 px-6 py-6">
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h2 className="text-lg font-semibold">Recommended Tools</h2>
-          <p className="text-xs text-slate-400 mt-1">
-            Select toolkits to use before planner execution
+    <>
+      <section className="border-b border-white/10 px-6 py-6">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="text-lg font-semibold">Recommended Tools</h2>
+            <p className="text-xs text-slate-400 mt-1">
+              Select toolkits to use before planner execution
           </p>
         </div>
         <button
@@ -506,6 +577,14 @@ export function RecommendedToolkits({ tenantId, missionId, onAlert, onStageAdvan
         {toolkits.slice(0, 20).map((toolkit, index) => {
           const isSelected = selectedSlugs.has(toolkit.slug);
           const requiresOAuth = !toolkit.no_auth;
+          const detail = selectionDetails.find((item) => item.slug === toolkit.slug) ?? null;
+          const connectionStatus = detail?.connectionStatus
+            ? detail.connectionStatus
+            : requiresOAuth
+              ? "not_linked"
+              : "not_required";
+          const statusMeta = CONNECTION_STATUS_META[connectionStatus] ??
+            CONNECTION_STATUS_META[requiresOAuth ? "not_linked" : "not_required"];
           const authBadge = toolkit.no_auth ? (
             <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] uppercase tracking-wide text-emerald-300">
               No Auth
@@ -557,6 +636,16 @@ export function RecommendedToolkits({ tenantId, missionId, onAlert, onStageAdvan
                   {toolkit.description || "No description available"}
                 </p>
 
+                <div className="mb-3 flex items-center justify-between text-[10px] uppercase tracking-wide">
+                  <span
+                    className={`rounded-full px-2 py-0.5 font-semibold ${statusMeta.className}`}
+                    data-testid={`toolkit-status-${toolkit.slug}`}
+                  >
+                    {statusMeta.label}
+                  </span>
+                  <span className="text-slate-500">{statusMeta.helper}</span>
+                </div>
+
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] uppercase tracking-wide text-slate-500">
                     {toolkit.category}
@@ -578,33 +667,48 @@ export function RecommendedToolkits({ tenantId, missionId, onAlert, onStageAdvan
                     aria-label={`Connect ${toolkit.name}`}
                     onClick={(event) => {
                       event.stopPropagation();
-                      void handleConnect(toolkit);
+                      handleConnect(toolkit);
                     }}
-                    disabled={connectingSlug === toolkit.slug}
+                    disabled={Boolean(connectModalToolkit?.slug === toolkit.slug)}
                     className="inline-flex items-center gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-amber-200 transition disabled:cursor-not-allowed disabled:opacity-60 hover:bg-amber-500/20"
                   >
-                    {connectingSlug === toolkit.slug ? "Connecting..." : "Connect"}
+                    {connectionStatus === "linked" ? "Manage" : "Connect"}
                   </button>
 
-                  <span className="text-[10px] text-slate-500">
-                    {connectingSlug === toolkit.slug ? "Waiting for OAuth" : "Auth required"}
-                  </span>
+                  <span className="text-[10px] text-slate-500">{statusMeta.helper}</span>
                 </div>
               )}
             </article>
           );
         })}
-      </div>
+        </div>
 
-      {connectError && (
-        <p className="mt-3 text-xs text-red-300">{connectError}</p>
-      )}
+        {!missionId && (
+          <p className="mt-3 text-xs text-amber-300">
+            Accept the mission intake above to enable saving toolkit selections.
+          </p>
+        )}
+      </section>
 
-      {!missionId && (
-        <p className="mt-3 text-xs text-amber-300">
-          Accept the mission intake above to enable saving toolkit selections.
-        </p>
+      {connectModalToolkit && (
+        <ConnectLinkModal
+          isOpen={Boolean(connectModalToolkit)}
+          tenantId={tenantId}
+          missionId={missionId}
+          toolkit={{
+            slug: connectModalToolkit.slug,
+            name: connectModalToolkit.name,
+            description: connectModalToolkit.description,
+            category: connectModalToolkit.category,
+            authSchemes: connectModalToolkit.auth_schemes,
+          }}
+          onClose={closeConnectModal}
+          onStatusChange={handleModalStatusChange}
+          onLaunched={handleModalLaunched}
+          onLinked={handleModalLinked}
+          onError={handleModalError}
+        />
       )}
-    </section>
+    </>
   );
 }

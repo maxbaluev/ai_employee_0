@@ -57,7 +57,7 @@ describe('POST /api/toolkits/selections', () => {
         mission_id: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
         toolkit_id: 'alpha',
         auth_mode: 'oauth',
-        connection_status: 'not_linked',
+        connection_status: 'linked',
         undo_token: 'token-123',
         metadata: {
           name: 'Alpha',
@@ -82,6 +82,18 @@ describe('POST /api/toolkits/selections', () => {
       }),
     });
 
+    const connectionSecondEqMock = vi.fn().mockResolvedValue({
+      data: [
+        {
+          toolkit: 'alpha',
+          status: 'linked',
+        },
+      ],
+      error: null,
+    });
+    const connectionFirstEqMock = vi.fn().mockReturnValue({ eq: connectionSecondEqMock });
+    const connectionSelectMock = vi.fn().mockReturnValue({ eq: connectionFirstEqMock });
+
     getRouteHandlerSupabaseClientMock.mockResolvedValue({
       auth: {
         getSession: vi.fn().mockResolvedValue({
@@ -97,6 +109,11 @@ describe('POST /api/toolkits/selections', () => {
           return {
             delete: deleteMock,
             insert: insertMock,
+          };
+        }
+        if (table === 'toolkit_connections') {
+          return {
+            select: connectionSelectMock,
           };
         }
         throw new Error('Unexpected table');
@@ -127,7 +144,7 @@ describe('POST /api/toolkits/selections', () => {
       {
         id: 'selection-1',
         toolkitId: 'alpha',
-        connectionStatus: 'not_linked',
+        connectionStatus: 'linked',
         undoToken: 'token-123',
         metadata: expect.objectContaining({ name: 'Alpha', noAuth: false }),
       },
@@ -140,7 +157,7 @@ describe('POST /api/toolkits/selections', () => {
       mission_id: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
       toolkit_id: 'alpha',
       auth_mode: 'oauth',
-      connection_status: 'not_linked',
+      connection_status: 'linked',
     });
     expect(typeof insertedPayload[0].undo_token).toBe('string');
   });
