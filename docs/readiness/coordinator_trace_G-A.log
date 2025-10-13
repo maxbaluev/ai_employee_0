@@ -375,3 +375,17 @@
 {"stage": "planner_stage_started", "mission": "00000000-0000-0000-0000-000000000002", "tenant": "00000000-0000-0000-0000-000000000000", "timestamp": "2025-10-13T15:59:46Z"}
 {"stage": "execution_loop_started", "mission": "00000000-0000-0000-0000-000000000002", "tenant": "00000000-0000-0000-0000-000000000000", "timestamp": "2025-10-13T16:00:33Z"}
 {"stage": "intake_stage_started", "mission": "mission-dry-run", "tenant": "gate-ga-default", "timestamp": "2025-10-13T16:01:28Z"}
+{"stage": "planner_stage_started", "mission": "___eval___session___08ef49fc-6edf-43f0-bf2a-23cce0893ede", "tenant": "00000000-0000-0000-0000-000000000000", "timestamp": "2025-10-13T16:01:48Z"}
+{"stage": "execution_loop_started", "mission": "___eval___session___08ef49fc-6edf-43f0-bf2a-23cce0893ede", "tenant": "00000000-0000-0000-0000-000000000000", "timestamp": "2025-10-13T16:02:34Z"}
+{"stage": "intake_stage_started", "mission": "00000000-0000-0000-0000-000000000003", "tenant": "00000000-0000-0000-0000-000000000000", "timestamp": "2025-10-13T16:03:29Z"}
+{"stage": "planner_stage_started", "mission": "00000000-0000-0000-0000-000000000003", "tenant": "00000000-0000-0000-0000-000000000000", "timestamp": "2025-10-13T16:03:44Z"}
+{"stage": "execution_loop_started", "mission": "00000000-0000-0000-0000-000000000003", "tenant": "00000000-0000-0000-0000-000000000000", "timestamp": "2025-10-13T16:04:31Z"}
+{"stage": "intake_stage_started", "mission": "00000000-0000-0000-0000-000000000004", "tenant": "00000000-0000-0000-0000-000000000000", "timestamp": "2025-10-13T16:05:26Z"}
+{"stage": "planner_stage_started", "mission": "00000000-0000-0000-0000-000000000004", "tenant": "00000000-0000-0000-0000-000000000000", "timestamp": "2025-10-13T16:05:41Z"}
+{"stage": "execution_loop_started", "mission": "00000000-0000-0000-0000-000000000004", "tenant": "00000000-0000-0000-0000-000000000000", "timestamp": "2025-10-13T16:06:27Z"}
+{"stage": "intake_stage_started", "mission": "00000000-0000-0000-0000-000000000001", "tenant": "00000000-0000-0000-0000-000000000000", "timestamp": "2025-10-13T16:07:22Z"}
+{"stage": "planner_stage_started", "mission": "00000000-0000-0000-0000-000000000001", "tenant": "00000000-0000-0000-0000-000000000000", "timestamp": "2025-10-13T16:07:37Z"}
+{"stage": "execution_loop_started", "mission": "00000000-0000-0000-0000-000000000001", "tenant": "00000000-0000-0000-0000-000000000000", "timestamp": "2025-10-13T16:08:24Z"}
+{"stage": "intake_stage_started", "mission": "00000000-0000-0000-0000-000000000101", "tenant": "00000000-0000-0000-0000-000000000000", "timestamp": "2025-10-13T16:09:31Z"}
+{"stage": "planner_stage_started", "mission": "00000000-0000-0000-0000-000000000101", "tenant": "00000000-0000-0000-0000-000000000000", "timestamp": "2025-10-13T16:09:46Z"}
+{"stage": "execution_loop_started", "mission": "00000000-0000-0000-0000-000000000101", "tenant": "00000000-0000-0000-0000-000000000000", "timestamp": "2025-10-13T16:10:32Z"}

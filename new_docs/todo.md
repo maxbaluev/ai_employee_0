@@ -45,7 +45,7 @@ _Status: Tracking tasks required to deliver the full eight-stage dry-run proof f
 **References**
 - `ux.md §5.1`, `workflow.md §3`, `todo.md` lines 235-252.
 
-### [ ] Remove Gate G-A Fallback Toggle from Intake
+### [x] Remove Gate G-A Fallback Toggle from Intake
 
 **Files**
 - `src/app/(control-plane)/ControlPlaneWorkspace.tsx`
