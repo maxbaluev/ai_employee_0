@@ -19,8 +19,7 @@ const buildJsonRequest = (method: 'GET' | 'POST', body?: unknown) => {
   });
 };
 
-// TODO(Gate G-B): Enable this suite once `/api/copilotkit/session` requires an explicit tenant identifier.
-describe.skip('CopilotKit session fallback guard', () => {
+describe('CopilotKit session tenant enforcement', () => {
   it('rejects POST requests without a tenant', async () => {
     const request = buildJsonRequest('POST', {
       agentId: 'control_plane_foundation',
@@ -31,8 +30,9 @@ describe.skip('CopilotKit session fallback guard', () => {
     const response = await POST(request as NextRequest);
     expect(response.status).toBe(400);
 
-    const payload = (await response.json()) as { error?: string };
-    expect(payload.error).toMatch(/tenant/i);
+    const payload = (await response.json()) as { error?: string; details?: { fieldErrors?: Record<string, unknown> } };
+    expect(payload.error).toEqual('Invalid Copilot session query');
+    expect(payload.details?.fieldErrors?.tenantId).toBeDefined();
   });
 
   it('rejects GET requests without a tenant', async () => {
@@ -41,7 +41,7 @@ describe.skip('CopilotKit session fallback guard', () => {
     const response = await GET(request as NextRequest);
     expect(response.status).toBe(400);
 
-    const payload = (await response.json()) as { error?: string };
-    expect(payload.error).toMatch(/tenant/i);
+    const payload = (await response.json()) as { hint?: string };
+    expect(payload.hint).toMatch(/tenant/i);
   });
 });

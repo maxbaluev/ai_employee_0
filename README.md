@@ -1,6 +1,6 @@
-# AI Employee Control Plane — Gate G-A Foundation
+# AI Employee Control Plane — Gate G-B Control Plane
 
-This repository delivers the Gate G-A foundation for the AI Employee Control Plane. It pairs a CopilotKit-powered Next.js workspace with a packaged Gemini ADK backend, a Composio SDK integration, and Supabase migrations so you can generate zero-privilege proof packs before requesting oauth credentials.
+This repository delivers the Gate G-B control plane for the AI Employee program. It pairs a CopilotKit-powered Next.js workspace with a packaged Gemini ADK backend, a Composio SDK integration, and Supabase migrations so you can generate zero-privilege proof packs before requesting oauth credentials.
 
 ## Architecture Highlights
 - **Frontend:** `src/app/(control-plane)` renders the mission intake, artifact gallery, and Copilot sidebar.
