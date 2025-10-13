@@ -135,7 +135,7 @@ export function RecommendedToolkits({ tenantId, missionId, onAlert, onStageAdvan
       }
 
       void sendTelemetryEvent(tenantId, {
-        eventName: "toolkit_selection_saved",
+        eventName: "toolkit_selected",
         missionId,
         eventData: {
           selected_count: selections.length,

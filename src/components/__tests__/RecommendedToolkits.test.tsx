@@ -142,7 +142,7 @@ describe('RecommendedToolkits', () => {
       message: expect.stringContaining('Saved 1 toolkit'),
     });
     expect(sendTelemetryEventMock).toHaveBeenCalledWith(tenantId, {
-      eventName: 'toolkit_selection_saved',
+      eventName: 'toolkit_selected',
       missionId,
       eventData: expect.objectContaining({
         selected_count: 1,

@@ -1,13 +1,5 @@
 {
-  "comment": "Gate G-B: All GATE_GA_DEFAULT_TENANT_ID fallbacks have been eliminated. API routes, agents, and frontend components now require explicit tenant context.",
-  "GATE_GA_DEFAULT_TENANT_ID": [],
-  "gate-ga-default": [],
-  "coordinator_trace_G-A": [
-    "scripts/fallback_allowlist.json",
-    "agent/agents/coordinator.py",
-    "docs/readiness/status_beacon_A.json",
-    "new_docs/todo.md"
-  ],
+  "comment": "Gate G-B: Only active operational limitations remain tracked below. Remove once the underlying work is complete.",
   "Manual undo required - toolkit reversal not implemented": [
     "scripts/fallback_allowlist.json",
     "agent/services/evidence_service.py"

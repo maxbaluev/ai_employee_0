@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
 import { getServiceSupabaseClient } from "@/lib/supabase/service";
+import { normalizeMissionBrief } from "@/lib/mission/normalizeBrief";
 import type { Database } from "@supabase/types";
 
 const paramsSchema = z.object({
@@ -91,54 +92,6 @@ export async function GET(request: NextRequest, context: { params: { missionId?:
     return NextResponse.json({ brief: null }, { status: 200 });
   }
 
-  const brief = normalizeMetadata(metadataRows, safeguardsRows ?? []);
+  const brief = normalizeMissionBrief(metadataRows, safeguardsRows ?? []);
   return NextResponse.json({ brief }, { status: 200 });
-}
-
-function normalizeMetadata(
-  rows: MissionMetadataRow[],
-  safeguards: MissionSafeguardRow[],
-) {
-  let objective = "";
-  let audience = "";
-  const kpis: Array<{ label: string; target?: string }> = [];
-  const confidence: Record<string, number | null> = {};
-
-  for (const row of rows) {
-    confidence[row.field] = row.confidence;
-    if (row.field === "objective" && row.value && typeof row.value === "object") {
-      objective = (row.value as { text?: string }).text ?? "";
-    }
-    if (row.field === "audience" && row.value && typeof row.value === "object") {
-      audience = (row.value as { text?: string }).text ?? "";
-    }
-    if (row.field === "kpis" && row.value && typeof row.value === "object") {
-      const items = (row.value as { items?: Array<{ label: string; target?: string }> }).items;
-      if (Array.isArray(items)) {
-        kpis.push(
-          ...items.map((item) => ({
-            label: item.label,
-            target: item.target,
-          })),
-        );
-      }
-    }
-  }
-
-  const safeguardSummaries = safeguards
-    .map((hint) => {
-      const suggested = hint.suggested_value as { text?: string } | null;
-      const text = suggested?.text;
-      const hintType = hint.hint_type ?? "unspecified";
-      return text ? { hintType, text } : null;
-    })
-    .filter((entry): entry is { hintType: string; text: string } => entry !== null);
-
-  return {
-    objective,
-    audience,
-    kpis,
-    confidence,
-    safeguards: safeguardSummaries,
-  };
 }
