@@ -23,8 +23,16 @@ class StubQueryBuilder {
     return this;
   }
 
-  order() {
-    return Promise.resolve({ data: this.#data, error: this.#error });
+  order(): this {
+    return this;
+  }
+
+  limit(): this {
+    return this;
+  }
+
+  in(): this {
+    return this;
   }
 
   insert(payload: unknown) {
@@ -34,6 +42,14 @@ class StubQueryBuilder {
 
   single() {
     return Promise.resolve({ data: this.#data, error: this.#error });
+  }
+
+  // Make the builder thenable so it can be awaited
+  then<TResult1 = { data: unknown; error: Error | null }, TResult2 = never>(
+    onFulfilled?: ((value: { data: unknown; error: Error | null }) => TResult1 | PromiseLike<TResult1>) | null,
+    onRejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null,
+  ): Promise<TResult1 | TResult2> {
+    return Promise.resolve({ data: this.#data, error: this.#error }).then(onFulfilled, onRejected);
   }
 }
 
@@ -61,6 +77,36 @@ class StubServiceClient {
       ];
 
       return new StubQueryBuilder(toolkitSelection);
+    }
+
+    if (table === 'mission_metadata') {
+      return new StubQueryBuilder([
+        { field: 'objective', accepted_at: '2025-10-10T00:00:00Z', value: 'Grow pipeline' },
+      ]);
+    }
+
+    if (table === 'mission_safeguards') {
+      return new StubQueryBuilder([
+        { hint_type: 'tone', status: 'accepted', accepted_at: '2025-10-10T01:00:00Z' },
+      ]);
+    }
+
+    if (table === 'planner_runs') {
+      return new StubQueryBuilder([
+        { candidate_count: 3, pinned_at: null, created_at: '2025-10-11T00:00:00Z' },
+      ]);
+    }
+
+    if (table === 'plays') {
+      return new StubQueryBuilder([
+        { id: 'play-123', mission_id: DEFAULT_MISSION, created_at: '2025-10-11T02:00:00Z' },
+      ]);
+    }
+
+    if (table === 'artifacts') {
+      return new StubQueryBuilder([
+        { id: 'artifact-1', type: 'draft', status: 'draft', play_id: 'play-123' },
+      ]);
     }
 
     if (table === 'inspection_findings') {

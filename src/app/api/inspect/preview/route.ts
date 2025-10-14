@@ -172,18 +172,26 @@ type PreviewResponse = {
 async function buildInspectionPreview(context: PreviewRequestContext): Promise<PreviewResponse> {
   const { serviceClient, tenantId, missionId, payload, providedReadiness, findingType } = context;
 
-  const { data: toolkitRows, error: toolkitError } = await serviceClient
+  const toolkitQuery = serviceClient
     .from('toolkit_selections')
     .select('toolkit_id, metadata, auth_mode, connection_status')
     .eq('tenant_id', tenantId)
     .eq('mission_id', missionId)
     .order('created_at', { ascending: false });
 
+  const toolkitRowsResult =
+    typeof (toolkitQuery as unknown as { then?: unknown }).then === 'function'
+      ? await toolkitQuery
+      : await (toolkitQuery as unknown as Promise<{ data: ToolkitSelectionRow[]; error: Error | null }>);
+
+  const toolkitError = (toolkitRowsResult as { error?: Error | null }).error ?? null;
+  const rawToolkitRows = (toolkitRowsResult as { data?: unknown }).data ?? [];
+
   if (toolkitError) {
     throw new Error(toolkitError.message);
   }
 
-  const toolkits = ((toolkitRows ?? []) as ToolkitSelectionRow[])
+  const toolkits = ((rawToolkitRows ?? []) as ToolkitSelectionRow[])
     .map(normalizeToolkitPreview)
     .filter((preview): preview is ToolkitPreview => preview !== null);
 
@@ -210,8 +218,8 @@ async function buildInspectionPreview(context: PreviewRequestContext): Promise<P
       .limit(1),
     serviceClient
       .from('plays')
-      .select('id, created_at')
-      .eq('objective_id', missionId)
+      .select('id, created_at, mission_id')
+      .eq('mission_id', missionId)
       .eq('tenant_id', tenantId),
   ]);
 

@@ -35,7 +35,9 @@ describe('POST /api/inspect/preview', () => {
       error: null,
     });
 
-    const toolkitQueryBuilder = createToolkitSelectionQueryBuilder([
+    const selectBuilder = (rows: unknown[]) => createToolkitSelectionQueryBuilder(rows);
+
+    const toolkitQueryBuilder = selectBuilder([
       {
         toolkit_id: 'hubspot-crm',
         auth_mode: 'oauth',
@@ -60,6 +62,26 @@ describe('POST /api/inspect/preview', () => {
       },
     ]);
 
+    const missionMetadataBuilder = selectBuilder([
+      { field: 'objective', accepted_at: '2025-10-10T00:00:00Z', value: 'Grow pipeline' },
+    ]);
+
+    const missionSafeguardsBuilder = selectBuilder([
+      { hint_type: 'tone', status: 'accepted', accepted_at: '2025-10-10T01:00:00Z' },
+    ]);
+
+    const plannerRunBuilder = selectBuilder([
+      { candidate_count: 3, pinned_at: null, created_at: '2025-10-11T00:00:00Z' },
+    ]);
+
+    const playsBuilder = selectBuilder([
+      { id: 'play-123', mission_id: '67ab22f9-0f06-4ac4-9710-4a1ddcb915d2', created_at: '2025-10-11T02:00:00Z' },
+    ]);
+
+    const artifactsBuilder = selectBuilder([
+      { id: 'artifact-1', type: 'draft', status: 'draft', play_id: 'play-123' },
+    ]);
+
     const insertSingleMock = vi.fn().mockResolvedValue({
       data: {
         id: 'finding-123',
@@ -80,6 +102,21 @@ describe('POST /api/inspect/preview', () => {
       }
       if (table === 'inspection_findings') {
         return inspectionInsertBuilder;
+      }
+      if (table === 'mission_metadata') {
+        return missionMetadataBuilder;
+      }
+      if (table === 'mission_safeguards') {
+        return missionSafeguardsBuilder;
+      }
+      if (table === 'planner_runs') {
+        return plannerRunBuilder;
+      }
+      if (table === 'plays') {
+        return playsBuilder;
+      }
+      if (table === 'artifacts') {
+        return artifactsBuilder;
       }
       throw new Error(`Unexpected table ${table}`);
     });
@@ -137,6 +174,10 @@ describe('POST /api/inspect/preview', () => {
     const fromMock = serviceResolved?.from as vi.Mock;
     expect(fromMock).toHaveBeenCalledWith('toolkit_selections');
     expect(fromMock).toHaveBeenCalledWith('inspection_findings');
+    expect(fromMock).toHaveBeenCalledWith('mission_metadata');
+    expect(fromMock).toHaveBeenCalledWith('mission_safeguards');
+    expect(fromMock).toHaveBeenCalledWith('planner_runs');
+    expect(fromMock).toHaveBeenCalledWith('plays');
   });
 });
 
@@ -144,18 +185,36 @@ type ToolkitSelectionQueryBuilder = {
   select: vi.Mock;
   eq: vi.Mock;
   order: vi.Mock;
+  limit: vi.Mock;
+  in: vi.Mock;
+  single: vi.Mock;
+  then: vi.Mock;
 };
 
 function createToolkitSelectionQueryBuilder(rows: unknown[]): ToolkitSelectionQueryBuilder {
+  const resolve = () => Promise.resolve({ data: rows, error: null });
+
   const builder: ToolkitSelectionQueryBuilder = {
     select: vi.fn(),
     eq: vi.fn(),
     order: vi.fn(),
+    limit: vi.fn(),
+    in: vi.fn(),
+    single: vi.fn(),
+    then: vi.fn(),
   };
 
   builder.select.mockReturnValue(builder);
   builder.eq.mockReturnValue(builder);
-  builder.order.mockResolvedValue({ data: rows, error: null });
+  builder.order.mockReturnValue(builder);
+  builder.limit.mockReturnValue(builder);
+  builder.in.mockReturnValue(builder);
+  builder.single.mockImplementation(resolve);
+
+  // Make the builder thenable so it can be awaited
+  builder.then.mockImplementation((onFulfilled: (value: { data: unknown[]; error: null }) => unknown) => {
+    return Promise.resolve({ data: rows, error: null }).then(onFulfilled);
+  });
 
   return builder;
 }
