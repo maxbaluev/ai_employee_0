@@ -1,0 +1,46 @@
+{
+  "generated_at": "2025-10-14T16:00:00Z",
+  "generator": "sha256sum via mise shell",
+  "artifacts": [
+    {
+      "path": "docs/readiness/evidence_index_G-B.md",
+      "sha256": "ee604a1692f583c1bb272619e8270e83cf5a3a886a779814475b837b3b90b803"
+    },
+    {
+      "path": "docs/readiness/gate_g_b_implementation_summary.md",
+      "sha256": "1cd33532697240de6b2743dae527baddb02d6aff2a5481fafae1a91367061522"
+    },
+    {
+      "path": "docs/readiness/copilotkit_stream_contract_G-B.md",
+      "sha256": "570c4dca91ccfe770eb06f213697538cc5b72eb3c137dbc024d951374a277761"
+    },
+    {
+      "path": "docs/readiness/dry_run_verification.md",
+      "sha256": "a8366ad3aac007685ee57f163d47e61a2270f343d8ee6f07feb51d55224d8b4f"
+    },
+    {
+      "path": "docs/readiness/generative_quality_report_G-B.json",
+      "sha256": "d51d885908983ff0605a0a60837bb6710c9278dceadc188b0257e740af58010f"
+    },
+    {
+      "path": "docs/readiness/evidence_hash_report_G-B.json",
+      "sha256": "a5333b944c52ecba7c3af62db5bb6e4ea1fd0309cd78b36033594648c3c39b19"
+    },
+    {
+      "path": "docs/readiness/undo_trace_G-B.md",
+      "sha256": "ad58e4ff1d2752dcbe4c35f3c89c4be2634ba8fb4b5ac45af5501c84e4ceead5"
+    },
+    {
+      "path": "docs/readiness/status_beacon_B.json",
+      "sha256": "5d554790a9760068bad64a037956368216a9f61aea398c1f035151b14db6dbcf"
+    },
+    {
+      "path": "docs/readiness/planner_eval_G-B.json",
+      "sha256": "af920145ef62e735eb28baa0953a859bef5f405fdcd9af6c2cf29f022f4d988a"
+    },
+    {
+      "path": "docs/readiness/archive/2025-10-G-B/retrospective.md",
+      "sha256": "c36ae78f826f25947ab47e6e7c7f00f3e627af0e684c2175871ad6c1d322dcf9"
+    }
+  ]
+}

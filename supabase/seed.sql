@@ -452,8 +452,10 @@ values (
     'summary', 'Toolkit coverage verified for dry-run execution',
     'gate', jsonb_build_object('threshold', 85, 'canProceed', true),
     'categories', jsonb_build_array(
-      jsonb_build_object('id', 'toolkits', 'coverage', 92, 'status', 'pass'),
-      jsonb_build_object('id', 'evidence', 'coverage', 80, 'status', 'warn')
+      jsonb_build_object('id', 'objectives', 'coverage', 96, 'threshold', 85, 'status', 'pass'),
+      jsonb_build_object('id', 'safeguards', 'coverage', 88, 'threshold', 80, 'status', 'pass'),
+      jsonb_build_object('id', 'plays', 'coverage', 92, 'threshold', 80, 'status', 'pass'),
+      jsonb_build_object('id', 'datasets', 'coverage', 78, 'threshold', 70, 'status', 'warn')
     )
   ),
   90

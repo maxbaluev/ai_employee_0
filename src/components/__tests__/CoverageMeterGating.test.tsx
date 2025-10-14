@@ -126,20 +126,36 @@ const previewState = vi.hoisted<PreviewState>(() => ({
   summary: 'Ready to proceed',
   categories: [
     {
-      id: 'toolkits',
-      label: 'Toolkit coverage',
+      id: 'objectives',
+      label: 'Objectives & KPIs',
       coverage: 100,
       threshold: 85,
       status: 'pass',
-      description: 'Recommended toolkit mix locked in.',
+      description: 'Objective, audience, and KPIs accepted.',
     },
     {
-      id: 'artifacts',
-      label: 'Evidence history',
-      coverage: 80,
+      id: 'safeguards',
+      label: 'Safeguards',
+      coverage: 85,
+      threshold: 80,
+      status: 'pass',
+      description: 'Safeguard guardrails approved for this mission.',
+    },
+    {
+      id: 'plays',
+      label: 'Planner Plays',
+      coverage: 90,
+      threshold: 80,
+      status: 'pass',
+      description: 'Planner run pinned with viable plays.',
+    },
+    {
+      id: 'datasets',
+      label: 'Datasets & Evidence',
+      coverage: 82,
       threshold: 70,
-      status: 'warn',
-      description: 'Previous dry-run artifacts available for review.',
+      status: 'pass',
+      description: 'Evidence artifacts and data sources linked.',
     },
   ],
   gate: {
@@ -247,27 +263,36 @@ describe('CoverageMeter gating integration', () => {
     };
     previewState.categories = [
       {
-        id: 'toolkits',
-        label: 'Toolkit coverage',
+        id: 'objectives',
+        label: 'Objectives & KPIs',
         coverage: 88,
         threshold: 85,
         status: 'pass',
-        description: 'Recommended toolkit mix locked in.',
+        description: 'Objective, audience, and KPIs accepted.',
       },
       {
-        id: 'evidence',
-        label: 'Evidence history',
-        coverage: 60,
+        id: 'safeguards',
+        label: 'Safeguards',
+        coverage: 68,
+        threshold: 80,
+        status: 'warn',
+        description: 'Approve at least one safeguard hint before proceeding.',
+      },
+      {
+        id: 'plays',
+        label: 'Planner Plays',
+        coverage: 42,
+        threshold: 80,
+        status: 'fail',
+        description: 'Generate and pin a planner play before continuing.',
+      },
+      {
+        id: 'datasets',
+        label: 'Datasets & Evidence',
+        coverage: 38,
         threshold: 70,
-        status: 'warn',
-        description: 'Needs additional dry-run evidence.',
-      },
-      {
-        id: 'readiness',
-        label: 'Overall readiness',
-        coverage: 82,
-        threshold: 85,
-        status: 'warn',
+        status: 'fail',
+        description: 'Attach datasets or evidence artifacts before planning.',
       },
     ];
 
@@ -323,8 +348,8 @@ describe('CoverageMeter gating integration', () => {
       hasArtifacts: true,
     });
 
-    expect(screen.getByText(/^Toolkit coverage$/i)).toBeInTheDocument();
-    expect(screen.getByText(/Select at least one mission toolkit/i)).toBeInTheDocument();
+    expect(screen.getByText(/^Planner Plays$/i)).toBeInTheDocument();
+    expect(screen.getByText(/Generate and pin a planner play/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Request override/i })).toBeVisible();
 
     await new Promise((resolve) => setTimeout(resolve, 900));
@@ -349,8 +374,8 @@ describe('CoverageMeter gating integration', () => {
     expect(previewTelemetryCall?.[1].eventData?.gate?.threshold).toBe(85);
     expect(previewTelemetryCall?.[1].eventData?.categories).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ id: 'toolkits', status: 'fail' }),
-        expect.objectContaining({ id: 'evidence', status: 'fail' }),
+        expect.objectContaining({ id: 'plays', status: 'fail' }),
+        expect.objectContaining({ id: 'datasets', status: 'fail' }),
       ]),
     );
     expect(previewTelemetryCall?.[1].eventData?.toolkit_count).toBe(
@@ -360,18 +385,27 @@ describe('CoverageMeter gating integration', () => {
     await waitFor(() => expect(findLastTelemetryEvent('inspection_coverage_viewed')).toBeDefined());
     const coverageEvent = findLastTelemetryEvent('inspection_coverage_viewed');
     const coverageData = coverageEvent?.[1].eventData;
-    expect(coverageData?.bucketCounts).toEqual({ pass: 0, warn: 1, fail: 2 });
+    expect(coverageData?.bucketCounts).toEqual({ pass: 1, warn: 1, fail: 2 });
     expect(coverageData?.canProceed).toBe(false);
     expect(coverageData?.selectedToolkitsCount).toBe(2);
 
-    const toolkitCategory = screen.getByText('Toolkit coverage').closest('li');
-    expect(toolkitCategory?.className).toContain('border-red-500/30');
+    const playsCategory = screen
+      .getAllByText('Planner Plays')
+      .map((node) => node.closest('li'))
+      .find(Boolean) as HTMLElement | undefined;
+    expect(playsCategory?.className).toContain('border-red-500/30');
 
-    const evidenceCategory = screen.getByText('Evidence history').closest('li');
-    expect(evidenceCategory?.className).toContain('border-red-500/30');
+    const datasetsCategory = screen
+      .getAllByText('Datasets & Evidence')
+      .map((node) => node.closest('li'))
+      .find(Boolean) as HTMLElement | undefined;
+    expect(datasetsCategory?.className).toContain('border-red-500/30');
 
-    const readinessCategory = screen.getByText('Overall readiness').closest('li');
-    expect(readinessCategory?.className).toContain('border-amber-500/30');
+    const safeguardsCategory = screen
+      .getAllByText('Safeguards')
+      .map((node) => node.closest('li'))
+      .find(Boolean) as HTMLElement | undefined;
+    expect(safeguardsCategory?.className).toContain('border-amber-500/30');
   });
 
   it('advances to Plan when inspection readiness meets threshold', async () => {
@@ -387,27 +421,36 @@ describe('CoverageMeter gating integration', () => {
     };
     previewState.categories = [
       {
-        id: 'toolkits',
-        label: 'Toolkit coverage',
-        coverage: 100,
+        id: 'objectives',
+        label: 'Objectives & KPIs',
+        coverage: 96,
         threshold: 85,
         status: 'pass',
-        description: 'Recommended toolkit mix locked in.',
+        description: 'Objective, audience, and KPIs accepted.',
       },
       {
-        id: 'evidence',
-        label: 'Evidence history',
+        id: 'safeguards',
+        label: 'Safeguards',
+        coverage: 88,
+        threshold: 80,
+        status: 'pass',
+        description: 'Safeguard guardrails approved for this mission.',
+      },
+      {
+        id: 'plays',
+        label: 'Planner Plays',
         coverage: 92,
+        threshold: 80,
+        status: 'pass',
+        description: 'Planner run pinned with viable plays.',
+      },
+      {
+        id: 'datasets',
+        label: 'Datasets & Evidence',
+        coverage: 90,
         threshold: 70,
         status: 'pass',
-        description: 'Dry-run artifacts captured for validation.',
-      },
-      {
-        id: 'readiness',
-        label: 'Overall readiness',
-        coverage: 94,
-        threshold: 85,
-        status: 'pass',
+        description: 'Evidence artifacts and data sources linked.',
       },
     ];
 
@@ -489,8 +532,8 @@ describe('CoverageMeter gating integration', () => {
     expect(previewTelemetryCall?.[1].eventData?.gate?.threshold).toBe(85);
     expect(previewTelemetryCall?.[1].eventData?.categories).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ id: 'toolkits', status: 'pass' }),
-        expect.objectContaining({ id: 'evidence', status: 'pass' }),
+        expect.objectContaining({ id: 'plays', status: 'pass' }),
+        expect.objectContaining({ id: 'datasets', status: 'pass' }),
       ]),
     );
     expect(previewTelemetryCall?.[1].eventData?.toolkit_count).toBe(
@@ -500,17 +543,17 @@ describe('CoverageMeter gating integration', () => {
     await waitFor(() => expect(findLastTelemetryEvent('inspection_coverage_viewed')).toBeDefined());
     const coverageEvent = findLastTelemetryEvent('inspection_coverage_viewed');
     const coverageData = coverageEvent?.[1].eventData;
-    expect(coverageData?.bucketCounts).toEqual({ pass: 3, warn: 0, fail: 0 });
+    expect(coverageData?.bucketCounts).toEqual({ pass: 4, warn: 0, fail: 0 });
     expect(coverageData?.canProceed).toBe(true);
 
-    const toolkitCategory = screen.getByText('Toolkit coverage').closest('li');
-    expect(toolkitCategory?.className).toContain('border-emerald-500/30');
+    const objectivesCategory = screen.getByText('Objectives & KPIs').closest('li');
+    expect(objectivesCategory?.className).toContain('border-emerald-500/30');
 
-    const evidenceCategory = screen.getByText('Evidence history').closest('li');
-    expect(evidenceCategory?.className).toContain('border-emerald-500/30');
+    const playsCategorySuccess = screen.getByText('Planner Plays').closest('li');
+    expect(playsCategorySuccess?.className).toContain('border-emerald-500/30');
 
-    const readinessCategory = screen.getByText('Overall readiness').closest('li');
-    expect(readinessCategory?.className).toContain('border-emerald-500/30');
+    const datasetsCategorySuccess = screen.getByText('Datasets & Evidence').closest('li');
+    expect(datasetsCategorySuccess?.className).toContain('border-emerald-500/30');
   });
 
   it('blocks the inspection proceed button when readiness is below threshold and surfaces gap guidance', () => {
@@ -524,13 +567,13 @@ describe('CoverageMeter gating integration', () => {
       />,
     );
 
-    expect(screen.getByText('60%')).toBeInTheDocument();
+    expect(screen.getAllByText(/60%/).length).toBeGreaterThan(0);
     expect(screen.getByText(/Coverage Gaps/i)).toBeInTheDocument();
     expect(screen.getByText(/No toolkits selected/i)).toBeInTheDocument();
     expect(screen.getByText(/Prior mission artifacts/i)).toBeInTheDocument();
 
     const footerMessage = screen
-      .getAllByText(/^Insufficient toolkit coverage$/i)
+      .getAllByText(/Coverage below inspection requirement/i)
       .find((node) => node.closest('footer')) as HTMLElement | undefined;
     expect(footerMessage).toBeDefined();
 
@@ -593,9 +636,12 @@ describe('CoverageMeter gating integration', () => {
     await waitFor(() => expect(findLastTelemetryEvent('inspection_coverage_viewed')).toBeDefined());
     const coverageEvent = findLastTelemetryEvent('inspection_coverage_viewed');
     const coverageData = coverageEvent?.[1].eventData;
-    expect(coverageData?.bucketCounts).toEqual({ pass: 2, warn: 1, fail: 0 });
+    expect(coverageData?.bucketCounts).toEqual({ pass: 1, warn: 2, fail: 1 });
 
-    const toolkitCategory = screen.getByText('Toolkit coverage').closest('li');
-    expect(toolkitCategory?.className).toContain('border-amber-500/30');
+    const safeguardsCategoryWarn = screen
+      .getAllByText('Safeguards')
+      .map((node) => node.closest('li'))
+      .find(Boolean) as HTMLElement | undefined;
+    expect(safeguardsCategoryWarn?.className).toContain('border-amber-500/30');
   });
 });

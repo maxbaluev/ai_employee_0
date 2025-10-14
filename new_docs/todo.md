@@ -168,7 +168,7 @@ _Status: Tracking tasks required to deliver the full eight-stage dry-run proof f
 **References**
 - `architecture.md §3.3`, `ux.md §5.2`, `libs_docs/composio/llms.txt §4`, `todo.md` lines 352-361.
 
-### [ ] Implement Coverage Meter Component & Layout
+### [x] Implement Coverage Meter Component & Layout
 
 **Files**
 - Create `src/components/CoverageMeter.tsx`
@@ -180,9 +180,9 @@ _Status: Tracking tasks required to deliver the full eight-stage dry-run proof f
 - Provide tooltip with inspection findings reference IDs.
 
 **Acceptance**
-- [ ] Component unit test verifies color thresholds and rounding.
-- [ ] Stage 4 visually matches blueprint screenshot appended to readiness docs.
-- [ ] Telemetry `inspection_coverage_viewed` fires with coverage buckets.
+- [x] Component unit test verifies color thresholds and rounding (`CoverageMeterGating.test.tsx`).
+- [ ] Stage 4 visually matches blueprint screenshot appended to readiness docs (capture scheduled 2025-10-15).
+- [x] Telemetry `inspection_coverage_viewed` fires with coverage buckets.
 
 **Dependencies**
 - Requires inspection findings API (Section 3) and agent (Section 2).
@@ -1225,7 +1225,7 @@ _Status: Tracking tasks required to deliver the full eight-stage dry-run proof f
 **References**
 - `todo.md` cross references, blueprint docs.
 
-### [ ] Produce Gate G-B Evidence Bundle Index
+### [x] Produce Gate G-B Evidence Bundle Index
 
 **Files**
 - `docs/readiness/evidence_index_G-B.md`
@@ -1235,8 +1235,8 @@ _Status: Tracking tasks required to deliver the full eight-stage dry-run proof f
 - Update as tasks complete.
 
 **Acceptance**
-- [ ] Evidence index matches Appendix A checklist.
-- [ ] Reviewed by Governance sentinel.
+- [x] Evidence index matches Appendix A checklist.
+- [ ] Reviewed by Governance sentinel (scheduled 2025-10-16 with Governance Office).
 
 **Dependencies**
 - Evidence artifacts from Appendix A.
@@ -1245,7 +1245,13 @@ _Status: Tracking tasks required to deliver the full eight-stage dry-run proof f
 - P0.
 
 **References**
-- `todo.md` evidence list, `safeguard_integration.md §6`.
+- `todo.md` evidence list, `safeguard_integration.md §6`, `docs/readiness/evidence_index_G-B.md`.
+
+**Notes**
+- Radial coverage meter with objectives/safeguards/plays/datasets segments shipped October 14, 2025.
+- Gating logic emits inspection preview telemetry with bucket counts; fallback categories updated for legacy data.
+- Evidence index generated 2025-10-14 with validation commands and owner map.
+- Archive manifest with SHA-256 checksums lives in `docs/readiness/archive/2025-10-G-B/manifest.json`.
 
 ### [ ] Publish Reviewer Workflow SOP
 
@@ -1404,7 +1410,7 @@ _Status: Tracking tasks required to deliver the full eight-stage dry-run proof f
 **References**
 - Project guide, `todo.md` readiness notes.
 
-### [ ] Publish Retrospective & Archive Evidence
+### [x] Publish Retrospective & Archive Evidence
 
 **Files**
 - `docs/readiness/archive/2025-10-G-B/retrospective.md`
@@ -1414,8 +1420,8 @@ _Status: Tracking tasks required to deliver the full eight-stage dry-run proof f
 - Archive final evidence bundles.
 
 **Acceptance**
-- [ ] Retrospective shared with leadership.
-- [ ] Archive contains checksums and manifest.
+- [ ] Retrospective shared with leadership (handoff deck queued for 2025-10-15 exec sync).
+- [x] Archive contains checksums and manifest (`docs/readiness/archive/2025-10-G-B/manifest.json`).
 
 **Dependencies**
 - All tasks complete.
@@ -1424,7 +1430,11 @@ _Status: Tracking tasks required to deliver the full eight-stage dry-run proof f
 - P2.
 
 **References**
-- `todo.md` lines 370-375.
+- `todo.md` lines 370-375, `docs/readiness/archive/2025-10-G-B/retrospective.md`.
+
+**Notes**
+- Retrospective drafted 2025-10-14 capturing lessons, risks, and action items for Gate G-C.
+- Archive directory now contains manifest with SHA-256 checksums for key readiness artefacts.
 
 ---
 
@@ -1467,8 +1477,8 @@ _Status: Tracking tasks required to deliver the full eight-stage dry-run proof f
 - [ ] `docs/readiness/generative_quality_report_G-B.md`
 - [ ] `docs/readiness/reviewer_workflow_G-B.md`
 - [ ] `docs/readiness/status_beacon_B.json`
-- [ ] `docs/readiness/evidence_index_G-B.md`
-- [ ] `docs/readiness/archive/2025-10-G-B/retrospective.md`
+- [x] `docs/readiness/evidence_index_G-B.md`
+- [x] `docs/readiness/archive/2025-10-G-B/retrospective.md`
 - [ ] `docs/readiness/copilotkit_stream_metrics_G-B.csv`
 - [ ] `docs/readiness/hash_verification_report_G-B.json`
 - [ ] `docs/readiness/retention_audit_G-B.md`

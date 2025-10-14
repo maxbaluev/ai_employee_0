@@ -123,6 +123,25 @@ type ToolkitPreview = {
   sampleRows: string[];
 };
 
+type MissionMetadataRow = Pick<
+  Database['public']['Tables']['mission_metadata']['Row'],
+  'field' | 'accepted_at' | 'value'
+>;
+
+type MissionSafeguardRow = Pick<
+  Database['public']['Tables']['mission_safeguards']['Row'],
+  'hint_type' | 'status' | 'accepted_at'
+>;
+
+type PlannerRunRow = Pick<
+  Database['public']['Tables']['planner_runs']['Row'],
+  'candidate_count' | 'pinned_at' | 'created_at'
+>;
+
+type PlayRow = Pick<Database['public']['Tables']['plays']['Row'], 'id' | 'created_at'>;
+
+type ArtifactRow = Pick<Database['public']['Tables']['artifacts']['Row'], 'id' | 'type' | 'status'>;
+
 type InspectionCategory = {
   id: string;
   label: string;
@@ -171,6 +190,70 @@ async function buildInspectionPreview(context: PreviewRequestContext): Promise<P
   const selectedToolkitsCount = toolkits.length || extractNumeric(payload?.selectedToolkitsCount);
   const hasArtifacts = Boolean(payload?.hasArtifacts);
 
+  const [metadataResult, safeguardsResult, plannerRunResult, playsResult] = await Promise.all([
+    serviceClient
+      .from('mission_metadata')
+      .select('field, accepted_at, value')
+      .eq('mission_id', missionId)
+      .eq('tenant_id', tenantId),
+    serviceClient
+      .from('mission_safeguards')
+      .select('hint_type, status, accepted_at')
+      .eq('mission_id', missionId)
+      .eq('tenant_id', tenantId),
+    serviceClient
+      .from('planner_runs')
+      .select('candidate_count, pinned_at, created_at')
+      .eq('mission_id', missionId)
+      .eq('tenant_id', tenantId)
+      .order('created_at', { ascending: false })
+      .limit(1),
+    serviceClient
+      .from('plays')
+      .select('id, created_at')
+      .eq('objective_id', missionId)
+      .eq('tenant_id', tenantId),
+  ]);
+
+  if (metadataResult.error) {
+    console.warn('[api:inspect/preview] failed to load mission metadata', metadataResult.error);
+  }
+
+  if (safeguardsResult.error) {
+    console.warn('[api:inspect/preview] failed to load mission safeguards', safeguardsResult.error);
+  }
+
+  if (plannerRunResult.error) {
+    console.warn('[api:inspect/preview] failed to load planner runs', plannerRunResult.error);
+  }
+
+  if (playsResult.error) {
+    console.warn('[api:inspect/preview] failed to load plays', playsResult.error);
+  }
+
+  const plannerRun = plannerRunResult.data?.[0] as PlannerRunRow | undefined;
+  const plays = (playsResult.data ?? []) as PlayRow[];
+
+  let artifactRows: ArtifactRow[] = [];
+  if (plays.length > 0) {
+    const playIds = plays
+      .map((entry) => entry.id)
+      .filter((value): value is string => Boolean(value));
+
+    if (playIds.length > 0) {
+      const artifactResult = await serviceClient
+        .from('artifacts')
+        .select('id, type, status, play_id')
+        .in('play_id', playIds);
+
+      if (artifactResult.error) {
+        console.warn('[api:inspect/preview] failed to load artifacts for plays', artifactResult.error);
+      } else if (artifactResult.data) {
+        artifactRows = (artifactResult.data as ArtifactRow[]) ?? [];
+      }
+    }
+  }
+
   const computedReadiness = computeReadiness({
     selectedToolkitsCount,
     hasArtifacts,
@@ -180,6 +263,12 @@ async function buildInspectionPreview(context: PreviewRequestContext): Promise<P
     selectedToolkitsCount,
     hasArtifacts,
     readiness: computedReadiness,
+    missionMetadata: (metadataResult.data ?? []) as MissionMetadataRow[],
+    safeguards: (safeguardsResult.data ?? []) as MissionSafeguardRow[],
+    plannerRun: plannerRun ?? null,
+    plays,
+    toolkits,
+    artifacts: artifactRows,
   });
 
   const gate = buildGateSummary({
@@ -301,45 +390,106 @@ function buildInspectionCategories(options: {
   selectedToolkitsCount: number;
   hasArtifacts: boolean;
   readiness: number;
+  missionMetadata: MissionMetadataRow[];
+  safeguards: MissionSafeguardRow[];
+  plannerRun: PlannerRunRow | null;
+  plays: PlayRow[];
+  toolkits: ToolkitPreview[];
+  artifacts: ArtifactRow[];
 }): InspectionCategory[] {
-  const { selectedToolkitsCount, hasArtifacts, readiness } = options;
+  const {
+    selectedToolkitsCount,
+    hasArtifacts,
+    readiness,
+    missionMetadata,
+    safeguards,
+    plannerRun,
+    plays,
+    toolkits,
+    artifacts,
+  } = options;
 
-  const toolkitCoverage = Math.max(0, Math.min(100, selectedToolkitsCount >= 3 ? 100 : selectedToolkitsCount === 2 ? 88 : selectedToolkitsCount === 1 ? 72 : 25));
-  const toolkitThreshold = 85;
-
-  const evidenceCoverage = hasArtifacts ? 80 : 30;
-  const evidenceThreshold = 70;
+  const objectivesCoverage = calculateObjectivesCoverage(missionMetadata);
+  const safeguardsCoverage = calculateSafeguardsCoverage(safeguards);
+  const playsCoverage = calculatePlaysCoverage({ plannerRun, plays });
+  const datasetsCoverage = calculateDatasetsCoverage({ toolkits, artifacts, hasArtifacts });
 
   const categories: InspectionCategory[] = [
     {
-      id: 'toolkits',
-      label: 'Toolkit coverage',
-      coverage: toolkitCoverage,
-      threshold: toolkitThreshold,
-      status: resolveStatus(toolkitCoverage, toolkitThreshold),
-      description:
-        selectedToolkitsCount > 0
-          ? 'Recommended toolkit mix locked in.'
-          : 'Select at least one mission toolkit before planning.',
-    },
-    {
-      id: 'evidence',
-      label: 'Evidence history',
-      coverage: evidenceCoverage,
-      threshold: evidenceThreshold,
-      status: resolveStatus(evidenceCoverage, evidenceThreshold),
-      description: hasArtifacts
-        ? 'Previous artifacts available for validator review.'
-        : 'Run a dry-run to generate evidence before planning.',
-    },
-    {
-      id: 'readiness',
-      label: 'Overall readiness',
-      coverage: readiness,
+      id: 'objectives',
+      label: 'Objectives & KPIs',
+      coverage: objectivesCoverage,
       threshold: 85,
-      status: resolveStatus(readiness, 85),
+      status: resolveStatus(objectivesCoverage, 85),
+      description:
+        objectivesCoverage >= 85
+          ? 'Objective, audience, and KPIs accepted.'
+          : 'Accept objective, audience, and KPI chips to lock the brief.',
+    },
+    {
+      id: 'safeguards',
+      label: 'Safeguards',
+      coverage: safeguardsCoverage,
+      threshold: 80,
+      status: resolveStatus(safeguardsCoverage, 80),
+      description:
+        safeguardsCoverage >= 80
+          ? 'Safeguard guardrails approved for this mission.'
+          : 'Accept at least one safeguard hint before proceeding.',
+    },
+    {
+      id: 'plays',
+      label: 'Planner Plays',
+      coverage: playsCoverage,
+      threshold: 80,
+      status: resolveStatus(playsCoverage, 80),
+      description:
+        playsCoverage >= 80
+          ? 'Planner run pinned with viable plays.'
+          : 'Generate a planner dry-run and pin a play to reach gate readiness.',
+    },
+    {
+      id: 'datasets',
+      label: 'Datasets & Evidence',
+      coverage: datasetsCoverage,
+      threshold: 70,
+      status: resolveStatus(datasetsCoverage, 70),
+      description:
+        datasetsCoverage >= 70
+          ? 'Evidence artifacts and data sources linked.'
+          : 'Attach datasets or evidence artifacts before executing the plan.',
     },
   ];
+
+  // Legacy fallback for older inspection findings that still rely on toolkit/evidence IDs.
+  if (!categories.some((category) => category.id === 'objectives')) {
+    const toolkitCoverage = Math.max(0, Math.min(100, selectedToolkitsCount >= 3 ? 100 : selectedToolkitsCount === 2 ? 88 : selectedToolkitsCount === 1 ? 72 : 25));
+    const evidenceCoverage = hasArtifacts ? 80 : 30;
+
+    categories.push(
+      {
+        id: 'toolkits',
+        label: 'Toolkit coverage',
+        coverage: toolkitCoverage,
+        threshold: 85,
+        status: resolveStatus(toolkitCoverage, 85),
+        description:
+          selectedToolkitsCount > 0
+            ? 'Recommended toolkit mix locked in.'
+            : 'Select at least one mission toolkit before planning.',
+      },
+      {
+        id: 'evidence',
+        label: 'Evidence history',
+        coverage: evidenceCoverage,
+        threshold: 70,
+        status: resolveStatus(evidenceCoverage, 70),
+        description: hasArtifacts
+          ? 'Previous artifacts available for validator review.'
+          : 'Run a dry-run to generate evidence before planning.',
+      },
+    );
+  }
 
   return categories;
 }
@@ -373,4 +523,167 @@ function resolveStatus(coverage: number, threshold: number): InspectionCategory[
     return 'warn';
   }
   return 'fail';
+}
+
+function calculateObjectivesCoverage(rows: MissionMetadataRow[]): number {
+  const EXPECTED_FIELDS: Array<{ key: string; weight: number }> = [
+    { key: 'objective', weight: 1 },
+    { key: 'audience', weight: 1 },
+    { key: 'kpis', weight: 1 },
+  ];
+
+  const totalWeight = EXPECTED_FIELDS.reduce((acc, entry) => acc + entry.weight, 0);
+  let score = 0;
+
+  for (const entry of EXPECTED_FIELDS) {
+    const row = rows.find((candidate) => candidate.field === entry.key);
+    if (!row) {
+      continue;
+    }
+
+    if (row.accepted_at) {
+      score += entry.weight;
+      continue;
+    }
+
+    const hasValue = entry.key === 'kpis' ? hasKpiItems(row.value) : hasTextValue(row.value);
+    if (hasValue) {
+      score += entry.weight * 0.5;
+    }
+  }
+
+  return clampPercentage((score / totalWeight) * 100, 0);
+}
+
+function calculateSafeguardsCoverage(rows: MissionSafeguardRow[]): number {
+  if (!rows.length) {
+    return 0;
+  }
+
+  const accepted = rows.filter((row) => row.status === 'accepted').length;
+  const suggested = rows.filter((row) => row.status === 'suggested').length;
+  const total = rows.length;
+
+  if (accepted === 0 && suggested === 0) {
+    return 0;
+  }
+
+  const baseScore = (accepted / total) * 100;
+  const bonus = accepted > 0 && suggested > 0 ? 10 : 0;
+
+  return clampPercentage(baseScore + bonus, 0);
+}
+
+function calculatePlaysCoverage(options: { plannerRun: PlannerRunRow | null; plays: PlayRow[] }): number {
+  const { plannerRun, plays } = options;
+
+  if (!plannerRun && plays.length === 0) {
+    return 0;
+  }
+
+  if (plannerRun?.pinned_at) {
+    return 100;
+  }
+
+  let score = 0;
+  const candidateCount = plannerRun?.candidate_count ?? 0;
+
+  if (candidateCount >= 3) {
+    score += 60;
+  } else if (candidateCount > 0) {
+    score += 45;
+  }
+
+  const playContribution = Math.min(40, plays.length * 20);
+  score += playContribution;
+
+  return clampPercentage(score, 0);
+}
+
+const DATASET_CATEGORY_KEYWORDS = new Set([
+  'data',
+  'dataset',
+  'analytics',
+  'warehouse',
+  'storage',
+  'database',
+  'bi',
+]);
+
+const DATASET_ARTIFACT_TYPES = new Set(['dataset', 'data_source', 'data', 'report']);
+
+function calculateDatasetsCoverage(options: {
+  toolkits: ToolkitPreview[];
+  artifacts: ArtifactRow[];
+  hasArtifacts: boolean;
+}): number {
+  const { toolkits, artifacts, hasArtifacts } = options;
+
+  const datasetToolkitCount = toolkits.filter((toolkit) => {
+    const category = toolkit.category?.toLowerCase?.() ?? '';
+    return Array.from(DATASET_CATEGORY_KEYWORDS).some((keyword) => category.includes(keyword));
+  }).length;
+
+  const datasetArtifactCount = artifacts.filter((artifact) => {
+    const type = artifact.type?.toLowerCase?.() ?? '';
+    return DATASET_ARTIFACT_TYPES.has(type);
+  }).length;
+
+  let score = 0;
+
+  if (datasetToolkitCount > 0) {
+    score += Math.min(50, datasetToolkitCount * 25);
+  }
+
+  if (datasetArtifactCount > 0) {
+    score += Math.min(40, datasetArtifactCount * 20);
+  }
+
+  if (hasArtifacts) {
+    score += 10;
+  }
+
+  return clampPercentage(score, 0);
+}
+
+function hasTextValue(value: unknown): boolean {
+  if (typeof value === 'string') {
+    return value.trim().length > 0;
+  }
+
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  if ('text' in value && typeof (value as Record<string, unknown>).text === 'string') {
+    return ((value as Record<string, string>).text ?? '').trim().length > 0;
+  }
+
+  return false;
+}
+
+function hasKpiItems(value: unknown): boolean {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  const container = Array.isArray(value)
+    ? value
+    : 'items' in value
+      ? (value as Record<string, unknown>).items
+      : [];
+
+  if (!Array.isArray(container)) {
+    return false;
+  }
+
+  return container.some((item) => item && typeof item === 'object' && typeof (item as Record<string, unknown>).label === 'string');
+}
+
+function clampPercentage(value: unknown, fallback = 0): number {
+  const numeric = Number(value);
+  if (Number.isFinite(numeric)) {
+    return Math.max(0, Math.min(100, numeric));
+  }
+  return fallback;
 }
