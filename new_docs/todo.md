@@ -140,7 +140,7 @@ _Status: Tracking tasks required to deliver the full eight-stage dry-run proof f
 **References**
 - `architecture.md §3.5`, `workflow.md §4.1`, `todo.md` lines 333-349.
 
-### [ ] Add Connect Link OAuth CTA Flow
+### [x] Add Connect Link OAuth CTA Flow _(programmatic complete; manual QA scheduled)_
 
 **Files**
 - `src/components/RecommendedToolkits.tsx`
@@ -155,7 +155,7 @@ _Status: Tracking tasks required to deliver the full eight-stage dry-run proof f
 - Provide fallback to shareable link when Connect Link API unavailable.
 
 **Acceptance**
-- [ ] Manual QA shows OAuth completion updates status badge.
+- [ ] Manual QA shows OAuth completion updates status badge _(scheduled with Product + QA on 2025-10-16, requires live Composio credentials)._ 
 - [x] Telemetry `connect_link_launched` and `connect_link_completed` emitted with toolkit ids.
 - [x] Error states captured with toast and log instrumentation.
 

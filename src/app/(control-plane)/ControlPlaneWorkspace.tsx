@@ -6,6 +6,7 @@ import { CopilotSidebar, type CopilotKitCSSProperties } from "@copilotkit/react-
 
 import { ApprovalModal } from "@/components/ApprovalModal";
 import { CoverageMeter } from "@/components/CoverageMeter";
+import { InspectionSummaryList, type InspectionFinding } from "@/components/InspectionSummaryList";
 import { ArtifactGallery, type ArtifactGalleryArtifact } from "@/components/ArtifactGallery";
 import { ArtifactUndoBar } from "@/components/ArtifactUndoBar";
 import type { UndoPlanMetadata } from "@/components/StreamingStatusPanel";
@@ -145,6 +146,7 @@ function ControlPlaneWorkspaceContent({
   const [, setSafeguardHistoryOpen] = useState(false);
   const [approvalUndoSummary, setApprovalUndoSummary] = useState<string | undefined>(undefined);
   const [plannerRuns, setPlannerRuns] = useState<PlannerRunSnapshot[]>([]);
+  const [inspectionFindings, setInspectionFindings] = useState<InspectionFinding[]>([]);
   const hasPinnedBriefRef = useRef(false);
   const copilotExitHandledRef = useRef(false);
   const lastHydratedSessionRef = useRef<string | null>(null);
@@ -1570,6 +1572,78 @@ function ControlPlaneWorkspaceContent({
     markStageIfNeeded(MissionStage.Inspect);
   }, [markStageIfNeeded]);
 
+  const handleAcceptGap = useCallback(
+    async (findingId: string) => {
+      if (!missionId) {
+        return;
+      }
+
+      try {
+        await fetch("/api/inspect/gap/accept", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ tenantId, missionId, findingId }),
+        });
+
+        // Remove the finding from the list
+        setInspectionFindings((prev) => prev.filter((f) => f.id !== findingId));
+      } catch (error) {
+        console.error("Failed to accept gap", error);
+      }
+    },
+    [missionId, tenantId],
+  );
+
+  const handleRegenerateFromFinding = useCallback(
+    async (findingId: string) => {
+      if (!missionId) {
+        return;
+      }
+
+      try {
+        await fetch("/api/inspect/gap/regenerate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ tenantId, missionId, findingId }),
+        });
+
+        setWorkspaceAlert({
+          tone: "info",
+          message: "Regeneration requested for this finding.",
+        });
+      } catch (error) {
+        console.error("Failed to regenerate from finding", error);
+        setWorkspaceAlert({
+          tone: "error",
+          message: "Failed to request regeneration.",
+        });
+      }
+    },
+    [missionId, tenantId],
+  );
+
+  const handleDismissFinding = useCallback(
+    async (findingId: string) => {
+      if (!missionId) {
+        return;
+      }
+
+      try {
+        await fetch("/api/inspect/gap/dismiss", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ tenantId, missionId, findingId }),
+        });
+
+        // Remove the finding from the list
+        setInspectionFindings((prev) => prev.filter((f) => f.id !== findingId));
+      } catch (error) {
+        console.error("Failed to dismiss finding", error);
+      }
+    },
+    [missionId, tenantId],
+  );
+
   const handlePlanComplete = useCallback(() => {
     const planStatus = stages.get(MissionStage.Plan);
     if (planStatus?.state !== "completed") {
@@ -1878,6 +1952,19 @@ function ControlPlaneWorkspaceContent({
           hasArtifacts={artifacts.length > 0}
           onComplete={handleInspectionComplete}
         />
+      )}
+
+      {inspectionFindings.length > 0 && (
+        <div className="border-b border-white/10 px-6 py-6">
+          <InspectionSummaryList
+            tenantId={tenantId}
+            missionId={missionId}
+            findings={inspectionFindings}
+            onAcceptGap={handleAcceptGap}
+            onRegenerate={handleRegenerateFromFinding}
+            onDismiss={handleDismissFinding}
+          />
+        </div>
       )}
 
       <PlannerInsightRail
