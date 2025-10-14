@@ -1,10 +1,7 @@
-import { RedisRegenerationStore } from './stores/redisStore';
-
 /**
  * RegenerationLimiter
  *
- * Manages per-tenant-per-mission-per-field regeneration attempt counters
- * with pluggable storage backends (in-memory, Redis, Postgres).
+ * Manages per-tenant-per-mission-per-field regeneration attempt counters.
  */
 
 export type RegenerationType =
@@ -19,8 +16,6 @@ export interface RegenerationLimiterConfig {
   maxAttempts?: number;
   /** Time window in milliseconds after which counters reset (default: no reset) */
   resetWindowMs?: number;
-  /** Storage backend to use (default: uses INTAKE_LIMITER_BACKEND env var or 'memory') */
-  backend?: 'memory' | 'redis';
 }
 
 export interface CounterEntry {
@@ -109,29 +104,11 @@ export class InMemoryRegenerationStore implements RegenerationLimiterStore {
   }
 }
 
-export { RedisRegenerationStore } from './stores/redisStore';
-
 /**
  * Factory function to create the appropriate store based on configuration.
- * @param backend - Backend type ('memory' or 'redis')
- * @returns Instance of the appropriate RegenerationLimiterStore implementation
  */
-export function createRegenerationLimiterStore(
-  backend?: 'memory' | 'redis'
-): RegenerationLimiterStore {
-  const storeType = backend ?? (process.env.INTAKE_LIMITER_BACKEND as 'memory' | 'redis' | undefined) ?? 'memory';
-
-  switch (storeType) {
-    case 'memory':
-      return new InMemoryRegenerationStore();
-    case 'redis':
-      if (!process.env.REDIS_URL) {
-        throw new Error('REDIS_URL must be set to use the redis limiter backend');
-      }
-      return new RedisRegenerationStore();
-    default:
-      throw new Error(`Unknown limiter backend: ${storeType}`);
-  }
+export function createRegenerationLimiterStore(): RegenerationLimiterStore {
+  return new InMemoryRegenerationStore();
 }
 
 export class RegenerationLimiter {
@@ -142,7 +119,7 @@ export class RegenerationLimiter {
   constructor(config: RegenerationLimiterConfig = {}) {
     this.maxAttempts = config.maxAttempts ?? 3;
     this.resetWindowMs = config.resetWindowMs;
-    this.store = createRegenerationLimiterStore(config.backend);
+    this.store = createRegenerationLimiterStore();
   }
 
   /**

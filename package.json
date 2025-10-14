@@ -24,7 +24,6 @@
     "@ag-ui/core": "^0.0.39",
     "@ag-ui/encoder": "^0.0.39",
     "@ag-ui/proto": "^0.0.39",
-    "@redis/client": "^1.6.0",
     "@copilotkit/react-core": "1.10.6",
     "@copilotkit/react-textarea": "1.10.6",
     "@copilotkit/react-ui": "1.10.6",

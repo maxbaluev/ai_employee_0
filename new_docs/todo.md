@@ -35,7 +35,7 @@ _Stage orchestration details live in `new_docs/stages-implementation.md` and sho
 
 **Acceptance**
 - [x] Vitest snapshot covers badge rendering for all tiers.
-- [ ] Manual QA screenshot added to `docs/readiness/intake_confidence_G-B.png`.
+- [ ] Visual regression test stores automated snapshot in readiness evidence.
 - [x] Telemetry event `intake_confidence_viewed` fires with badge tier payload.
 
 **Notes**
@@ -62,9 +62,9 @@ _Stage orchestration details live in `new_docs/stages-implementation.md` and sho
 - Display guardrail toast if CopilotKit streaming fails, guiding user to retry the generative path.
 
 **Acceptance**
-- [ ] Manual regression shows no path to bypass generative intake.
+- [ ] Integration test verifies no path to bypass generative intake.
 - [x] Telemetry `fallback_editor_opened` removed from event catalog.
-- [ ] Update CopilotKit QA evidence to confirm generative-only loop.
+- [ ] CopilotKit smoke test confirms generative-only loop.
 
 **Notes**
 - Generative-only flow resides in `src/app/(control-plane)/ControlPlaneWorkspace.tsx` with chip acceptance enforced in `src/components/MissionIntake.tsx`.
@@ -145,7 +145,7 @@ _Stage orchestration details live in `new_docs/stages-implementation.md` and sho
 **References**
 - `architecture.md §3.5`, `workflow.md §4.1`, `todo.md` lines 333-349.
 
-### [x] Add Connect Link OAuth CTA Flow _(programmatic complete; manual QA scheduled)_
+### [x] Add Connect Link OAuth CTA Flow
 
 **Files**
 - `src/components/RecommendedToolkits.tsx`
@@ -162,7 +162,7 @@ _Stage orchestration details live in `new_docs/stages-implementation.md` and sho
 - Enforce single-toolkit scope selection and capture chosen scopes in `toolkit_connections.scopes`.
 
 **Acceptance**
-- [ ] Manual QA shows OAuth completion updates status badge _(scheduled with Product + QA on 2025-10-16, requires live Composio credentials)._ 
+- [ ] Integration test exercises OAuth completion and updates status badge.
 - [x] Telemetry `connect_link_launched` and `connect_link_completed` emitted with toolkit ids.
 - [x] Error states captured with toast and log instrumentation.
 - [ ] Scope picker persists selection and produces audit log entry.
@@ -189,7 +189,7 @@ _Stage orchestration details live in `new_docs/stages-implementation.md` and sho
 
 **Acceptance**
 - [x] Component unit test verifies color thresholds and rounding (`CoverageMeterGating.test.tsx`).
-- [ ] Stage 4 visually matches blueprint screenshot appended to readiness docs (capture scheduled 2025-10-15).
+- [ ] Automated snapshot test validates Stage 4 layout matches blueprint.
 - [x] Telemetry `inspection_coverage_viewed` fires with coverage buckets.
 
 **Dependencies**
@@ -410,7 +410,7 @@ _Stage orchestration details live in `new_docs/stages-implementation.md` and sho
 **Requirements**
 - Implement skip links, ARIA roles, and keyboard traps per `ux.md §9`.
 - Run automated axe-core scan and capture violations.
-- Document manual keyboard walkthrough for Stage 3–8 components.
+- Capture automated keyboard navigation report for Stage 3–8 components.
 
 **Acceptance**
 - [ ] `pnpm run test:a11y` passes with zero critical issues.
@@ -732,7 +732,7 @@ _Stage orchestration details live in `new_docs/stages-implementation.md` and sho
 - Handle errors surfaced from Composio Connect Link API gracefully.
 
 **Acceptance**
-- [ ] Manual QA flow recorded for readiness docs.
+- [ ] Integration test records OAuth flow readiness evidence automatically.
 - [ ] Telemetry `connect_link_status_updated` emitted.
 - [ ] API secured via mission ownership check.
 
@@ -832,7 +832,7 @@ _Stage orchestration details live in `new_docs/stages-implementation.md` and sho
 
 **Acceptance**
 - [ ] Script integrated into CI pipeline.
-- [ ] Retention metrics recorded in readiness evidence.
+- [ ] Automated retention metrics recorded in readiness evidence.
 
 **Dependencies**
 - Telemetry & Testing sections.
@@ -861,7 +861,7 @@ _Stage orchestration details live in `new_docs/stages-implementation.md` and sho
 **Acceptance**
 - [ ] Telemetry audit script (Section 5) reports 100% coverage.
 - [ ] TypeScript compile ensures all events enumerated.
-- [ ] QA log appended to `docs/readiness/telemetry_frontend_G-B.md`.
+- [ ] Automated QA log appended to `docs/readiness/telemetry_frontend_G-B.md`.
 
 **Dependencies**
 - Depends on components from Section 1.
@@ -1013,8 +1013,8 @@ _Stage orchestration details live in `new_docs/stages-implementation.md` and sho
 
 **Acceptance**
 - [ ] Test passes locally and in CI using Playwright with `REDIS_URL` set.
-- [ ] Video artifact stored in `docs/readiness/e2e_mission_flow_G-B.mp4`.
-- [ ] Failure screenshots automatically uploaded to readiness folder.
+- [ ] Automated report stored in `docs/readiness/e2e_mission_flow_G-B.md`.
+- [ ] Failure logs automatically captured in readiness folder.
 
 **Dependencies**
 - Requires UI components and API routes from Sections 1 & 3.
@@ -1082,7 +1082,7 @@ _Stage orchestration details live in `new_docs/stages-implementation.md` and sho
 
 **Acceptance**
 - [ ] Tests pass with deterministic fixtures.
-- [ ] Evidence of each scenario stored in readiness.
+- [ ] Automated readiness report summarizes each scenario.
 
 **Dependencies**
 - Validator updates (Section 2).
@@ -1105,7 +1105,7 @@ _Stage orchestration details live in `new_docs/stages-implementation.md` and sho
 
 **Acceptance**
 - [ ] Tests pass; failure captures mismatch details.
-- [ ] QA log stored in readiness folder.
+- [ ] Automated QA log stored in readiness folder.
 
 **Dependencies**
 - Evidence service & API tasks (Sections 2 & 3).
@@ -1150,8 +1150,8 @@ _Stage orchestration details live in `new_docs/stages-implementation.md` and sho
 - Ensure telemetry logs retention run with counts.
 
 **Acceptance**
-- [ ] Test passes using time travel or manual seed.
-- [ ] Evidence log stored in readiness folder.
+- [ ] Test passes using deterministic time travel fixture.
+- [ ] Automated evidence log stored in readiness folder.
 
 **Dependencies**
 - Supabase TTL config (Section 3).
@@ -1241,7 +1241,7 @@ _Stage orchestration details live in `new_docs/stages-implementation.md` and sho
 - `docs/readiness/evidence_index_G-B.md`
 
 **Requirements**
-- Catalogue all evidence artifacts (videos, logs, scripts) with owner and storage path.
+- Catalogue all evidence artifacts (automated logs, scripts) with owner and storage path.
 - Update as tasks complete.
 
 **Acceptance**
@@ -1270,7 +1270,7 @@ _Stage orchestration details live in `new_docs/stages-implementation.md` and sho
 
 **Requirements**
 - Draft decision tree for approvals, escalation, undo, coverage gating.
-- Include screenshots from approval modal and validator summary.
+- Include automated captures from approval modal and validator summary tests.
 
 **Acceptance**
 - [ ] SOP signed off by Governance sentinel.
@@ -1329,18 +1329,19 @@ _Stage orchestration details live in `new_docs/stages-implementation.md` and sho
 **References**
 - `ux.md §5.4`, `todo.md` lines 878-883.
 
-### [ ] Record CopilotKit Dry-Run Session Video
+### [ ] Validate CopilotKit Dry-Run Session with Automated Tests
 
 **Files**
-- `docs/readiness/copilotkit_session_G-B.mp4`
+- `tests/e2e/copilotkitDryRun.spec.ts`
+- `docs/readiness/copilotkit_session_test_results_G-B.md`
 
 **Requirements**
-- Capture full mission flow including toolkit selection, inspection gating, planner rationale, undo action, feedback submission.
-- Overlay console logs or telemetry overlay.
+- Execute full mission flow including toolkit selection, inspection gating, planner rationale, undo action, feedback submission.
+- Capture telemetry and console logs automatically as part of the test run.
 
 **Acceptance**
-- [ ] Video stored and linked in evidence index.
-- [ ] Verified by product and governance leads.
+- [ ] Automated test suite passes and stores results in readiness evidence.
+- [ ] Test artifacts reviewed by product and governance leads.
 
 **Dependencies**
 - End-to-end test readiness (Section 5).
@@ -1473,9 +1474,8 @@ _Stage orchestration details live in `new_docs/stages-implementation.md` and sho
 ## Appendix A · Required Evidence Artifacts
 
 - [ ] `docs/readiness/copilotkit_stream_contract_G-B.md`
-- [ ] `docs/readiness/copilotkit_session_G-B.mp4`
-- [ ] `docs/readiness/intake_confidence_G-B.png`
-- [ ] `docs/readiness/e2e_mission_flow_G-B.mp4`
+- [ ] `docs/readiness/copilotkit_session_test_results_G-B.md`
+- [ ] `docs/readiness/e2e_mission_flow_G-B.md`
 - [ ] `docs/readiness/planner_eval_G-B.md`
 - [ ] `docs/readiness/validator_negatives_G-B.md`
 - [ ] `docs/readiness/evidence_samples_G-B/` (bundle + manifest)
