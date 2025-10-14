@@ -7,7 +7,12 @@ import { RedisRegenerationStore } from './stores/redisStore';
  * with pluggable storage backends (in-memory, Redis, Postgres).
  */
 
-export type RegenerationType = 'objective' | 'audience' | 'kpis' | 'safeguards';
+export type RegenerationType =
+  | 'objective'
+  | 'audience'
+  | 'kpis'
+  | 'safeguards'
+  | 'toolkits_recommend';
 
 export interface RegenerationLimiterConfig {
   /** Maximum number of regeneration attempts allowed per field */

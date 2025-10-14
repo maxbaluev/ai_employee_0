@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { sendTelemetryEvent } from '@/lib/telemetry/client';
 
@@ -130,6 +130,7 @@ export function CoverageMeter({
   const [isRecording, setIsRecording] = useState(false);
   const [preview, setPreview] = useState<PreviewState | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const coverageTelemetrySignatureRef = useRef<string | null>(null);
 
   const baselineReadiness = useMemo(
     () => calculateReadiness(selectedToolkitsCount, hasArtifacts),
@@ -156,6 +157,67 @@ export function CoverageMeter({
   const gate = preview?.gate ?? fallbackGate;
   const gatedCategories = useMemo(() => applyGateToCategories(categories, gate), [categories, gate]);
   const canProceed = preview?.canProceed ?? gate.canProceed;
+  const toolkitCount = preview?.toolkits?.length ?? 0;
+
+  useEffect(() => {
+    if (!tenantId) {
+      return;
+    }
+
+    const bucketCounts = gatedCategories.reduce(
+      (acc, category) => {
+        if (category.status === 'pass' || category.status === 'warn' || category.status === 'fail') {
+          acc[category.status] += 1;
+        }
+        return acc;
+      },
+      { pass: 0, warn: 0, fail: 0 } as Record<'pass' | 'warn' | 'fail', number>,
+    );
+
+    const signature = JSON.stringify({
+      readiness,
+      threshold: gate.threshold,
+      canProceed,
+      categories: gatedCategories.map((category) => [category.id, Math.round(category.coverage), category.status]),
+    });
+
+    if (coverageTelemetrySignatureRef.current === signature) {
+      return;
+    }
+
+    coverageTelemetrySignatureRef.current = signature;
+
+    void sendTelemetryEvent(tenantId, {
+      eventName: 'inspection_coverage_viewed',
+      missionId: missionId ?? undefined,
+      eventData: {
+        readiness,
+        gate_threshold: gate.threshold,
+        canProceed,
+        selectedToolkitsCount,
+        hasArtifacts,
+        bucketCounts,
+        categories: gatedCategories.map((category) => ({
+          id: category.id,
+          coverage: category.coverage,
+          threshold: category.threshold,
+          status: category.status,
+        })),
+        gate,
+        toolkitCount,
+      },
+    });
+  }, [
+    gatedCategories,
+    gate,
+    canProceed,
+    readiness,
+    tenantId,
+    missionId,
+    selectedToolkitsCount,
+    hasArtifacts,
+    toolkitCount,
+  ]);
 
   const gaps = useMemo(() => {
     if (gatedCategories.length === 0) {

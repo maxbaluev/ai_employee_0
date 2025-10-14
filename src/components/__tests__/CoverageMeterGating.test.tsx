@@ -23,6 +23,15 @@ vi.mock('@/lib/telemetry/client', () => ({
   sendTelemetryEvent: telemetryMock,
 }));
 
+function findLastTelemetryEvent(eventName: string) {
+  const reversed = [...telemetryMock.mock.calls].reverse();
+  return reversed.find(([, payload]) => payload?.eventName === eventName);
+}
+
+function countTelemetryEvents(eventName: string) {
+  return telemetryMock.mock.calls.filter(([, payload]) => payload?.eventName === eventName).length;
+}
+
 type MissionIntakeAcceptPayload = {
   missionId: string;
 };
@@ -236,6 +245,31 @@ describe('CoverageMeter gating integration', () => {
       reason: 'Coverage below inspection requirement.',
       overrideAvailable: true,
     };
+    previewState.categories = [
+      {
+        id: 'toolkits',
+        label: 'Toolkit coverage',
+        coverage: 88,
+        threshold: 85,
+        status: 'pass',
+        description: 'Recommended toolkit mix locked in.',
+      },
+      {
+        id: 'evidence',
+        label: 'Evidence history',
+        coverage: 60,
+        threshold: 70,
+        status: 'warn',
+        description: 'Needs additional dry-run evidence.',
+      },
+      {
+        id: 'readiness',
+        label: 'Overall readiness',
+        coverage: 82,
+        threshold: 85,
+        status: 'warn',
+      },
+    ];
 
     render(
       <ControlPlaneWorkspace
@@ -322,6 +356,22 @@ describe('CoverageMeter gating integration', () => {
     expect(previewTelemetryCall?.[1].eventData?.toolkit_count).toBe(
       previewState.toolkits?.length ?? 0,
     );
+
+    await waitFor(() => expect(findLastTelemetryEvent('inspection_coverage_viewed')).toBeDefined());
+    const coverageEvent = findLastTelemetryEvent('inspection_coverage_viewed');
+    const coverageData = coverageEvent?.[1].eventData;
+    expect(coverageData?.bucketCounts).toEqual({ pass: 0, warn: 1, fail: 2 });
+    expect(coverageData?.canProceed).toBe(false);
+    expect(coverageData?.selectedToolkitsCount).toBe(2);
+
+    const toolkitCategory = screen.getByText('Toolkit coverage').closest('li');
+    expect(toolkitCategory?.className).toContain('border-red-500/30');
+
+    const evidenceCategory = screen.getByText('Evidence history').closest('li');
+    expect(evidenceCategory?.className).toContain('border-red-500/30');
+
+    const readinessCategory = screen.getByText('Overall readiness').closest('li');
+    expect(readinessCategory?.className).toContain('border-amber-500/30');
   });
 
   it('advances to Plan when inspection readiness meets threshold', async () => {
@@ -335,6 +385,31 @@ describe('CoverageMeter gating integration', () => {
       reason: 'Inspection readiness meets threshold.',
       overrideAvailable: false,
     };
+    previewState.categories = [
+      {
+        id: 'toolkits',
+        label: 'Toolkit coverage',
+        coverage: 100,
+        threshold: 85,
+        status: 'pass',
+        description: 'Recommended toolkit mix locked in.',
+      },
+      {
+        id: 'evidence',
+        label: 'Evidence history',
+        coverage: 92,
+        threshold: 70,
+        status: 'pass',
+        description: 'Dry-run artifacts captured for validation.',
+      },
+      {
+        id: 'readiness',
+        label: 'Overall readiness',
+        coverage: 94,
+        threshold: 85,
+        status: 'pass',
+      },
+    ];
 
     render(
       <ControlPlaneWorkspace
@@ -421,6 +496,21 @@ describe('CoverageMeter gating integration', () => {
     expect(previewTelemetryCall?.[1].eventData?.toolkit_count).toBe(
       previewState.toolkits?.length ?? 0,
     );
+
+    await waitFor(() => expect(findLastTelemetryEvent('inspection_coverage_viewed')).toBeDefined());
+    const coverageEvent = findLastTelemetryEvent('inspection_coverage_viewed');
+    const coverageData = coverageEvent?.[1].eventData;
+    expect(coverageData?.bucketCounts).toEqual({ pass: 3, warn: 0, fail: 0 });
+    expect(coverageData?.canProceed).toBe(true);
+
+    const toolkitCategory = screen.getByText('Toolkit coverage').closest('li');
+    expect(toolkitCategory?.className).toContain('border-emerald-500/30');
+
+    const evidenceCategory = screen.getByText('Evidence history').closest('li');
+    expect(evidenceCategory?.className).toContain('border-emerald-500/30');
+
+    const readinessCategory = screen.getByText('Overall readiness').closest('li');
+    expect(readinessCategory?.className).toContain('border-emerald-500/30');
   });
 
   it('blocks the inspection proceed button when readiness is below threshold and surfaces gap guidance', () => {
@@ -447,5 +537,65 @@ describe('CoverageMeter gating integration', () => {
     const footer = footerMessage?.closest('footer') as HTMLElement;
     const recordButton = within(footer).getByRole('button', { name: /Record Inspection/i });
     expect(recordButton).toBeDisabled();
+  });
+
+  it('respects telemetry deduplication and does not emit duplicate inspection_coverage_viewed events', async () => {
+    const { rerender } = render(
+      <CoverageMeter
+        tenantId="tenant-signature"
+        missionId="mission-signature"
+        selectedToolkitsCount={1}
+        hasArtifacts={false}
+        onComplete={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => expect(findLastTelemetryEvent('inspection_coverage_viewed')).toBeDefined());
+    expect(countTelemetryEvents('inspection_coverage_viewed')).toBe(1);
+
+    rerender(
+      <CoverageMeter
+        tenantId="tenant-signature"
+        missionId="mission-signature"
+        selectedToolkitsCount={1}
+        hasArtifacts={false}
+        onComplete={vi.fn()}
+      />,
+    );
+
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(countTelemetryEvents('inspection_coverage_viewed')).toBe(1);
+
+    rerender(
+      <CoverageMeter
+        tenantId="tenant-signature"
+        missionId="mission-signature"
+        selectedToolkitsCount={2}
+        hasArtifacts={false}
+        onComplete={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => expect(countTelemetryEvents('inspection_coverage_viewed')).toBe(2));
+  });
+
+  it('correctly styles categories with warn status (amber)', async () => {
+    render(
+      <CoverageMeter
+        tenantId="tenant-warn"
+        missionId="mission-warn"
+        selectedToolkitsCount={1}
+        hasArtifacts
+        onComplete={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => expect(findLastTelemetryEvent('inspection_coverage_viewed')).toBeDefined());
+    const coverageEvent = findLastTelemetryEvent('inspection_coverage_viewed');
+    const coverageData = coverageEvent?.[1].eventData;
+    expect(coverageData?.bucketCounts).toEqual({ pass: 2, warn: 1, fail: 0 });
+
+    const toolkitCategory = screen.getByText('Toolkit coverage').closest('li');
+    expect(toolkitCategory?.className).toContain('border-amber-500/30');
   });
 });

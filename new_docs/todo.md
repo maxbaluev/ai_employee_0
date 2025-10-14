@@ -616,9 +616,14 @@ _Status: Tracking tasks required to deliver the full eight-stage dry-run proof f
 - Emit telemetry `api_toolkits_recommend_hit` with latency.
 
 **Acceptance**
-- [ ] Handler unit test covers success and failure responses.
-- [ ] Endpoint documented in `docs/readiness/api_catalog_G-B.md`.
-- [ ] Rate limits defined (5/10s per mission).
+- [x] Handler unit test covers success and failure responses.
+- [x] Endpoint documented in `docs/readiness/api_catalog_G-B.md`.
+- [x] Rate limits defined (5/10s per mission).
+
+**Notes**
+- `src/lib/toolkits/recommendation.ts` consolidates Composio merge logic with planner cache + Supabase selections.
+- `src/app/api/toolkits/recommend/route.ts` exposes GET handler with limiter + telemetry.
+- Tests: `src/lib/toolkits/recommendation.test.ts`, `src/app/api/toolkits/recommend/route.test.ts`.
 
 **Dependencies**
 - Requires planner library service (Section 2) and Supabase caching tables.
