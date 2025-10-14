@@ -31,6 +31,8 @@ Gate G-B introduces a structured eight-stage workflow that guides users from int
 | **7. Evidence**           | Artifact gallery surfaces proof pack, ROI, undo bar with time-bound rollback UI.         | Package audit-ready outputs with reversibility.                 | Artifacts stored with hash verification; undo plan validated.            |
 | **8. Feedback**           | Per-artifact ratings, mission feedback, learning signals feeding next runs.              | Capture quality signals and improvement data.                   | Feedback submitted; learning signals persisted to analytics.             |
 
+_Implementation details for mission stages live in `new_docs/stages-implementation.md`._
+
 ---
 
 ## 2. End-to-End Overview

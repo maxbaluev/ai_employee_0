@@ -3,6 +3,8 @@
 _Generated: 2025-10-12_
 _Status: Tracking tasks required to deliver the full eight-stage dry-run proof for Gate G-B._
 
+_Stage orchestration details live in `new_docs/stages-implementation.md` and should be consulted alongside this tracker when implementing or auditing mission transitions._
+
 ## Quick Stage Status
 
 | Stage | Component Focus | Status | Priority | Blocker |
@@ -10,9 +12,9 @@ _Status: Tracking tasks required to deliver the full eight-stage dry-run proof f
 | 1. Intake | Generative intake panel & confidence signals | ✅ Complete | P1 | None |
 | 2. Brief | Mission brief persistence | ✅ Complete | P2 | None |
 | 3. Toolkits | Recommended tool palette + Connect Link OAuth | ⚠️ Partial | P0 | Undo token wiring + Connect Link status persistence outstanding |
-| 4. Inspect | Coverage meter & MCP inspection preview | ❌ Missing | P0 | Inspection agent + findings schema |
+| 4. Inspect | Coverage meter & Composio inspection preview | ❌ Missing | P0 | Inspection agent + findings schema |
 | 5. Plan | Planner insight rail streaming rationale | ⚠️ Partial | P0 | Telemetry & Supabase persistence gaps |
-| 6. Dry-Run | Streaming status panel & heartbeat | ⚠️ Partial | P1 | Heartbeat resiliency tests |
+| 6. Dry-Run | Streaming status panel & SSE status updates | ⚠️ Partial | P1 | Streaming resiliency tests |
 | 7. Evidence | Artifact gallery + undo execution | ⚠️ Partial | P0 | Undo endpoint, hash verification script |
 | 8. Feedback | Feedback drawer & mission feedback store | ❌ Missing | P1 | API route + Supabase table |
 
@@ -56,9 +58,8 @@ _Status: Tracking tasks required to deliver the full eight-stage dry-run proof f
 - `src/components/MissionIntake.tsx`
 
 **Requirements**
-- Delete legacy manual brief editor toggle introduced for Gate G-A fallback.
 - Ensure mission acceptance flow always runs through generated chips with inline editing per `architecture.md §3.1`.
-- Display guardrail toast if CopilotKit streaming fails, guiding user to retry rather than fallback.
+- Display guardrail toast if CopilotKit streaming fails, guiding user to retry the generative path.
 
 **Acceptance**
 - [ ] Manual regression shows no path to bypass generative intake.
@@ -66,14 +67,14 @@ _Status: Tracking tasks required to deliver the full eight-stage dry-run proof f
 - [ ] Update CopilotKit QA evidence to confirm generative-only loop.
 
 **Notes**
-- Legacy fallback toggle removed from `src/app/(control-plane)/ControlPlaneWorkspace.tsx` and associated branches in `src/components/MissionIntake.tsx`, enforcing the generated chip flow exclusively.
+- Generative-only flow resides in `src/app/(control-plane)/ControlPlaneWorkspace.tsx` with chip acceptance enforced in `src/components/MissionIntake.tsx`.
 - Telemetry catalog verified via repository search—`fallback_editor_opened` no longer appears in code or event fixtures.
 
 **Dependencies**
 - Requires CopilotKit session resiliency task (Section 5).
 
 **Priority**
-- P0 (eliminate Gate G-A fallback per Gate G-B readiness memo).
+- P0 (enforce generative-only flow).
 
 **References**
 - `architecture.md §3.1`, `todo.md` lines 257-266.
@@ -82,23 +83,26 @@ _Status: Tracking tasks required to deliver the full eight-stage dry-run proof f
 
 **Files**
 - Create `src/components/RecommendedToolStrip.tsx`
-- Update `src/app/(control-plane)/stages/StageThreeToolkits.tsx`
-- Update `src/app/(control-plane)/ControlPlaneWorkspace.tsx`
+- Update Stage 3 render block within `src/app/(control-plane)/ControlPlaneWorkspace.tsx`
+- Adjust `src/components/RecommendedToolkits.tsx`
 
 **Requirements**
 - Render carousel of recommended toolkits with metadata (auth type, category, capability tags) from `/api/toolkits`.
 - Support multi-select with keyboard navigation (arrow keys + space) per `ux.md §5.2`.
 - Persist selections to Supabase `toolkit_selections` table via `/api/toolkits/selections`.
 - Show Connect Link badge for OAuth required kits.
+- Indicate per-user vs org `userId` scope for each toolkit row and prompt for re-auth if required scopes are missing.
 
 **Acceptance**
 - [ ] Cypress test validates multi-select and persistence.
 - [ ] Selected toolkit chips appear in Stage 4 inspection summary.
 - [ ] Telemetry events `toolkit_recommendation_viewed` and `toolkit_selected` emitted with toolkit ids.
+- [ ] Tools requiring new scopes raise Connect Link re-auth and persist `user_scope` metadata.
 
 **Notes**
 - Keyboard navigation and selection handled within `src/components/RecommendedToolkits.tsx` with arrow/space support and Connect Link CTA badges.
 - Persistence and telemetry verified by unit tests in `src/components/__tests__/RecommendedToolkits.test.tsx` (multi-select, API POST, OAuth launch, keyboard navigation).
+- `userScope` column in Supabase stores whether selection uses per-user (`user.id`) or org-level (`organization.id`) identifiers per `libs_docs/composio/llms.txt §4.4`.
 
 **Dependencies**
 - Requires `/api/toolkits/recommend` route and Composio discovery client (Section 3 & 2).
@@ -107,14 +111,15 @@ _Status: Tracking tasks required to deliver the full eight-stage dry-run proof f
 - P0 (critical gate blocker).
 
 **References**
-- `ux.md §5.2`, `workflow.md §4.0`, `libs_docs/composio/llms.txt §3.1`, `todo.md` line 311.
+- `ux.md §5.2`, `workflow.md §4.0`, `libs_docs/composio/llms.txt §3-4`, `todo.md` line 311.
 
 ### [x] Wire Toolkit Selection Persistence & Undo Tokens
 
-**Files**
+- **Files**
 - `src/lib/toolkits/persistence.ts`
 - `supabase/migrations/0001_init.sql` (`toolkit_selections` table)
 - `src/app/api/toolkits/select/route.ts`
+- Stage 3 selection handlers within `src/app/(control-plane)/ControlPlaneWorkspace.tsx`
 
 **Requirements**
 - Create `toolkit_selections` table with mission_id, toolkit_id, auth_mode, undo_token, created_at, created_by columns.
@@ -147,32 +152,35 @@ _Status: Tracking tasks required to deliver the full eight-stage dry-run proof f
 - `src/components/ConnectLinkModal.tsx`
 - `src/app/api/toolkits/connections/route.ts`
 - `src/app/api/composio/connect/route.ts`
+- Stage 3 Connect Link render logic in `src/app/(control-plane)/ControlPlaneWorkspace.tsx`
 
 **Requirements**
 - Display Connect Link CTA chip for OAuth-required toolkits with status badge (Not Linked, Pending, Linked).
 - Launch modal to guide user through Connect Link OAuth flow per `libs_docs/composio/llms.txt §4`.
 - Persist link status in Supabase `toolkit_connections` table (Section 3).
-- Provide fallback to shareable link when Connect Link API unavailable.
+- Provide shareable link copy when Connect Link API unavailable.
+- Enforce single-toolkit scope selection and capture chosen scopes in `toolkit_connections.scopes`.
 
 **Acceptance**
 - [ ] Manual QA shows OAuth completion updates status badge _(scheduled with Product + QA on 2025-10-16, requires live Composio credentials)._ 
 - [x] Telemetry `connect_link_launched` and `connect_link_completed` emitted with toolkit ids.
 - [x] Error states captured with toast and log instrumentation.
+- [ ] Scope picker persists selection and produces audit log entry.
 
 **Dependencies**
-- Requires backend Connect Link route and Supabase table (Section 3).
+- Requires backend Connect Link route, scope storage fields, and Supabase table (Section 3).
 
 **Priority**
 - P0 (Gate G-B contract for managed auth).
 
 **References**
-- `architecture.md §3.3`, `ux.md §5.2`, `libs_docs/composio/llms.txt §4`, `todo.md` lines 352-361.
+- `architecture.md §3.3`, `ux.md §5.2`, `libs_docs/composio/llms.txt §4-5`, `todo.md` lines 352-361.
 
 ### [x] Implement Coverage Meter Component & Layout
 
 **Files**
 - Create `src/components/CoverageMeter.tsx`
-- Update `src/app/(control-plane)/stages/StageFourInspect.tsx`
+- Update Stage 4 render block within `src/app/(control-plane)/ControlPlaneWorkspace.tsx`
 
 **Requirements**
 - Render radial progress meter showing coverage percentage with segments for objectives, safeguards, plays, datasets per `ux.md §4.2`.
@@ -196,7 +204,7 @@ _Status: Tracking tasks required to deliver the full eight-stage dry-run proof f
 ### [ ] Integrate Inspection Summary Panel
 
 **Files**
-- `src/app/(control-plane)/stages/StageFourInspect.tsx`
+- Stage 4 render block within `src/app/(control-plane)/ControlPlaneWorkspace.tsx`
 - `src/components/InspectionSummaryList.tsx`
 
 **Requirements**
@@ -222,7 +230,7 @@ _Status: Tracking tasks required to deliver the full eight-stage dry-run proof f
 
 **Files**
 - Create `src/components/PlannerInsightRail.tsx`
-- Update `src/app/(control-plane)/stages/StageFivePlan.tsx`
+- Update Stage 5 render block within `src/app/(control-plane)/ControlPlaneWorkspace.tsx`
 
 **Requirements**
 - Stream planner rationale cards (why selected, impact, safeguards) using CopilotKit subscriptions per `architecture.md §3.2`.
@@ -275,13 +283,15 @@ _Status: Tracking tasks required to deliver the full eight-stage dry-run proof f
 
 **Requirements**
 - Display real-time heartbeat indicator with 5s SLA per `ux.md §5.4`.
-- Add exponential backoff SSE reconnect with CopilotKit fallback to polling.
+- Add exponential backoff SSE reconnect with CopilotKit polling as the last-resort path.
 - Surface toast if heartbeat misses 2 intervals.
+- Ensure CopilotKit session store keeps state so SSE reconnect resumes without losing history (use existing ADK session persistence helpers).
 
 **Acceptance**
 - [ ] Playwright streaming test shows heartbeat updates ≤5s.
 - [ ] Telemetry `streaming_heartbeat_missed` logs occurrences.
 - [ ] Integration test simulates SSE drop and verifies reconnect.
+- [ ] CopilotKit session persistence verified by reconnection test.
 
 **Dependencies**
 - Requires SSE utility enhancements (Section 5 tests).
@@ -321,7 +331,7 @@ _Status: Tracking tasks required to deliver the full eight-stage dry-run proof f
 
 **Files**
 - `src/components/ArtifactUndoBar.tsx`
-- `src/app/(control-plane)/stages/StageSevenEvidence.tsx`
+- Stage 7 undo bar usage in `src/app/(control-plane)/ControlPlaneWorkspace.tsx`
 
 **Requirements**
 - Present persistent undo bar with countdown from validator-defined window (default 15 minutes) per `ux.md §5.7`.
@@ -346,7 +356,7 @@ _Status: Tracking tasks required to deliver the full eight-stage dry-run proof f
 
 **Files**
 - Create `src/components/FeedbackDrawer.tsx`
-- Update `src/app/(control-plane)/stages/StageEightFeedback.tsx`
+- Update Stage 8 render block within `src/app/(control-plane)/ControlPlaneWorkspace.tsx`
 
 **Requirements**
 - Render timeline of feedback entries grouped by persona with filters (positive, risk, escalation).
@@ -420,7 +430,7 @@ _Status: Tracking tasks required to deliver the full eight-stage dry-run proof f
 
 ## Section 2 · Backend Agents & Services (Gemini ADK)
 
-### [ ] Implement InspectionAgent with MCP Draft Mode
+### [ ] Implement InspectionAgent with Composio Read-only Preview
 
 **Files**
 - Create `agent/agents/inspection_agent.py`
@@ -428,23 +438,23 @@ _Status: Tracking tasks required to deliver the full eight-stage dry-run proof f
 - Update `agent/services/inspection_service.py`
 
 **Requirements**
-- Implement ADK `CustomAgent` running MCP draft calls per toolkit selection using `execution_mode='SIMULATION'`.
+- Implement ADK `CustomAgent` that issues read-only Composio tool calls per toolkit selection, honoring scope filters instead of simulation flags.
 - Produce coverage metrics (objectives, datasets, safeguards) stored in session context.
 - Emit telemetry `inspection_stage_completed` with coverage %, gaps list, duration.
 
 **Acceptance**
-- [ ] Unit test mocks MCP client and asserts findings payload.
+- [ ] Unit test mocks Composio client and asserts findings payload.
 - [ ] ADK eval scenario added to `agent/evals/control_plane/inspection_smoke.json`.
 - [ ] Coverage metrics persisted for UI consumption.
 
 **Dependencies**
-- Requires Composio MCP client enhancements (below) and `inspection_findings` table (Section 3).
+- Requires Composio MCP toolset integration (below) and `inspection_findings` table (Section 3).
 
 **Priority**
 - P0.
 
 **References**
-- `workflow.md §4.1`, `architecture.md §3.3`, `libs_docs/composio/llms.txt §5`, `todo.md` lines 440-458.
+- `workflow.md §4.1`, `architecture.md §3.3`, `libs_docs/composio/llms.txt §4-8`, `todo.md` lines 440-458.
 
 ### [ ] Extend Coordinator Sequential Flow with Stage Guards
 
@@ -487,7 +497,7 @@ _Status: Tracking tasks required to deliver the full eight-stage dry-run proof f
 **Acceptance**
 - [ ] New eval cases guarantee rationale completeness and ranking precision ≥0.62 similarity.
 - [ ] Telemetry `planner_candidate_generated` logs candidate_id, rank, latency_ms.
-- [ ] Unit test ensures fallback when Composio discovery fails.
+- [ ] Unit test ensures library-only fallback when Composio discovery fails.
 
 **Dependencies**
 - Relies on Supabase schema update and telemetry pipeline (Section 3 & 4).
@@ -1022,7 +1032,7 @@ _Status: Tracking tasks required to deliver the full eight-stage dry-run proof f
 
 **Requirements**
 - Simulate SSE dropouts, measure time to recover, assert heartbeat indicator updates ≤5s.
-- Validate fallback polling path and CopilotKit reconnection messaging.
+- Validate polling path and CopilotKit reconnection messaging.
 
 **Acceptance**
 - [ ] Test reports metrics logged to telemetry.
@@ -1249,7 +1259,7 @@ _Status: Tracking tasks required to deliver the full eight-stage dry-run proof f
 
 **Notes**
 - Radial coverage meter with objectives/safeguards/plays/datasets segments shipped October 14, 2025.
-- Gating logic emits inspection preview telemetry with bucket counts; fallback categories updated for legacy data.
+- Gating logic emits inspection preview telemetry with bucket counts; legacy category labels documented.
 - Evidence index generated 2025-10-14 with validation commands and owner map.
 - Archive manifest with SHA-256 checksums lives in `docs/readiness/archive/2025-10-G-B/manifest.json`.
 
@@ -1303,7 +1313,7 @@ _Status: Tracking tasks required to deliver the full eight-stage dry-run proof f
 - `docs/readiness/copilotkit_stream_contract_G-B.md`
 
 **Requirements**
-- Capture payload schema for streaming events, heartbeat, fallback messaging.
+- Capture payload schema for streaming events, heartbeat, and reconnect messaging.
 - Include sample logs and SSE headers.
 
 **Acceptance**
@@ -1447,7 +1457,7 @@ _Status: Tracking tasks required to deliver the full eight-stage dry-run proof f
 4. **Telemetry Secrets in CI** — Verify availability of `SUPABASE_SERVICE_ROLE_KEY` for telemetry audit workflow. _Source: `telemetry` tasks & readiness docs._
 5. **Retention Policy Exceptions** — Are any enterprise tenants exempt from 7-day retention? _Source: `prd.md §9`._
 6. **Planner Caching Strategy** — Clarify caching layer for toolkit metadata to maintain ≤2.5s p95 latency. _Source: `todo.md` lines 851-856._
-7. **MCP Draft Result Schema** — Need confirmed schema for Composio draft execution response to map coverage findings. _Source: `libs_docs/composio/llms.txt §5`._
+7. **Composio Preview Payload Shape** — Need confirmed schema for read-only Composio coverage previews to map inspection findings. _Source: `libs_docs/composio/llms.txt §5`._
 
 ### Assumptions
 - Redacted telemetry is sufficient for compliance; no additional anonymization layer required.

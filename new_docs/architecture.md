@@ -2,6 +2,8 @@
 
 This blueprint describes the generative-first architecture that powers Gates G-A through G-E of the AI Employee Control Plane. It is designed to be read alongside the Business PRD (`new_docs/prd.md`), UX Blueprint (`new_docs/ux.md`), and the Checkpoint Control Plan (`new_docs/todo.md`). Partner references live in `libs_docs/` (CopilotKit, Composio, Gemini ADK, Supabase) and should be consulted whenever SDK contracts change.
 
+For the stage state machine that orchestrates the control plane workspace, see `new_docs/stages-implementation.md`.
+
 ---
 
 ## 0. Repository Snapshot
@@ -51,6 +53,7 @@ This blueprint describes the generative-first architecture that powers Gates G-A
   - Generated play cards (accept/regenerate) with impact, effort, undo plan, and “Why this?” tooltips.
   - Safeguard drawer summarises adaptive hints (tone, timing, fallback contacts) with quick adjustments.
   - Artefact previews with inline edits, downloads, and share links.
+  - Mission stage state machine wraps the workspace (`new_docs/stages-implementation.md`).
 - **CopilotKit Hooks:** `useCopilotReadable` shares mission brief; `useCopilotAction` handles chip acceptance, play selection, safeguard adjustments, undo triggers. `useCopilotAction.renderAndWaitForResponse` supports approval modals and interrupts.
 - **Accessibility & Telemetry:** Keyboard-first navigation, live regions, and events for `intent_submitted`, `brief_generated`, `brief_item_modified`, `toolkit_suggestion_applied`, `mission_created`, `play_selected`, `approval_required`, `approval_decision`, `undo_requested`, `undo_completed`.
 

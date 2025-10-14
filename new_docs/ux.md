@@ -8,7 +8,7 @@
 
 ## Executive Summary
 
-This UX blueprint defines the user experience strategy for the AI Employee Control Plane — a mission workspace that converts a single freeform input (links, goals, context) into fully generated missions, objectives, toolkits, audiences, and adaptive safeguards that remain editable at every step. The design centers on **trust through visibility**: users provide intent once, then maintain control as the system proposes, auto-populates, and iterates on the plan.
+This UX blueprint defines the user experience strategy for the AI Employee Control Plane — a mission workspace that converts a single freeform input (links, goals, context) into fully generated missions, objectives, toolkits, audiences, and adaptive safeguards that remain editable at every step. The design centers on **trust through visibility**: users provide intent once, then maintain control as the system proposes, auto-populates, and iterates on the plan. Implementation notes for the mission stage state machine live in `new_docs/stages-implementation.md` and inform how the workspace surfaces stage-specific UI.
 
 The experience prioritizes:
 
