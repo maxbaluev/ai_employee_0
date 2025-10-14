@@ -41,7 +41,6 @@ describe('ArtifactGallery undo affordance', () => {
     render(
       <ArtifactGallery
         artifacts={[baseArtifact]}
-        onAddPlaceholder={vi.fn()}
         onExport={vi.fn()}
         onShare={vi.fn()}
         onUndo={onUndo}

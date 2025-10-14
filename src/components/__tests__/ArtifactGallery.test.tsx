@@ -17,16 +17,13 @@ describe('ArtifactGallery', () => {
     render(
       <ArtifactGallery
         artifacts={[]}
-        onAddPlaceholder={() => {}}
         onExport={() => {}}
         onShare={() => {}}
         onUndo={() => {}}
-      />,
+      />, 
     );
 
-    expect(
-      screen.getByText('Ask the agent to generate a draft artifact to populate this area.'),
-    ).toBeInTheDocument();
+    expect(screen.queryByText(/Evidence Gallery/)).toBeInTheDocument();
   });
 
   it('lists artifact titles and status badges', () => {
@@ -43,7 +40,6 @@ describe('ArtifactGallery', () => {
     render(
       <ArtifactGallery
         artifacts={artifacts}
-        onAddPlaceholder={() => {}}
         onExport={() => {}}
         onShare={() => {}}
         onUndo={() => {}}
@@ -63,7 +59,6 @@ describe('ArtifactGallery', () => {
     render(
       <ArtifactGallery
         artifacts={[baseArtifact]}
-        onAddPlaceholder={() => {}}
         onExport={() => {}}
         onShare={onShare}
         onUndo={() => {}}
@@ -83,7 +78,6 @@ describe('ArtifactGallery', () => {
     render(
       <ArtifactGallery
         artifacts={[baseArtifact]}
-        onAddPlaceholder={() => {}}
         onExport={() => {}}
         onShare={() => {}}
         onUndo={onUndo}

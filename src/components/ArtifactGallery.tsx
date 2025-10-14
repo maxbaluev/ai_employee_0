@@ -19,7 +19,6 @@ export type ArtifactGalleryArtifact = {
 type ArtifactGalleryProps = PropsWithChildren<{
   className?: string;
   artifacts: ArtifactGalleryArtifact[];
-  onAddPlaceholder: () => void;
   onExport: (artifact: ArtifactGalleryArtifact, format: "csv" | "pdf") => void;
   onShare: (artifact: ArtifactGalleryArtifact) => void;
   onUndo: (artifact: ArtifactGalleryArtifact) => void;
@@ -33,7 +32,6 @@ type ArtifactGalleryProps = PropsWithChildren<{
 export function ArtifactGallery({
   className,
   artifacts,
-  onAddPlaceholder,
   onExport,
   onShare,
   onUndo,
@@ -138,16 +136,7 @@ export function ArtifactGallery({
     <section className={rootClassName}>
       <div className="flex items-center justify-between gap-3">
         <h2 className="text-lg font-semibold">Evidence Gallery</h2>
-        <div className="flex items-center gap-3">
-          {children}
-          <button
-            type="button"
-            className="inline-flex items-center gap-2 rounded-md border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-medium uppercase tracking-wide text-slate-200 transition hover:bg-white/15"
-            onClick={onAddPlaceholder}
-          >
-            Add Placeholder
-          </button>
-        </div>
+        <div className="flex items-center gap-3">{children}</div>
       </div>
 
       <p className="text-sm text-slate-300">
@@ -243,11 +232,7 @@ export function ArtifactGallery({
               </article>
             );
           })
-        ) : (
-          <div className="rounded-xl border border-dashed border-white/20 p-8 text-center text-sm text-slate-400">
-            Ask the agent to generate a draft artifact to populate this area.
-          </div>
-        )}
+        ) : null}
       </div>
     </section>
   );

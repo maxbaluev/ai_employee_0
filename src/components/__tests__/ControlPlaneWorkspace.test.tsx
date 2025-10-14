@@ -7,9 +7,27 @@ import { MissionStage, MissionStageProvider, useMissionStages } from '@/componen
 import type { ArtifactGalleryArtifact } from '@/components/ArtifactGallery';
 import type { TimelineMessage } from '@/hooks/useTimelineEvents';
 
+type CopilotActionRegistration = {
+  name: string;
+  handler: (payload: Record<string, unknown>) => unknown | Promise<unknown>;
+};
+
+const registeredCopilotActions: CopilotActionRegistration[] = [];
+
 vi.mock('@copilotkit/react-core', () => ({
   useCopilotReadable: vi.fn(),
-  useCopilotAction: vi.fn(),
+  useCopilotAction: vi.fn(
+    (definition?: { name?: string; handler?: (payload: Record<string, unknown>) => unknown }) => {
+      if (!definition) {
+        return;
+      }
+
+      registeredCopilotActions.push({
+        name: definition.name ?? 'unnamed',
+        handler: definition.handler ?? (() => undefined),
+      });
+    },
+  ),
 }));
 
 vi.mock('@copilotkit/react-ui', () => ({
@@ -346,6 +364,7 @@ beforeEach(() => {
   });
 
   vi.stubGlobal('fetch', fetchMock);
+  registeredCopilotActions.splice(0, registeredCopilotActions.length);
 });
 
 afterEach(() => {
@@ -358,6 +377,14 @@ afterEach(() => {
 });
 
 const { ControlPlaneWorkspace } = await import('@/app/(control-plane)/ControlPlaneWorkspace');
+
+function invokeCopilotAction(actionName: string, payload: Record<string, unknown>) {
+  const registration = registeredCopilotActions.find(({ name }) => name === actionName);
+  if (!registration) {
+    throw new Error(`Copilot action ${actionName} was not registered`);
+  }
+  return registration.handler(payload);
+}
 
 async function renderWithAct(ui: React.ReactElement) {
   await act(async () => {
@@ -647,11 +674,18 @@ describe('ControlPlaneWorkspace Gate G-B gating', () => {
       expect(feedbackDrawerPropsRef.current?.isOpen).toBe(false);
     });
 
-    const addPlaceholderButton = await screen.findByRole('button', { name: 'Add Placeholder' });
-    await user.click(addPlaceholderButton);
+    await act(async () => {
+      await invokeCopilotAction('registerArtifactPreview', {
+        artifactId: 'artifact-feedback-stage',
+        title: 'Evidence Artifact',
+        summary: 'Auto-generated artifact to unblock feedback stage.',
+        status: 'draft',
+      });
+    });
 
     await waitFor(() => {
       expect(within(getStageNode('Evidence')).getByText('✓')).toBeInTheDocument();
+      expect(getStageNode('Feedback').getAttribute('aria-current')).toBe('step');
     });
 
     act(() => {
@@ -1579,47 +1613,17 @@ describe('ControlPlaneWorkspace Evidence Gallery Stage 7 flow', () => {
 
       await advanceToEvidenceStage(user);
 
-      // Add an artifact using the placeholder button
-      fetchMock.mockImplementation((input: RequestInfo | URL) => {
-        const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
-
-        if (url.includes('/api/artifacts')) {
-          return Promise.resolve(
-            new Response(
-              JSON.stringify({
-                artifact: {
-                  id: 'artifact-new-123',
-                  title: 'Approval summary placeholder',
-                  content: { summary: 'Use the agent to replace this with a real dry-run asset.' },
-                  status: 'draft',
-                },
-              }),
-              {
-                status: 200,
-                headers: { 'Content-Type': 'application/json' },
-              },
-            ),
-          );
-        }
-
-        return Promise.resolve(
-          new Response(JSON.stringify({ ok: true }), {
-            status: 200,
-            headers: { 'Content-Type': 'application/json' },
-          }),
-        );
+      await act(async () => {
+        await invokeCopilotAction('registerArtifactPreview', {
+          artifactId: 'artifact-new-123',
+          title: 'Approval summary outline',
+          summary: 'Automated draft produced by the agent.',
+          status: 'draft',
+        });
       });
 
-      const addButton = screen.getByRole('button', { name: 'Add Placeholder' });
-      await user.click(addButton);
-
-      // Evidence stage should be marked complete
       await waitFor(() => {
         expect(within(getStageNode('Evidence')).getByText('✓')).toBeInTheDocument();
-      });
-
-      // Feedback stage should become active
-      await waitFor(() => {
         expect(getStageNode('Feedback').getAttribute('aria-current')).toBe('step');
       });
     });
@@ -1675,37 +1679,14 @@ describe('ControlPlaneWorkspace Evidence Gallery Stage 7 flow', () => {
       telemetryMock.mockClear();
 
       // Add an artifact to trigger Evidence completion
-      fetchMock.mockImplementation((input: RequestInfo | URL) => {
-        const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
-
-        if (url.includes('/api/artifacts')) {
-          return Promise.resolve(
-            new Response(
-              JSON.stringify({
-                artifact: {
-                  id: 'artifact-telemetry-123',
-                  title: 'Test Artifact',
-                  content: { summary: 'Testing stage telemetry' },
-                  status: 'draft',
-                },
-              }),
-              {
-                status: 200,
-                headers: { 'Content-Type': 'application/json' },
-              },
-            ),
-          );
-        }
-
-        return Promise.resolve(
-          new Response(JSON.stringify({ ok: true }), {
-            status: 200,
-            headers: { 'Content-Type': 'application/json' },
-          }),
-        );
+      await act(async () => {
+        await invokeCopilotAction('registerArtifactPreview', {
+          artifactId: 'artifact-telemetry-123',
+          title: 'Telemetry Test Artifact',
+          summary: 'Testing stage telemetry',
+          status: 'draft',
+        });
       });
-
-      await user.click(screen.getByRole('button', { name: 'Add Placeholder' }));
 
       await waitFor(() => {
         expect(telemetryMock).toHaveBeenCalledWith(
@@ -1742,25 +1723,6 @@ describe('ControlPlaneWorkspace Evidence Gallery Stage 7 flow', () => {
       fetchMock.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
         const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
 
-        if (url.includes('/api/artifacts')) {
-          return Promise.resolve(
-            new Response(
-              JSON.stringify({
-                artifact: {
-                  id: 'artifact-telemetry-flow',
-                  title: 'Telemetry Flow Artifact',
-                  content: { summary: 'Completing evidence stage' },
-                  status: 'draft',
-                },
-              }),
-              {
-                status: 200,
-                headers: { 'Content-Type': 'application/json' },
-              },
-            ),
-          );
-        }
-
         return baseFetch
           ? baseFetch(input, init)
           : Promise.resolve(
@@ -1784,7 +1746,14 @@ describe('ControlPlaneWorkspace Evidence Gallery Stage 7 flow', () => {
 
       await advanceToEvidenceStage(user);
 
-      await user.click(screen.getByRole('button', { name: 'Add Placeholder' }));
+      await act(async () => {
+        await invokeCopilotAction('registerArtifactPreview', {
+          artifactId: 'artifact-telemetry-flow',
+          title: 'Telemetry Flow Artifact',
+          summary: 'Completing evidence stage',
+          status: 'draft',
+        });
+      });
 
       await waitFor(() => {
         expect(within(getStageNode('Evidence')).getByText('✓')).toBeInTheDocument();
@@ -1838,6 +1807,47 @@ describe('ControlPlaneWorkspace Evidence Gallery Stage 7 flow', () => {
         fetchMock.mockImplementation(baseFetch);
       }
     });
+
+    it('retains all artifacts when Copilot registers previews back-to-back', async () => {
+      const user = userEvent.setup();
+
+      await renderWithAct(
+        <ControlPlaneWorkspace
+          tenantId={tenantId}
+          initialObjectiveId={missionId}
+          initialArtifacts={[]}
+          catalogSummary={null}
+        />,
+      );
+
+      await advanceToEvidenceStage(user);
+
+      await act(async () => {
+        await invokeCopilotAction('registerArtifactPreview', {
+          artifactId: 'artifact-burst-1',
+          title: 'Burst Artifact One',
+          summary: 'First artifact emitted by Copilot in quick succession.',
+          status: 'draft',
+        });
+
+        await invokeCopilotAction('registerArtifactPreview', {
+          artifactId: 'artifact-burst-2',
+          title: 'Burst Artifact Two',
+          summary: 'Second artifact emitted immediately after.',
+          status: 'draft',
+        });
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText('Burst Artifact One')).toBeInTheDocument();
+        expect(screen.getByText('Burst Artifact Two')).toBeInTheDocument();
+      });
+
+      await waitFor(() => {
+        expect(within(getStageNode('Evidence')).getByText('✓')).toBeInTheDocument();
+        expect(getStageNode('Feedback').getAttribute('aria-current')).toBe('step');
+      });
+    });
   });
 
   describe('evidence gallery UI', () => {
@@ -1851,9 +1861,8 @@ describe('ControlPlaneWorkspace Evidence Gallery Stage 7 flow', () => {
         />,
       );
 
-      expect(
-        screen.getByText('Ask the agent to generate a draft artifact to populate this area.'),
-      ).toBeInTheDocument();
+      expect(screen.getByText('Evidence Gallery')).toBeInTheDocument();
+      expect(screen.queryByRole('article')).not.toBeInTheDocument();
     });
 
     it('displays artifact status badges correctly', async () => {

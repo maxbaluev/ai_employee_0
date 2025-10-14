@@ -35,55 +35,9 @@ const STATUS_COLOR_CLASS: Record<'pass' | 'warn' | 'fail', string> = {
 
 const RADIAL_BACKGROUND_CLASS = 'text-slate-700/50';
 
-function calculateReadiness(toolkitsCount: number, hasArtifacts: boolean): number {
-  let readiness = 60; // Base readiness
-
-  // Add 20% if at least one toolkit is selected
-  if (toolkitsCount > 0) {
-    readiness += 20;
-  }
-
-  // Add 20% if mission has artifacts (evidence of prior work)
-  if (hasArtifacts) {
-    readiness += 20;
-  }
-
-  // Cap between 0-100
-  return Math.max(0, Math.min(100, readiness));
-}
-
 const READINESS_THRESHOLD = 85;
 const INSPECTION_FINDING_TYPE = 'coverage_preview';
 
-function generateBaselineGaps(readiness: number, toolkitsCount: number, hasArtifacts: boolean): GapItem[] {
-  const gaps: GapItem[] = [];
-
-  if (toolkitsCount === 0) {
-    gaps.push({
-      id: 'no-toolkits',
-      message: 'No toolkits selected. Select at least one toolkit to improve readiness.',
-      severity: 'error',
-    });
-  }
-
-  if (!hasArtifacts) {
-    gaps.push({
-      id: 'no-artifacts',
-      message: 'No artifacts present. Prior mission artifacts can improve confidence.',
-      severity: 'warning',
-    });
-  }
-
-  if (readiness < 85 && gaps.length === 0) {
-    gaps.push({
-      id: 'low-readiness',
-      message: 'Readiness below threshold. Consider adding more context or toolkits.',
-      severity: 'warning',
-    });
-  }
-
-  return gaps;
-}
 
 function getReadinessTextColor(readiness: number): string {
   if (readiness >= 85) {
@@ -139,47 +93,19 @@ export function CoverageMeter({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const coverageTelemetrySignatureRef = useRef<string | null>(null);
 
-  const baselineReadiness = useMemo(
-    () => calculateReadiness(selectedToolkitsCount, hasArtifacts),
-    [selectedToolkitsCount, hasArtifacts],
-  );
-
-  const fallbackCategories = useMemo(
-    () =>
-      buildFallbackCategories({
-        selectedToolkitsCount,
-        hasArtifacts,
-        readiness: baselineReadiness,
-      }),
-    [baselineReadiness, hasArtifacts, selectedToolkitsCount],
-  );
-
-  const fallbackGate = useMemo(
-    () => buildGateSummaryFromCategories(fallbackCategories, baselineReadiness, READINESS_THRESHOLD),
-    [baselineReadiness, fallbackCategories],
-  );
-
-  const readiness = preview?.readiness ?? baselineReadiness;
-  const categories = preview?.categories ?? fallbackCategories;
-  const gate = preview?.gate ?? fallbackGate;
+  const readiness = preview?.readiness ?? 0;
+  const categories = preview?.categories ?? [];
+  const gate = preview?.gate ?? buildGateSummaryFromCategories(categories, readiness, READINESS_THRESHOLD);
   const gatedCategories = useMemo(() => applyGateToCategories(categories, gate), [categories, gate]);
-  const normalizedCategoryMap = useMemo(() => normalizeCategories(gatedCategories), [gatedCategories]);
   const radialSegments = useMemo(
     () =>
-      SEGMENT_ORDER.map((id) => {
-        const category = normalizedCategoryMap[id] ?? createPlaceholderCategory(id);
-        const coverage = Math.round(clampPercentage(category.coverage, 0));
-        const status: 'pass' | 'warn' | 'fail' =
-          category.status ?? resolveCategoryStatus(coverage, category.threshold ?? READINESS_THRESHOLD);
-
-        return {
-          id,
-          label: category.label ?? SEGMENT_LABELS[id],
-          coverage,
-          status,
-        };
-      }),
-    [normalizedCategoryMap],
+      gatedCategories.map((category) => ({
+        id: category.id,
+        label: category.label,
+        coverage: Math.round(clampPercentage(category.coverage, 0)),
+        status: category.status,
+      })),
+    [gatedCategories],
   );
   const canProceed = preview?.canProceed ?? gate.canProceed;
   const toolkitCount = preview?.toolkits?.length ?? 0;
@@ -253,12 +179,8 @@ export function CoverageMeter({
     evidence: 'Run a dry-run to generate evidence before planning.',
   };
 
-  const gaps = useMemo(() => {
-    if (gatedCategories.length === 0) {
-      return generateBaselineGaps(readiness, selectedToolkitsCount, hasArtifacts);
-    }
-
-    return gatedCategories
+  const gaps = useMemo(() =>
+    gatedCategories
       .filter((category) => category.status !== 'pass')
       .map((category) => ({
         id: `category-${category.id}`,
@@ -267,8 +189,8 @@ export function CoverageMeter({
           category.description ??
           'Address outstanding inspection feedback before continuing.',
         severity: category.status === 'fail' ? 'error' : 'warning',
-      }));
-  }, [gatedCategories, hasArtifacts, readiness, selectedToolkitsCount]);
+      })),
+  [gatedCategories]);
 
   const handleRecordInspection = useCallback(async () => {
     if (isRecording) {
@@ -306,7 +228,6 @@ export function CoverageMeter({
         | null;
 
       const normalized: PreviewState = normalizePreviewResponse(responsePayload, {
-        baselineReadiness,
         selectedToolkitsCount,
         hasArtifacts,
         threshold: READINESS_THRESHOLD,
@@ -362,20 +283,11 @@ export function CoverageMeter({
     } finally {
       setIsRecording(false);
     }
-  }, [
-    baselineReadiness,
-    hasArtifacts,
-    isRecording,
-    missionId,
-    onComplete,
-    selectedToolkitsCount,
-    tenantId,
-  ]);
+  }, [hasArtifacts, isRecording, missionId, onComplete, selectedToolkitsCount, tenantId]);
 
   const readinessTextColor = getReadinessTextColor(readiness);
-  const summaryMessage =
-    preview?.summary ?? (canProceed ? 'Inspection readiness meets threshold.' : 'Inspection readiness below threshold.');
-  const gateReason = gate.reason ?? (canProceed ? 'Inspection readiness meets threshold.' : 'Coverage below inspection requirement.');
+  const summaryMessage = preview?.summary ?? null;
+  const gateReason = gate.reason ?? null;
   const findingReference = preview?.findingId ?? null;
   const findingTimestamp = preview?.findingCreatedAt ?? null;
   const findingTooltip = findingReference ? buildFindingTooltip(findingReference, findingTimestamp) : null;
@@ -438,36 +350,45 @@ export function CoverageMeter({
 
               <div className="space-y-2">
                 <h3 className="text-sm font-medium text-slate-200">Inspection Categories</h3>
-                <ul className="space-y-2">
-                  {gatedCategories.map((category) => (
-                    <li
-                      key={category.id}
-                      className={`rounded-lg border px-3 py-2 text-sm ${getCategoryClasses(category.status)}`}
-                    >
-                      <div className="flex items-center justify-between gap-4">
-                        <div>
-                          <p className="font-semibold text-white">{category.label}</p>
-                          {category.description && (
-                            <p className="mt-1 text-xs text-slate-200/80">{category.description}</p>
-                          )}
+                {gatedCategories.length > 0 ? (
+                  <ul className="space-y-2">
+                    {gatedCategories.map((category) => (
+                      <li
+                        key={category.id}
+                        className={`rounded-lg border px-3 py-2 text-sm ${getCategoryClasses(category.status)}`}
+                      >
+                        <div className="flex items-center justify-between gap-4">
+                          <div>
+                            <p className="font-semibold text-white">{category.label}</p>
+                            {category.description && (
+                              <p className="mt-1 text-xs text-slate-200/80">{category.description}</p>
+                            )}
+                          </div>
+                          <div className="text-right text-xs text-slate-200/80">
+                            <p>{Math.round(category.coverage)}% • target {Math.round(category.threshold)}%</p>
+                            <p className="mt-0.5 uppercase tracking-wide">
+                              {category.status === 'pass'
+                                ? 'PASS'
+                                : category.status === 'warn'
+                                  ? 'WARN'
+                                  : 'FAIL'}
+                            </p>
+                          </div>
                         </div>
-                        <div className="text-right text-xs text-slate-200/80">
-                          <p>{Math.round(category.coverage)}% • target {Math.round(category.threshold)}%</p>
-                          <p className="mt-0.5 uppercase tracking-wide">
-                            {category.status === 'pass'
-                              ? 'PASS'
-                              : category.status === 'warn'
-                                ? 'WARN'
-                                : 'FAIL'}
-                          </p>
-                        </div>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <div className="flex flex-col items-start gap-3 rounded-lg border border-slate-700/40 bg-slate-900/40 px-3 py-4 text-sm text-slate-300">
+                    <p className="font-semibold text-white">Inspection pending</p>
+                    <p className="text-xs text-slate-400">
+                      Run an inspection preview to calculate coverage and surface gaps.
+                    </p>
+                  </div>
+                )}
               </div>
 
-              {gaps.length > 0 && (
+              {gatedCategories.length > 0 && gaps.length > 0 && (
                 <div className="space-y-2">
                   <h3 className="text-sm font-medium text-slate-200">Coverage Gaps</h3>
                   <ul className="space-y-2">
@@ -510,9 +431,9 @@ export function CoverageMeter({
               </div>
 
               <footer className="flex flex-col gap-3 border-t border-white/10 pt-4 sm:flex-row sm:items-center sm:justify-between">
-                <p className="text-xs text-slate-400">{gateReason}</p>
+                {gateReason ? <p className="text-xs text-slate-400">{gateReason}</p> : null}
                 <div className="flex items-center gap-2">
-                  {!canProceed && (
+                  {!canProceed && gatedCategories.length > 0 && (
                     <button
                       type="button"
                       className="inline-flex items-center gap-2 rounded-md border border-violet-400/40 bg-violet-500/20 px-4 py-2 text-sm font-medium text-violet-200 transition hover:bg-violet-500/30"
@@ -545,18 +466,17 @@ export function CoverageMeter({
 function normalizePreviewResponse(
   payload: PreviewState | Record<string, unknown> | null,
   context: {
-    baselineReadiness: number;
     selectedToolkitsCount: number;
     hasArtifacts: boolean;
     threshold: number;
   },
 ): PreviewState {
-  const { baselineReadiness, selectedToolkitsCount, hasArtifacts, threshold } = context;
+  const { selectedToolkitsCount, hasArtifacts, threshold } = context;
 
   const candidate = payload && typeof payload === 'object' && !Array.isArray(payload) ? payload : {};
   const responseReadiness = (() => {
     const value = (candidate as PreviewState).readiness;
-    return typeof value === 'number' && Number.isFinite(value) ? value : baselineReadiness;
+    return typeof value === 'number' && Number.isFinite(value) ? value : 0;
   })();
 
   const toolkits = Array.isArray((candidate as PreviewState).toolkits)
@@ -567,17 +487,11 @@ function normalizePreviewResponse(
     ? ((candidate as Record<string, unknown>).categories as Array<Record<string, unknown>>)
     : [];
 
-  const fallbackFromContext = buildFallbackCategories({
-    selectedToolkitsCount,
-    hasArtifacts,
-    readiness: responseReadiness,
-  });
-
   const categories = rawCategories.length
     ? rawCategories
         .map((category, index) => sanitizeCategory(category, index))
         .filter((category): category is InspectionCategory => category !== null)
-    : fallbackFromContext;
+    : [];
 
   const gate = sanitizeGate((candidate as Record<string, unknown>).gate, categories, responseReadiness);
   const categoriesWithGate = applyGateToCategories(categories, gate);
@@ -608,46 +522,6 @@ function normalizePreviewResponse(
       typeof (candidate as PreviewState).findingCreatedAt === 'string'
         ? (candidate as PreviewState).findingCreatedAt
         : undefined,
-  };
-}
-
-function buildFallbackCategories(options: {
-  selectedToolkitsCount: number;
-  hasArtifacts: boolean;
-  readiness: number;
-}): InspectionCategory[] {
-  const { selectedToolkitsCount, hasArtifacts, readiness } = options;
-  const objectivesCoverage = clampPercentage(readiness);
-  const safeguardsCoverage = clampPercentage(
-    selectedToolkitsCount > 0 ? Math.min(90, 60 + selectedToolkitsCount * 10) : 30,
-  );
-  const playsCoverage = clampPercentage(
-    selectedToolkitsCount >= 2 ? 55 : selectedToolkitsCount > 0 ? 35 : 15,
-  );
-  const datasetsCoverage = clampPercentage(hasArtifacts ? 60 : 20);
-
-  return [
-    createFallbackCategory('objectives', objectivesCoverage, READINESS_THRESHOLD, 'Accept mission brief chips to reach 100%.'),
-    createFallbackCategory('safeguards', safeguardsCoverage, 80, 'Approve at least one safeguard hint before proceeding.'),
-    createFallbackCategory('plays', playsCoverage, 80, 'Generate and pin a planner play before continuing.'),
-    createFallbackCategory('datasets', datasetsCoverage, 70, 'Attach datasets or evidence artifacts before planning.'),
-  ];
-}
-
-function createFallbackCategory(
-  id: (typeof SEGMENT_ORDER)[number],
-  coverage: number,
-  threshold: number,
-  description: string,
-): InspectionCategory {
-  const resolvedCoverage = clampPercentage(coverage, 0);
-  return {
-    id,
-    label: SEGMENT_LABELS[id],
-    coverage: resolvedCoverage,
-    threshold,
-    status: resolveCategoryStatus(resolvedCoverage, threshold),
-    description,
   };
 }
 
@@ -748,10 +622,12 @@ function applyGateToCategories(
   gate: GateSummary,
 ): InspectionCategory[] {
   return categories.map((category) => {
+    const resolvedStatus = category.status ?? resolveCategoryStatus(category.coverage, category.threshold);
+
     if (!gate.canProceed && (category.id === 'plays' || category.id === 'datasets')) {
       return {
         ...category,
-        status: category.status === 'pass' ? 'fail' : category.status,
+        status: resolvedStatus,
         description:
           category.description ??
           (category.id === 'plays'
@@ -763,20 +639,27 @@ function applyGateToCategories(
     if (!gate.canProceed && category.id === 'toolkits') {
       return {
         ...category,
-        status: category.status === 'pass' ? 'fail' : category.status,
-        description: 'Select at least one mission toolkit',
+        status: resolvedStatus,
+        description: category.description ?? 'Select at least one mission toolkit',
       };
     }
 
     if (!gate.canProceed && category.id === 'evidence') {
       return {
         ...category,
-        status: category.status === 'pass' ? 'fail' : category.status,
+        status: resolvedStatus,
         description: category.description ?? 'Run a dry-run to generate evidence before planning.',
       };
     }
 
-    return category;
+    if (category.status === resolvedStatus) {
+      return category;
+    }
+
+    return {
+      ...category,
+      status: resolvedStatus,
+    };
   });
 }
 
@@ -851,58 +734,6 @@ function describeArc(cx: number, cy: number, radius: number, startAngle: number,
   const end = polarToCartesian(cx, cy, radius, startAngle);
   const largeArcFlag = endAngle - startAngle <= 180 ? 0 : 1;
   return `M ${start.x} ${start.y} A ${radius} ${radius} 0 ${largeArcFlag} 0 ${end.x} ${end.y}`;
-}
-
-function normalizeCategories(categories: InspectionCategory[]): Record<string, InspectionCategory> {
-  const map = new Map<string, InspectionCategory>();
-
-  for (const category of categories) {
-    if (!map.has(category.id)) {
-      map.set(category.id, category);
-    }
-  }
-
-  if (!map.has('objectives')) {
-    const fallback = map.get('readiness');
-    if (fallback) {
-      map.set('objectives', { ...fallback, id: 'objectives', label: SEGMENT_LABELS.objectives });
-    }
-  }
-
-  if (!map.has('safeguards')) {
-    const fallback = map.get('toolkits');
-    if (fallback) {
-      map.set('safeguards', { ...fallback, id: 'safeguards', label: SEGMENT_LABELS.safeguards });
-    }
-  }
-
-  if (!map.has('plays')) {
-    const fallback = map.get('toolkits') ?? map.get('readiness');
-    if (fallback) {
-      map.set('plays', { ...fallback, id: 'plays', label: SEGMENT_LABELS.plays });
-    }
-  }
-
-  if (!map.has('datasets')) {
-    const fallback = map.get('evidence') ?? map.get('artifacts');
-    if (fallback) {
-      map.set('datasets', { ...fallback, id: 'datasets', label: SEGMENT_LABELS.datasets });
-    }
-  }
-
-  return Object.fromEntries(map);
-}
-
-function createPlaceholderCategory(id: (typeof SEGMENT_ORDER)[number]): InspectionCategory {
-  const threshold = id === 'datasets' ? 70 : id === 'objectives' ? READINESS_THRESHOLD : 80;
-  return {
-    id,
-    label: SEGMENT_LABELS[id],
-    coverage: 0,
-    threshold,
-    status: 'fail',
-    description: undefined,
-  };
 }
 
 function resolveCategoryStatus(coverage: number, threshold: number): 'pass' | 'warn' | 'fail' {

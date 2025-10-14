@@ -1179,41 +1179,6 @@ function ControlPlaneWorkspaceContent({
     [copyToClipboard, missionId, tenantId],
   );
 
-  const handleAddPlaceholderArtifact = useCallback(() => {
-    const id = `artifact-${Date.now()}`;
-    const placeholder: Artifact = {
-      artifact_id: id,
-      title: "Approval summary placeholder",
-      summary: "Use the agent to replace this with a real dry-run asset.",
-      status: "draft",
-    };
-
-    setArtifacts((current) => {
-      const nextArtifacts = [...current, placeholder];
-
-      void (async () => {
-        try {
-          await fetch("/api/artifacts", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              artifactId: id,
-              title: placeholder.title,
-              summary: placeholder.summary,
-              status: placeholder.status,
-              tenantId,
-              playId: missionId ?? undefined,
-            }),
-          });
-        } catch (error) {
-          console.error("Failed to persist placeholder artifact", error);
-        }
-      })();
-
-      return nextArtifacts;
-    });
-  }, [missionId, tenantId]);
-
   const handleArtifactUndo = useCallback(
     (artifact: Artifact) => {
       void undoFlow.requestUndo({
@@ -1384,13 +1349,17 @@ function ControlPlaneWorkspaceContent({
           status: payload.artifact?.status ?? (typeof status === "string" ? status : "draft"),
         };
 
-        const merged = [
-          nextArtifact,
-          ...artifacts.filter((artifact) => artifact.artifact_id !== storedId),
-        ].sort((a, b) => a.title.localeCompare(b.title));
+        let mergedArtifacts: Artifact[] = [];
+        setArtifacts((currentArtifacts) => {
+          mergedArtifacts = [
+            nextArtifact,
+            ...currentArtifacts.filter((artifact) => artifact.artifact_id !== storedId),
+          ].sort((a, b) => a.title.localeCompare(b.title));
 
-        setArtifacts(merged);
-        await syncCopilotSession({ artifacts: merged });
+          return mergedArtifacts;
+        });
+
+        await syncCopilotSession({ artifacts: mergedArtifacts });
 
         return `Artifact ${storedId} registered.`;
       } catch (error) {
@@ -2006,12 +1975,11 @@ function ControlPlaneWorkspaceContent({
           )}
 
           <ArtifactGallery
-            className="flex flex-col gap-6"
-            artifacts={artifacts}
-            onAddPlaceholder={handleAddPlaceholderArtifact}
-            onCopyHash={handleEvidenceHashCopy}
-            onExport={handleArtifactExport}
-            onShare={handleArtifactShare}
+          className="flex flex-col gap-6"
+          artifacts={artifacts}
+          onCopyHash={handleEvidenceHashCopy}
+          onExport={handleArtifactExport}
+          onShare={handleArtifactShare}
             onUndo={handleArtifactUndo}
             isUndoing={undoFlow.isRequesting}
           >
