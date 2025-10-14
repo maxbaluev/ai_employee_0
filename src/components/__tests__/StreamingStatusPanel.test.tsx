@@ -1,6 +1,6 @@
 /// <reference types="vitest" />
 
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import type { UseTimelineEventsResult } from '@/hooks/useTimelineEvents';
@@ -171,6 +171,60 @@ describe('StreamingStatusPanel', () => {
       await screen.findByText(/Validator requested input. Open the approval modal/i),
     ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Open approval modal/i })).toBeEnabled();
+  });
+
+  it('surfaces undo plan metadata via callback when available', async () => {
+    const onUndoPlanDetected = vi.fn();
+
+    useTimelineEventsMock.mockReturnValue({
+      ...baseHookResult,
+      events: [
+        {
+          id: 'evt-undo',
+          createdAt: '2025-10-09T19:05:00.000Z',
+          stage: 'validator_reviewer_requested',
+          event: 'reviewer_requested',
+          role: 'assistant',
+          label: 'Reviewer attention required',
+          description: 'Validator escalated (ask_reviewer).',
+          status: 'warning' as const,
+          rawContent: 'Undo available',
+          metadata: {
+            tool_call_id: 'call-123',
+            undo_summary: 'Delete comment from CRM',
+            risk_tags: ['tone', 'quiet window'],
+            undo_window_seconds: 180,
+            override_allowed: true,
+            override_url: 'https://governance.example/override',
+            undo_token: 'token-xyz',
+          },
+        },
+      ],
+    });
+
+    render(
+      <StreamingStatusPanel
+        tenantId={tenantId}
+        agentId={agentId}
+        sessionIdentifier={sessionIdentifier}
+        onUndoPlanDetected={onUndoPlanDetected}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(onUndoPlanDetected).toHaveBeenCalledWith(
+        expect.objectContaining({
+          toolCallId: 'call-123',
+          undoSummary: 'Delete comment from CRM',
+          riskTags: ['tone', 'quiet window'],
+          undoWindowSeconds: 180,
+          overrideAllowed: true,
+          overrideUrl: 'https://governance.example/override',
+          undoToken: 'token-xyz',
+          issuedAt: '2025-10-09T19:05:00.000Z',
+        }),
+      );
+    });
   });
 
   it('shows alert heartbeat when latency exceeds threshold and handles pause toggle', async () => {

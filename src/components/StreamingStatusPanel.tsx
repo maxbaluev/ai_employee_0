@@ -7,6 +7,17 @@ import type { TimelineMessage } from '@/hooks/useTimelineEvents';
 import { useTimelineEvents } from '@/hooks/useTimelineEvents';
 import * as telemetryClient from '@/lib/telemetry/client';
 
+export type UndoPlanMetadata = {
+  toolCallId: string;
+  undoSummary: string | null;
+  riskTags: string[];
+  undoWindowSeconds: number | null;
+  overrideAllowed: boolean;
+  overrideUrl: string | null;
+  undoToken: string | null;
+  issuedAt: string;
+};
+
 type StreamingStatusPanelProps = {
   tenantId: string;
   agentId: string;
@@ -17,6 +28,7 @@ type StreamingStatusPanelProps = {
   onRetrySession?: () => void;
   onPlanComplete?: () => void;
   onDryRunComplete?: () => void;
+  onUndoPlanDetected?: (metadata: UndoPlanMetadata | null) => void;
 };
 
 const STATUS_CLASSES: Record<string, string> = {
@@ -195,10 +207,12 @@ export function StreamingStatusPanel({
   onRetrySession,
   onPlanComplete,
   onDryRunComplete,
+  onUndoPlanDetected,
 }: StreamingStatusPanelProps) {
   const [isPaused, setIsPaused] = useState(false);
   const [expandedEvents, setExpandedEvents] = useState<Set<string>>(() => new Set());
   const reviewerAlertRef = useRef<string | null>(null);
+  const undoPlanAlertRef = useRef<string | null>(null);
   const dryRunCompleteRef = useRef<boolean>(false);
   const planCompleteRef = useRef<boolean>(false);
   const heartbeatSamplesRef = useRef<number[]>([]);
@@ -234,6 +248,33 @@ export function StreamingStatusPanel({
 
   const latestPlannerStatus = useMemo(() => {
     return [...events].reverse().find((event) => event.stage === 'planner_status') ?? null;
+  }, [events]);
+
+  const latestUndoEvent = useMemo(() => {
+    return (
+      [...events]
+        .reverse()
+        .find((event) => {
+          const metadata = event.metadata ?? {};
+          const hasToolCall =
+            typeof metadata.tool_call_id === 'string' || typeof metadata.toolCallId === 'string';
+          if (!hasToolCall) {
+            return false;
+          }
+          const hasSummary =
+            typeof metadata.undo_summary === 'string' || typeof metadata.undoSummary === 'string';
+          const rawRisk = metadata.risk_tags ?? metadata.riskTags;
+          const hasRisk = Array.isArray(rawRisk) && rawRisk.some((tag) => typeof tag === 'string');
+          const hasWindow =
+            typeof metadata.undo_window_seconds === 'number' ||
+            typeof metadata.undoWindowSeconds === 'number';
+          const hasOverride =
+            typeof metadata.override_url === 'string' || typeof metadata.overrideUrl === 'string';
+          const hasToken =
+            typeof metadata.undo_token === 'string' || typeof metadata.undoToken === 'string';
+          return hasSummary || hasRisk || hasWindow || hasOverride || hasToken;
+        }) ?? null
+    );
   }, [events]);
 
   const waitingMessage = useMemo(() => {
@@ -284,9 +325,93 @@ export function StreamingStatusPanel({
     [onReviewerRequested],
   );
 
+  const handleUndoPlanNotify = useCallback(
+    (event: TimelineMessage | null) => {
+      if (!onUndoPlanDetected) {
+        return;
+      }
+      if (!event) {
+        onUndoPlanDetected(null);
+        return;
+      }
+      if (undoPlanAlertRef.current === event.id) {
+        return;
+      }
+      const metadata = event.metadata ?? {};
+      const toolCallId =
+        (typeof metadata.tool_call_id === 'string' && metadata.tool_call_id) ||
+        (typeof metadata.toolCallId === 'string' && metadata.toolCallId) ||
+        null;
+      if (!toolCallId) {
+        return;
+      }
+
+      const undoSummary =
+        typeof metadata.undo_summary === 'string'
+          ? metadata.undo_summary
+          : typeof metadata.undoSummary === 'string'
+            ? metadata.undoSummary
+            : null;
+
+      const rawRisk = metadata.risk_tags ?? metadata.riskTags;
+      const riskTags = Array.isArray(rawRisk)
+        ? rawRisk.filter((tag): tag is string => typeof tag === 'string')
+        : [];
+
+      const windowSeconds =
+        typeof metadata.undo_window_seconds === 'number'
+          ? metadata.undo_window_seconds
+          : typeof metadata.undoWindowSeconds === 'number'
+            ? metadata.undoWindowSeconds
+            : null;
+
+      const overrideAllowed = metadata.override_allowed === true || metadata.overrideAllowed === true;
+      const overrideUrl =
+        typeof metadata.override_url === 'string'
+          ? metadata.override_url
+          : typeof metadata.overrideUrl === 'string'
+            ? metadata.overrideUrl
+            : null;
+
+      const undoToken =
+        typeof metadata.undo_token === 'string'
+          ? metadata.undo_token
+          : typeof metadata.undoToken === 'string'
+            ? metadata.undoToken
+            : null;
+
+      undoPlanAlertRef.current = event.id;
+      onUndoPlanDetected({
+        toolCallId,
+        undoSummary,
+        riskTags,
+        undoWindowSeconds: windowSeconds,
+        overrideAllowed,
+        overrideUrl,
+        undoToken,
+        issuedAt: event.createdAt,
+      });
+    },
+    [onUndoPlanDetected],
+  );
+
   useEffect(() => {
     handleReviewerNotify(latestReviewerEvent);
   }, [handleReviewerNotify, latestReviewerEvent]);
+
+  useEffect(() => {
+    if (!onUndoPlanDetected) {
+      return;
+    }
+    if (latestUndoEvent) {
+      handleUndoPlanNotify(latestUndoEvent);
+      return;
+    }
+    if (undoPlanAlertRef.current !== null) {
+      undoPlanAlertRef.current = null;
+      onUndoPlanDetected(null);
+    }
+  }, [handleUndoPlanNotify, latestUndoEvent, onUndoPlanDetected]);
 
   // Monitor exit status for dry run completion
   useEffect(() => {
@@ -322,7 +447,9 @@ export function StreamingStatusPanel({
     planCompleteRef.current = false;
     heartbeatSamplesRef.current = [];
     heartbeatTelemetrySentRef.current = false;
-  }, [sessionIdentifier]);
+    undoPlanAlertRef.current = null;
+    onUndoPlanDetected?.(null);
+  }, [sessionIdentifier, onUndoPlanDetected]);
 
   useEffect(() => {
     if (

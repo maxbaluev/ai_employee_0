@@ -7,6 +7,8 @@ import { CopilotSidebar, type CopilotKitCSSProperties } from "@copilotkit/react-
 import { ApprovalModal } from "@/components/ApprovalModal";
 import { CoverageMeter } from "@/components/CoverageMeter";
 import { ArtifactGallery, type ArtifactGalleryArtifact } from "@/components/ArtifactGallery";
+import { ArtifactUndoBar } from "@/components/ArtifactUndoBar";
+import type { UndoPlanMetadata } from "@/components/StreamingStatusPanel";
 import { FeedbackDrawer } from "@/components/FeedbackDrawer";
 import { MissionIntake } from "@/components/MissionIntake";
 import { MissionBriefCard } from "@/components/MissionBriefCard";
@@ -28,11 +30,22 @@ import type { TimelineMessage } from "@/hooks/useTimelineEvents";
 import { useApprovalFlow } from "@/hooks/useApprovalFlow";
 import type { ApprovalSubmission, SafeguardEntry } from "@/hooks/useApprovalFlow";
 import { useUndoFlow } from "@/hooks/useUndoFlow";
+import { clearUndoBanner, loadUndoBanner, saveUndoBanner } from "@/lib/undo/sessionStorage";
 import { PlannerInsightRail } from "@/components/PlannerInsightRail";
 import * as telemetryClient from "@/lib/telemetry/client";
 import { normalizeSafeguards } from "@/lib/safeguards/normalization";
 
 type Artifact = ArtifactGalleryArtifact;
+
+type UndoBannerState = {
+  toolCallId: string;
+  summary: string | null;
+  riskTags: string[];
+  expiresAt: number;
+  undoToken: string | null;
+  overrideAllowed: boolean;
+  overrideUrl: string | null;
+};
 
 type CatalogSummary = {
   total_entries: number;
@@ -100,6 +113,7 @@ type AcceptedIntakePayload = {
 const AGENT_ID = "control_plane_foundation";
 const SESSION_RETENTION_MINUTES = 60 * 24 * 7; // 7 days
 const MAX_SAFEGUARD_HISTORY = 20;
+const DEFAULT_UNDO_WINDOW_SECONDS = 15 * 60;
 
 function ControlPlaneWorkspaceContent({
   tenantId,
@@ -125,6 +139,7 @@ function ControlPlaneWorkspaceContent({
   const [isFeedbackDrawerOpen, setFeedbackDrawerOpen] = useState(false);
   const [selectedFeedbackRating, setSelectedFeedbackRating] = useState<number | null>(null);
   const [missionBrief, setMissionBrief] = useState<MissionBriefState | null>(null);
+  const [undoBanner, setUndoBanner] = useState<UndoBannerState | null>(null);
   const [safeguards, setSafeguards] = useState<SafeguardDrawerHint[]>([]);
   const [safeguardHistory, setSafeguardHistory] = useState<SafeguardDrawerHistoryItem[]>([]);
   const [, setSafeguardHistoryOpen] = useState(false);
@@ -145,6 +160,23 @@ function ControlPlaneWorkspaceContent({
   latestExitPayloadRef.current.missionId = missionId;
   const hydrationCompleteRef = useRef(false);
   const [hydrationComplete, setHydrationComplete] = useState(false);
+
+  useEffect(() => {
+    if (!tenantId) {
+      return;
+    }
+    const storedBanner = loadUndoBanner(tenantId, missionId);
+    if (storedBanner) {
+      setUndoBanner(storedBanner);
+    } else {
+      setUndoBanner((current) => {
+        if (current && current.expiresAt <= Date.now()) {
+          return null;
+        }
+        return current;
+      });
+    }
+  }, [tenantId, missionId]);
 
   const acceptedSafeguardEntries = useMemo<SafeguardEntry[]>(
     () =>
@@ -169,6 +201,113 @@ function ControlPlaneWorkspaceContent({
       })),
     [acceptedSafeguardEntries],
   );
+
+  const clearUndoBannerState = useCallback(
+    (reason: "expired" | "completed" | "dismissed") => {
+      let removed = false;
+      setUndoBanner((current) => {
+        if (!current) {
+          return current;
+        }
+        removed = true;
+        void telemetryClient.sendTelemetryEvent(tenantId, {
+          eventName: "undo_banner_dismissed",
+          missionId: missionId ?? undefined,
+          eventData: {
+            tool_call_id: current.toolCallId,
+            reason,
+          },
+        });
+        return null;
+      });
+      if (removed) {
+        clearUndoBanner(tenantId, missionId);
+      }
+    },
+    [missionId, tenantId],
+  );
+
+  const handleUndoBannerExpired = useCallback(() => {
+    clearUndoBannerState("expired");
+  }, [clearUndoBannerState]);
+
+  const handleUndoPlanDetected = useCallback(
+    (plan: UndoPlanMetadata | null) => {
+      if (!plan) {
+        return;
+      }
+
+      const windowSeconds =
+        typeof plan.undoWindowSeconds === "number" && plan.undoWindowSeconds > 0
+          ? plan.undoWindowSeconds
+          : DEFAULT_UNDO_WINDOW_SECONDS;
+
+      const issuedTimestamp = Number.isFinite(Date.parse(plan.issuedAt))
+        ? Date.parse(plan.issuedAt)
+        : Date.now();
+      const expiresAt = issuedTimestamp + Math.max(windowSeconds, 0) * 1000;
+
+      if (expiresAt <= Date.now()) {
+        clearUndoBanner(tenantId, missionId);
+        setUndoBanner(null);
+        return;
+      }
+
+      const matchingArtifact = artifacts.find(
+        (artifact) => artifact.artifact_id === plan.toolCallId,
+      );
+      const undoToken = plan.undoToken ?? matchingArtifact?.undo_token ?? null;
+
+      if (
+        undoBanner &&
+        undoBanner.toolCallId === plan.toolCallId &&
+        undoBanner.expiresAt === expiresAt &&
+        undoBanner.undoToken === undoToken
+      ) {
+        return;
+      }
+
+      const nextBanner: UndoBannerState = {
+        toolCallId: plan.toolCallId,
+        summary: plan.undoSummary,
+        riskTags: plan.riskTags,
+        expiresAt,
+        undoToken,
+        overrideAllowed: plan.overrideAllowed,
+        overrideUrl: plan.overrideUrl,
+      };
+
+      setUndoBanner(nextBanner);
+      saveUndoBanner(tenantId, missionId, nextBanner);
+      void telemetryClient.sendTelemetryEvent(tenantId, {
+        eventName: "undo_banner_shown",
+        missionId: missionId ?? undefined,
+        eventData: {
+          tool_call_id: plan.toolCallId,
+          expires_at: new Date(expiresAt).toISOString(),
+          undo_window_seconds: windowSeconds,
+          override_allowed: plan.overrideAllowed,
+          risk_tags: plan.riskTags,
+        },
+      });
+    },
+    [artifacts, missionId, tenantId, undoBanner],
+  );
+
+  useEffect(() => {
+    if (!undoBanner || undoBanner.undoToken) {
+      return;
+    }
+    const matching = artifacts.find((artifact) => artifact.artifact_id === undoBanner.toolCallId);
+    if (matching?.undo_token && matching.undo_token !== undoBanner.undoToken) {
+      const updated: UndoBannerState = {
+        ...undoBanner,
+        undoToken: matching.undo_token,
+      };
+      setUndoBanner(updated);
+      saveUndoBanner(tenantId, missionId, updated);
+    }
+  }, [artifacts, missionId, tenantId, undoBanner]);
 
   const feedbackStageStatus = stages.get(MissionStage.Feedback);
   const canDisplayFeedbackDrawer =
@@ -784,6 +923,7 @@ function ControlPlaneWorkspaceContent({
     tenantId,
     missionId,
     onCompleted: (status) => {
+      clearUndoBannerState("completed");
       setWorkspaceAlert({
         tone: "success",
         message:
@@ -801,6 +941,28 @@ function ControlPlaneWorkspaceContent({
       }
     },
   });
+
+  const handleUndoBannerAction = useCallback(() => {
+    if (!undoBanner) {
+      return;
+    }
+
+    void telemetryClient.sendTelemetryEvent(tenantId, {
+      eventName: "undo_triggered",
+      missionId: missionId ?? undefined,
+      eventData: {
+        tool_call_id: undoBanner.toolCallId,
+        undo_token: undoBanner.undoToken ?? null,
+      },
+    });
+
+    void undoFlow.requestUndo({
+      toolCallId: undoBanner.toolCallId,
+      missionId,
+      reason: "User triggered undo countdown banner",
+      undoToken: undoBanner.undoToken ?? undefined,
+    });
+  }, [missionId, tenantId, undoBanner, undoFlow]);
 
   const buildSessionSnapshot = useCallback((): CopilotSessionSnapshot => ({
     artifacts,
@@ -1742,6 +1904,20 @@ function ControlPlaneWorkspaceContent({
             onHistoryToggle={handleSafeguardHistoryToggle}
           />
 
+          {undoBanner && (
+            <ArtifactUndoBar
+              summary={undoBanner.summary}
+              riskTags={undoBanner.riskTags}
+              expiresAt={undoBanner.expiresAt}
+              onUndo={handleUndoBannerAction}
+              isUndoing={undoFlow.isRequesting}
+              overrideAllowed={undoBanner.overrideAllowed}
+              overrideUrl={undoBanner.overrideUrl}
+              onExpired={handleUndoBannerExpired}
+              onDismiss={() => clearUndoBannerState("dismissed")}
+            />
+          )}
+
           <ArtifactGallery
             className="flex flex-col gap-6"
             artifacts={artifacts}
@@ -1777,6 +1953,7 @@ function ControlPlaneWorkspaceContent({
           onRetrySession={handleSessionRetry}
           onPlanComplete={handlePlanComplete}
           onDryRunComplete={handleDryRunComplete}
+          onUndoPlanDetected={handleUndoPlanDetected}
         />
 
         <section className="flex w-full flex-col bg-slate-950/70 lg:w-1/5">

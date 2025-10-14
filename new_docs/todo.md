@@ -317,7 +317,7 @@ _Status: Tracking tasks required to deliver the full eight-stage dry-run proof f
 **References**
 - `ux.md §5.6`, `workflow.md §7`, `todo.md` lines 612-627.
 
-### [ ] Add Undo Countdown Bar in Artifact Drawer
+### [x] Add Undo Countdown Bar in Artifact Drawer
 
 **Files**
 - `src/components/ArtifactUndoBar.tsx`
@@ -329,9 +329,9 @@ _Status: Tracking tasks required to deliver the full eight-stage dry-run proof f
 - Provide override link for Governance sentinel (if override flag set).
 
 **Acceptance**
-- [ ] Unit test ensures countdown stops at zero and disables undo button.
-- [ ] Telemetry `undo_triggered` recorded with tool_call_id.
-- [ ] Undo bar persists across navigation until expiry.
+- [x] Unit test ensures countdown stops at zero and disables undo button.
+- [x] Telemetry `undo_triggered` recorded with tool_call_id.
+- [x] Undo bar persists across navigation until expiry.
 
 **Dependencies**
 - Wait for `/api/evidence/undo` and validator outputs (Sections 2 & 3).
