@@ -1,0 +1,13 @@
+```mermaid
+stateDiagram-v2
+  [*] --> Generated
+  Generated: Planner generates safeguard hints
+  Generated --> Reviewed: User edits or approves
+  Reviewed --> Applied: Validator enforces during execution
+  Applied --> Feedback: Validator or user flags issue
+  Feedback --> Tuned: Safeguard learning updates prompt
+  Tuned --> Generated
+
+  Feedback --> Archived: Safeguard deprecated
+  Archived --> [*]
+```

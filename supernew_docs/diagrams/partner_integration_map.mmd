@@ -1,0 +1,17 @@
+```mermaid
+graph LR
+  UI[Next.js Workspace]
+  CopilotKit[CopilotKit SDK]
+  ADK[Gemini ADK Agents]
+  Composio[Composio Toolkits]
+  Supabase[Supabase Platform]
+  Analytics[Analytics & Dashboards]
+
+  UI --> CopilotKit
+  CopilotKit --> ADK
+  ADK --> Composio
+  ADK --> Supabase
+  Composio --> Supabase
+  Supabase --> Analytics
+  Analytics --> UI
+```

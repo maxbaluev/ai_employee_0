@@ -1,0 +1,57 @@
+[
+  {
+    "event": "intent_submitted",
+    "missionId": "rev-2025-q4-outbound",
+    "actor": "emma.saleslead",
+    "timestamp": "2025-10-14T16:02:11Z",
+    "metadata": {
+      "tokens": 186,
+      "tone_hint": "consultative",
+      "constraints": ["holiday offer", "manufacturing"]
+    }
+  },
+  {
+    "event": "toolkit_selected",
+    "missionId": "rev-2025-q4-outbound",
+    "actor": "emma.saleslead",
+    "timestamp": "2025-10-14T16:04:05Z",
+    "metadata": {
+      "toolkit": "salesforce",
+      "rationale": "Existing account enrichment",
+      "mode": "dry-run"
+    }
+  },
+  {
+    "event": "play_selected",
+    "missionId": "rev-2025-q4-outbound",
+    "actor": "emma.saleslead",
+    "timestamp": "2025-10-14T16:07:18Z",
+    "metadata": {
+      "playId": "reviver-seq-v3",
+      "confidence": 0.78,
+      "validator_notes": "Safeguards satisfied"
+    }
+  },
+  {
+    "event": "dry_run_completed",
+    "missionId": "rev-2025-q4-outbound",
+    "actor": "system",
+    "timestamp": "2025-10-14T16:18:43Z",
+    "metadata": {
+      "steps": 12,
+      "duration_sec": 685,
+      "errors": 0
+    }
+  },
+  {
+    "event": "feedback_submitted",
+    "missionId": "rev-2025-q4-outbound",
+    "actor": "emma.saleslead",
+    "timestamp": "2025-10-14T16:25:10Z",
+    "metadata": {
+      "satisfaction": 5,
+      "effort_saved_hours": 14,
+      "feedback_notes": "Ready for governed activation once Outreach connected"
+    }
+  }
+]

@@ -1,0 +1,53 @@
+{
+  "missionId": "rev-2025-q4-outbound",
+  "persona": "Revenue Expansion Lead",
+  "objective": "Re-engage dormant manufacturing accounts with a holiday offer",
+  "audience": "VP Operations at mid-market manufacturing firms in NA",
+  "safeguards": [
+    "Respect do-not-contact list",
+    "Send only between 8am-5pm recipient local time",
+    "Tone: consultative, not promotional"
+  ],
+  "toolkits": [
+    {
+      "id": "salesforce",
+      "status": "dry-run",
+      "notes": "Using cached account data"
+    },
+    {
+      "id": "outreach",
+      "status": "disconnected",
+      "notes": "Connection pending approval"
+    }
+  ],
+  "plannerRecommendation": {
+    "playId": "reviver-seq-v3",
+    "confidence": 0.78,
+    "summary": "Segment dormant accounts, generate tailored messaging, schedule review",
+    "dependencies": ["Account segmentation", "Content personalization", "Approval workflow"],
+    "expectedOutcome": "35 meetings booked, $1.2M pipeline"
+  },
+  "evidence": {
+    "artifacts": [
+      {
+        "id": "artifact-001",
+        "type": "csv",
+        "description": "Segmented account list with enrichment",
+        "hash": "sha256-ea5f...",
+        "undoPlan": "Restore original account tags"
+      },
+      {
+        "id": "artifact-002",
+        "type": "doc",
+        "description": "Draft outreach sequence",
+        "hash": "sha256-47ac...",
+        "undoPlan": "Discard draft from workspace"
+      }
+    ],
+    "status": "awaiting approval"
+  },
+  "metrics": {
+    "effortSavedHours": 12,
+    "confidenceScore": 0.82
+  }
+}

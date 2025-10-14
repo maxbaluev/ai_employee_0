@@ -92,6 +92,7 @@ export function CoverageMeter({
   const [preview, setPreview] = useState<PreviewState | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const coverageTelemetrySignatureRef = useRef<string | null>(null);
+  const hasAutoFetchedRef = useRef(false);
 
   const readiness = preview?.readiness ?? 0;
   const categories = preview?.categories ?? [];
@@ -110,65 +111,104 @@ export function CoverageMeter({
   const canProceed = preview?.canProceed ?? gate.canProceed;
   const toolkitCount = preview?.toolkits?.length ?? 0;
 
-  useEffect(() => {
-    if (!tenantId) {
-      return;
+  const fetchPreviewData = useCallback(async (): Promise<PreviewState | null> => {
+    if (!missionId || !tenantId) {
+      return null;
     }
 
-    const bucketCounts = gatedCategories.reduce(
-      (acc, category) => {
-        if (category.status === 'pass' || category.status === 'warn' || category.status === 'fail') {
-          acc[category.status] += 1;
-        }
-        return acc;
-      },
-      { pass: 0, warn: 0, fail: 0 } as Record<'pass' | 'warn' | 'fail', number>,
-    );
-
-    const signature = JSON.stringify({
-      readiness,
-      threshold: gate.threshold,
-      canProceed,
-      categories: gatedCategories.map((category) => [category.id, Math.round(category.coverage), category.status]),
-    });
-
-    if (coverageTelemetrySignatureRef.current === signature) {
-      return;
-    }
-
-    coverageTelemetrySignatureRef.current = signature;
-
-    void sendTelemetryEvent(tenantId, {
-      eventName: 'inspection_coverage_viewed',
-      missionId: missionId ?? undefined,
-      eventData: {
-        readiness,
-        gate_threshold: gate.threshold,
-        canProceed,
+    const requestBody = {
+      missionId,
+      tenantId,
+      findingType: INSPECTION_FINDING_TYPE,
+      payload: {
         selectedToolkitsCount,
         hasArtifacts,
-        bucketCounts,
-        categories: gatedCategories.map((category) => ({
-          id: category.id,
-          coverage: category.coverage,
-          threshold: category.threshold,
-          status: category.status,
-        })),
-        gate,
-        toolkitCount,
       },
-    });
-  }, [
-    gatedCategories,
-    gate,
-    canProceed,
-    readiness,
-    tenantId,
-    missionId,
-    selectedToolkitsCount,
-    hasArtifacts,
-    toolkitCount,
-  ]);
+    };
+
+    try {
+      const response = await fetch('/api/inspect/preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody),
+      });
+
+      const responsePayload = (await response.json().catch(() => null)) as
+        | PreviewState
+        | Record<string, unknown>
+        | null;
+
+      const normalized: PreviewState = normalizePreviewResponse(responsePayload, {
+        selectedToolkitsCount,
+        hasArtifacts,
+        threshold: READINESS_THRESHOLD,
+      });
+      setPreview(normalized);
+
+      await sendTelemetryEvent(tenantId, {
+        eventName: 'inspection_preview_rendered',
+        missionId,
+        eventData: {
+          readiness: normalized.readiness,
+          selectedToolkitsCount,
+          hasArtifacts,
+          canProceed: normalized.canProceed,
+          toolkit_count: normalized.toolkits?.length ?? 0,
+          categories: normalized.categories,
+          gate: normalized.gate,
+        },
+      });
+
+      // Also emit the coverage viewed telemetry immediately
+      const gatedCategories = applyGateToCategories(normalized.categories, normalized.gate);
+      if (gatedCategories.length > 0) {
+        const bucketCounts = gatedCategories.reduce(
+          (acc, category) => {
+            if (category.status === 'pass' || category.status === 'warn' || category.status === 'fail') {
+              acc[category.status] += 1;
+            }
+            return acc;
+          },
+          { pass: 0, warn: 0, fail: 0 } as Record<'pass' | 'warn' | 'fail', number>,
+        );
+
+        await sendTelemetryEvent(tenantId, {
+          eventName: 'inspection_coverage_viewed',
+          missionId,
+          eventData: {
+            readiness: normalized.readiness,
+            gate_threshold: normalized.gate.threshold,
+            canProceed: normalized.canProceed,
+            selectedToolkitsCount,
+            hasArtifacts,
+            bucketCounts,
+            categories: gatedCategories.map((category) => ({
+              id: category.id,
+              coverage: category.coverage,
+              threshold: category.threshold,
+              status: category.status,
+            })),
+            gate: normalized.gate,
+            toolkitCount: normalized.toolkits?.length ?? 0,
+          },
+        });
+      }
+
+      return normalized;
+    } catch (error) {
+      console.error('Failed to fetch inspection preview', error);
+      return null;
+    }
+  }, [missionId, tenantId, selectedToolkitsCount, hasArtifacts]);
+
+  // Auto-fetch preview data on mount if conditions are met
+  useEffect(() => {
+    if (!hasAutoFetchedRef.current && missionId && tenantId && selectedToolkitsCount > 0) {
+      hasAutoFetchedRef.current = true;
+      void fetchPreviewData();
+    }
+  }, [missionId, tenantId, selectedToolkitsCount, fetchPreviewData]);
+
 
   const gapMessageByCategory: Record<string, string> = {
     objectives: 'Accept the generated objective, audience, and KPI chips to lock the mission brief.',
@@ -205,62 +245,15 @@ export function CoverageMeter({
     setIsRecording(true);
     setErrorMessage(null);
 
-    const requestBody = {
-      missionId,
-      tenantId,
-      findingType: INSPECTION_FINDING_TYPE,
-      payload: {
-        selectedToolkitsCount,
-        hasArtifacts,
-      },
-    };
-
     try {
-      const response = await fetch('/api/inspect/preview', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody),
-      });
+      const normalized = await fetchPreviewData();
 
-      const responsePayload = (await response.json().catch(() => null)) as
-        | PreviewState
-        | Record<string, unknown>
-        | null;
-
-      const normalized: PreviewState = normalizePreviewResponse(responsePayload, {
-        selectedToolkitsCount,
-        hasArtifacts,
-        threshold: READINESS_THRESHOLD,
-      });
-      setPreview(normalized);
-
-      const canProceed = normalized.canProceed;
-      const responseReadiness = normalized.readiness;
-
-      await sendTelemetryEvent(tenantId, {
-        eventName: 'inspection_preview_rendered',
-        missionId,
-        eventData: {
-          readiness: responseReadiness,
-          selectedToolkitsCount,
-          hasArtifacts,
-          canProceed,
-          toolkit_count: normalized.toolkits?.length ?? 0,
-          categories: normalized.categories,
-          gate: normalized.gate,
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch inspection preview');
-      }
-
-      if (canProceed) {
+      if (normalized?.canProceed) {
         await sendTelemetryEvent(tenantId, {
           eventName: 'coverage_ready',
           missionId,
           eventData: {
-            readiness: responseReadiness,
+            readiness: normalized.readiness,
             selectedToolkitsCount,
             hasArtifacts,
             finding_id: normalized.findingId,
@@ -271,8 +264,6 @@ export function CoverageMeter({
 
         onComplete({
           ...normalized,
-          readiness: responseReadiness,
-          canProceed,
         });
       }
     } catch (error) {
@@ -283,7 +274,15 @@ export function CoverageMeter({
     } finally {
       setIsRecording(false);
     }
-  }, [hasArtifacts, isRecording, missionId, onComplete, selectedToolkitsCount, tenantId]);
+  }, [
+    isRecording,
+    missionId,
+    fetchPreviewData,
+    tenantId,
+    selectedToolkitsCount,
+    hasArtifacts,
+    onComplete,
+  ]);
 
   const readinessTextColor = getReadinessTextColor(readiness);
   const summaryMessage = preview?.summary ?? null;
@@ -560,7 +559,14 @@ function sanitizeCategory(
   const label = typeof category.label === 'string' && category.label.trim() ? category.label.trim() : SEGMENT_LABELS[id as (typeof SEGMENT_ORDER)[number]] ?? id;
   const coverage = clampPercentage(category.coverage, 0);
   const threshold = clampPercentage(category.threshold, id === 'datasets' ? 70 : id === 'objectives' ? READINESS_THRESHOLD : 80);
-  const status = resolveCategoryStatus(coverage, threshold);
+
+  // Respect the status from the API if provided, otherwise calculate it
+  const providedStatus = category.status;
+  const status =
+    providedStatus === 'pass' || providedStatus === 'warn' || providedStatus === 'fail'
+      ? providedStatus
+      : resolveCategoryStatus(coverage, threshold);
+
   const description = typeof category.description === 'string' ? category.description : undefined;
 
   return {
@@ -622,44 +628,36 @@ function applyGateToCategories(
   gate: GateSummary,
 ): InspectionCategory[] {
   return categories.map((category) => {
-    const resolvedStatus = category.status ?? resolveCategoryStatus(category.coverage, category.threshold);
-
-    if (!gate.canProceed && (category.id === 'plays' || category.id === 'datasets')) {
-      return {
-        ...category,
-        status: resolvedStatus,
-        description:
-          category.description ??
-          (category.id === 'plays'
-            ? 'Generate and pin a planner play before continuing.'
-            : 'Attach datasets or evidence artifacts before planning.'),
-      };
+    // Only apply fallback descriptions when gating logic is active and no description exists
+    if (!gate.canProceed && !category.description) {
+      if (category.id === 'plays') {
+        return {
+          ...category,
+          description: 'Generate and pin a planner play before continuing.',
+        };
+      }
+      if (category.id === 'datasets') {
+        return {
+          ...category,
+          description: 'Attach datasets or evidence artifacts before planning.',
+        };
+      }
+      if (category.id === 'toolkits') {
+        return {
+          ...category,
+          description: 'Select at least one mission toolkit',
+        };
+      }
+      if (category.id === 'evidence') {
+        return {
+          ...category,
+          description: 'Run a dry-run to generate evidence before planning.',
+        };
+      }
     }
 
-    if (!gate.canProceed && category.id === 'toolkits') {
-      return {
-        ...category,
-        status: resolvedStatus,
-        description: category.description ?? 'Select at least one mission toolkit',
-      };
-    }
-
-    if (!gate.canProceed && category.id === 'evidence') {
-      return {
-        ...category,
-        status: resolvedStatus,
-        description: category.description ?? 'Run a dry-run to generate evidence before planning.',
-      };
-    }
-
-    if (category.status === resolvedStatus) {
-      return category;
-    }
-
-    return {
-      ...category,
-      status: resolvedStatus,
-    };
+    // Preserve the category as-is, including its status
+    return category;
   });
 }
 

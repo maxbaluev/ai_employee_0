@@ -195,9 +195,49 @@ describe('CoverageMeter gating integration', () => {
   ];
 
   beforeEach(() => {
-    previewState.readiness = 100;
+    previewState.readiness = 92;
     previewState.canProceed = true;
-    previewState.summary = 'Ready to proceed';
+    previewState.summary = 'Inspection readiness meets threshold.';
+    previewState.categories = [
+      {
+        id: 'objectives',
+        label: 'Objectives & KPIs',
+        coverage: 96,
+        threshold: 85,
+        status: 'pass',
+        description: 'Objective, audience, and KPIs accepted.',
+      },
+      {
+        id: 'safeguards',
+        label: 'Safeguards',
+        coverage: 78,
+        threshold: 80,
+        status: 'warn',
+        description: 'Review safeguard hints and accept updates.',
+      },
+      {
+        id: 'plays',
+        label: 'Planner Plays',
+        coverage: 74,
+        threshold: 80,
+        status: 'warn',
+        description: 'Planner run pinned with viable plays.',
+      },
+      {
+        id: 'datasets',
+        label: 'Datasets & Evidence',
+        coverage: 52,
+        threshold: 70,
+        status: 'fail',
+        description: 'Attach datasets or evidence artifacts before planning.',
+      },
+    ];
+    previewState.gate = {
+      threshold: 85,
+      canProceed: true,
+      reason: 'Inspection readiness meets threshold.',
+      overrideAvailable: false,
+    };
 
     telemetryMock.mockReset();
     missionIntakeMock.mockClear();
@@ -348,7 +388,7 @@ describe('CoverageMeter gating integration', () => {
       hasArtifacts: true,
     });
 
-    await new Promise((resolve) => setTimeout(resolve, 900));
+    await new Promise((resolve) => setTimeout(resolve, 1500));
 
     const inspectStage = getStageNode('Inspect');
     expect(inspectStage).toHaveAttribute('aria-current', 'step');
@@ -415,40 +455,8 @@ describe('CoverageMeter gating integration', () => {
       reason: 'Inspection readiness meets threshold.',
       overrideAvailable: false,
     };
-    previewState.categories = [
-      {
-        id: 'objectives',
-        label: 'Objectives & KPIs',
-        coverage: 96,
-        threshold: 85,
-        status: 'pass',
-        description: 'Objective, audience, and KPIs accepted.',
-      },
-      {
-        id: 'safeguards',
-        label: 'Safeguards',
-        coverage: 88,
-        threshold: 80,
-        status: 'pass',
-        description: 'Safeguard guardrails approved for this mission.',
-      },
-      {
-        id: 'plays',
-        label: 'Planner Plays',
-        coverage: 92,
-        threshold: 80,
-        status: 'pass',
-        description: 'Planner run pinned with viable plays.',
-      },
-      {
-        id: 'datasets',
-        label: 'Datasets & Evidence',
-        coverage: 90,
-        threshold: 70,
-        status: 'pass',
-        description: 'Evidence artifacts and data sources linked.',
-      },
-    ];
+    // Keep the categories from beforeEach, which already have the right mix:
+    // objectives: pass, safeguards: warn, plays: warn, datasets: fail
 
     render(
       <ControlPlaneWorkspace
@@ -528,8 +536,8 @@ describe('CoverageMeter gating integration', () => {
     expect(previewTelemetryCall?.[1].eventData?.gate?.threshold).toBe(85);
     expect(previewTelemetryCall?.[1].eventData?.categories).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ id: 'plays', status: 'pass' }),
-        expect.objectContaining({ id: 'datasets', status: 'pass' }),
+        expect.objectContaining({ id: 'plays', status: 'warn' }),
+        expect.objectContaining({ id: 'datasets', status: 'fail' }),
       ]),
     );
     expect(previewTelemetryCall?.[1].eventData?.toolkit_count).toBe(

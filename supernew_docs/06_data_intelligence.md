@@ -1,0 +1,167 @@
+# AI Employee Control Plane: Data Intelligence Playbook
+
+**Version:** 2.0 (October 2025)
+**Audience:** Data Engineering, Analytics, Product Ops, Governance
+**Status:** Authoritative reference for telemetry, analytics, and learning loops
+
+---
+
+## 1. Intelligence Philosophy
+
+- **Every mission is a learning opportunity.** Capture inputs, decisions, outcomes, and feedback.
+- **Telemetry is a product surface.** Visibility enables trust, governance, and iteration.
+- **Privacy-respecting by default.** Redact PII before storage; minimize sensitive retention.
+- **Closed-loop feedback.** Planner, validator, and safeguard prompts adapt based on telemetry insights.
+
+---
+
+## 2. Data Architecture Overview
+
+```mermaid
+flowchart LR
+  Intake[Intake Events]
+  Planner[Planner Streams]
+  Execution[Execution Logs]
+  Evidence[Evidence Metadata]
+  Feedback[Feedback Drawer]
+  Telemetry[Telemetry Service]
+  Supabase[(Supabase Data Lake)]
+  Views[Analytics Views]
+  Dashboards[Dashboards & Reports]
+  Library[Library Embeddings]
+  PromptStore[Prompt Store]
+
+  Intake --> Telemetry
+  Planner --> Telemetry
+  Execution --> Telemetry
+  Evidence --> Telemetry
+  Feedback --> Telemetry
+  Telemetry --> Supabase
+  Supabase --> Views
+  Views --> Dashboards
+  Supabase --> Library
+  Library --> Planner
+  Feedback --> PromptStore
+  PromptStore --> Planner
+```
+
+- **Telemetry Service:** Consolidates frontend and backend events, applies redaction helpers, forwards to Supabase `telemetry_events`.
+- **Supabase Data Lake:** Mission tables, telemetry events, undo events, library entries, analytics views, materialized metrics.
+- **Dashboards:** Metabase or Supabase Studio for persona-specific insights.
+- **Feedback Loop:** Library embeddings and prompt patches inform future agent recommendations.
+
+---
+
+## 3. Event Catalog Highlights
+
+| Category | Events | Notes |
+|----------|--------|-------|
+| Intake | `intent_submitted`, `brief_generated`, `brief_item_modified` | Token counts, tone hints, safeguard presence |
+| Toolkit | `toolkit_recommendation_viewed`, `toolkit_selected`, `connect_link_completed` | Scope metadata, success rate |
+| Planning | `play_generated`, `play_selected`, `planner_retry_requested` | Confidence, validator critique |
+| Execution | `dry_run_started`, `dry_run_step_completed`, `dry_run_completed`, `dry_run_paused` | Tool call ids, latency |
+| Evidence | `artifact_published`, `undo_requested`, `undo_completed` | Artifact hash, rollback plan |
+| Feedback | `feedback_submitted`, `satisfaction_recorded`, `followup_scheduled` | Effort saved, blockers |
+| Governance | `safeguard_edited`, `validator_override_requested`, `incident_opened` | Source persona, context |
+
+Maintain canonical schema in `scripts/audit_telemetry_events.py`. For new events, document schema, purpose, and owner before implementation.
+
+---
+
+## 4. Analytics Views
+
+### Executive Dashboard (`views/executive_summary`)
+- Metrics: Weekly approved missions, dry-run → activation conversion, pipeline impact, automation coverage
+- Dimensions: Persona, business unit, mission type
+- Visuals: Multi-line trends, stacked bar for mission types, tooltip for evidence references
+
+### Governance Dashboard (`views/governance_insights`)
+- Metrics: Safeguard edits, overrides, undo success, incident frequency
+- Drill-down: Mission timeline, evidence bundle, actor list
+- Alerts: Undo success <95%, incident MTTR >30 min
+
+### Operations Dashboard (`views/operations_health`)
+- Metrics: Latency percentiles, SSE heartbeat, Composio rate limits, planner error rate
+- Integrations: Datadog metrics overlay
+- Actions: Trigger runbook link, open incident ticket
+
+### Growth & Adoption Dashboard (`views/adoption_funnel`)
+- Metrics: Intent submissions, brief acceptance, toolkit connections, activation approvals
+- Conversion funnel visualization with persona segmentation
+
+Regenerate materialized views nightly; ensure Supabase cron refresh completes within SLA.
+
+---
+
+## 5. Learning Loops
+
+### Loop 1: Generative Quality
+
+1. Capture chip edits (`brief_item_modified`)
+2. Analyze edit patterns (which chip types change, token diffs)
+3. Update prompt templates and tone guidance
+4. Measure acceptance rate (target ≥80%)
+
+### Loop 2: Planner Excellence
+
+1. Track planner rejections and manual overrides
+2. Feed negative signals into retrieval scoring
+3. Adjust weighting for library vs. generative plays
+4. Validate via `adk eval` dry-run ranking suite
+
+### Loop 3: Safeguard Reinforcement
+
+1. Record safeguard edits and validator overrides
+2. Cluster feedback by theme (tone, budget, timing)
+3. Update safeguard generation prompts
+4. Monitor reduction in manual edits
+
+### Loop 4: Library Growth
+
+1. Capture artifacts pinned to library
+2. Embed mission + artifact context
+3. Boost future recommendations when context matches
+4. Track library reuse rate (target ≥40%)
+
+---
+
+## 6. Data Governance & Privacy
+
+- **Redaction:** Use `src/lib/telemetry/redaction.ts` to scrub PII (emails, phone numbers, account ids)
+- **Retention:** Telemetry raw events retained 180 days; aggregated views indefinitely
+- **Access Controls:** RLS on telemetry tables by persona; analytics roles via Supabase Auth groups
+- **Compliance:** SOC2 logging expectations met via evidence bundles and audit trails; export function for compliance reviews
+- **Incident Response:** If redaction failure detected, trigger incident runbook, rotate tokens, and purge affected records
+
+---
+
+## 7. Tooling & Automation
+
+- **Scripts:**
+  - `scripts/audit_telemetry_events.py` — Validates schema and coverage
+  - `scripts/run_metrics_refresh.py` — Triggers view refresh and metrics export
+  - `scripts/export_evidence_bundle.py` — Packages mission evidence for auditors
+- **Testing:** Add unit tests for analytics SQL via `supabase/tests/*.sql`
+- **CI Gates:** Enforce `pnpm ts-node scripts/audit_telemetry_events.py --mode check` on PRs touching analytics
+
+---
+
+## 8. Reporting Cadence
+
+- **Daily:** Health check (SSE latency, telemetry ingestion rate, error spikes)
+- **Weekly:** Executive summary + adoption funnel review
+- **Monthly:** Persona deep dive (e.g., Revenue vs. Customer Operations)
+- **Quarterly:** Governance audit (undo efficacy, safeguard overrides)
+- **Ad-hoc:** Incident retrospectives, experiment readouts
+
+---
+
+## 9. Future Investments
+
+- **Predictive Confidence Scores:** Train model to predict dry-run success before execution
+- **Autonomous Prompt Patching:** Auto-generate prompt improvements based on telemetry signals
+- **Library Recommendation Marketplace:** Surface community-shared plays with rating system
+- **Anomaly Detection:** Real-time alerts for abnormal mission behavior (tool execution spikes, unexpected edits)
+
+Track experiments in `docs/research/data_intelligence/*.md` and integrate successful prototypes into pipeline.
+
