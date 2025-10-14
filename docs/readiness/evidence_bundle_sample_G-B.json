@@ -1,0 +1,15 @@
+{
+  "mission_id": "mission-sample",
+  "artifacts": [
+    {
+      "id": "artifact-1",
+      "hash": "af134bafc3a9bd4a4f0509c1c5f0d26c08d1d0f4d4a6d38f7a74fda2c4f5b2c1",
+      "path": "test-results/artifacts/artifact-1.txt"
+    },
+    {
+      "id": "artifact-2",
+      "hash": "b3a44d84f0abf4fc8478b4a29e26d08f0e3c2b4f84d9b7a3b4a9d2c1e9a5f3d2",
+      "path": "test-results/artifacts/artifact-2.txt"
+    }
+  ]
+}

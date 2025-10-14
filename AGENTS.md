@@ -13,7 +13,6 @@
 - Bootstrap the toolchain (trust→install) from the repo root:
   - `mise trust`
   - `mise install`
-  - `mise env`
   - `mise run install` (wraps `pnpm install` for the workspace)
   - `mise run agent-deps` (syncs Python deps via `uv` and `agent/requirements.txt`)
 - Expected pinned versions (`mise current`): Node `22.20.0`, Python `3.13.7`, pnpm `10.18.0`, uv `0.9.2`.
@@ -33,14 +32,7 @@
 - `mise run agent` or `./scripts/run-agent.sh` — start the Gemini ADK agent in isolation.
 - Use supabase linked stack
   After schema edits regenerate types with `supabase gen types typescript --linked --schema public,storage,graphql_public >| supabase/types.ts` and update readiness docs in `docs/readiness/`.
-- Agent evals: once deps are synced run
-  ```bash
-  uv run --with-requirements agent/requirements.txt \
-    adk eval agent/agent.py agent/evals/smoke_g_a_v2.json
-  uv run --with-requirements agent/requirements.txt \
-    adk eval agent/agent.py agent/evals/dry_run_ranking_G-B.json
-  ```
-  (These are the commands behind `mise run test-agent`; keep them green before merging.)
+- Agent evals: once deps are synced run evals - commands behind `mise run test-agent`; keep them green before merging.
 
 ## Testing & Quality Gates
 
@@ -73,7 +65,7 @@
 
 Keep this guide current—agents treat AGENTS.md as the single source of truth for local workflows.
 
-## Gate G-B Operational Notes
+## Operational Notes
 
 - All database and storage related logic persists via Supabase defined in `supabase/migrations/0001_init.sql`;
 - Supabase types
@@ -87,5 +79,4 @@ Keep this guide current—agents treat AGENTS.md as the single source of truth f
 
 - Scrub PII before sending events—reuse `src/lib/telemetry/redaction.ts` helpers and extend them if new fields appear.
 - CopilotKit runtime supports opt-out/sampling flags; set `telemetryDisabled` or adjust sample rate when needed.
-- Run `pnpm ts-node scripts/audit_telemetry_events.py --gate G-B` as part of Gate reviews to verify required events are emitted.
 - CI: set `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` to enable the telemetry-audit workflow.
