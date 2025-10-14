@@ -20,12 +20,12 @@ Ensure the Control Plane remains observable, reliable, and compliant while enabl
 
 ## 2. Environment Matrix
 
-| Environment | Purpose | Deployment Cadence | Data | Access |
-|-------------|---------|--------------------|------|--------|
-| Local | Developer sandbox | On demand | Mock + developer accounts | Engineers |
-| Dev | Integrated testing | Daily | Synthetic | Engineering, QA |
-| Staging | Pre-production validation | Twice weekly | Anonymized | Engineering, Operations |
-| Production | Customer-facing | Continuous (feature flags) | Live | Operations, On-call |
+| Environment | Purpose                   | Deployment Cadence         | Data                      | Access                  |
+| ----------- | ------------------------- | -------------------------- | ------------------------- | ----------------------- |
+| Local       | Developer sandbox         | On demand                  | Mock + developer accounts | Engineers               |
+| Dev         | Integrated testing        | Daily                      | Synthetic                 | Engineering, QA         |
+| Staging     | Pre-production validation | Twice weekly               | Anonymized                | Engineering, Operations |
+| Production  | Customer-facing           | Continuous (feature flags) | Live                      | Operations, On-call     |
 
 Secrets managed via `.env` locally and vault-backed environment variables in shared environments.
 
@@ -38,6 +38,7 @@ Secrets managed via `.env` locally and vault-backed environment variables in sha
 - **Supabase:** Migrate via CI job; run `supabase db reset --seed supabase/seed.sql` in staging before production rollout; regenerate types.
 
 All deployments require:
+
 - Tests + lint + agent evals green
 - Evidence artifacts updated (if applicable)
 - Rollback plan documented (git revert, Supabase migration down script, agent rollback instructions)
@@ -47,6 +48,7 @@ All deployments require:
 ## 4. Monitoring & Alerting
 
 ### Metrics (Datadog or equivalent)
+
 - `mission.success_rate`
 - `planner.latency.p95`
 - `executor.heartbeat.latency`
@@ -55,11 +57,13 @@ All deployments require:
 - `telemetry.events.ingested`
 
 ### Logs
+
 - Structured JSON (mission id, stage, actor, error code)
 - Forward to SIEM for anomaly detection
 - Retention: 30 days hot, 180 days cold storage
 
 ### Alerts
+
 - Critical: Mission success <97% (5m window), SSE heartbeat >8s, undo failures >1% in hour, telemetry ingestion stalled >15m
 - High: OAuth failure rate >5%, planner retry spikes, Composio rate-limit warnings
 - Informational: Library reuse drops below rolling average
@@ -71,11 +75,13 @@ Alerts route to PagerDuty schedule: Primary on-call → Secondary on-call → In
 ## 5. Incident Response
 
 ### Severity Levels
+
 - **SEV1:** Customer data at risk, widespread failure, trust breach
 - **SEV2:** Major feature outage, SLA breach, repeated undo failure
 - **SEV3:** Degraded experience, partial functionality, non-blocking errors
 
 ### Response Flow
+
 1. **Detection:** Alert fires or customer report
 2. **Triage:** Incident Commander (IC) assigns roles (Comms, Ops, Scribe)
 3. **Containment:** Disable affected flows (feature flag, circuit breaker), pause automation
@@ -96,6 +102,7 @@ Runbooks stored under `docs/readiness/runbooks/` with command snippets, dashboar
 - **Compliance:** SOC2, GDPR readiness via evidence bundles, data export tools, consent tracking
 
 ### Security Checks Before Release
+
 - Static analysis (ESLint, Ruff, Bandit)
 - Dependency updates reviewed for CVEs
 - Pen test findings triaged and tracked in risk register
@@ -137,7 +144,7 @@ Track changes in shared calendar; notify stakeholders 48 hours prior to high-imp
 
 ## 10. Documentation & Training
 
-- Keep `supernew_docs/` synced with operational truths; review quarterly
+- Keep `docs/` synced with operational truths; review quarterly
 - Record incident drills; store recordings and notes in knowledge base
 - Onboard new operators via shadow program + certification checklist
 
@@ -160,4 +167,3 @@ Track changes in shared calendar; notify stakeholders 48 hours prior to high-imp
 - **Partner Liaisons:** Composio (`integration@composio`), CopilotKit (`partnerships@copilotkit`), Gemini (`adk-support@google.com`)
 
 Maintain updated roster in shared directory; verify quarterly.
-

@@ -28,6 +28,7 @@ mise run dev           # Next.js + FastAPI concurrently
 ```
 
 Optional:
+
 - `mise run ui` (UI-only)
 - `mise run agent` (agent-only)
 - `pnpm run test:ui`, `mise run test-agent`, `pnpm run lint`
@@ -205,16 +206,15 @@ uv run --with-requirements agent/requirements.txt pytest agent/tests
 
 - **Proposal Process:** RFC in `docs/rfcs/`, review with Product, UX, Trust, and Engineering leads.
 - **Testing Gate:** No merges without lint, tests, agent evals passing; include evidence artifact references in PR description.
-- **Documentation:** Update relevant sections in `supernew_docs` alongside code changes.
+- **Documentation:** Update relevant sections in `docs` alongside code changes.
 - **Release Notes:** Publish weekly changelog summarizing mission improvements, toolkit additions, safeguards updates.
 
 ---
 
 ## 12. Resources
 
-- `supernew_docs/01_product_vision.md` — Business context
-- `supernew_docs/02_system_overview.md` — Architecture reference
-- `supernew_docs/03_user_experience.md` — UX contracts and telemetry matrix
+- `docs/01_product_vision.md` — Business context
+- `docs/02_system_overview.md` — Architecture reference
+- `docs/03_user_experience.md` — UX contracts and telemetry matrix
 - `docs/readiness/` — Evidence artifacts and checklists
 - `libs_docs/` — Partner SDK quick references (CopilotKit, Composio, ADK, Supabase)
-

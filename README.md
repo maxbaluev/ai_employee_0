@@ -7,7 +7,7 @@ This repository delivers the Gate G-B control plane for the AI Employee program.
 - **Frontend:** `src/app/(control-plane)` renders the mission intake, artifact gallery, and Copilot sidebar.
 - **Backend:** `agent/` exposes a FastAPI app with a Gemini ADK agent (`agent/agents/control_plane.py`) and a Composio SDK-powered discovery client (`agent/tools/composio_client.py`).
 - **Data Plane:** `supabase/migrations/0001_init.sql` provisions tenants, objectives, plays, approvals, tool telemetry, pgvector embeddings, and RLS policies.
-- Reference product docs live in `supernew_docs/` (architecture, execution tracker, guardrails, readiness schemas).
+- Reference product docs live in `docs/` (architecture, execution tracker, guardrails, readiness schemas).
 
 ## Prerequisites
 
@@ -100,7 +100,7 @@ before running QA.
 - `agent/tools/composio_client.py` — Minimal Composio SDK client with CLI helpers.
 - `supabase/migrations/0001_init.sql` — Gates tenants, objectives, plays, approvals, tool telemetry, library embeddings, guardrail policies.
 - `docs/readiness/` — Machine-readable evidence bundles for future gates.
-- `supernew_docs/` — Canonical architecture, guardrail, and readiness references.
+- `docs/` — Canonical architecture, guardrail, and readiness references.
 
 ## Troubleshooting
 

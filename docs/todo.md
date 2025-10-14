@@ -26,6 +26,7 @@ Plus supporting materials: diagrams (`diagrams/*.mmd`), examples (`examples/*.js
 ## How to Use This Checklist
 
 **For AI Agents:**
+
 - Each section maps to a capability pillar or system layer
 - Tasks include **prerequisites**, **verification steps**, **evidence artifacts**, and **cross-references**
 - Mark tasks `[ ]` incomplete, `[WIP]` in progress, `[✓]` complete
@@ -33,6 +34,7 @@ Plus supporting materials: diagrams (`diagrams/*.mmd`), examples (`examples/*.js
 - Escalate blockers via `BLOCKER:` tags with context
 
 **For Human Operators:**
+
 - Review completed evidence artifacts in `docs/readiness/`
 - Validate cross-links point to current documentation
 - Update this checklist when roadmap milestones change
@@ -42,9 +44,11 @@ Plus supporting materials: diagrams (`diagrams/*.mmd`), examples (`examples/*.js
 ## I. GENERATIVE INTAKE & BRIEFING PILLAR
 
 ### Objective
+
 Enable one-prompt mission creation with ≥80% acceptance rate, editable chips, and confidence signals.
 
 ### Prerequisites
+
 - [ ] Review `01_product_vision.md` § Product Vision → Guiding Principles #1
 - [ ] Review `02_system_overview.md` § Architectural Tenets #1
 - [ ] Review `03_user_experience.md` § Eight-Stage Narrative Flow → Stage 1
@@ -53,6 +57,7 @@ Enable one-prompt mission creation with ≥80% acceptance rate, editable chips, 
 ### Tasks
 
 #### 1.1 Generative Intake Implementation
+
 - [ ] Verify `MissionIntake` component exists at `src/components/MissionIntake.tsx`
   - **Evidence:** Component renders generative banner with sample prompt carousel
   - **Verification:** `pnpm test:ui` passes for intake component
@@ -71,6 +76,7 @@ Enable one-prompt mission creation with ≥80% acceptance rate, editable chips, 
   - **Cross-ref:** `03_user_experience.md:96` (Accept/Edit Chips pattern)
 
 #### 1.2 Confidence Badges & Scaffolding
+
 - [ ] Implement confidence scoring (High · Medium · Needs Review)
   - **Evidence:** Tri-state badges with tooltip explaining rationale source
   - **Verification:** Inspect `mission_metadata.confidence` column
@@ -82,6 +88,7 @@ Enable one-prompt mission creation with ≥80% acceptance rate, editable chips, 
   - **Cross-ref:** `03_user_experience.md:57-60` (Mission Brief Commitment)
 
 #### 1.3 Brief Revision Loop (Status: ⚠️ In Progress)
+
 - [ ] Support brief reopening without losing downstream context
   - **Evidence:** Edit Brief button returns to stage 1, preserves toolkit selections
   - **Verification:** Test stage state persistence via `MissionStageProvider`
@@ -90,6 +97,7 @@ Enable one-prompt mission creation with ≥80% acceptance rate, editable chips, 
   - **BLOCKER:** Planner diff resilience dependency (Owner: Frontend Platform)
 
 #### 1.4 Evidence & Verification
+
 - [ ] Generate readiness artifact: `docs/readiness/intake_acceptance_report.md`
   - **Contents:** Acceptance rate metrics, regeneration frequency, latency p95
   - **Cross-ref:** `05_gates_roadmap.md:46`
@@ -103,9 +111,11 @@ Enable one-prompt mission creation with ≥80% acceptance rate, editable chips, 
 ## II. CAPABILITY ORCHESTRATION PILLAR
 
 ### Objective
+
 User-curated toolkit discovery, OAuth with scope transparency, and coverage validation ≥85%.
 
 ### Prerequisites
+
 - [ ] Review `01_product_vision.md` § Strategic Differentiators #2
 - [ ] Review `02_system_overview.md` § 3. Execution Layer (Composio + MCP)
 - [ ] Review `libs_docs/composio/llms.txt` for discovery, auth, execution patterns
@@ -114,6 +124,7 @@ User-curated toolkit discovery, OAuth with scope transparency, and coverage vali
 ### Tasks
 
 #### 2.1 Toolkit Recommendations
+
 - [ ] Verify `RecommendedToolStrip` component with auth badges
   - **Evidence:** Toolkit carousel displays no-auth first, OAuth-ready second
   - **Verification:** Component in `src/components/RecommendedToolkits.tsx`
@@ -131,6 +142,7 @@ User-curated toolkit discovery, OAuth with scope transparency, and coverage vali
   - **Cross-ref:** `02_system_overview.md:550-557`, `libs_docs/composio/llms.txt`
 
 #### 2.2 OAuth Lite Activation (Status: ⚠️ In Progress)
+
 - [ ] Implement Connect Link OAuth flow
   - **Evidence:** Side drawer displays scope previews with rollback instructions
   - **Verification:** `toolkits.authorize` generates session, `waitForConnection` polls
@@ -149,6 +161,7 @@ User-curated toolkit discovery, OAuth with scope transparency, and coverage vali
   - **Cross-ref:** `02_system_overview.md:1013-1014`, `07_operations_playbook.md:92`
 
 #### 2.3 Data Inspection & Coverage Validation
+
 - [ ] Implement `CoverageMeter` component with radial progress
   - **Evidence:** Segments for objectives, safeguards, plays, datasets with numeric thresholds
   - **Verification:** Component at `src/components/CoverageMeter.tsx`
@@ -166,6 +179,7 @@ User-curated toolkit discovery, OAuth with scope transparency, and coverage vali
   - **Cross-ref:** `02_system_overview.md:436`
 
 #### 2.4 Evidence & Verification
+
 - [ ] Generate readiness artifact: `docs/readiness/toolkit_recommendation_accuracy.md`
   - **Contents:** Top-3 ranking accuracy, rationale quality scores
   - **Cross-ref:** `05_gates_roadmap.md:63`
@@ -179,9 +193,11 @@ User-curated toolkit discovery, OAuth with scope transparency, and coverage vali
 ## III. PLANNING & ADAPTIVE SAFEGUARDS PILLAR
 
 ### Objective
+
 Hybrid play ranking (library + discovery), mission-specific safeguard hints, <200ms validator overhead.
 
 ### Prerequisites
+
 - [ ] Review `01_product_vision.md` § Strategic Differentiators #3, #5
 - [ ] Review `02_system_overview.md` § 3. Orchestration Layer (Gemini ADK) → Planner Agent
 - [ ] Review `libs_docs/adk/llms-full.txt` for agent coordination patterns
@@ -190,6 +206,7 @@ Hybrid play ranking (library + discovery), mission-specific safeguard hints, <20
 ### Tasks
 
 #### 3.1 Planner Agent Implementation
+
 - [ ] Verify Planner agent exists at `agent/agents/planner.py`
   - **Evidence:** CustomAgent with hybrid ranking (library retrieval + Composio discovery)
   - **Verification:** `mise run test-agent` passes planner eval suite
@@ -212,6 +229,7 @@ Hybrid play ranking (library + discovery), mission-specific safeguard hints, <20
   - **Cross-ref:** `02_system_overview.md:120` (Performance Targets table)
 
 #### 3.2 Adaptive Safeguards System
+
 - [ ] Implement safeguard hint generation during intake
   - **Evidence:** Mission-specific hints (tone, timing, budget, escalation) with confidence scores
   - **Verification:** `mission_safeguards` table populated on brief generation
@@ -234,6 +252,7 @@ Hybrid play ranking (library + discovery), mission-specific safeguard hints, <20
   - **Cross-ref:** `02_system_overview.md:119` (Performance Targets table)
 
 #### 3.3 Safeguard Feedback Loop (Status: ❌ Not Started)
+
 - [ ] Implement safeguard learning pipeline
   - **Evidence:** Feedback events cluster by theme (tone, budget, timing)
   - **Verification:** Planner prompt templates update based on edit patterns
@@ -242,6 +261,7 @@ Hybrid play ranking (library + discovery), mission-specific safeguard hints, <20
   - **BLOCKER:** Feedback drawer instrumentation (Owner: Planner Team)
 
 #### 3.4 Evidence & Verification
+
 - [ ] Generate readiness artifact: `docs/readiness/safeguard_learning_loop.md`
   - **Contents:** Edit frequency, auto-fix adoption rate, override patterns
   - **Cross-ref:** `05_gates_roadmap.md:108`
@@ -256,9 +276,11 @@ Hybrid play ranking (library + discovery), mission-specific safeguard hints, <20
 ## IV. EXECUTION & EVIDENCE PILLAR
 
 ### Objective
+
 Dry-run streaming <15min p95, undo plans for every mutating action, ≥95% rollback success.
 
 ### Prerequisites
+
 - [ ] Review `01_product_vision.md` § Guiding Principles #5 (Radically Reversible)
 - [ ] Review `02_system_overview.md` § Eight-Stage Mission Flow → Stages 6-7
 - [ ] Review `diagrams/eight_stage_journey.mmd`
@@ -267,6 +289,7 @@ Dry-run streaming <15min p95, undo plans for every mutating action, ≥95% rollb
 ### Tasks
 
 #### 4.1 Executor Agent & Dry-Run Streaming (Status: ⚠️ In Progress)
+
 - [ ] Verify Executor agent at `agent/agents/executor.py`
   - **Evidence:** Supports dry-run (SIMULATION) and governed modes
   - **Verification:** Test executes via Composio SDK with `execution_mode` parameter
@@ -291,6 +314,7 @@ Dry-run streaming <15min p95, undo plans for every mutating action, ≥95% rollb
   - **Cross-ref:** `03_user_experience.md:78`, `04_implementation_guide.md:64`
 
 #### 4.2 Undo Portfolio (Status: ❌ Not Started)
+
 - [ ] Generate undo plans for every mutating action
   - **Evidence:** Validator creates undo tokens, stores in `tool_calls.undo_plan_json`
   - **Verification:** Check `undo_events` schema in `supabase/migrations/0001_init.sql`
@@ -314,6 +338,7 @@ Dry-run streaming <15min p95, undo plans for every mutating action, ≥95% rollb
   - **BLOCKER:** Supabase function `verify_undo` dependency (Owner: Trust Engineering)
 
 #### 4.3 Evidence Agent & Artifact Gallery
+
 - [ ] Verify Evidence agent at `agent/agents/evidence.py`
   - **Evidence:** Bundles mission brief, tool outputs, ROI summary with SHA-256 hashes
   - **Verification:** Bundle generation completes in <5s
@@ -335,6 +360,7 @@ Dry-run streaming <15min p95, undo plans for every mutating action, ≥95% rollb
   - **Cross-ref:** `01_product_vision.md:198`, `07_operations_playbook.md:94`
 
 #### 4.4 Evidence & Verification
+
 - [ ] Generate readiness artifact: `docs/readiness/dry_run_resilience.md`
   - **Contents:** Heartbeat latency, retry success, pause/resume testing
   - **Cross-ref:** `05_gates_roadmap.md:82`
@@ -348,9 +374,11 @@ Dry-run streaming <15min p95, undo plans for every mutating action, ≥95% rollb
 ## V. LEARNING & INTELLIGENCE PILLAR
 
 ### Objective
+
 Library reuse ≥40%, telemetry coverage 100%, closed-loop feedback improving planner and safeguards.
 
 ### Prerequisites
+
 - [ ] Review `01_product_vision.md` § Strategic Differentiators #5
 - [ ] Review `06_data_intelligence.md` (entire document)
 - [ ] Review `diagrams/library_learning_loop.mmd`
@@ -359,6 +387,7 @@ Library reuse ≥40%, telemetry coverage 100%, closed-loop feedback improving pl
 ### Tasks
 
 #### 5.1 Library Reuse Signals (Status: ⚠️ In Progress)
+
 - [ ] Verify library embeddings pipeline
   - **Evidence:** Successful missions stored in `library_entries` with pgvector embeddings
   - **Verification:** Supabase edge function `generate-embedding` operational
@@ -377,6 +406,7 @@ Library reuse ≥40%, telemetry coverage 100%, closed-loop feedback improving pl
   - **BLOCKER:** Cold-start bias mitigation with curated playbooks
 
 #### 5.2 Telemetry Event Coverage
+
 - [ ] Audit all 37+ canonical telemetry events
   - **Evidence:** Event catalog in `scripts/audit_telemetry_events.py` up-to-date
   - **Verification:** Run `pnpm ts-node scripts/audit_telemetry_events.py --mode check`
@@ -393,6 +423,7 @@ Library reuse ≥40%, telemetry coverage 100%, closed-loop feedback improving pl
   - **Cross-ref:** `06_data_intelligence.md:130`, `07_operations_playbook.md:94`
 
 #### 5.3 Analytics Dashboards
+
 - [ ] Create Executive Dashboard (`views/executive_summary`)
   - **Evidence:** Displays weekly approved missions, conversion rates, pipeline impact
   - **Verification:** Dashboard accessible via Supabase Studio or Metabase
@@ -414,6 +445,7 @@ Library reuse ≥40%, telemetry coverage 100%, closed-loop feedback improving pl
   - **Cross-ref:** `06_data_intelligence.md:89-91`, `01_product_vision.md:462-471`
 
 #### 5.4 Feedback Loops
+
 - [ ] Implement Generative Quality Loop
   - **Evidence:** Chip edit patterns update prompt templates
   - **Verification:** Acceptance rate trends toward ≥80% target
@@ -435,6 +467,7 @@ Library reuse ≥40%, telemetry coverage 100%, closed-loop feedback improving pl
   - **Cross-ref:** `06_data_intelligence.md:121-126`
 
 #### 5.5 Evidence & Verification
+
 - [ ] Generate readiness artifact: `docs/readiness/library_reuse_metrics.md`
   - **Contents:** Reuse rate trends, embedding quality, cold-start mitigations
   - **Cross-ref:** `05_gates_roadmap.md:100`
@@ -448,9 +481,11 @@ Library reuse ≥40%, telemetry coverage 100%, closed-loop feedback improving pl
 ## VI. OPERATIONAL EXCELLENCE PILLAR
 
 ### Objective
+
 ≥99% mission success rate, <30min incident MTTR, SOC 2 readiness, complete runbook library.
 
 ### Prerequisites
+
 - [ ] Review `07_operations_playbook.md` (entire document)
 - [ ] Review `05_gates_roadmap.md` § E. Operational Excellence
 - [ ] Review `diagrams/end_to_end_data_flow.mmd`
@@ -458,6 +493,7 @@ Library reuse ≥40%, telemetry coverage 100%, closed-loop feedback improving pl
 ### Tasks
 
 #### 6.1 Deployment & Environment Management
+
 - [ ] Verify environment matrix (local, dev, staging, production)
   - **Evidence:** Each environment with proper secrets management
   - **Verification:** Check `.env` templates and vault configurations
@@ -474,6 +510,7 @@ Library reuse ≥40%, telemetry coverage 100%, closed-loop feedback improving pl
   - **Cross-ref:** `07_operations_playbook.md:43`
 
 #### 6.2 Monitoring & Alerting
+
 - [ ] Configure metrics collection (Datadog or equivalent)
   - **Evidence:** Track mission.success_rate, planner.latency.p95, executor.heartbeat.latency
   - **Verification:** Dashboards display real-time metrics
@@ -490,6 +527,7 @@ Library reuse ≥40%, telemetry coverage 100%, closed-loop feedback improving pl
   - **Cross-ref:** `07_operations_playbook.md:62-68`
 
 #### 6.3 Incident Response & Runbooks (Status: ❌ Not Started)
+
 - [ ] Create runbook library at `docs/readiness/runbooks/`
   - **Evidence:** Runbooks for common incidents (heartbeat failure, OAuth expired, undo failure)
   - **Verification:** Each runbook includes command snippets, dashboards, fallbacks
@@ -507,6 +545,7 @@ Library reuse ≥40%, telemetry coverage 100%, closed-loop feedback improving pl
   - **Cross-ref:** `07_operations_playbook.md:148`
 
 #### 6.4 Security & Compliance
+
 - [ ] Enforce access control (principle of least privilege)
   - **Evidence:** RLS policies on all Supabase tables
   - **Verification:** Test tenant isolation, scoped tokens
@@ -533,6 +572,7 @@ Library reuse ≥40%, telemetry coverage 100%, closed-loop feedback improving pl
   - **Cross-ref:** `01_product_vision.md:392`, `07_operations_playbook.md:95`
 
 #### 6.5 Maintenance Operations
+
 - [ ] Schedule Supabase nightly backups + weekly restore verification
   - **Evidence:** Backups automated, restore tested
   - **Verification:** Check backup logs
@@ -554,6 +594,7 @@ Library reuse ≥40%, telemetry coverage 100%, closed-loop feedback improving pl
   - **Cross-ref:** `07_operations_playbook.md:111`, `02_system_overview.md:657`
 
 #### 6.6 Evidence & Verification
+
 - [ ] Generate readiness artifact: `docs/readiness/runbook_validation.md`
   - **Contents:** Runbook completeness checklist, drill results
   - **Cross-ref:** `05_gates_roadmap.md:126`
@@ -568,9 +609,11 @@ Library reuse ≥40%, telemetry coverage 100%, closed-loop feedback improving pl
 ## VII. USER EXPERIENCE & ACCESSIBILITY PILLAR
 
 ### Objective
+
 WCAG 2.1 AA compliance, keyboard-first flows, ≤150ms stage transitions, Storybook coverage.
 
 ### Prerequisites
+
 - [ ] Review `03_user_experience.md` (entire document)
 - [ ] Review `04_implementation_guide.md` § 2. Frontend (Next.js + CopilotKit)
 - [ ] Review `diagrams/eight_stage_journey.mmd`
@@ -578,6 +621,7 @@ WCAG 2.1 AA compliance, keyboard-first flows, ≤150ms stage transitions, Storyb
 ### Tasks
 
 #### 7.1 Component Implementation
+
 - [ ] Build all mission workspace components per spec
   - **Evidence:** Components in `src/components/` match `03_user_experience.md:32-43`
   - **Verification:** Storybook stories at `stories/mission-workspace/*.stories.tsx`
@@ -594,6 +638,7 @@ WCAG 2.1 AA compliance, keyboard-first flows, ≤150ms stage transitions, Storyb
   - **Cross-ref:** `03_user_experience.md:125`
 
 #### 7.2 Accessibility Compliance
+
 - [ ] Ensure semantic landmarks frame layout
   - **Evidence:** `<main>`, `<aside>`, `<nav>` tags used correctly
   - **Verification:** Automated axe scan passes
@@ -620,6 +665,7 @@ WCAG 2.1 AA compliance, keyboard-first flows, ≤150ms stage transitions, Storyb
   - **Cross-ref:** `03_user_experience.md:114`
 
 #### 7.3 Interaction Patterns
+
 - [ ] Implement Accept/Edit Chips pattern
   - **Evidence:** Hover reveals Regenerate, Convert to Note
   - **Verification:** Multiline editing, mention syntax functional
@@ -641,12 +687,14 @@ WCAG 2.1 AA compliance, keyboard-first flows, ≤150ms stage transitions, Storyb
   - **Cross-ref:** `03_user_experience.md:101`
 
 #### 7.4 Telemetry Verification
+
 - [ ] Confirm all interaction events emit telemetry
   - **Evidence:** Stage-to-Event Matrix fully instrumented
   - **Verification:** Run `scripts/audit_telemetry_events.py --gate ux`
   - **Cross-ref:** `03_user_experience.md:140-152`
 
 #### 7.5 Evidence & Verification
+
 - [ ] Run accessibility audit suite
   - **Command:** `pnpm run test:a11y` (axe CLI)
   - **Target:** Zero critical violations
@@ -662,9 +710,11 @@ WCAG 2.1 AA compliance, keyboard-first flows, ≤150ms stage transitions, Storyb
 ## VIII. PARTNER INTEGRATION PILLAR
 
 ### Objective
+
 Deep integration with Composio (toolkits), CopilotKit (UX), ADK (orchestration), Supabase (data).
 
 ### Prerequisites
+
 - [ ] Review `01_product_vision.md` § Strategic Partnerships
 - [ ] Review `diagrams/partner_integration_map.mmd`
 - [ ] Review `libs_docs/composio/llms.txt`
@@ -675,6 +725,7 @@ Deep integration with Composio (toolkits), CopilotKit (UX), ADK (orchestration),
 ### Tasks
 
 #### 8.1 Composio Integration
+
 - [ ] Verify discovery API integration (`Composio.tools.get`)
   - **Evidence:** Semantic search with persona filters operational
   - **Verification:** Test in `agent/tools/composio_client.py`
@@ -701,6 +752,7 @@ Deep integration with Composio (toolkits), CopilotKit (UX), ADK (orchestration),
   - **Cross-ref:** `02_system_overview.md:576-582`, `02_system_overview.md:876-882`
 
 #### 8.2 CopilotKit Integration
+
 - [ ] Implement shared state via `useCopilotReadable`
   - **Evidence:** Mission brief, toolkits, safeguards shared across agents
   - **Verification:** Test state persistence in components
@@ -727,6 +779,7 @@ Deep integration with Composio (toolkits), CopilotKit (UX), ADK (orchestration),
   - **Cross-ref:** `02_system_overview.md:900-905`
 
 #### 8.3 Gemini ADK Integration
+
 - [ ] Verify agent coordination patterns (SequentialAgent, CustomAgent)
   - **Evidence:** Coordinator, Planner, Executor, Validator, Evidence agents operational
   - **Verification:** Test agent handoffs
@@ -743,6 +796,7 @@ Deep integration with Composio (toolkits), CopilotKit (UX), ADK (orchestration),
   - **Cross-ref:** `02_system_overview.md:927-932`
 
 #### 8.4 Supabase Integration
+
 - [ ] Verify schema migration applied (`0001_init.sql`)
   - **Evidence:** All tables, views, policies, functions exist
   - **Verification:** Run `supabase db reset` and verify
@@ -769,6 +823,7 @@ Deep integration with Composio (toolkits), CopilotKit (UX), ADK (orchestration),
   - **Cross-ref:** `02_system_overview.md:645-648`
 
 #### 8.5 Evidence & Verification
+
 - [ ] Document partner integration versions
   - **Evidence:** Lock file versions for Composio SDK, CopilotKit, ADK, Supabase client
   - **Verification:** Quarterly review with partner roadmap sync
@@ -784,9 +839,11 @@ Deep integration with Composio (toolkits), CopilotKit (UX), ADK (orchestration),
 ## IX. TESTING & QUALITY ASSURANCE PILLAR
 
 ### Objective
+
 100% test coverage for critical paths, CI/CD gates enforced, performance benchmarks met.
 
 ### Prerequisites
+
 - [ ] Review `04_implementation_guide.md` § 8. Testing Strategy
 - [ ] Review `05_gates_roadmap.md` § 4. Dependency Graph
 - [ ] Review CI/CD pipeline spec in `02_system_overview.md:1068-1076`
@@ -794,6 +851,7 @@ Deep integration with Composio (toolkits), CopilotKit (UX), ADK (orchestration),
 ### Tasks
 
 #### 9.1 Frontend Testing
+
 - [ ] Run unit tests with Vitest + Testing Library
   - **Evidence:** All components have unit tests
   - **Command:** `pnpm test:ui`
@@ -810,6 +868,7 @@ Deep integration with Composio (toolkits), CopilotKit (UX), ADK (orchestration),
   - **Cross-ref:** `04_implementation_guide.md:170`
 
 #### 9.2 Agent Testing
+
 - [ ] Run ADK eval suites
   - **Evidence:** Smoke tests, dry-run ranking, validator negatives
   - **Command:** `mise run test-agent`
@@ -822,12 +881,14 @@ Deep integration with Composio (toolkits), CopilotKit (UX), ADK (orchestration),
   - **Cross-ref:** `04_implementation_guide.md:87`
 
 #### 9.3 API Testing
+
 - [ ] Run Supertest integration tests
   - **Evidence:** All API routes tested (intake, toolkits, missions, evidence)
   - **Command:** `pnpm test:api`
   - **Cross-ref:** `04_implementation_guide.md:125`, `04_implementation_guide.md:171`
 
 #### 9.4 Performance Testing
+
 - [ ] Run Lighthouse performance audit
   - **Evidence:** Accessibility, performance, best practices scores ≥90
   - **Command:** `pnpm run test:perf`
@@ -839,6 +900,7 @@ Deep integration with Composio (toolkits), CopilotKit (UX), ADK (orchestration),
   - **Cross-ref:** `02_system_overview.md:113-124`, `07_operations_playbook.md:14`
 
 #### 9.5 CI/CD Gates
+
 - [ ] Enforce lint and type check
   - **Command:** `mise run lint`, `pnpm tsc --noEmit`
   - **Cross-ref:** `02_system_overview.md:1069`
@@ -853,6 +915,7 @@ Deep integration with Composio (toolkits), CopilotKit (UX), ADK (orchestration),
   - **Cross-ref:** `02_system_overview.md:1076`, `05_gates_roadmap.md:160-165`
 
 #### 9.6 Evidence & Verification
+
 - [ ] Maintain test coverage report
   - **Evidence:** Coverage ≥80% for frontend, ≥90% for agent
   - **Verification:** Generate coverage with `pnpm run coverage`, `pytest --cov`
@@ -863,16 +926,19 @@ Deep integration with Composio (toolkits), CopilotKit (UX), ADK (orchestration),
 ## X. DOCUMENTATION & COMMUNICATION PILLAR
 
 ### Objective
+
 Documentation synced with implementation, stakeholder communication plan active, weekly digest.
 
 ### Prerequisites
+
 - [ ] Review `05_gates_roadmap.md` § 8. Communication Plan
 - [ ] Review `07_operations_playbook.md` § 10. Documentation & Training
 
 ### Tasks
 
 #### 10.1 Documentation Maintenance
-- [ ] Keep `supernew_docs/` synced with operational truths
+
+- [ ] Keep `docs/` synced with operational truths
   - **Evidence:** Quarterly review confirms accuracy
   - **Verification:** Track last updated dates
   - **Cross-ref:** `07_operations_playbook.md:140`
@@ -880,14 +946,15 @@ Documentation synced with implementation, stakeholder communication plan active,
 - [ ] Update diagrams when architecture changes
   - **Evidence:** Mermaid diagrams in `diagrams/` reflect current state
   - **Verification:** Render diagrams and validate
-  - **Cross-ref:** `supernew_docs/diagrams/`
+  - **Cross-ref:** `docs/diagrams/`
 
 - [ ] Maintain examples with realistic data
   - **Evidence:** `examples/*.json` files have current schema
   - **Verification:** Validate JSON against API contracts
-  - **Cross-ref:** `supernew_docs/examples/`
+  - **Cross-ref:** `docs/examples/`
 
 #### 10.2 Stakeholder Communication
+
 - [ ] Publish weekly digest
   - **Evidence:** Summary of milestone status and risks
   - **Verification:** Email or Slack post sent weekly
@@ -904,6 +971,7 @@ Documentation synced with implementation, stakeholder communication plan active,
   - **Cross-ref:** `05_gates_roadmap.md:195`
 
 #### 10.3 Training & Onboarding
+
 - [ ] Record incident drills
   - **Evidence:** Recordings and notes in knowledge base
   - **Verification:** Accessible to on-call team
@@ -915,6 +983,7 @@ Documentation synced with implementation, stakeholder communication plan active,
   - **Cross-ref:** `07_operations_playbook.md:142`
 
 #### 10.4 Evidence & Verification
+
 - [ ] Maintain evidence artifact index
   - **Evidence:** Spreadsheet tracks owner, last updated, validation status
   - **Verification:** Monthly review ensures artifacts fresh
@@ -927,6 +996,7 @@ Documentation synced with implementation, stakeholder communication plan active,
 ### Final Validation Before Production Release
 
 #### 11.1 Performance Targets Met
+
 - [ ] Generative intake ≤3s p95
 - [ ] Chip regeneration ≤2s p95
 - [ ] Toolkit recommendation ≤1.5s p95
@@ -939,6 +1009,7 @@ Documentation synced with implementation, stakeholder communication plan active,
 - **Cross-ref:** `02_system_overview.md:113-124`, `02_system_overview.md:963-975`
 
 #### 11.2 Quality Metrics Met
+
 - [ ] Generative acceptance rate ≥80%
 - [ ] Safeguard auto-fix adoption ≥75%
 - [ ] Undo success rate ≥95%
@@ -947,6 +1018,7 @@ Documentation synced with implementation, stakeholder communication plan active,
 - **Cross-ref:** `01_product_vision.md:475-483`
 
 #### 11.3 Business Impact Metrics Baseline
+
 - [ ] Pipeline attributed to agent actions (Revenue persona)
 - [ ] Response time reduction (Support persona)
 - [ ] Manual task hours saved (Operations persona)
@@ -954,6 +1026,7 @@ Documentation synced with implementation, stakeholder communication plan active,
 - **Cross-ref:** `01_product_vision.md:486-494`
 
 #### 11.4 Security & Compliance Checklist
+
 - [ ] All Supabase RLS policies active
 - [ ] OAuth tokens encrypted at rest
 - [ ] PII redaction enforced
@@ -963,6 +1036,7 @@ Documentation synced with implementation, stakeholder communication plan active,
 - **Cross-ref:** `07_operations_playbook.md:91-97`, `02_system_overview.md:1007-1033`
 
 #### 11.5 Partner Integration Validation
+
 - [ ] Composio SDK version locked, integration tested
 - [ ] CopilotKit session recovery tested
 - [ ] ADK eval pass rate ≥90%
@@ -976,6 +1050,7 @@ Documentation synced with implementation, stakeholder communication plan active,
 ### Post-Launch Learning
 
 #### 12.1 Feedback Collection
+
 - [ ] Monitor feedback drawer submissions weekly
   - **Evidence:** UX team triages, high-impact insights → backlog
   - **Cross-ref:** `03_user_experience.md:126`
@@ -985,6 +1060,7 @@ Documentation synced with implementation, stakeholder communication plan active,
   - **Cross-ref:** `07_operations_playbook.md:149`
 
 #### 12.2 Future Enhancements
+
 - [ ] Track research experiments in `docs/research/`
   - **Evidence:** Narrative Intelligence, Multi-Agent Collaboration, Advanced Triggers
   - **Cross-ref:** `02_system_overview.md:1126-1150`, `05_gates_roadmap.md:201-208`
@@ -998,21 +1074,24 @@ Documentation synced with implementation, stakeholder communication plan active,
 ## Appendix: Quick Reference
 
 ### Key Documentation Cross-Links
-- **Product Vision:** `supernew_docs/01_product_vision.md`
-- **System Overview:** `supernew_docs/02_system_overview.md`
-- **UX Blueprint:** `supernew_docs/03_user_experience.md`
-- **Implementation Guide:** `supernew_docs/04_implementation_guide.md`
-- **Capability Roadmap:** `supernew_docs/05_gates_roadmap.md`
-- **Data Intelligence:** `supernew_docs/06_data_intelligence.md`
-- **Operations Playbook:** `supernew_docs/07_operations_playbook.md`
+
+- **Product Vision:** `docs/01_product_vision.md`
+- **System Overview:** `docs/02_system_overview.md`
+- **UX Blueprint:** `docs/03_user_experience.md`
+- **Implementation Guide:** `docs/04_implementation_guide.md`
+- **Capability Roadmap:** `docs/05_gates_roadmap.md`
+- **Data Intelligence:** `docs/06_data_intelligence.md`
+- **Operations Playbook:** `docs/07_operations_playbook.md`
 
 ### Partner Integration References
+
 - **CopilotKit:** `libs_docs/copilotkit/llms-full.txt`
 - **Composio:** `libs_docs/composio/llms.txt`
 - **Gemini ADK:** `libs_docs/adk/llms-full.txt`
 - **Supabase:** `libs_docs/supabase/llms_docs.txt`
 
 ### Diagrams
+
 - **Eight-Stage Journey:** `diagrams/eight_stage_journey.mmd`
 - **Adaptive Safeguards Lifecycle:** `diagrams/adaptive_safeguards_lifecycle.mmd`
 - **End-to-End Data Flow:** `diagrams/end_to_end_data_flow.mmd`
@@ -1020,12 +1099,14 @@ Documentation synced with implementation, stakeholder communication plan active,
 - **Partner Integration Map:** `diagrams/partner_integration_map.mmd`
 
 ### Examples
+
 - **Revenue Mission:** `examples/mission_example_revenue.json`
 - **Support Mission:** `examples/mission_example_support.json`
 - **Governance Mission:** `examples/mission_example_governance.json`
 - **Telemetry Traces:** `examples/telemetry_sample_traces.json`
 
 ### Toolchain Commands
+
 - **Start development:** `mise run dev`
 - **Run frontend tests:** `pnpm test:ui`
 - **Run agent tests:** `mise run test-agent`

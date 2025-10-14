@@ -1,19 +1,19 @@
-/plan see on all files at /supernew_docs after see on all txt filex inside /libs_docs folder, read full txt content. After plan next steps for Gate G-B source code implementation
+/plan see on all files at /docs after see on all txt filex inside /libs_docs folder, read full txt content. After plan next steps for Gate G-B source code implementation
 
-/code see on all files at /supernew_docs after see /libs_docs folder(you should read realted to task files). After understand current codebase, and implement next logical steps at supernew_docs/todo.md, test and verify it.
-
-
-/auto Read all full files at /supernew_docs. After Understand current codebase and implement source code based on todo.md. See /libs_docs when you need library knowledge
+/code see on all files at /docs after see /libs_docs folder(you should read realted to task files). After understand current codebase, and implement next logical steps at docs/todo.md, test and verify it.
 
 
-/code Ok, now think deeper about data structures and data flows, do we need guardrail_policy_pack.md like this ? Can it be more generative?  also think about data flow, users wanna love it, so do we really need things like tonePolicy ? Make overall architecture more code effective and elegant, adapt all documents at /supernew_docs
+/auto Read all full files at /docs. After Understand current codebase and implement source code based on todo.md. See /libs_docs when you need library knowledge
+
+
+/code Ok, now think deeper about data structures and data flows, do we need guardrail_policy_pack.md like this ? Can it be more generative?  also think about data flow, users wanna love it, so do we really need things like tonePolicy ? Make overall architecture more code effective and elegant, adapt all documents at /docs
 
 /chrome
-Understand all files at supernew_docs/ fodler. After see AGENTS.md and execute our system, after use chrome to test and validate that everything checked at supernew_docs/todo.md works as expected.
+Understand all files at docs/ fodler. After see AGENTS.md and execute our system, after use chrome to test and validate that everything checked at docs/todo.md works as expected.
 
 --------------
 
-/plan Read all full files at /supernew_docs. After see on all full txt fiels at /libs_docs folder, read full txt content. After plan how to write new new_todo.md to based on rules. Think that we need new file new_todo.md, inside it we should have todos that we should use to move from curent codebased to Full Gate G-B implementation.
+/plan Read all full files at /docs. After see on all full txt fiels at /libs_docs folder, read full txt content. After plan how to write new new_todo.md to based on rules. Think that we need new file new_todo.md, inside it we should have todos that we should use to move from curent codebased to Full Gate G-B implementation.
 
 ```
 Stop hoping it'll figure things out. Write 1-2 clear sentences about what needs to happen before giving any task. "Fix the auth bug" is garbage. "Fix the JWT refresh token not updating in /src/auth/token.ts function  SomeFunction" will actually work.
