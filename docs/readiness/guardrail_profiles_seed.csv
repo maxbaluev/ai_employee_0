@@ -1,2 +1,0 @@
-tenant_label,label,tone_policy,quiet_hours,rate_limit,budget_cap,undo_required,escalation_contacts
-demo-tenant,Baseline Dry Run,"{\"forbidden\":[\"offensive\"],\"required\":[\"professional\"]}","{\"start\":20,\"end\":7,\"timezone\":\"UTC\"}","{\"per_hour\":30,\"burst\":10,\"toolkitScopes\":{}}","{\"currency\":\"USD\",\"max_cents\":5000,\"period\":\"daily\"}",true,"{\"primary\":\"governance@example.com\",\"secondary\":\"runtime@example.com\"}"
