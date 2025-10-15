@@ -1,7 +1,7 @@
 # AI Employee Control Plane UX Alignment (October 2025)
 
 This preface explains how CopilotKit powers the AI Employee Control Plane
-workspace in lockstep with Gemini ADK agents and the Composio Tool Router.
+workspace in lockstep with Gemini ADK agents and the native Composio SDK.
 Reference it before diving into the vendor documentation that follows.
 
 ## Stage-Aware Workspace Pattern (Revised Staging)
@@ -11,23 +11,22 @@ Reference it before diving into the vendor documentation that follows.
 | Define            | Mission Intake Panel  | Capture intent, personas, KPIs; stream ADK rationale chips; optional lightweight toolkit discovery   | `useCopilotAction`, `useCopilotState`         |
 | Prepare           | Inspection Drawer     | Present no-auth coverage previews + **anticipated connection requirements**; show what OAuth is needed | `useCopilotSubscription`, `useCopilotNotifications` |
 | Plan & Approve    | Approval Timeline     | Surface safeguards, **formally request OAuth after stakeholder approval**, log audit trail           | `useCopilotSteps`, `useCopilotForms`          |
-| Execute & Observe | Live Runboard         | Stream Tool Router checkpoints using already-established connections; raise intervention modals      | `useCopilotStream`, `useCopilotEvents`        |
+| Execute & Observe | Live Runboard         | Stream Composio SDK execution checkpoints using already-established connections; raise intervention modals | `useCopilotStream`, `useCopilotEvents`        |
 | Reflect & Improve | Artifact Gallery      | Present evidence bundles, reuse suggestions, capture feedback                                        | `useCopilotFeed`, `useCopilotInsights`        |
 
 ## Progressive Trust UX (Revised Staging)
 
-1. **No-Auth Inspection (Prepare Stage - Inspector)** — Render Tool Router discovery results
+1. **No-Auth Inspection (Prepare Stage - Inspector)** — Render Composio discovery results
    with "No credentials required" badges. Show **anticipated connection requirements** list
    so stakeholders see what OAuth will be needed before formal approval. Provide context
    cards instead of OAuth prompts until value is demonstrated.
 
 2. **Formal OAuth Request (Plan & Approve Stage - Planner)** — After stakeholder reviews
-   plan and safeguards, trigger CopilotKit action with "Approve & Connect" modal. Use
-   `composio.experimental.tool_router.create_session` to scope a presigned MCP URL, then call
-   `COMPOSIO_MANAGE_CONNECTIONS` (create action) to initiate OAuth via Auth Link. Surface the
-   generated URL in the modal so users complete authentication. All connections are established here.
+   plan and safeguards, trigger CopilotKit action with "Approve & Connect" modal. Call
+   `ComposioClient.connected_accounts.initiate()` via backend action and surface the generated
+   Connect Link URL in the modal so users complete authentication. All connections are established here.
 
-3. **Governed Execution (Execute & Observe Stage - Executor)** — Mirror Tool Router execution
+3. **Governed Execution (Execute & Observe Stage - Executor)** — Mirror Composio SDK execution
    events as timeline updates using already-established connections. Show undo affordances
    and safeguard intervention modals. Do NOT trigger new OAuth requests during execution;
    only verify connection freshness.
@@ -37,12 +36,12 @@ const { emitAction, subscribe } = useCopilotAction();
 
 function requestOAuth(scopeHint: string) {
   emitAction({
-    type: 'tool-router.oauth-request',
+    type: 'composio.connect-link.request',
     payload: { scopeHint },
   });
 }
 
-subscribe('tool-router.execution-update', update => {
+subscribe('composio.execution-update', update => {
   addTimelineEntry({
     missionId: update.missionId,
     status: update.status,
@@ -66,7 +65,7 @@ subscribe('tool-router.execution-update', update => {
 - `docs/07_operations_playbook.md` — On-call dashboards and alerting flows
 - `docs/09_release_readiness.md` — Evidence and approval requirements surfaced in UI
 - `libs_docs/adk/llms-full.txt` — ADK orchestration flows that drive the workspace
-- `libs_docs/composio/llms.txt` — Tool Router event payloads rendered in CopilotKit
+- `libs_docs/composio/llms.txt` — Composio SDK event payloads rendered in CopilotKit
 
 ---
 

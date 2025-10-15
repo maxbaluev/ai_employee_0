@@ -8,27 +8,27 @@
 - The repo uses a **single consolidated migration** (`supabase/migrations/0001_init.sql`). When schema or policy updates are required, edit that file (and related sections within it) directly instead of generating new migrations.
 - **Documentation:** Navigate all docs via `docs/00_README.md` — includes role-based reading paths and quick reference guides.
 
-## Trust Model & Tool Router Quick Reference
+## Trust Model & Composio SDK Quick Reference
 
-**Tool Router Architecture:**
-- **Sole Interface:** All toolkit execution flows through Composio Tool Router meta-tools
-- **No MCP Server Selection:** No per-toolkit MCP server configuration required
-- **Meta-Tools:** `COMPOSIO_SEARCH_TOOLS`, `COMPOSIO_CREATE_PLAN`, `COMPOSIO_MANAGE_CONNECTIONS`, `COMPOSIO_MULTI_EXECUTE_TOOL`, `COMPOSIO_REMOTE_WORKBENCH`, `COMPOSIO_REMOTE_BASH_TOOL`
-- **Sessions:** Scope each mission via `composio.experimental.tool_router.create_session(user_id, options)` before initiating OAuth
+**Native SDK Architecture:**
+- **Single Workspace:** All toolkit execution flows through a shared Composio workspace powered by the standard SDK (`ComposioClient`).
+- **Providers:** Choose the provider adapter that matches the LLM runtime (Anthropic, Gemini, OpenAI, LangChain, CrewAI, etc.); adapters translate JSON schemas into the model's native tool-call format.
+- **Sessions:** Scope each mission by passing `user_id` + `tenantId` into `ComposioClient` calls; use Connect Links generated via `client.connected_accounts.initiate()` to gate OAuth.
+- **Telemetry:** Emit `composio_discovery`, `composio_auth_flow`, and `composio_tool_call` events so downstream analytics distinguish the three progressive trust stages.
 
 **No-Auth Inspection:**
-- Inspector agent uses `COMPOSIO_SEARCH_TOOLS` for read-only toolkit discovery without OAuth
-- Used for demos, proof-of-value artifacts, and coverage validation
-- Returns toolkit metadata, action schemas, and capability assessments
-- No write actions or sensitive data access permitted
+- Inspector agents call `ComposioClient.tools.search()` and `ComposioClient.toolkits.get()` to assemble read-only capability summaries.
+- Returns toolkit metadata, action schemas, and guardrail requirements without touching customer data.
+- Great for demos, proof-of-value artifacts, and coverage validation.
 
-**Plan & Approve:** Planner triggers `COMPOSIO_MANAGE_CONNECTIONS` (`action="create"`) after stakeholders approve scopes; pass the session URL returned by `create_session` so Auth Link prompts stay scoped to the mission.
+**Plan & Approve:**
+- Planner agents request OAuth scopes via `client.connected_accounts.initiate()` and surface the Connect Link URL to stakeholders.
+- After approval, use `client.connected_accounts.status()` to confirm credentials before committing the mission plan.
 
 **Governed Execution:**
-- Executor agent uses `COMPOSIO_MANAGE_CONNECTIONS` (verify action) to ensure connections are active
-- All write operations flow through `COMPOSIO_MULTI_EXECUTE_TOOL` with safeguard validation
-- Tool Router handles authentication, rate limiting, and error recovery internally
-- All actions logged with undo plans for reversibility
+- Executor agents call `client.tools.execute()` or delegate to provider adapters for streaming tool calls.
+- Safeguard validation happens pre-flight (scope checks, dry-run), and retries/backoffs are handled by the SDK.
+- Undo plans reference Composio's audit log (`client.audit.list_events(...)`).
 
 ## Mise-First Setup
 
@@ -81,20 +81,20 @@
 - Seeds live in `supabase/seed.sql`; rerun `supabase db reset --seed supabase/seed.sql` when iterating on local data.
 - Update `docs/readiness/` after any schema or data contract change.
 
-## Tool Router Integration Notes
+## Composio SDK Integration Notes
 
-- **Sole Mechanism:** AI Employee Control Plane standardizes on Tool Router; no per-toolkit MCP servers used
-- **Inspector Pattern:** Uses `COMPOSIO_SEARCH_TOOLS` for no-auth discovery and capability assessment
-- **Executor Pattern:** Uses `COMPOSIO_MANAGE_CONNECTIONS` for OAuth + `COMPOSIO_MULTI_EXECUTE_TOOL` for parallel execution
-- **Context Usage:** Tool Router operations consume ~20k tokens/session; cache discovery results (1-hour TTL)
-- **Reference:** See `libs_docs/composio/llms.txt` for complete Tool Router API specs and meta-tool parameters
+- **Sole Mechanism:** AI Employee Control Plane standardizes on the native Composio SDK; no intermediary router or per-tool MCP servers.
+- **Inspector Pattern:** Cache `client.tools.search()` results for one hour to minimize catalog calls while keeping inspection up to date.
+- **Planner Pattern:** Use Connect Links with time-boxed scopes; embed the OAuth summary in mission records before execution.
+- **Executor Pattern:** Prefer provider adapters for automatic schema reshaping; fall back to `client.tools.execute()` for bespoke calls or bulk operations.
+- **References:** `libs_docs/composio/llms.txt` indexes Quickstart, Providers, Authenticating Tools, Triggers, and other first-party guides.
 
 ## Troubleshooting Cheatsheet
 
 - Missing toolchain errors → rerun `mise install` after verifying `.mise.toml` has been trusted.
 - Agent refusing connections → ensure secrets are loaded and `mise run agent` is active.
 - Supabase RLS failures → confirm migrations have been applied (see Supabase workflow above).
-- Tool Router errors → verify `COMPOSIO_API_KEY` configured; check telemetry for `tool_router_call` events; ensure discovery cache not stale.
+- Composio SDK errors → verify `COMPOSIO_API_KEY` configured; inspect `composio_tool_call` telemetry with toolkit/action labels; ensure discovery cache not stale.
 - Inspect currently active tool versions → `mise current`.
 
 Keep this guide current—agents treat AGENTS.md as the single source of truth for local workflows.

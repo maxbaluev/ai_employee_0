@@ -167,18 +167,21 @@ Single-input intake parses objectives, audiences, KPIs, safeguards, tone hints, 
 - Persona-specific defaults accelerate playbook adoption
 - Lower training costs for new users
 
-### 2. Tool Router-Driven Orchestration
+### 2. Native Composio SDK Orchestration
 
 **The Innovation:**
-All toolkit execution flows through the **Composio Tool Router**, a production-ready meta-tool interface providing a three-phase workflow across 500+ toolkits: **Discovery** ( `COMPOSIO_SEARCH_TOOLS` for no-auth inspection and plan context), **Authentication** (`COMPOSIO_MANAGE_CONNECTIONS` orchestrating OAuth plus the per-mission presigned session URLs returned by `composio.experimental.tool_router.create_session`), and **Execution** (`COMPOSIO_CREATE_PLAN` for multi-step orchestration, `COMPOSIO_MULTI_EXECUTE_TOOL` for governed actions, `COMPOSIO_REMOTE_WORKBENCH` / `COMPOSIO_REMOTE_BASH_TOOL` for containerized processing and scripted transforms). Inspector, Planner, and Executor agents interact exclusively via these six Tool Router meta-tools, giving stakeholders a single consistent interface.
+All toolkit execution flows through the **Composio SDK**, a production-ready surface that exposes more than 500 toolkits with native authentication, schema translation, and telemetry. The progressive trust model maps cleanly to SDK calls:
+- **Discovery:** Inspectors call `ComposioClient.tools.search()` and provider formatters to assemble capability snapshots without touching customer data.
+- **Authentication:** Planners generate mission-scoped Connect Links via `ComposioClient.toolkits.authorize()` (and `await wait_for_connection()`), collect approvals, and confirm with `.status()` before committing plans.
+- **Execution:** Executors stream writes through provider adapters (`provider.handle_tool_calls(...)`) or direct `client.tools.execute()` calls, with triggers/workflows handling longer-running actions.
 
-**Flow Touchpoint:** `PrepareStage → InspectAPI → Inspector → SEARCH_TOOLS + optional MANAGE_CONNECTIONS (preview mode)` validates toolkit availability and previews anticipated connection requirements without requiring OAuth. `PlanStage → PlannerAPI → MANAGE_CONNECTIONS (formal)` establishes connections after stakeholder approval. `ExecuteStage → Executor → MULTI_EXECUTE_TOOL` handles authenticated actions using already-established connections, verifying freshness but not initiating new OAuth flows.
+**Flow Touchpoint:** `PrepareStage → InspectAPI → Inspector` issues discovery queries against the catalog cache. `PlanStage → PlannerAPI` surfaces Connect Links, persists the granted scopes, and records them in Supabase. `ExecuteStage → Executor` runs native SDK executions, capturing audit trails through `client.audit.list_events(...)`.
 
 **Business Impact:**
 - Informed consent replaces blind OAuth grants
 - Coverage meter (≥85% threshold) prevents under-scoped connections
-- Undo-first architecture enables safe experimentation
-- Reduced integration sprawl through need-based selection
+- Undo-first architecture leverages native audit logs
+- Reduced integration sprawl through curated toolkit selection
 
 ### 3. Adaptive Safeguard System
 
@@ -505,21 +508,20 @@ Measures sustained value delivery and trust maturation
 
 ## Strategic Partnerships
 
-### Composio: Tool Router as Sole Integration Interface
+### Composio: Native SDK as Sole Integration Interface
 
-**Value:** Production-ready meta-tool interface providing three-phase workflow (Discovery, Authentication, Execution) across 500+ toolkits; eliminates per-toolkit MCP server complexity; managed OAuth with presigned session URLs; advanced containerized execution via Remote Workbench and Remote Bash; case-study credibility (Assista AI, Fabrile)
+**Value:** Production-ready SDK that spans discovery, authentication, execution, triggers, and telemetry across 500+ toolkits. Eliminates bespoke connectors, keeps OAuth within governed Connect Link flows, and exposes detailed audit logs for every mission.
 
 **Integration:**
-- **Six Tool Router Meta-Tools:** `COMPOSIO_SEARCH_TOOLS` (discovery), `COMPOSIO_CREATE_PLAN` (planning), `COMPOSIO_MANAGE_CONNECTIONS` (OAuth lifecycle), `COMPOSIO_MULTI_EXECUTE_TOOL` (execution), `COMPOSIO_REMOTE_WORKBENCH` (containerized Python sandbox), `COMPOSIO_REMOTE_BASH_TOOL` (scripted transforms)
-- **Inspector Agent (Prepare Stage):** Uses SEARCH_TOOLS for no-auth discovery + MANAGE_CONNECTIONS in "preview" mode to pre-populate anticipated connection requirements
-- **Planner + Validator (Plan & Approve Stage):** Consolidates plans; Manage Connections formally triggered here once stakeholders approve scopes
-- **Executor Agent (Execute & Observe Stage):** Uses MULTI_EXECUTE_TOOL with already-established connections (verifies freshness only; does not initiate new OAuth flows)
-- **Single Interface:** No per-toolkit MCP server configuration required; Tool Router handles all routing, rate limiting, and error recovery internally
+- **Discovery:** Inspector agents call `ComposioClient.tools.search()` + provider formatters to present capability previews without credentials.
+- **Authentication:** Planner agents generate Connect Link URLs through `client.toolkits.authorize()` (fallback: `client.connected_accounts.link()` for custom configs), await connection, and persist granted scopes in Supabase for auditability.
+- **Execution:** Executors stream tool calls via provider adapters (`provider.handle_tool_calls(...)`) or direct `client.tools.execute()` calls; triggers/workflows handle long-running tasks.
+- **Governance:** Audit events (`client.audit.list_events`) and telemetry (`composio_tool_call`, `composio_auth_flow`) funnel into our readiness dashboards.
 
 **Joint Goals:**
-- Co-marketing: "Composio Tool Router Powered" badge highlighting production readiness
-- Shared customer references showcasing simplified integration and advanced features (Remote Workbench, presigned URLs)
-- Integration depth certifications for Tool Router meta-tool usage patterns
+- Co-marketing: "Powered by Composio Native SDK" badge highlighting trust-aligned execution
+- Shared customer references showcasing Connect Link approvals, trigger automation, and audit visibility
+- Integration depth certifications covering catalog coverage, trigger adoption, and telemetry completeness
 
 ---
 

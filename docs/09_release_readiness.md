@@ -72,7 +72,7 @@ This document defines the cross-functional readiness criteria, evidence requirem
 - ✓ Data migration tested with rollback plan
 - ✓ Runbook created for incident response
 - ✓ Customer communication plan prepared
-- ✓ Partner integration validation (Composio Tool Router, CopilotKit, ADK, Supabase)
+- ✓ Partner integration validation (Composio SDK, CopilotKit, ADK, Supabase)
 - ✓ Governance review completed (safeguard impact analysis)
 - ✓ Business continuity plan documented
 - ✓ Training materials updated

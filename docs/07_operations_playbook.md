@@ -43,7 +43,7 @@ This playbook provides operational procedures, deployment strategies, monitoring
 
 **Integrations:**
 - CopilotKit: Streaming chat and CoAgents
-- Composio Tool Router: Production-ready meta-tool interface with six operations (`COMPOSIO_SEARCH_TOOLS`, `COMPOSIO_CREATE_PLAN`, `COMPOSIO_MANAGE_CONNECTIONS`, `COMPOSIO_MULTI_EXECUTE_TOOL`, `COMPOSIO_REMOTE_WORKBENCH`, `COMPOSIO_REMOTE_BASH_TOOL`) providing a discovery→authentication→execution workflow across 500+ toolkits; sessions scoped per mission via `create_session`
+- Composio SDK: Production-ready native SDK covering discovery (`client.tools.search`), authentication (Connect Links via `client.toolkits.authorize` / `await wait_for_connection()`), execution (provider adapters + `client.tools.execute`), triggers, and telemetry across 500+ toolkits; mission scoping handled by `user_id` + `tenantId` context.
 - Gemini ADK: Agent coordination framework
 
 ---
@@ -239,7 +239,8 @@ curl -X POST https://api.production.example.com/admin/flags/<feature_name>/disab
 **URL:** `https://monitoring.example.com/dashboards/integrations`
 
 **Metrics:**
-- **Composio Tool Router:** Meta-tool call success rate for all six operations (`COMPOSIO_SEARCH_TOOLS`, `COMPOSIO_CREATE_PLAN`, `COMPOSIO_MANAGE_CONNECTIONS`, `COMPOSIO_MULTI_EXECUTE_TOOL`, `COMPOSIO_REMOTE_WORKBENCH`, `COMPOSIO_REMOTE_BASH_TOOL`), OAuth refresh failures, rate limit hits, session creation latency
+- **Composio SDK:** Discovery success rate (`composio_discovery`), Connect Link completion vs. abandonment, execution success rate (`composio_tool_call`), failure envelope (`composio_tool_call_error`), OAuth refresh failures, trigger latency
+- **Gemini ADK Sessions:** Heartbeat freshness (`session_heartbeat` lag), agent token usage, stuck mission detectors
 - **CopilotKit:** SSE connection uptime, message delivery rate, session persistence
 - **Gemini ADK:** Agent invocation success rate, token usage, quota remaining
 - **Supabase:** Query latency, connection pool health, storage upload success
@@ -283,9 +284,9 @@ curl -X POST https://api.production.example.com/admin/flags/<feature_name>/disab
   "mission_id": "mission_789",
   "user_id": "user_***redacted***",
   "agent": "executor",
-  "message": "Tool Router execution failed: rate limit exceeded",
+  "message": "Composio SDK execution failed: rate limit exceeded",
   "context": {
-    "meta_tool": "COMPOSIO_MULTI_EXECUTE_TOOL",
+    "event": "composio_tool_call",
     "toolkit": "gmail",
     "action": "send",
     "error_code": "RATE_LIMIT_EXCEEDED",
@@ -316,7 +317,7 @@ curl -X POST https://api.production.example.com/admin/flags/<feature_name>/disab
 |-------|-----------|--------|
 | **Elevated Latency** | p95 latency >500ms for >10 minutes | Investigate slow queries, check load |
 | **Memory Leak** | Heap growth >30% per hour | Restart affected service, investigate leak |
-| **Integration Degradation** | Tool Router/CopilotKit error rate >10% | Check partner status, implement circuit breaker |
+| **Integration Degradation** | Composio SDK/CopilotKit error rate >10% | Check partner status, implement circuit breaker |
 | **Queue Backlog** | Background job queue depth >100 | Scale workers, investigate stuck jobs |
 | **Disk Space Low** | Disk usage >90% | Clean up logs, evidence archives; scale storage |
 
@@ -523,52 +524,54 @@ flyctl restart --app ai-employee-agent
 
 ---
 
-#### Runbook 4: Tool Router Rate Limit Exceeded
+#### Runbook 4: Composio SDK Rate Limit Exceeded
 
-**Symptoms:** Tool Router operations failing with "RATE_LIMIT_EXCEEDED", missions stuck in execution
+**Symptoms:** Composio SDK events logging `RATE_LIMIT_EXCEEDED`, missions stuck in executor stage, Connect Link approvals piling up.
 
 **Diagnosis:**
 ```bash
-# Check Tool Router usage patterns
+# Check Composio tool-call volume
 SELECT
-  context->>'meta_tool' as operation,
-  count(*) as call_count
+  context->>'toolkit' AS toolkit,
+  count(*) AS call_count
 FROM telemetry_events
-WHERE event_type = 'tool_router_call'
-  AND timestamp > now() - interval '1 hour'
-GROUP BY context->>'meta_tool'
-ORDER BY call_count DESC;
-
-# Check specific toolkit call volume
-SELECT
-  context->>'toolkit' as toolkit,
-  count(*) as call_count
-FROM telemetry_events
-WHERE event_type = 'tool_router_call'
-  AND context->>'meta_tool' = 'COMPOSIO_MULTI_EXECUTE_TOOL'
+WHERE event_type IN ('composio_tool_call', 'composio_tool_call_error')
   AND timestamp > now() - interval '1 hour'
 GROUP BY context->>'toolkit'
+ORDER BY call_count DESC;
+
+# Identify high-frequency actions
+SELECT
+  context->>'toolkit' AS toolkit,
+  context->>'action' AS action,
+  count(*) AS call_count
+FROM telemetry_events
+WHERE event_type = 'composio_tool_call_error'
+  AND context->>'status' = 'rate_limit'
+  AND timestamp > now() - interval '1 hour'
+GROUP BY 1,2
 ORDER BY call_count DESC;
 ```
 
 **Resolution:**
 ```bash
-# Implement exponential backoff (already in code, verify)
-# Temporarily disable non-critical missions
+# Verify exponential backoff configuration
+# Temporarily pause non-critical missions
 UPDATE feature_flags SET enabled = false
 WHERE flag_name = 'mission_type_<low_priority>';
 
-# Contact Composio support for quota increase (if legitimate usage)
+# Request quota increase from Composio if usage is legitimate
 
-# Implement circuit breaker for Tool Router operations
+# Enable circuit breaker for high-traffic toolkits (see executor config)
 ```
 
 **Prevention:**
-- Cache `COMPOSIO_SEARCH_TOOLS` results (1-hour TTL recommended)
+- Cache `client.tools.search()` results (1-hour TTL recommended)
 - Batch discovery queries where possible
-- Add quota monitoring and proactive alerts
-- Implement toolkit call throttling per mission
-- Monitor token usage as Tool Router operations consume ~20k tokens/session
+- Trim tool payloads before execution with `client.tools.get(..., limit=6)`
+- Add proactive alerts on `composio_tool_call` volume per toolkit
+- Implement toolkit call throttling per mission or tenant
+- Monitor token usage; Composio executions consume ~20k tokens/session on average
 
 ---
 
@@ -742,7 +745,7 @@ curl -X POST https://api.production.example.com/admin/missions/<mission-id>/rege
 
 **Backend:**
 - Redis cache for library embeddings (24-hour TTL)
-- Tool Router discovery results cached (1-hour TTL via `COMPOSIO_SEARCH_TOOLS`)
+- Composio discovery results cached (1-hour TTL via `client.tools.search`)
 - Mission metadata cached during active session
 
 **Invalidation:**
@@ -820,7 +823,7 @@ curl -X POST https://api.production.example.com/admin/missions/<mission-id>/rege
 | **VP Engineering** | [Name] | [Email, Phone] | Escalations only |
 
 **Partner Contacts:**
-- **Composio Tool Router Support:** support@composio.dev, Slack: #composio-support (for all six meta-tool operations, rate limits, OAuth, presigned URLs, Remote Workbench issues)
+- **Composio SDK Support:** support@composio.dev, Slack: #composio-support (discovery APIs, Connect Links, provider adapters, triggers, and quota escalations)
 - **CopilotKit Support:** support@copilotkit.ai, Slack: #copilotkit-community
 - **Supabase Support:** support@supabase.com, Dashboard support chat
 - **Gemini ADK:** Google AI support portal

@@ -83,17 +83,26 @@ flowchart LR
 
 ## 3. Event Catalog Highlights
 
+All telemetry enters Supabase through the shared `telemetry_events` table (`event_type`, `stage`, `status`, `context`, `payload_sha`). Categorize new events before shipping and update `scripts/audit_telemetry_events.py` accordingly.
+
 | Category | Events | Notes |
 |----------|--------|-------|
 | Intake | `intent_submitted`, `brief_generated`, `brief_item_modified` | Token counts, tone hints, safeguard presence |
-| Toolkit | `toolkit_recommendation_viewed`, `toolkit_selected`, `connect_link_completed` | Scope metadata, success rate |
-| Planning | `play_generated`, `play_selected`, `planner_retry_requested` | Confidence, validator critique |
-| Execution | `execution_started`, `execution_step_completed`, `execution_completed`, `execution_paused` | Tool call ids, latency |
-| Evidence | `artifact_published`, `undo_requested`, `undo_completed` | Artifact hash, rollback plan |
+| Discovery & Inspection | `composio_discovery`, `toolkit_recommendation_viewed`, `toolkit_selected`, `data_preview_generated` | Coverage %, latency, auth requirements |
+| Planning | `planner_candidate_generated`, `plan_ranked`, `plan_approved`, `planner_retry_requested` | Confidence, validator critique |
+| Connect Link & Auth | `composio_auth_flow` | Track initiation → approval → expiry (`status` field) |
+| Execution | `execution_started`, `execution_step_completed`, `execution_paused`, `execution_completed` | Tool call ids, latency, undo hints |
+| Composio Tooling | `composio_tool_call`, `composio_tool_call_error` | Outcome envelope (`success`, `rate_limit`, `auth_expired`) |
+| Validator & Safeguards | `validator_alert_raised`, `validator_override_requested` | Severity, safeguard id, auto-fix status |
+| Workspace & UX | `inspection_viewed`, `approval_granted`, `rollback_triggered`, `workspace_stream_open` | CopilotKit session activity + sampling flags |
+| Sessions & Agents | `session_heartbeat` | Gemini ADK agent heartbeat (lag + token usage in payload) |
+| Evidence | `artifact_published`, `undo_requested`, `undo_completed`, `evidence_bundle_generated` | Artifact hash, rollback plan |
 | Feedback | `feedback_submitted`, `satisfaction_recorded`, `followup_scheduled` | Effort saved, blockers |
-| Governance | `safeguard_edited`, `validator_override_requested`, `incident_opened` | Source persona, context |
+| Governance | `safeguard_edited`, `incident_opened`, `incident_resolved` | Persona, audit references |
 
-Maintain canonical schema in `scripts/audit_telemetry_events.py`. For new events, document schema, purpose, and owner before implementation.
+> **Telemetry hygiene:** propagate `mission_id`, `tenantId`, `toolkit`, and `action` across all event families. When CopilotKit runs with `telemetryDisabled` or a reduced sample rate, emit `workspace_stream_open` with `sampling_mode` so downstream dashboards can adjust denominators.
+
+**Reference sources:** `libs_docs/composio/llms.txt` (native SDK events), `libs_docs/copilotkit/llms-full.txt` (workspace telemetry), `libs_docs/adk/llms-full.txt` (agent heartbeats), and `libs_docs/supabase/llms_docs.txt` (telemetry storage best practices).
 
 ---
 

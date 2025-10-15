@@ -189,8 +189,8 @@ To maintain consistency across all documentation, use these preferred terms:
 - **Coordinator, Intake, Planner, Inspector, Executor, Validator, Evidence** — Capitalize when referring to specific agent roles
 
 **Integrations:**
-- **Composio Tool Router, CopilotKit, Gemini ADK, Supabase** — Partner technology names (always capitalized)
-- **Composio Tool Router** — The sole supported interface for toolkit execution, providing six meta-tools (`COMPOSIO_SEARCH_TOOLS`, `COMPOSIO_CREATE_PLAN`, `COMPOSIO_MANAGE_CONNECTIONS`, `COMPOSIO_MULTI_EXECUTE_TOOL`, `COMPOSIO_REMOTE_WORKBENCH`, `COMPOSIO_REMOTE_BASH_TOOL`) that handle discovery, planning, authentication, and governed execution across 500+ toolkits. Sessions are scoped per mission using `composio.experimental.tool_router.create_session` presigned URLs.
+- **Composio SDK, CopilotKit, Gemini ADK, Supabase** — Partner technology names (always capitalized)
+- **Composio SDK** — The sole supported interface for toolkit execution. Use `ComposioClient` for discovery, Connect Links for OAuth, provider adapters for LLM-specific execution, and triggers/workflows for async orchestration. Mission scoping relies on passing the `user_id` + `tenantId` pair to every call—no presigned URLs required.
 
 ---
 
@@ -218,7 +218,7 @@ To maintain consistency across all documentation, use these preferred terms:
 ### Partner SDK References
 
 - **[CopilotKit](../libs_docs/copilotkit/llms-full.txt)** — CoAgents, streaming, interrupts, frontend action patterns
-- **[Composio Tool Router](../libs_docs/composio/llms.txt)** — Six meta-tools for the three-phase workflow (Discovery via `COMPOSIO_SEARCH_TOOLS`, Authentication via `COMPOSIO_MANAGE_CONNECTIONS`, Execution via `COMPOSIO_CREATE_PLAN`, `COMPOSIO_MULTI_EXECUTE_TOOL`, `COMPOSIO_REMOTE_WORKBENCH`, `COMPOSIO_REMOTE_BASH_TOOL`); sessions scoped per mission with `create_session`
+- **[Composio SDK](../libs_docs/composio/llms.txt)** — Quickstart, Providers, Authenticating Tools, Executing Tools, Triggers, and Connect Links for end-to-end mission workflows using native APIs.
 - **[Gemini ADK](../libs_docs/adk/llms-full.txt)** — Agent orchestration, multi-agent coordination, evaluation frameworks
 - **[Supabase](../libs_docs/supabase/llms_docs.txt)** — Database, storage, edge functions, real-time subscriptions
 

@@ -7,8 +7,8 @@ This repository delivers the Gate G-B control plane for the AI Employee program.
 ## Architecture Highlights
 
 - **Frontend:** `src/app/(control-plane)` renders the mission intake, artifact gallery, and Copilot sidebar.
-- **Backend:** `agent/` exposes a FastAPI app with a Gemini ADK agent (`agent/agents/control_plane.py`) integrating with the Composio Tool Router via meta-tool operations.
-- **Tool Router Integration:** Inspector, Planner, and Executor agents interact exclusively via Tool Router meta-tools (`COMPOSIO_SEARCH_TOOLS`, `COMPOSIO_CREATE_PLAN`, `COMPOSIO_MANAGE_CONNECTIONS`, `COMPOSIO_MULTI_EXECUTE_TOOL`, `COMPOSIO_REMOTE_WORKBENCH`, `COMPOSIO_REMOTE_BASH_TOOL`).
+- **Backend:** `agent/` exposes a FastAPI app with a Gemini ADK agent (`agent/agents/control_plane.py`) that calls native Composio SDK clients for discovery, authentication, and governed tool execution.
+- **Composio SDK Integration:** Inspector, Planner, and Executor agents share a single Composio workspace. They discover toolkits, broker OAuth, and execute governed actions through the standard SDK (`ComposioClient`) and provider adapters, without any intermediary router layer.
 - **Data Plane:** `supabase/migrations/0001_init.sql` provisions tenants, objectives, plays, approvals, tool telemetry, pgvector embeddings, and RLS policies.
 - Reference product docs live in `docs/` (architecture, execution tracker, guardrails, readiness schemas).
 
@@ -84,21 +84,20 @@ Record the CLI output in `docs/readiness/migration_log_G-A.md` and update
 baseline guardrail profiles using `docs/readiness/guardrail_profiles_seed.csv`
 before running QA.
 
-### Composio Tool Router Integration
+### Native Composio SDK Integration
 
-**The AI Employee Control Plane standardizes on the Composio Tool Router as the sole interface for toolkit execution.**
+**The AI Employee Control Plane standardizes on the native Composio SDK for catalog discovery, OAuth, and governed execution.**
 
-**Tool Router Meta-Tools:**
-- `COMPOSIO_SEARCH_TOOLS` — Semantic toolkit discovery and capability assessment
-- `COMPOSIO_CREATE_PLAN` — Multi-step execution planning with parallelism
-- `COMPOSIO_MANAGE_CONNECTIONS` — OAuth lifecycle (preview → create → verify → refresh)
-- `COMPOSIO_MULTI_EXECUTE_TOOL` — Parallel tool execution with result aggregation
-- `COMPOSIO_REMOTE_WORKBENCH` — Containerized Python sandbox for large-result processing
-- `COMPOSIO_REMOTE_BASH_TOOL` — Remote shell environment for scripted transforms
+**Core SDK surfaces:**
+- `ComposioClient.tools.search()` — semantic toolkit discovery and capability assessment used by the Inspector stage
+- `ComposioClient.connected_accounts.initiate()` / `.status()` — mission-scoped Connect Link flows that Planner agents present for approvals
+- Provider adapters (OpenAI, Anthropic, Gemini, LangChain, CrewAI, etc.) — translate mission plans into executable tool invocations
+- `ComposioClient.tools.execute()` and streaming helpers — governed execution with automatic retry, throttling, and response shaping
+- Triggers & workflows (`client.triggers.create` and `client.workflows.run`) — async orchestration for long-running actions managed by the Executor stage
 
-**Sessions:** `composio.experimental.tool_router.create_session(user_id, options)` returns a presigned MCP URL per mission conversation. Inspector uses Tool Router search for no-auth discovery; Planner scopes sessions and formally triggers OAuth; Executor verifies connections and multi-executes governed actions.
+**Sessions & trust:** mission sessions key off a shared `user_id` + `tenantId` tuple. Inspectors operate in read-only mode using discovery APIs, Planners gate OAuth scopes through Connect Links, and Executors run approved operations while emitting structured telemetry. No MCP-presigned URLs are required.
 
-See `libs_docs/composio/llms.txt` for complete Tool Router API reference and meta-tool specifications.
+See `libs_docs/composio/llms.txt` for a curated index of native Composio guides (Quickstart, Providers, Authenticating Tools, Executing Tools, Triggers, and more).
 
 ## Linting & Checks
 
@@ -110,8 +109,7 @@ See `libs_docs/composio/llms.txt` for complete Tool Router API reference and met
 - `src/app/(control-plane)/page.tsx` — Server component that hydrates Supabase data for the Gate G-A workspace.
 - `src/app/(control-plane)/ControlPlaneWorkspace.tsx` — Client workspace aligning with the UX blueprint and CopilotKit actions.
 - `agent/runtime/app.py` — FastAPI app factory consumed by both uvicorn and tests.
-- `agent/agents/control_plane.py` — Mission state tools and Tool Router integration for Inspector and Executor agents.
-- `agent/tools/tool_router_client.py` — Tool Router meta-tool client wrapping `COMPOSIO_SEARCH_TOOLS`, `COMPOSIO_CREATE_PLAN`, `COMPOSIO_MANAGE_CONNECTIONS`, `COMPOSIO_MULTI_EXECUTE_TOOL`, `COMPOSIO_REMOTE_WORKBENCH`, `COMPOSIO_REMOTE_BASH_TOOL`.
+- `agent/agents/control_plane.py` — Mission state hooks and Composio SDK orchestration for Inspector and Executor agents (hydrated when the agent package is synced).
 - `supabase/migrations/0001_init.sql` — Gates tenants, objectives, plays, approvals, tool telemetry, library embeddings, guardrail policies.
 - `docs/readiness/` — Machine-readable evidence bundles for future gates.
 - `docs/` — Canonical architecture, guardrail, and readiness references.
@@ -121,7 +119,7 @@ See `libs_docs/composio/llms.txt` for complete Tool Router API reference and met
 - **Agent connection warnings** usually mean the backend isn't running or `GOOGLE_API_KEY` is missing. Ensure `mise run dev` (or `mise run agent`) is active.
 - **Python import errors**: re-run `uv pip install -r agent/requirements.txt` to sync dependencies.
 - **Supabase RLS/pgvector errors**: confirm the migration has been applied (`supabase db push ...`).
-- **Tool Router errors**: confirm `COMPOSIO_API_KEY` is configured. Check telemetry for `tool_router_call` events to diagnose meta-tool operation failures.
+- **Composio SDK errors**: confirm `COMPOSIO_API_KEY` is configured. Check telemetry for `composio_tool_call` events and provider-specific error payloads to diagnose mission execution issues.
 
 ## Additional References
 
