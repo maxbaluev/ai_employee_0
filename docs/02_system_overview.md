@@ -225,4 +225,4 @@ Governance checkpoints are callable via `mise run governance-check`, which now r
 
 - URLs, API endpoints, Supabase schemas, and telemetry events remain unchanged
 - Historical missions automatically surface the new stage labels via Supabase views; no manual data cleanup required
-- Diagrams reference `docs/diagrams/five_stage_journey.mmd`
+- All diagrams are now embedded inline within this document for durability
