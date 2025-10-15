@@ -363,7 +363,7 @@ The unified mission workspace progresses through eight stages **without route tr
 
 - Row-level security (RLS) enforces tenant isolation
 - OAuth tokens encrypted at rest with rotation policy
-- Rate limiting per mission (Redis-backed)
+- Rate limiting per mission implemented via Supabase functions
 - CORS restricted to approved origins
 
 **File Locations:**
@@ -1060,7 +1060,6 @@ mise run agent      # Agent only
 - `GOOGLE_API_KEY` (Gemini)
 - `OPENAI_API_KEY` (fallback)
 - `ENCRYPTION_KEY` (OAuth tokens)
-- `REDIS_URL` (rate limiting)
 
 ---
 

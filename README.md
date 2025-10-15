@@ -118,7 +118,7 @@ before running QA.
 
 ## Gate G-B Notes
 
-- Regeneration limiter state persists via Supabase tables defined in `supabase/migrations/0001_init.sql`; no external Redis service is required.
+- Regeneration limiter state persists via Supabase tables defined in `supabase/migrations/0001_init.sql`
 - After Supabase schema edits run `supabase gen types typescript --linked --schema public,storage,graphql_public > supabase/types.ts` and follow up with `pnpm tsc --noEmit` to confirm generated bindings compile cleanly (regenerate once new columns are in place to drop casts).
 
 ## License

@@ -619,7 +619,7 @@ Measures sustained value delivery and trust maturation
 ### Key Assumptions
 
 - Redacted telemetry sufficient for compliance (no additional anonymization)
-- Redis available for rate limiting before promotion
+- Supabase functions available for rate limiting before promotion
 - Supabase credentials accessible for type gen and cron
 - CopilotKit SSE infrastructure stable for production
 - Evidence bundles stored with versioning enabled

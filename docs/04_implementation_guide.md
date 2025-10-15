@@ -121,7 +121,7 @@ uv run --with-requirements agent/requirements.txt pytest agent/tests
 ### Implementation Notes
 
 - **Auth:** Supabase Auth JWT validated via middleware; internal service-to-service tokens stored in environment.
-- **Rate Limiting:** per-account quotas with sliding window (Redis or Supabase function).
+- **Rate Limiting:** per-account quotas with sliding window implemented via Supabase functions.
 - **Error Surface:** Map known error codes to user-friendly messages; include incident id.
 - **Testing:** Supertest integration tests under `tests/api/*.test.ts`.
 

@@ -148,8 +148,6 @@ OPENAI_API_KEY=your-openai-key  # Optional
 # Encryption (generate random string)
 ENCRYPTION_KEY=$(openssl rand -hex 32)
 
-# Redis (optional, for rate limiting)
-# REDIS_URL=redis://localhost:6379
 ```
 
 **Security Note:** Never commit `.env` to version control. It's already in `.gitignore`.
@@ -525,7 +523,7 @@ supabase gen types typescript --linked > supabase/types.ts
 
 - Check API key quotas (Google AI, Composio)
 - Use inspection mode to avoid external calls
-- Add `REDIS_URL` for local rate limiting
+- Verify Supabase rate limiting functions deployed
 
 ### Debug Commands
 

@@ -33,9 +33,9 @@
     }
   },
   {
-    "event": "dry_run_completed",
+    "event": "execution_step_completed",
     "missionId": "rev-2025-q4-outbound",
-    "actor": "system",sBut thin
+    "actor": "system",
     "timestamp": "2025-10-14T16:18:43Z",
     "metadata": {
       "steps": 12,

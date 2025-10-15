@@ -39,18 +39,3 @@ run = "./scripts/run-agent.sh"
 [tasks.lint]
 description = "Lint and type-check the Next.js workspace"
 run = "pnpm run lint"
-
-[tasks.test-agent]
-description = "Execute Gemini ADK smoke + ranking evaluation suites"
-env = { EVAL_MODE = "true" }
-run = [
-  "uv run --with-requirements agent/requirements.txt adk eval agent/evals/control_plane agent/evals/smoke_g_a_v2.json",
-  "uv run --with-requirements agent/requirements.txt adk eval agent/evals/control_plane agent/evals/dry_run_ranking_G-B.json"
-]
-
-[tasks.test-gate-gb]
-description = "Run Gate G-B readiness integration and Playwright suites"
-run = [
-  "pnpm run test:gate-gb:integration",
-  "pnpm run test:gate-gb:playwright"
-]
