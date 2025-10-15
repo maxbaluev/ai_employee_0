@@ -1,6 +1,6 @@
 # AI Employee Control Plane: Implementation Guide
 
-**Version:** 2.0 (October 2025)
+**Version:** 3.0 (October 2025)
 **Audience:** Frontend, Backend, Agent, and Infra Engineers
 **Status:** Authoritative build and extension manual
 
@@ -40,7 +40,7 @@ Optional:
 ### Architecture Highlights
 
 - **App Router:** `src/app/(control-plane)/layout.tsx` hosts `MissionWorkspaceLayout`
-- **State:** `MissionStageProvider` orchestrates eight-stage flow with shared context
+- **State:** `MissionStageProvider` orchestrates five-stage flow with shared context (`DEFINE`, `PREPARE`, `PLAN_APPROVE`, `EXECUTE_OBSERVE`, `REFLECT_IMPROVE`)
 - **CopilotKit Hooks:**
   - `useCopilotReadable` exposes mission brief, toolkits, safeguards
   - `useCopilotAction` handles chip acceptance, play selection, undo decisions
@@ -50,20 +50,20 @@ Optional:
 
 ### Key Components
 
-- `MissionIntake` — Generative banner, chip editing controls
+- `MissionIntake` — Define stage generative banner, chip editing controls
 - `MissionBriefCard` — Persistent mission truth with edit locking
 - `RecommendedToolStrip` — Toolkit recommendations, OAuth badges
-- `CoverageMeter` — Readiness radial with segment analytics
-- `PlannerRail` — Streaming plays with rationale and safeguard tags
-- `ExecutionPanel` — Streaming timeline with pause/cancel
-- `EvidenceGallery` — Artifact cards, hash badges, export menu
-- `UndoBar` — Countdown + impact summary + confirm
-- `FeedbackDrawer` — Timeline of feedback events with quick reactions
+- `CoverageMeter` — Prepare stage readiness radial with segment analytics
+- `PlannerRail` — Plan & Approve stage streaming plays with rationale and safeguard tags
+- `ExecutionPanel` — Execute & Observe stage streaming timeline with pause/cancel
+- `EvidenceGallery` — Execute & Observe stage artifact cards, hash badges, export menu
+- `UndoBar` — Execute & Observe stage countdown + impact summary + confirm
+- `FeedbackDrawer` — Reflect & Improve stage timeline of feedback events with quick reactions
 
 ### Implementation Guidelines
 
 - **Streaming:** Server-sent events via `/api/stream/*`; ensure SSE reconnect handlers manage `429` backoffs.
-- **State Persistence:** Use `MissionWorkspaceStore` (Zustand) backed by `sessionStorage` to maintain context across reloads.
+- **State Persistence:** Use `MissionWorkspaceStore` (Zustand) backed by `sessionStorage` to maintain context across reloads; persist current five-stage state for telemetry alignment.
 - **Accessibility:** Wrap streaming sections in `aria-live="polite"`; provide keyboard shortcuts for primary actions.
 - **Error Handling:** Display inline callouts with retry affordances; log telemetry (`error_surface_viewed`).
 - **Storybook:** Add stories under `stories/mission-workspace/*.stories.tsx` with controls and accessibility notes.

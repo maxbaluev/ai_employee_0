@@ -1,6 +1,6 @@
 # AI Employee Control Plane: Release Readiness
 
-**Version:** 2.0 (October 2025)
+**Version:** 3.0 (October 2025)
 **Audience:** Release Management, Product, Engineering, Operations, Security, Compliance
 **Purpose:** Cross-functional readiness checklists, evidence artifacts, and sign-off process
 **Status:** Active release criteria
@@ -12,9 +12,9 @@
 This document defines the **release readiness criteria** for the AI Employee Control Plane. It consolidates cross-functional checklists, evidence artifact requirements, and the sign-off process to ensure safe, reliable, and compliant releases.
 
 **Release Philosophy:**
-- **Evidence-driven:** Every capability ships with proof of readiness
+- **Evidence-driven:** Every capability ships with proof of readiness aligned to the five-stage mission journey
 - **Cross-functional ownership:** Product, Engineering, Operations, Security, and Compliance all sign off
-- **Continuous validation:** Automated checks prevent regressions
+- **Continuous validation:** Automated checks prevent regressions across Define → Reflect & Improve
 - **Rollback-ready:** Every release includes documented rollback procedures
 
 ---

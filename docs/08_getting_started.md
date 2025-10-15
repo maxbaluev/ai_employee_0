@@ -1,6 +1,6 @@
 # AI Employee Control Plane: Getting Started
 
-**Version:** 2.0 (October 2025)
+**Version:** 3.0 (October 2025)
 **Audience:** New developers, operators, and stakeholders
 **Purpose:** Set up environment, run the stack, complete your first mission
 **Status:** Active onboarding guide
@@ -13,7 +13,7 @@ This guide walks you through:
 
 1. **Environment Setup** — Install tools, configure secrets, verify dependencies
 2. **Running the Stack** — Start local development environment (UI + Agent + Supabase)
-3. **First Mission Walkthrough** — Experience the eight-stage flow hands-on
+3. **First Mission Walkthrough** — Experience the five-stage mission journey hands-on
 4. **Troubleshooting** — Common issues and solutions
 5. **Next Steps** — Where to go after initial setup
 
@@ -261,7 +261,7 @@ Now that your environment is running, let's complete a mission end-to-end.
 
 ---
 
-### Stage 1: Intake & Chip Review
+### Stage 1: Define
 
 1. **Navigate** to the mission workspace at `http://localhost:3000`
 
@@ -290,7 +290,7 @@ consultative, not salesy. Send between 9am-5pm EST, Tuesday-Thursday only.
 
 ---
 
-### Stage 2: Mission Brief Commitment
+### Stage 2: Prepare
 
 1. **Review pinned brief** — See accepted chips displayed in brief card
 
@@ -300,7 +300,7 @@ consultative, not salesy. Send between 9am-5pm EST, Tuesday-Thursday only.
 
 ---
 
-### Stage 3: Toolkits & Connect
+### Stage 3: Plan & Approve
 
 1. **View recommendations** — System suggests toolkits:
    - **HubSpot** (no-auth) — Contact enrichment
@@ -319,7 +319,7 @@ consultative, not salesy. Send between 9am-5pm EST, Tuesday-Thursday only.
 
 ---
 
-### Stage 4: Data Inspection
+### Stage 4: Execute & Observe
 
 1. **Watch coverage meter** — System validates:
    - ✓ Objectives (100%)
@@ -336,7 +336,7 @@ consultative, not salesy. Send between 9am-5pm EST, Tuesday-Thursday only.
 
 ---
 
-### Stage 5: Planning & Safeguard Review
+### Stage 5: Reflect & Improve
 
 1. **Watch planner stream** — Agent generates 3 candidate plays:
    - **Play 1:** "Targeted Q2 Win-Back Campaign"
@@ -374,11 +374,11 @@ consultative, not salesy. Send between 9am-5pm EST, Tuesday-Thursday only.
 
 4. **Wait for completion** — Typically 2-5 minutes for a governed run
 
-**Expected Result:** Evidence bundle generated, artifacts ready
+**Expected Result:** Execute & Observe complete, evidence bundle generated
 
 ---
 
-### Stage 7: Evidence & Undo Readiness
+### Reflect & Improve Highlights
 
 1. **View artifact gallery** — Artifacts displayed:
    - 📄 **Contact List** (87 enriched records)
@@ -402,20 +402,18 @@ consultative, not salesy. Send between 9am-5pm EST, Tuesday-Thursday only.
 
 ---
 
-### Stage 8: Feedback & Learning
+### Stage 5: Reflect & Improve
 
 1. **Open feedback drawer** — Click feedback icon
-
 2. **Submit feedback** — Provide quick reaction:
    - ⭐⭐⭐⭐⭐ Satisfaction: 5/5
    - ⏱️ Effort saved: "3 hours of manual work"
    - 💡 Note: "Love the tone safeguard auto-fix!"
-
 3. **Pin to library** (optional) — Tag this play for reuse:
    - Add tags: `revenue`, `win-back`, `q2-dormant`
    - Make available to team
 
-**Expected Result:** Mission complete, available in library for future reuse
+**Expected Result:** Mission complete, feedback captured, library updated
 
 ---
 
@@ -425,12 +423,12 @@ consultative, not salesy. Send between 9am-5pm EST, Tuesday-Thursday only.
 
 To send real emails:
 
-1. Return to **Stage 3: Toolkits & Connect**
+1. Return to **Stage 2: Prepare**
 2. Select Gmail toolkit
 3. Click "Connect via OAuth"
 4. Authorize scopes in Connect Link
 5. Proceed through stages again
-6. In **Stage 6**, enable OAuth and proceed with governed execution when ready
+6. In **Stage 4**, enable OAuth and proceed with governed execution when ready
 
 ### Explore More Use Cases
 

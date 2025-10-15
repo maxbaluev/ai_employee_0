@@ -1,6 +1,6 @@
 # AI Employee Control Plane: User Experience Blueprint
 
-**Version:** 2.0 (October 2025)
+**Version:** 3.0 (October 2025)
 **Audience:** Product Design, UX Engineering, Research, Accessibility
 **Status:** Definitive interaction contract for the unified mission workspace
 
@@ -30,69 +30,83 @@ Deliver a single mission workspace that feels confidently autonomous yet deeply 
 
 ## Mission Workspace Anatomy
 
-| Surface                      | Purpose                                   | Key Components                                         | States                            |
+| Surface | Purpose | Key Components | States |
 | ---------------------------- | ----------------------------------------- | ------------------------------------------------------ | --------------------------------- |
-| **Generative Intake Banner** | Collect mission intent and constraints    | `MissionIntake`, `ChipStack`, sample prompt carousel   | idle · streaming · review         |
-| **Pinned Brief Card**        | Persist accepted chips as mission truth   | `MissionBriefCard`, confidence badges                  | draft · locked · edited           |
-| **Toolkit Canvas**           | Curate capabilities and connection status | `RecommendedToolStrip`, `ConnectionSlot`, `ScopeBadge` | discover · authorize · ready      |
-| **Coverage Meter**           | Verify readiness before execution         | `CoverageRadial`, `ReadinessLegend`                    | ready · warning · blocked         |
-| **Planner Insight Rail**     | Present ranked plays and rationale        | `PlayCard`, `RationaleTooltip`, `SafeguardPill`        | streaming · selected · superseded |
-| **Streaming Status Panel**   | Visualize execution timeline              | `ExecutionTimeline`, `HeartbeatBadge`, `ActionLog`     | idle · running · paused           |
-| **Evidence Gallery**         | Review artifacts, hash audit, export      | `ArtifactCard`, `HashBadge`, `ExportMenu`              | pending · validated · undoing     |
-| **Undo Bar**                 | Summarize rollback plan                   | `UndoCountdown`, `ImpactSummary`, `ConfirmButton`      | idle · armed · executed           |
-| **Feedback Drawer**          | Capture per-artifact and mission feedback | `FeedbackTimeline`, `QuickReactions`, `FollowupPrompt` | closed · open · submitted         |
+| **Generative Intake Banner** | Collect mission intent and constraints | `MissionIntake`, `ChipStack`, sample prompt carousel | idle · streaming · review |
+| **Pinned Brief Card** | Persist accepted chips as mission truth | `MissionBriefCard`, confidence badges | draft · locked · edited |
+| **Toolkit Canvas** | Curate capabilities and connection status | `RecommendedToolStrip`, `ConnectionSlot`, `ScopeBadge` | discover · authorize · ready |
+| **Coverage Meter** | Verify readiness before execution | `CoverageRadial`, `ReadinessLegend` | ready · warning · blocked |
+| **Planner Insight Rail** | Present ranked plays and rationale | `PlayCard`, `RationaleTooltip`, `SafeguardPill` | streaming · selected · superseded |
+| **Streaming Status Panel** | Visualize execution timeline | `ExecutionTimeline`, `HeartbeatBadge`, `ActionLog` | idle · running · paused |
+| **Evidence Gallery** | Review artifacts, hash audit, export | `ArtifactCard`, `HashBadge`, `ExportMenu` | pending · validated · undoing |
+| **Undo Bar** | Summarize rollback plan | `UndoCountdown`, `ImpactSummary`, `ConfirmButton` | idle · armed · executed |
+| **Feedback Drawer** | Capture per-artifact and mission feedback | `FeedbackTimeline`, `QuickReactions`, `FollowupPrompt` | closed · open · submitted |
 
 All surfaces live in `MissionWorkspaceLayout` with responsive breakpoints (≥1280 desktop, 1024 tablet, 768 mobile). Side rails collapse intelligently; critical controls remain in the primary column.
 
 ---
 
-## Eight-Stage Narrative Flow
+## Five-Stage Mission Journey
 
-The unified workspace moves through eight observable stages without route changes. Each stage inherits previous context and prefetches the next.
+The unified workspace moves through five observable stages without route changes. Each stage inherits previous context and prefetches the next.
 
-1. **Intake & Chip Review**
-   - User pastes objective text; system generates chips (goal, audience, KPIs, safeguards, timeline).
-   - Key interactions: edit inline, regenerate single chip, accept all, mark optional.
-   - Accessibility: live region announces chip readiness; `Ctrl+Enter` accepts.
+1. **Define** — Mission intent capture and brief commitment.
+2. **Prepare** — Toolkit curation, authorization, and data validation.
+3. **Plan & Approve** — Ranked plays, safeguard review, undo plan confirmation.
+4. **Execute & Observe** — Governed execution with live telemetry and evidence capture.
+5. **Reflect & Improve** — Feedback collection, library reuse suggestions, next-step logging.
 
-2. **Mission Brief Commitment**
-   - Accepted chips lock into a brief summary card.
-   - Users can reopen chips with `Edit Brief` (returns to stage 1 without losing downstream context).
-   - Telemetry: `mission_brief_locked` with chip diff payload.
+### Stage Details
 
-3. **Toolkit Discovery & Authorization**
-   - Carousel highlights recommended toolkits with reason tags (precedent, data freshness, coverage gaps).
-   - OAuth connects via side drawer; fallback instructions support service accounts.
-   - Empty states encourage inspection validation without credentials.
+#### Define
+- Paste mission intent, receive chips (objective, audience, KPI, safeguard, timeline).
+- Edit or regenerate any chip; accept all to lock the brief.
+- Telemetry: `intent_submitted`, `brief_generated`, `mission_brief_locked`.
 
-4. **Data Inspection**
-   - Read-only previews confirm dataset coverage.
-   - Coverage meter segments (objectives, contacts, safeguards, automation readiness) display numeric thresholds.
-   - Users can annotate gaps; annotations surface during planning.
+#### Prepare
+- Recommended toolkits displayed with rationale, precedent, and auth status.
+- OAuth drawer surfaces scopes; data inspection previews sample records with redaction.
+- Coverage meter requires ≥85% readiness before advancing.
+- Telemetry: `toolkit_recommended`, `toolkit_selected`, `data_preview_generated`, `safeguard_reviewed`.
 
-5. **Planning & Safeguard Review**
-   - Planner streams candidate plays with success projections, safeguards, and dependencies.
-   - Users approve one or more plays, request revisions, or pin manual steps.
-   - Summaries include validator critique to avoid later rework.
+#### Plan & Approve
+- Planner streams candidate plays ranked by impact and similarity.
+- Users approve plays, request revisions, attach manual steps, and validate undo plans.
+- Approval modal summarizes risk assessment and required safeguards.
+- Telemetry: `planner_candidate_generated`, `plan_ranked`, `plan_approved`.
 
-6. **Inspection Execution**
-   - Status panel streams each step with timestamps, tool call summaries, and validation outcomes.
-   - Failures trigger inline resolution prompts (retry, adjust safeguard, swap toolkit).
-   - Safeguard conflicts highlight impacted chips.
+#### Execute & Observe
+- Streaming panel shows tool calls, validator checks, and auto-fix attempts.
+- Evidence cards populate in real time with hash badges and redaction states.
+- Undo countdown visible for each mutating action.
+- Telemetry: `execution_started`, `execution_step_completed`, `validator_alert_raised`, `evidence_bundle_generated`.
 
-7. **Evidence & Undo Readiness**
-   - Artifacts display preview, confidence badge, inhibitor alerts, and download options.
-   - Undo bar lists reversible actions with countdown timers and prerequisites.
-   - Users can attach notes before approving activation.
-
-8. **Feedback & Learning**
-   - Drawer captures quick reactions and structured feedback per artifact.
-   - Mission-level feedback requests satisfaction rating, effort saved, and blockers.
-   - Completion screen showcases library recommendations for future reuse.
+#### Reflect & Improve
+- Feedback drawer enables per-artifact reactions and mission-level surveys.
+- Library suggestions highlight reusable plays and prompt templates.
+- Checklist captures follow-up tasks and owner assignments.
+- Telemetry: `feedback_submitted`, `mission_retrospective_logged`, `library_contribution`.
 
 ---
 
-## Key Interaction Patterns
+## Legacy Mapping Callout
+
+| Legacy Stage | Five-Stage Destination | Notes |
+|--------------|------------------------|-------|
+| Intake | Define | Mission intent capture unchanged |
+| Mission Brief | Define | Brief locking occurs before Prepare |
+| Toolkits & Connect | Prepare | Authorization and toolkit selection combined |
+| Data Inspect | Prepare | Coverage validation happens before planning |
+| Plan | Plan & Approve | Approval emphasis retained |
+| Governed Execution | Execute & Observe | Execution telemetry unchanged |
+| Evidence | Execute & Observe | Artifact packaging tied to execution |
+| Feedback | Reflect & Improve | Feedback loops and library updates |
+
+Use this table when aligning with stakeholders familiar with the eight-stage narrative.
+
+---
+
+## Interaction Patterns
 
 - **Accept/Edit Chips** — Hover reveals `Regenerate` and `Convert to Note`. Chips support multiline editing and mention syntax for teammates.
 - **Confidence Badges** — Tri-state (High · Medium · Needs Review) with tooltip explaining rationale source.
@@ -120,7 +134,7 @@ Every pattern includes design tokens for spacing, color, typography, and motion.
 ## Prototype & Testing Guidance
 
 1. **Design QA** — Ship Figma and Storybook parity checklist with every feature.
-2. **Usability Validation** — Conduct stage-focused studies (Intake, Planning, Evidence) monthly with primary personas.
+2. **Usability Validation** — Stage-focused studies (Define, Prepare, Execute & Observe) monthly with primary personas.
 3. **Accessibility Audits** — Automated (axe, pa11y) on each PR; manual screen reader sweeps prior to releases.
 4. **Telemetry Verification** — Confirm events fire with expected payload via `scripts/audit_telemetry_events.py`.
 5. **Performance Targets** — Stage transitions ≤150ms, streaming heartbeat ≤5s, artifact load ≤2s p95.
@@ -137,17 +151,22 @@ Every pattern includes design tokens for spacing, color, typography, and motion.
 
 ---
 
-## Appendix: Stage-to-Event Matrix
+## Appendix A: Stage-to-Event Matrix (Five-Stage Rollup)
 
-| Stage              | Primary Events                                                         | Optional Events                      | Payload Highlights                           |
-| ------------------ | ---------------------------------------------------------------------- | ------------------------------------ | -------------------------------------------- |
-| Intake             | `intent_submitted`, `brief_generated`                                  | `chip_regenerated`, `chip_discarded` | token counts, tone hints, safeguard presence |
-| Brief              | `mission_brief_locked`                                                 | `mission_brief_reopened`             | chip diff, editor id                         |
-| Toolkit            | `toolkit_recommendation_viewed`, `toolkit_selected`                    | `connection_deferred`                | toolkit id, capability vector, reason codes  |
-| Inspect            | `inspection_preview_rendered`, `coverage_threshold_met`                | `coverage_override_requested`        | datasets touched, gaps annotated             |
-| Plan               | `play_generated`, `play_selected`, `play_feedback_submitted`           | `planner_retry_requested`            | confidence score, safeguard summary          |
-| Governed Execution | `execution_started`, `execution_step_completed`, `execution_completed` | `execution_paused`                   | tool call id, validator critique             |
-| Evidence           | `artifact_published`, `undo_requested`, `undo_completed`               | `artifact_flagged`                   | artifact hash, undo latency                  |
-| Feedback           | `feedback_submitted`, `satisfaction_recorded`                          | `followup_scheduled`                 | rating, effort saved, blocker category       |
+| Stage | Primary Events | Optional Events | Payload Highlights |
+|-------|----------------|-----------------|--------------------|
+| Define | `intent_submitted`, `brief_generated`, `mission_brief_locked` | `chip_regenerated`, `chip_discarded` | token counts, tone hints, safeguard presence |
+| Prepare | `toolkit_recommended`, `toolkit_selected`, `data_preview_generated`, `safeguard_reviewed` | `coverage_override_requested` | toolkit id, coverage gaps, scope rationale |
+| Plan & Approve | `planner_candidate_generated`, `plan_ranked`, `plan_approved` | `planner_retry_requested` | confidence score, undo summary, reviewer id |
+| Execute & Observe | `execution_started`, `execution_step_completed`, `validator_alert_raised`, `evidence_bundle_generated` | `execution_paused` | tool call id, validator critique, artifact hash |
+| Reflect & Improve | `feedback_submitted`, `mission_retrospective_logged`, `library_contribution` | `followup_scheduled` | rating, effort saved, reusable asset id |
 
-Design leads maintain this matrix alongside telemetry schema changes to keep UX, engineering, and analytics aligned.
+---
+
+## Appendix B: Persona Alignment
+
+- **Revenue Operator (Riley)** — Prioritizes Define/Prepare for rapid campaign launches.
+- **Support Leader (Sam)** — Focuses on Execute & Observe dashboards for SLA adherence.
+- **Governance Lead (Gabriela)** — Evaluates Plan & Approve checkpoints and safeguard audit trails.
+- **Platform Engineer (Priya)** — Monitors telemetry integrity across all stages via Appendix A.
+

@@ -1,6 +1,6 @@
 # AI Employee Control Plane: Product Vision
 
-**Version:** 2.0 (October 2025)
+**Version:** 3.0 (October 2025)
 **Audience:** Leadership, Product, GTM, Partners
 **Status:** Active vision and strategic direction
 
@@ -112,9 +112,9 @@ Successful missions become library assets. Play recommendations improve with pre
 - ✓ Compounding library of proven plays (vs. ephemeral recommendations)
 
 **vs. Legacy Stage-Gated Systems:**
-- ✓ Single unified mission flow (vs. discrete stage transitions)
+- ✓ Five-stage journey with preserved checkpoints (vs. scattered gates)
 - ✓ Generative scaffolding from freeform input (vs. blank forms)
-- ✓ Eight-stage workspace with continuous context (vs. segmented interfaces)
+- ✓ Continuous workspace visibility across stages (vs. segmented interfaces)
 - ✓ Integrated feedback loops (vs. post-mortem analysis)
 
 ### Business Outcomes

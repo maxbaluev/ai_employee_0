@@ -1,8 +1,10 @@
 # AI Employee Control Plane: Documentation Guide
 
-**Version:** 2.0 (October 2025)
+**Version:** 3.0 (October 2025)
 **Purpose:** Navigate the AI Employee Control Plane documentation suite
 **Audience:** All stakeholders — Product, Engineering, Operations, Governance, Partners
+
+> **Five-Stage Mission Journey Update (October 2025):** All docs now align to the consolidated lifecycle — **Define, Prepare, Plan & Approve, Execute & Observe, Reflect & Improve**. Legacy eight-stage references remain only in "Legacy Mapping" callouts for comparison.
 
 ---
 
@@ -18,7 +20,7 @@ This documentation is organized as a **sequential knowledge base** that enables 
 
 1. **[Product Vision](./01_product_vision.md)** — Strategic direction, value proposition, personas, use cases
 2. **[System Overview](./02_system_overview.md)** — Architecture, data flows, technical specifications
-3. **[User Experience Blueprint](./03_user_experience.md)** — Eight-stage workflow, interaction patterns, accessibility
+3. **[User Experience Blueprint](./03_user_experience.md)** — Five-stage journey, interaction patterns, accessibility
 4. **[Implementation Guide](./04_implementation_guide.md)** — Development setup, component catalog, integration patterns
 5. **[Capability Roadmap](./05_capability_roadmap.md)** — Milestone-based roadmap with evidence requirements
 6. **[Data Intelligence](./06_data_intelligence.md)** — Telemetry, analytics, learning loops
@@ -41,7 +43,7 @@ This documentation is organized as a **sequential knowledge base** that enables 
 
 **Recommended Path:**
 1. [Product Vision](./01_product_vision.md) — Market context, value prop, GTM strategy
-2. [User Experience Blueprint](./03_user_experience.md) — Eight-stage workflow, personas
+2. [User Experience Blueprint](./03_user_experience.md) — Five-stage journey, personas
 3. [Capability Roadmap](./05_capability_roadmap.md) — Milestone plan with dependencies
 4. [Release Readiness](./09_release_readiness.md) — Launch criteria and sign-off process
 5. [Data Intelligence](./06_data_intelligence.md) — Analytics dashboards and success metrics
@@ -137,14 +139,14 @@ This documentation is organized as a **sequential knowledge base** that enables 
 **Goal:** Understand user flows, interaction patterns, accessibility requirements
 
 **Recommended Path:**
-1. [User Experience Blueprint](./03_user_experience.md) — Eight-stage flow, patterns, accessibility
+1. [User Experience Blueprint](./03_user_experience.md) — Five-stage flow, patterns, accessibility
 2. [Product Vision](./01_product_vision.md) — Personas, use cases, value proposition
 3. [Implementation Guide](./04_implementation_guide.md) — Component catalog, Storybook
 4. [System Overview](./02_system_overview.md) — CopilotKit integration patterns
 5. [Data Intelligence](./06_data_intelligence.md) — Telemetry for UX insights
 
 **Key Questions Answered:**
-- What are the eight mission stages and how do they flow?
+- How do the five mission stages work together and what are the handoffs?
 - What interaction patterns should I follow?
 - What are the accessibility requirements?
 - How do I verify telemetry fires for UX events?
@@ -201,7 +203,7 @@ This documentation is organized as a **sequential knowledge base** that enables 
 ### Diagrams
 
 Located in `diagrams/` (Mermaid format):
-- `eight_stage_journey.mmd` — Mission workflow visualization
+- `five_stage_journey.mmd` — Mission workflow visualization
 - `adaptive_safeguards_lifecycle.mmd` — Safeguard generation and enforcement
 - `end_to_end_data_flow.mmd` — System-wide data movement
 - `library_learning_loop.mmd` — Play reuse and learning
@@ -268,7 +270,8 @@ Located in `docs/readiness/`:
 
 | Date | Version | Changes | Author |
 |------|---------|---------|--------|
-| Oct 2025 | 2.0 | Unified documentation overhaul — removed gate terminology, added milestone-based roadmap, created navigation guide | Product & Engineering |
+| Oct 2025 | 3.0 | Five-stage mission journey migration — consolidated docs, updated diagrams, added legacy mapping callouts | Product & Engineering |
+| Aug 2025 | 2.0 | Unified documentation overhaul — removed gate terminology, added milestone-based roadmap, created navigation guide | Product & Engineering |
 | (Future) | | | |
 
 ---
