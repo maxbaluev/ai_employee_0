@@ -62,7 +62,7 @@ The unified workspace moves through eight observable stages without route change
 3. **Toolkit Discovery & Authorization**
    - Carousel highlights recommended toolkits with reason tags (precedent, data freshness, coverage gaps).
    - OAuth connects via side drawer; fallback instructions support service accounts.
-   - Empty states encourage dry-run validation without credentials.
+   - Empty states encourage inspection validation without credentials.
 
 4. **Data Inspection**
    - Read-only previews confirm dataset coverage.
@@ -74,7 +74,7 @@ The unified workspace moves through eight observable stages without route change
    - Users approve one or more plays, request revisions, or pin manual steps.
    - Summaries include validator critique to avoid later rework.
 
-6. **Dry-Run Execution**
+6. **Inspection Execution**
    - Status panel streams each step with timestamps, tool call summaries, and validation outcomes.
    - Failures trigger inline resolution prompts (retry, adjust safeguard, swap toolkit).
    - Safeguard conflicts highlight impacted chips.
@@ -146,9 +146,8 @@ Every pattern includes design tokens for spacing, color, typography, and motion.
 | Toolkit | `toolkit_recommendation_viewed`, `toolkit_selected` | `connection_deferred` | toolkit id, capability vector, reason codes |
 | Inspect | `inspection_preview_rendered`, `coverage_threshold_met` | `coverage_override_requested` | datasets touched, gaps annotated |
 | Plan | `play_generated`, `play_selected`, `play_feedback_submitted` | `planner_retry_requested` | confidence score, safeguard summary |
-| Dry-Run | `dry_run_started`, `dry_run_step_completed`, `dry_run_completed` | `dry_run_paused` | tool call id, validator critique |
+| Governed Execution | `execution_started`, `execution_step_completed`, `execution_completed` | `execution_paused` | tool call id, validator critique |
 | Evidence | `artifact_published`, `undo_requested`, `undo_completed` | `artifact_flagged` | artifact hash, undo latency |
 | Feedback | `feedback_submitted`, `satisfaction_recorded` | `followup_scheduled` | rating, effort saved, blocker category |
 
 Design leads maintain this matrix alongside telemetry schema changes to keep UX, engineering, and analytics aligned.
-

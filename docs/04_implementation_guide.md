@@ -78,13 +78,13 @@ Optional:
 - `agent/agents/` — Coordinator, Planner, Executor, Validator, Evidence agents
 - `agent/services/` — Mission service, Composio client, Supabase client, telemetry
 - `agent/tools/` — Tool abstractions, undo plans, scoring utilities
-- `agent/evals/` — Evaluation configs (`smoke_g_a_v2.json`, `dry_run_ranking_G-B.json`)
+- `agent/evals/` — Evaluation configs (`smoke_foundation.json`, `dry_run_ranking.json`)
 
 ### Development Workflow
 
 ```bash
 mise run agent      # hot reload FastAPI server
-mise run test-agent # adk eval smoke + dry-run ranking
+mise run test-agent # adk eval smoke + execution ranking
 uv run --with-requirements agent/requirements.txt pytest agent/tests
 ```
 
@@ -159,7 +159,7 @@ uv run --with-requirements agent/requirements.txt pytest agent/tests
 - **Collection:** `telemetry_client.ts` (frontend) → `/api/telemetry` → Supabase `telemetry_events`
 - **Dashboards:** Supabase SQL + Metabase (if connected) for executive, governance, operations views.
 - **Redaction:** Use `src/lib/telemetry/redaction.ts` helpers to scrub PII.
-- **Audits:** Run `pnpm ts-node scripts/audit_telemetry_events.py --gate unified` before releases.
+- **Audits:** Run `pnpm ts-node scripts/audit_telemetry_events.py --mode check` before releases.
 
 ---
 
@@ -205,7 +205,7 @@ uv run --with-requirements agent/requirements.txt pytest agent/tests
 ## 11. Change Management
 
 - **Proposal Process:** RFC in `docs/rfcs/`, review with Product, UX, Trust, and Engineering leads.
-- **Testing Gate:** No merges without lint, tests, agent evals passing; include evidence artifact references in PR description.
+- **Testing Requirements:** No merges without lint, tests, agent evals passing; include evidence artifact references in PR description.
 - **Documentation:** Update relevant sections in `docs` alongside code changes.
 - **Release Notes:** Publish weekly changelog summarizing mission improvements, toolkit additions, safeguards updates.
 

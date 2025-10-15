@@ -8,7 +8,7 @@
 
 ## Executive Summary
 
-The AI Employee Control Plane transforms how organizations deploy autonomous agents by replacing rigid, gate-centric workflows with a **single unified system** that balances autonomy with trust. This platform enables teams to move from intent to measurable business outcomes in under 15 minutes—proving value with zero-privilege dry runs before requesting credentials, then scaling safely with adaptive safeguards and human-centered approvals.
+The AI Employee Control Plane transforms how organizations deploy autonomous agents by replacing rigid, stage-gated workflows with a **single unified system** that balances autonomy with trust. This platform enables teams to move from intent to measurable business outcomes in under 15 minutes—proving value through read-only inspection before requesting credentials, then scaling safely with adaptive safeguards and human-centered approvals.
 
 Unlike traditional automation platforms that demand full access upfront or lightweight copilots that lack accountability, the Control Plane delivers an **objective-first AI employee** that plans, executes, and learns like a top operator—capability-aware, radically reversible, and always auditable.
 
@@ -67,7 +67,7 @@ A single freeform input generates complete missions: objectives, audiences, KPIs
 
 **2. Progressive Trust Model**
 
-Start with **zero-privilege dry runs** that produce drafts, lists, and schedules for stakeholder review. Once value is proven, users opt into **governed activation** with OAuth, approvals, and safeguard enforcement. Trust is earned, not assumed.
+Start with **zero-privilege inspection** that produces drafts, lists, and schedules for stakeholder review. Once value is proven, users opt into **governed activation** with OAuth, approvals, and safeguard enforcement. Trust is earned, not assumed.
 
 **3. Objective-First, Not Tool-First**
 
@@ -111,8 +111,8 @@ Successful missions become library assets. Play recommendations improve with pre
 - ✓ Multi-toolkit orchestration (vs. single-app suggestions)
 - ✓ Compounding library of proven plays (vs. ephemeral recommendations)
 
-**vs. Gate-Centric Predecessors:**
-- ✓ Single unified mission flow (vs. discrete gate transitions)
+**vs. Legacy Stage-Gated Systems:**
+- ✓ Single unified mission flow (vs. discrete stage transitions)
 - ✓ Generative scaffolding from freeform input (vs. blank forms)
 - ✓ Eight-stage workspace with continuous context (vs. segmented interfaces)
 - ✓ Integrated feedback loops (vs. post-mortem analysis)
@@ -337,7 +337,7 @@ Clone top-performing plays across clients, track performance deltas, package AI-
 Automate billing nudges and scheduling with oversight, reduce missed payments, maintain audit trails
 
 **Marketing Ops Leads:**
-Draft nurture sequences, enrich lead lists in dry-run mode, prove lift before production execution
+Draft nurture sequences, enrich lead lists during inspection, prove lift before production execution
 
 ---
 
@@ -374,7 +374,7 @@ Draft nurture sequences, enrich lead lists in dry-run mode, prove lift before pr
 - Partner case studies (Assista AI, Fabrile)
 
 **Success Criteria:**
-- 60% dry-run → governed conversion
+- 60% inspection → governed conversion
 - Library reuse rate: 3 plays/tenant/month
 - Safeguard feedback closure time: <24h
 - Revenue expansion: 40% QoQ
@@ -460,14 +460,14 @@ Measures sustained value delivery and trust maturation
 
 ### Adoption Funnel
 
-| Stage | Metric | Target | Gate |
-|-------|--------|--------|------|
-| **Onboarding** | % tenants completing first dry-run within Day 1 | ≥70% | G-A |
-| **Time-to-Evidence** | Median minutes from intent to proof pack | ≤15 min | G-B |
-| **Dry-Run Conversion** | % missions advancing to governed activation | ≥60% | G-C |
-| **OAuth Adoption** | Avg connected toolkits per tenant @ Day 30 | ≥2 | G-C |
-| **Library Reuse** | Plays reused per tenant per month | ≥3 | G-D |
-| **Retention** | Net retention rate (expansions - churn) | ≥110% | G-D |
+| Stage | Metric | Target | Milestone |
+|-------|--------|--------|-----------|
+| **Onboarding** | % tenants completing first inspection within Day 1 | ≥70% | Foundation |
+| **Time-to-Evidence** | Median minutes from intent to proof pack | ≤15 min | Foundation |
+| **Inspection Conversion** | % missions advancing to governed activation | ≥60% | Core |
+| **OAuth Adoption** | Avg connected toolkits per tenant @ Day 30 | ≥2 | Core |
+| **Library Reuse** | Plays reused per tenant per month | ≥3 | Scale |
+| **Retention** | Net retention rate (expansions - churn) | ≥110% | Scale |
 
 ---
 
@@ -572,7 +572,7 @@ Measures sustained value delivery and trust maturation
 - Ship polished zero-privilege plays (campaign prep, competitor briefs)
 - Spotlight upgrade pathways with case benchmarks
 - Provide ROI calculators showing potential lift
-- Offer free dry-run credits for evaluation
+- Offer free inspection credits for evaluation
 
 ---
 
@@ -610,7 +610,7 @@ Measures sustained value delivery and trust maturation
 
 ### Open Questions
 
-1. **Pricing Evolution:** When should outcome-based pricing pilots begin? (Assumption: Gate G-D unless GTM revises)
+1. **Pricing Evolution:** When should outcome-based pricing pilots begin? (Assumption: Scale milestone unless GTM revises)
 2. **Multi-Tenant Analytics:** Shared Supabase project or per-instance? (Assumption: per-instance for now)
 3. **LLM Provider Mix:** Gemini primary, OpenAI fallback—prompt parity required? (Assumption: yes, with telemetry alignment)
 4. **Trigger Coverage:** Expansion cadence depends on Composio roadmap sync—quarterly reviews scheduled?
@@ -629,7 +629,7 @@ Measures sustained value delivery and trust maturation
 
 ## Conclusion
 
-The AI Employee Control Plane replaces the legacy gate-centric paradigm with a **single unified system** that earns trust through transparency, proves value before requesting access, and scales safely with adaptive governance.
+The AI Employee Control Plane replaces the legacy stage-gated paradigm with a **single unified system** that earns trust through transparency, proves value before requesting access, and scales safely with adaptive governance.
 
 By combining **generative scaffolding**, **user-curated tool orchestration**, **adaptive safeguards**, and **evidence-first architecture**, we enable organizations to confidently augment operations with AI employees that plan, execute, and learn like top operators.
 
@@ -639,7 +639,7 @@ By combining **generative scaffolding**, **user-curated tool orchestration**, **
 
 1. Validate vision with anchor customers (Revenue, Support, Governance personas)
 2. Finalize partnership agreements (Composio, CopilotKit, ADK, Supabase)
-3. Complete Gate G-B implementation (dry-run excellence, evidence integrity)
+3. Complete Foundation milestone implementation (inspection excellence, evidence integrity)
 4. Prepare Limited GA launch assets (play bundles, case studies, pricing)
 5. Establish board-level metrics dashboard (weekly approved jobs, NRR, incident rate)
 
@@ -647,4 +647,4 @@ By combining **generative scaffolding**, **user-curated tool orchestration**, **
 
 **Document Owner:** Product Leadership
 **Last Updated:** October 2025
-**Related Documents:** `02_system_overview.md`, `03_user_experience.md`, `05_gates_roadmap.md`
+**Related Documents:** `02_system_overview.md`, `03_user_experience.md`, `05_capability_roadmap.md`

@@ -445,3 +445,16 @@
 ]
 [2025-10-11T11:20:46.642552282+00:00] env: selecting by task_count/first: 6828d97173f48191926880312cfb9848
 [2025-10-11T11:20:47.899076966+00:00] new_task: create failed env=6828d97173f48191926880312cfb9848 prompt_chars=554: POST https://chatgpt.com/backend-api/wham/tasks failed: 403 Forbidden; content-type=application/json; body={"detail":{"type":"repo_not_accessible","message":"Repository is not accessible"}}
+[2025-10-14T23:14:35.107007586+00:00] env: git origins: ["git@github.com:maxbaluev/ai_employee_0.git"]
+[2025-10-14T23:14:35.108450362+00:00] env: parsed SSH GitHub origin => maxbaluev/ai_employee_0
+[2025-10-14T23:14:35.108905023+00:00] env: GET https://chatgpt.com/backend-api/wham/environments/by-repo/github/maxbaluev/ai_employee_0
+[2025-10-14T23:14:36.487846600+00:00] env: status=401 Unauthorized content-type=application/json
+[2025-10-14T23:14:36.488442652+00:00] env: by-repo fetch failed for maxbaluev/ai_employee_0: GET https://chatgpt.com/backend-api/wham/environments/by-repo/github/maxbaluev/ai_employee_0 failed: 401 Unauthorized; content-type=application/json; body={"detail":{"message":"Unauthorized - Invalid access token"}}
+[2025-10-14T23:14:36.488606089+00:00] env: GET https://chatgpt.com/backend-api/wham/environments
+[2025-10-14T23:14:37.034813974+00:00] env: status=401 Unauthorized content-type=application/json
+[2025-10-14T23:14:37.036355791+00:00] env: /environments JSON (pretty):
+{
+  "detail": {
+    "message": "Unauthorized - Invalid access token"
+  }
+}

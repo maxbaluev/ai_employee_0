@@ -59,7 +59,7 @@ flowchart LR
 | Intake | `intent_submitted`, `brief_generated`, `brief_item_modified` | Token counts, tone hints, safeguard presence |
 | Toolkit | `toolkit_recommendation_viewed`, `toolkit_selected`, `connect_link_completed` | Scope metadata, success rate |
 | Planning | `play_generated`, `play_selected`, `planner_retry_requested` | Confidence, validator critique |
-| Execution | `dry_run_started`, `dry_run_step_completed`, `dry_run_completed`, `dry_run_paused` | Tool call ids, latency |
+| Execution | `execution_started`, `execution_step_completed`, `execution_completed`, `execution_paused` | Tool call ids, latency |
 | Evidence | `artifact_published`, `undo_requested`, `undo_completed` | Artifact hash, rollback plan |
 | Feedback | `feedback_submitted`, `satisfaction_recorded`, `followup_scheduled` | Effort saved, blockers |
 | Governance | `safeguard_edited`, `validator_override_requested`, `incident_opened` | Source persona, context |
@@ -71,7 +71,7 @@ Maintain canonical schema in `scripts/audit_telemetry_events.py`. For new events
 ## 4. Analytics Views
 
 ### Executive Dashboard (`views/executive_summary`)
-- Metrics: Weekly approved missions, dry-run → activation conversion, pipeline impact, automation coverage
+- Metrics: Weekly approved missions, inspection → activation conversion, pipeline impact, automation coverage
 - Dimensions: Persona, business unit, mission type
 - Visuals: Multi-line trends, stacked bar for mission types, tooltip for evidence references
 
@@ -107,7 +107,7 @@ Regenerate materialized views nightly; ensure Supabase cron refresh completes wi
 1. Track planner rejections and manual overrides
 2. Feed negative signals into retrieval scoring
 3. Adjust weighting for library vs. generative plays
-4. Validate via `adk eval` dry-run ranking suite
+4. Validate via `adk eval` execution ranking suite
 
 ### Loop 3: Safeguard Reinforcement
 
@@ -158,10 +158,9 @@ Regenerate materialized views nightly; ensure Supabase cron refresh completes wi
 
 ## 9. Future Investments
 
-- **Predictive Confidence Scores:** Train model to predict dry-run success before execution
+- **Predictive Confidence Scores:** Train model to predict execution success before commitment
 - **Autonomous Prompt Patching:** Auto-generate prompt improvements based on telemetry signals
 - **Library Recommendation Marketplace:** Surface community-shared plays with rating system
 - **Anomaly Detection:** Real-time alerts for abnormal mission behavior (tool execution spikes, unexpected edits)
 
 Track experiments in `docs/research/data_intelligence/*.md` and integrate successful prototypes into pipeline.
-

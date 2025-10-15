@@ -6,6 +6,7 @@
 - Gemini ADK FastAPI agent code resides in `agent/`; evaluation configs live in `agent/evals/` and CLI helpers in `scripts/`.
 - Supabase schema + functions are under `supabase/`; readiness evidence is tracked in `docs/readiness/` and long-form product material in `docs/`.
 - The repo uses a **single consolidated migration** (`supabase/migrations/0001_init.sql`). When schema or policy updates are required, edit that file (and related sections within it) directly instead of generating new migrations.
+- **Documentation:** Navigate all docs via `docs/00_README.md` — includes role-based reading paths and quick reference guides.
 
 ## Mise-First Setup
 
@@ -64,6 +65,17 @@
 - Inspect currently active tool versions → `mise current`.
 
 Keep this guide current—agents treat AGENTS.md as the single source of truth for local workflows.
+
+## Documentation Quick Links
+
+For comprehensive guides beyond quick setup:
+- **[Documentation Guide](docs/00_README.md)** — Navigate all documentation with role-based reading paths
+- **[Getting Started](docs/08_getting_started.md)** — Detailed setup walkthrough and first mission
+- **[Capability Roadmap](docs/05_capability_roadmap.md)** — Milestone-based development plan
+- **[Implementation Guide](docs/04_implementation_guide.md)** — Component catalog and integration patterns
+- **[Actionable Next Steps](docs/todo.md)** — Current priorities and tasks
+
+**For AI agents:** Reference these docs when implementing features or troubleshooting complex issues beyond this quick reference.
 
 ## Operational Notes
 

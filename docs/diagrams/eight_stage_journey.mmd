@@ -15,7 +15,7 @@ sequenceDiagram
   Workspace->>Planner: Request plays
   Planner-->>Workspace: Ranked plays + safeguards
   User->>Workspace: Select play
-  Workspace->>Executor: Trigger dry-run
+  Workspace->>Executor: Trigger governed execution
   Executor-->>Workspace: Streaming status updates
   Executor->>Validator: Submit results
   Validator-->>Executor: Safeguard decisions

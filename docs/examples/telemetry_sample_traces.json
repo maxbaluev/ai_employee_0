@@ -18,7 +18,7 @@
     "metadata": {
       "toolkit": "salesforce",
       "rationale": "Existing account enrichment",
-      "mode": "dry-run"
+      "mode": "inspection"
     }
   },
   {
@@ -35,7 +35,7 @@
   {
     "event": "dry_run_completed",
     "missionId": "rev-2025-q4-outbound",
-    "actor": "system",
+    "actor": "system",sBut thin
     "timestamp": "2025-10-14T16:18:43Z",
     "metadata": {
       "steps": 12,

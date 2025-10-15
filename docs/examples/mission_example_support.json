@@ -16,7 +16,7 @@
     },
     {
       "id": "gdrive",
-      "status": "dry-run",
+      "status": "inspection",
       "notes": "Using cached QBR templates"
     }
   ],

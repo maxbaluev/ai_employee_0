@@ -11,7 +11,7 @@
   "toolkits": [
     {
       "id": "salesforce",
-      "status": "dry-run",
+      "status": "inspection",
       "notes": "Using cached account data"
     },
     {

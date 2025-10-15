@@ -8,7 +8,7 @@
 
 ## Executive Summary
 
-The AI Employee Control Plane is a **generative-first, evidence-backed orchestration platform** that transforms a single freeform input into autonomous, governed executions. It replaces discrete gate-based workflows with an **eight-stage unified mission flow** where users maintain continuous visibility and control—from objective intake through feedback collection.
+The AI Employee Control Plane is a **generative-first, evidence-backed orchestration platform** that transforms a single freeform input into autonomous, governed executions. It replaces discrete stage-gated workflows with an **eight-stage unified mission flow** where users maintain continuous visibility and control—from objective intake through feedback collection.
 
 The system coordinates four primary layers:
 
@@ -17,7 +17,7 @@ The system coordinates four primary layers:
 3. **Execution Layer** (Composio + MCP) — Toolkit discovery, OAuth management, tool execution, trigger lifecycle
 4. **Data Layer** (Supabase) — Mission metadata, library embeddings, telemetry, evidence storage
 
-Unlike predecessor "gate systems," this architecture eliminates discrete transitions, manual form entry, and credential-first onboarding—delivering <15-minute dry-run loops with ≥80% generative acceptance rates.
+Unlike predecessor stage-gated systems, this architecture eliminates discrete transitions, manual form entry, and credential-first onboarding—delivering <15-minute inspection-to-execution loops with ≥80% generative acceptance rates.
 
 ---
 
@@ -61,7 +61,7 @@ Capability grounding, play ranking, and connection planning precede any tool cal
 - Generates undo plan during planning, validates during execution
 - Evidence agent executes rollbacks via stored undo tokens
 
-**Performance Target:** ≤15 min p95 dry-run loop end-to-end
+**Performance Target:** ≤15 min p95 execution loop end-to-end
 
 ---
 
@@ -70,7 +70,7 @@ Capability grounding, play ranking, and connection planning precede any tool cal
 The system recommends Composio toolkits with rationale (no-auth first, OAuth-ready second). Users curate selections before MCP execution.
 
 **Technical Implementation:**
-- Discovery via `Composio.tools.get` with persona filters
+- Discovery via `cx.tools.get(userId, { toolkits, search, tools, limit })`
 - Recommended tool palette in CopilotKit with auth badges
 - Inspection preview validates coverage via MCP read-only calls
 - Toolkit selections persist to `toolkit_selections` table
@@ -115,7 +115,7 @@ System maintains strict latency SLOs across all stages.
 |-----------|--------|-------------|
 | Generative intake | ≤3s p95 | `brief_generated` telemetry |
 | Chip regeneration | ≤2s p95 | `brief_item_modified` latency |
-| Dry-run loop | ≤15 min p95 | `dry_run_started` → `dry_run_completed` |
+| Execution loop | ≤15 min p95 | `execution_started` → `execution_completed` |
 | Validator overhead | <200ms p95 | `validator_check` span duration |
 | Planner ranking | ≤2.5s p95 | `planner_candidate_generated` latency |
 | Streaming heartbeat | <5s | SSE interval monitoring |
@@ -207,7 +207,7 @@ The unified mission workspace progresses through eight stages **without route tr
 | **3. Toolkits & Connect** | User-curated toolkit palette + OAuth | `RecommendedToolStrip`, Connect Link | Toolkits selected, connections authorized | `toolkit_recommendation_viewed`, `toolkit_selected`, `connect_link_completed` |
 | **4. Data Inspect** | MCP read-only preview validates coverage | Coverage Meter, Inspection Summary | Coverage ≥85% or override | `inspection_preview_rendered`, `plan_validated` |
 | **5. Plan** | Planner streams ranked plays with rationale | Planner Insight Rail, Play Cards | Play selected | `play_generated`, `play_selected` |
-| **6. Dry-Run** | Streaming execution with validator checks | Streaming Status Panel | Evidence bundle generated | `dry_run_started`, `dry_run_completed` |
+| **6. Governed Execution** | Streaming tool execution with validator checks | Streaming Status Panel | Evidence bundle generated | `execution_started`, `execution_completed` |
 | **7. Evidence** | Artifact gallery with undo bar | Artifact Gallery, Undo Bar | Artifacts persisted, undo verified | `undo_requested`, `undo_completed` |
 | **8. Feedback** | Per-artifact and mission feedback | Feedback Drawer | Feedback submitted | `feedback_submitted` |
 
@@ -435,7 +435,7 @@ sequenceDiagram
   - Handle graceful degradation (library-only fallback)
 - **Key Logic:**
   - Block Stage 5 (Plan) until coverage ≥85% or governance override
-  - Skip Connect Link in dry-run-only missions
+  - Skip Connect Link when missions stay in inspection mode
   - Retry with exponential backoff on transient failures
 - **File:** `agent/agents/coordinator.py`
 
@@ -456,11 +456,11 @@ sequenceDiagram
 - **Pattern:** `CustomAgent` with hybrid ranking
 - **Responsibilities:**
   - Query Supabase pgvector for similar plays (cosine ≥0.75)
-  - Call `Composio.tools.get` with persona filters
+  - Call `cx.tools.get` with toolkit and search filters
   - Rank plays by similarity + precedent + impact
   - Generate rationale, undo sketch, toolkit list
 - **Key Logic:**
-  - Prefer no-auth toolkits for dry-run mode
+  - Prefer no-auth toolkits for inspection mode
   - Include "Why This?" citations with embedding match scores
   - Fallback to library-only if Composio returns zero results
 - **Performance:** ≤2.5s p95 for 3 candidate generation
@@ -482,17 +482,17 @@ sequenceDiagram
 
 #### **Executor Agent**
 
-- **Pattern:** `CustomAgent` with dry-run vs. governed modes
+- **Pattern:** `CustomAgent` with inspection vs. governed modes
 - **Responsibilities:**
   - Execute tool calls via Composio SDK
   - Stream progress via `copilotkit_emit_message`
-  - Support simulation mode with deterministic stubs
+  - Support inspection mode with deterministic stubs
   - Log tool calls to `tool_calls` table
 - **Key Logic:**
-  - Dry-run: set `execution_mode='SIMULATION'`
+  - Inspection: issue read-only previews via MCP connectors
   - Governed: resolve `connected_account_id` per toolkit
   - Capture latency, results, undo plan
-- **Performance:** Varies by toolkit; <15 min total dry-run loop
+- **Performance:** Varies by toolkit; <15 min end-to-end execution loop
 - **File:** `agent/agents/executor.py`
 
 #### **Validator Agent**
@@ -530,7 +530,7 @@ sequenceDiagram
 
 - Eval suites: `agent/evals/control_plane/*.json`
 - Run with `mise run test-agent`
-- Coverage: dry-run ranking, validator negatives, undo execution
+- Coverage: execution ranking, validator negatives, undo execution
 - Target: ≥90% pass rate for promotion
 
 **File Locations:**
@@ -549,7 +549,7 @@ sequenceDiagram
 
 **Discovery:**
 
-- `Composio.tools.get(search, limit)` — Semantic search with persona filters
+- `cx.tools.get(userId, { toolkits, search, tools, scopes, limit })` — Discovery with supported filters
 - `toolkits.list()` — Enumerate available toolkits with metadata
 - Prefer no-auth options, surface OAuth-ready with scope transparency
 
@@ -562,9 +562,9 @@ sequenceDiagram
 
 **Execution:**
 
-- `execute_tool` — Call with `connected_account_id`, `execution_mode`
-- Simulation mode: `execution_mode='SIMULATION'` returns synthetic data
-- Governed mode: Real execution with latency tracking
+- `cx.tools.execute(tool_slug, userId, { arguments, connected_account_id })`
+- Inspection mode: Read-only tool previews via MCP connectors
+- Governed mode: Live execution with latency tracking
 
 **Triggers:**
 
@@ -604,7 +604,7 @@ sequenceDiagram
 
 **Future Extensions:**
 
-- Code MCP for repository operations (G-C+)
+- Code MCP for repository operations (post-Core milestone)
 - CRM MCP for advanced data queries
 
 ---
@@ -750,7 +750,7 @@ sequenceDiagram
 
 ---
 
-### 3. Dry-Run Execution Flow
+### 3. Governed Execution Flow
 
 ```mermaid
 sequenceDiagram
@@ -763,14 +763,14 @@ sequenceDiagram
     participant Evidence
     participant DB[Supabase]
 
-    User->>UI: Accept play, start dry-run
-    UI->>Coordinator: Execute (mode='dry_run')
+    User->>UI: Accept play, start governed execution
+    UI->>Coordinator: Execute (mode='governed')
 
     loop Per Tool Call
         Coordinator->>Executor: Execute step
-        Executor->>Composio: Call tool (execution_mode='SIMULATION')
-        Composio-->>Executor: Simulated result
-        Executor->>DB: Log tool_call (mode='dry_run')
+        Executor->>Composio: Call tool (connected_account_id)
+        Composio-->>Executor: Live result
+        Executor->>DB: Log tool_call (mode='governed')
         Executor->>UI: Stream progress (copilotkit_emit_message)
 
         Executor->>Validator: Pre-flight check
@@ -864,14 +864,14 @@ sequenceDiagram
 
 | Operation | API Call | Purpose | SLA |
 |-----------|----------|---------|-----|
-| Discovery | `Composio.tools.get(search, limit)` | Find relevant toolkits | <1s |
-| Toolkit List | `toolkits.list()` | Enumerate all toolkits | <500ms |
-| Authorize | `toolkits.authorize(toolkit, scopes)` | Generate Connect Link session | <2s |
-| Wait Connection | `waitForConnection(connectionId)` | Poll OAuth completion | <10s |
-| Execute Tool | `execute_tool(tool, connected_account_id, args)` | Run tool call | Varies |
-| Create Trigger | `create_trigger(trigger_type, config)` | Register event subscription | <2s |
-| Subscribe Trigger | `subscribe_trigger(trigger_id, webhook_url)` | Activate webhook | <1s |
-| Disable Trigger | `disable_trigger(trigger_id)` | Deactivate webhook | <1s |
+| Discovery | `cx.tools.get(userId, { toolkits, search, tools, scopes, limit })` | Find relevant tools | <1s |
+| Toolkit List | `cx.toolkits.list()` | Enumerate available toolkits | <500ms |
+| Authorize | `cx.toolkits.authorize(userId, toolkit)` | Generate Connect Link session | <2s |
+| Wait Connection | `connection.waitForConnection()` | Poll OAuth completion | <10s |
+| Execute Tool | `cx.tools.execute(toolSlug, userId, { arguments, connected_account_id })` | Run governed tool call | Varies |
+| Create Trigger | `cx.triggers.create(slug, userId, config)` | Register event subscription | <2s |
+| Subscribe Trigger | `cx.triggers.subscribe(triggerId, webhookUrl)` | Activate webhook | <1s |
+| Disable Trigger | `cx.triggers.disable(triggerId)` | Deactivate webhook | <1s |
 
 **Error Handling:**
 
@@ -962,16 +962,16 @@ ctx.session.state = {
 
 | Metric | Target | Measurement | Status |
 |--------|--------|-------------|--------|
-| Generative intake | ≤3s p95 | `brief_generated` latency | ✅ G-B |
-| Chip regeneration | ≤2s p95 | `brief_item_modified` latency | ✅ G-B |
-| Toolkit recommendation | ≤1.5s p95 | `/api/toolkits/recommend` span | ✅ G-B |
-| Inspection preview | ≤10s p95 | `/api/inspect/preview` span | ⚠️ G-C |
-| Planner ranking | ≤2.5s p95 | `planner_candidate_generated` latency | ✅ G-B |
-| Validator overhead | <200ms p95 | `validator_check` span | ✅ G-C |
-| Dry-run loop | ≤15 min p95 | `dry_run_started` → `dry_run_completed` | ✅ G-B |
-| Streaming heartbeat | <5s | SSE interval | ✅ G-B |
-| Undo execution | <5s p95 | `undo_completed` latency | ⚠️ G-C |
-| Evidence bundle gen | <5s | Evidence agent span | ✅ G-B |
+| Generative intake | ≤3s p95 | `brief_generated` latency | ✅ Foundation |
+| Chip regeneration | ≤2s p95 | `brief_item_modified` latency | ✅ Foundation |
+| Toolkit recommendation | ≤1.5s p95 | `/api/toolkits/recommend` span | ✅ Foundation |
+| Inspection preview | ≤10s p95 | `/api/inspect/preview` span | ⚠️ Core |
+| Planner ranking | ≤2.5s p95 | `planner_candidate_generated` latency | ✅ Foundation |
+| Validator overhead | <200ms p95 | `validator_check` span | ✅ Core |
+| Execution loop | ≤15 min p95 | `execution_started` → `execution_completed` | ✅ Foundation |
+| Streaming heartbeat | <5s | SSE interval | ✅ Foundation |
+| Undo execution | <5s p95 | `undo_completed` latency | ⚠️ Core |
+| Evidence bundle gen | <5s | Evidence agent span | ✅ Foundation |
 
 ---
 
@@ -979,7 +979,7 @@ ctx.session.state = {
 
 **Concurrent Missions:**
 
-- Target: 20 concurrent governed missions by G-D
+- Target: 20 concurrent governed missions by Scale milestone
 - Approach: Horizontal scaling of Next.js, ADK workers
 - Bottleneck monitoring: Composio rate limits, Supabase connections
 
@@ -1069,7 +1069,7 @@ mise run agent      # Agent only
 1. **Lint & Type Check** — `mise run lint`, `pnpm tsc --noEmit`
 2. **Unit Tests** — Vitest (frontend), pytest (agent)
 3. **Integration Tests** — Playwright (e2e), ADK eval suites
-4. **Telemetry Audit** — `scripts/audit_telemetry_events.py --gate G-B`
+4. **Telemetry Audit** — `scripts/audit_telemetry_events.py --mode check`
 5. **Accessibility Scan** — axe-core audit
 6. **Performance Benchmarks** — `scripts/benchmark_gate_gb.py`
 7. **Evidence Collection** — Export readiness artifacts to `docs/readiness/`
@@ -1102,27 +1102,27 @@ mise run agent      # Agent only
 
 ---
 
-## Migration from Gate-Centric Architecture
+## Migration from Stage-Gated Architecture
 
 ### Key Changes
 
-| Legacy Gate System | New Unified System | Migration Strategy |
-|--------------------|-------------------|-------------------|
-| Discrete route transitions (`/gates/A`, `/gates/B`) | Single workspace with stage state | Preserve gate readiness artifacts, update routing to workspace |
+| Legacy Stage-Gated System | New Unified System | Migration Strategy |
+|---------------------------|-------------------|-------------------|
+| Discrete route transitions (separate pages per stage) | Single workspace with stage state | Preserve readiness artifacts, update routing to workspace |
 | Manual form entry | Generative intake from freeform input | Migrate form schemas to chip generation prompts |
 | Static safeguard policies | Adaptive hints generated per mission | Convert policy docs to safeguard generation templates |
-| Credential-first onboarding | Zero-privilege dry-run first | Update OAuth flows to post-validation |
-| Gate-specific telemetry | Eight-stage unified events | Map legacy events to new catalog |
+| Credential-first onboarding | Zero-privilege inspection first | Update OAuth flows to post-validation |
+| Stage-specific telemetry | Eight-stage unified events | Map legacy events to new catalog |
 
 ### Backward Compatibility
 
-- Legacy gate URLs redirect to workspace with stage query param
+- Legacy stage URLs redirect to workspace with stage query param
 - Existing missions hydrate into stage state machine
 - Historical evidence bundles remain accessible via archive API
 
 ---
 
-## Future Enhancements (G-E+)
+## Future Enhancements (Post-Optimize Milestone)
 
 ### Narrative Intelligence
 
@@ -1152,7 +1152,7 @@ mise run agent      # Agent only
 
 ## Conclusion
 
-The AI Employee Control Plane represents a **paradigm shift** from gate-centric to unified-system architecture:
+The AI Employee Control Plane represents a **paradigm shift** from stage-gated to unified-system architecture:
 
 - **Generative-first** — Single input generates complete missions
 - **Adaptive safeguards** — Mission-specific hints replace static policies
@@ -1165,7 +1165,7 @@ This system enables organizations to **prove AI value in <15 minutes**, **scale 
 **Next Steps:**
 
 1. Review with engineering, architecture, and technical leadership
-2. Validate performance targets with load testing (Gate G-C)
+2. Validate performance targets with load testing (Core milestone)
 3. Complete security audit (SOC 2 prep)
 4. Finalize partner integration certifications (Composio, CopilotKit, ADK, Supabase)
 5. Document operational runbooks (incident response, scaling procedures)

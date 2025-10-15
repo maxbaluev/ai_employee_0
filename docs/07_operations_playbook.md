@@ -10,7 +10,7 @@
 
 Ensure the Control Plane remains observable, reliable, and compliant while enabling rapid iteration. Key mandates:
 
-1. **Reliability:** Maintain mission completion success ≥99% (dry-run and governed runs)
+1. **Reliability:** Maintain mission completion success ≥99% (inspection and governed runs)
 2. **Latency:** Streaming heartbeat ≤5s p95, API latency ≤300ms p95
 3. **Security:** Zero unauthorized actions; immediate containment on anomaly
 4. **Compliance:** Evidence bundles ready for audit within 24 hours
