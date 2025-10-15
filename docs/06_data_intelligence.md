@@ -50,6 +50,35 @@ flowchart LR
 - **Dashboards:** Metabase or Supabase Studio for persona-specific insights.
 - **Feedback Loop:** Library embeddings and prompt patches inform future agent recommendations.
 
+### End-to-End Mission Data Flow
+
+The following diagram highlights how mission inputs, tooling selections, execution outputs, and analytics feedback reinforce one another.
+
+```mermaid
+flowchart LR
+  Intent[Intake Prompt]
+  Chips[Mission Chips]
+  Planner[Planner Pipeline]
+  Toolkit[Toolkit Selection]
+  Execution[Inspection Execution]
+  Evidence[Evidence Bundles]
+  Feedback[Feedback Drawer]
+  Library[Library Embeddings]
+  Analytics[Analytics Views]
+
+  Intent --> Chips
+  Chips --> Toolkit
+  Toolkit --> Planner
+  Planner --> Execution
+  Execution --> Evidence
+  Evidence --> Feedback
+  Feedback --> Library
+  Library --> Planner
+  Evidence --> Analytics
+  Feedback --> Analytics
+  Analytics --> Planner
+```
+
 ---
 
 ## 3. Event Catalog Highlights
@@ -122,6 +151,24 @@ Regenerate materialized views nightly; ensure Supabase cron refresh completes wi
 2. Embed mission + artifact context
 3. Boost future recommendations when context matches
 4. Track library reuse rate (target ≥40%)
+
+#### Library Learning Loop Diagram
+
+```mermaid
+flowchart TD
+  Success[Missions with successful outcome]
+  Artifacts[Artifacts + Evidence]
+  Embeddings[Embed + Index]
+  Recommendations[Planner Recommendations]
+  Feedback[Feedback & Metrics]
+
+  Success --> Artifacts
+  Artifacts --> Embeddings
+  Embeddings --> Recommendations
+  Recommendations --> Success
+  Feedback --> Recommendations
+  Feedback --> Embeddings
+```
 
 ---
 

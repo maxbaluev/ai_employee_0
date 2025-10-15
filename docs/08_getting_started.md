@@ -292,74 +292,55 @@ consultative, not salesy. Send between 9am-5pm EST, Tuesday-Thursday only.
 
 ### Stage 2: Prepare
 
-1. **Review pinned brief** — See accepted chips displayed in brief card
+1. **Review pinned brief** — Accepted chips stay visible in the brief card for quick reference.
 
-2. **Edit option** — Notice "Edit Brief" button (returns to stage 1 if needed)
+2. **View toolkit recommendations** — The system suggests:
+   - **HubSpot** (no-auth) — Contact enrichment and segmentation
+   - **Gmail** (OAuth required) — Draft and send emails
+   - **Slack** (OAuth optional) — Notify reviewers in `#revenue-ops`
 
-**Expected Result:** Brief is locked, toolkit discovery begins
+3. **Select toolkits** — Choose the tooling you want available during planning:
+   - ☑ HubSpot (no-auth inspection only)
+   - ☐ Gmail (defer OAuth until execution)
+   - ☑ Slack (authorize via Connect Link if notifications help)
+
+4. **Review auth badges** — Confirm readiness from the status chips:
+   - 🟢 No-auth ready
+   - 🟡 OAuth-ready (authorization optional during inspection)
+
+5. **Inspect data coverage** — Click **Inspect** to run read-only probes:
+   - Coverage meter shows ✓ Objectives, ✓ Contacts, ✓ Safeguards, ✓ Automation readiness (≥85%)
+   - Summary confirms 87 contacts match criteria and 4 are excluded by the do-not-contact list
+
+**Expected Result:** Coverage and safeguards validate, unlocking planning.
 
 ---
 
 ### Stage 3: Plan & Approve
 
-1. **View recommendations** — System suggests toolkits:
-   - **HubSpot** (no-auth) — Contact enrichment
-   - **Gmail** (OAuth required) — Email sending
-   - **Slack** (OAuth optional) — Team notifications
+1. **Watch planner stream** — The planner agent surfaces 3 candidate plays:
+   - **Play 1:** "Targeted Q2 Win-Back Campaign" (library precedent ×5)
+   - **Play 2:** "Executive Sponsor Follow-Up" (library precedent ×2)
+   - **Play 3:** "Product Usage Re-engagement" (library precedent ×3)
 
-2. **Select toolkits** — Multi-select recommended toolkits:
-   - ☑ HubSpot (no-auth)
-   - ☐ Gmail (skip OAuth during inspection)
+2. **Select a play** — Choose **Play 1** to focus on email + CS follow-up flow.
 
-3. **Review auth badges** — Notice:
-   - 🟢 No-auth ready
-   - 🟡 OAuth-ready (optional during inspection)
+3. **Review safeguards** — Validator confirms:
+   - ✓ Tone: Warm, consultative messaging
+   - ✓ Timing: 9am-5pm local, Tue-Thu only
+   - ✓ Escalation: Ops review before any send
 
-**Expected Result:** Toolkit selections persist, inspection begins
+4. **Request approval** — Capture your sign-off plus validator confirmation in the modal.
+
+**Expected Result:** Play locked with undo plan ready for execution.
 
 ---
 
 ### Stage 4: Execute & Observe
 
-1. **Watch coverage meter** — System validates:
-   - ✓ Objectives (100%)
-   - ✓ Contacts (HubSpot preview fetched)
-   - ✓ Safeguards (tone, timing validated)
-   - ✓ Automation readiness (85%+)
+1. **Start execution** — Click "Run Execution" to begin governed actions.
 
-2. **Review findings** — Inspection summary shows:
-   - 87 contacts match criteria
-   - Safeguard coverage: complete
-   - Recommendation: Proceed to planning
-
-**Expected Result:** Coverage ≥85%, planning stage unlocked
-
----
-
-### Stage 5: Reflect & Improve
-
-1. **Watch planner stream** — Agent generates 3 candidate plays:
-   - **Play 1:** "Targeted Q2 Win-Back Campaign"
-     - Rationale: "Similar to 5 successful missions in library"
-     - Tools: HubSpot enrichment + draft emails
-     - Success projection: 3-5% reply rate
-
-2. **Select a play** — Click "Select Play 1"
-
-3. **Review safeguards** — Validator confirms:
-   - ✓ Tone: Warm, consultative
-   - ✓ Timing: 9am-5pm EST, Tue-Thu only
-   - ✓ Escalation: Review before send
-
-**Expected Result:** Play selected, ready for governed execution
-
----
-
-### Stage 6: Governed Execution
-
-1. **Start execution** — Click "Run Execution"
-
-2. **Watch streaming status panel** — See progress:
+2. **Watch streaming status panel** — Progress updates appear live:
 
    ```
    [Step 1/4] Enriching contacts from HubSpot... ✓ (87 contacts)
@@ -368,37 +349,18 @@ consultative, not salesy. Send between 9am-5pm EST, Tuesday-Thursday only.
    [Step 4/4] Packaging evidence bundle...
    ```
 
-3. **Review validation checkpoints** — Notice:
+3. **Review validator checkpoints** — Auto-fixes and alerts surface inline:
    - Auto-fix applied: "Softened 3 email openers for warmth"
-   - No violations detected
+   - Violations: none detected
 
-4. **Wait for completion** — Typically 2-5 minutes for a governed run
+4. **Monitor artifact gallery** — Evidence populates in real time:
+   - 📄 Contact list (87 enriched records)
+   - 📧 Email drafts (87 personalized messages)
+   - 📊 ROI estimate (3-5% reply rate, 4-7 meetings projected)
 
-**Expected Result:** Execute & Observe complete, evidence bundle generated
+5. **Use the undo bar or export** — Pause/undo remains available for 15 minutes; export bundles for stakeholder review.
 
----
-
-### Reflect & Improve Highlights
-
-1. **View artifact gallery** — Artifacts displayed:
-   - 📄 **Contact List** (87 enriched records)
-   - 📧 **Email Drafts** (87 personalized messages)
-   - 📊 **ROI Estimate** (3-5% reply rate, 4-7 meetings projected)
-
-2. **Inspect artifacts** — Click to preview:
-   - See sample email drafts
-   - Review tone and personalization quality
-   - Check hash badges (SHA-256 verification)
-
-3. **Review undo bar** — See rollback plan:
-   - "Undo available for 15 minutes after activation"
-   - Impact summary: "Mutations tracked with undo plan"
-
-4. **Export evidence** — Download bundle:
-   - PDF for stakeholder review
-   - CSV for data analysis
-
-**Expected Result:** Evidence validated, ready for governed execution or feedback
+**Expected Result:** Execution completes with evidence packaged and safeguards honored.
 
 ---
 
@@ -440,7 +402,7 @@ Try these mission templates:
 
 ### Dive Deeper into Documentation
 
-- **[User Experience Blueprint](./03_user_experience.md)** — Understand all eight stages in detail
+- **[User Experience Blueprint](./03_user_experience.md)** — Understand all five stages in detail
 - **[System Overview](./02_system_overview.md)** — Learn architecture and data flows
 - **[Implementation Guide](./04_implementation_guide.md)** — Extend with custom components or agents
 
@@ -621,9 +583,10 @@ tail -f .next/server/*.log  # Next.js logs (if available)
 
 ### Example Files
 
-- `examples/mission_example_revenue.json` — Revenue mission template
-- `examples/mission_example_support.json` — Support mission template
-- `examples/telemetry_sample_traces.json` — Event payload examples
+- `docs/new_examples/coder.md` — Solo founder delivering an authentication refactor
+- `docs/new_exampels/revops.md` — Revenue operations case study (legacy directory)
+- `docs/new_exampels/support_leader.md` — Support triage narrative (legacy directory)
+- `docs/new_exampels/compliance_audit.md` — Governance review example (legacy directory)
 
 ---
 

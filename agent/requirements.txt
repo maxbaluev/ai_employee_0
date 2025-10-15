@@ -1,0 +1,9 @@
+fastapi
+uvicorn[standard]
+python-dotenv
+pydantic
+google-adk
+google-genai
+ag-ui-adk
+composio==0.8.20
+httpx

@@ -4,7 +4,7 @@
 **Purpose:** Navigate the AI Employee Control Plane documentation suite
 **Audience:** All stakeholders — Product, Engineering, Operations, Governance, Partners
 
-> **Five-Stage Mission Journey Update (October 2025):** All docs now align to the consolidated lifecycle — **Define, Prepare, Plan & Approve, Execute & Observe, Reflect & Improve**. Legacy eight-stage references remain only in "Legacy Mapping" callouts for comparison.
+> **Five-Stage Mission Journey:** All docs align to the consolidated lifecycle — **Define, Prepare, Plan & Approve, Execute & Observe, Reflect & Improve**.
 
 ---
 
@@ -211,11 +211,13 @@ Located in `diagrams/` (Mermaid format):
 
 ### Examples
 
-Located in `examples/` (JSON format):
-- `mission_example_revenue.json` — Revenue expansion use case
-- `mission_example_support.json` — Customer support use case
-- `mission_example_governance.json` — Governance review use case
-- `telemetry_sample_traces.json` — Event payload examples
+Canonical narratives live in `docs/new_examples/`:
+- `coder.md` — Professional AI programmer delivering an authentication refactor mission
+
+Legacy narratives are still available in `docs/new_exampels/` (retained for backward compatibility):
+- `revops.md` — Revenue operations case study with five-stage walkthrough
+- `support_leader.md` — Support leader navigating incident triage
+- `compliance_audit.md` — Governance lead conducting quarterly review
 
 ### Evidence Artifacts
 
@@ -270,7 +272,7 @@ Located in `docs/readiness/`:
 
 | Date | Version | Changes | Author |
 |------|---------|---------|--------|
-| Oct 2025 | 3.0 | Five-stage mission journey migration — consolidated docs, updated diagrams, added legacy mapping callouts | Product & Engineering |
+| Oct 2025 | 3.0 | Five-stage mission journey migration — consolidated docs, updated diagrams, created narrative examples | Product & Engineering |
 | Aug 2025 | 2.0 | Unified documentation overhaul — removed gate terminology, added milestone-based roadmap, created navigation guide | Product & Engineering |
 | (Future) | | | |
 

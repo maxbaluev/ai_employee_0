@@ -135,6 +135,26 @@ uv run --with-requirements agent/requirements.txt pytest agent/tests
 - **Triggers:** Scheduler service registers Composio triggers for governed automation; store trigger configs in `supabase.storage`.
 - **Audit Trail:** Log tool call inputs/outputs (redacted) for evidence bundles.
 
+### Partner Integration Architecture
+
+```mermaid
+graph LR
+  UI[Next.js Workspace]
+  CopilotKit[CopilotKit SDK]
+  ADK[Gemini ADK Agents]
+  Composio[Composio Toolkits]
+  Supabase[Supabase Platform]
+  Analytics[Analytics & Dashboards]
+
+  UI --> CopilotKit
+  CopilotKit --> ADK
+  ADK --> Composio
+  ADK --> Supabase
+  Composio --> Supabase
+  Supabase --> Analytics
+  Analytics --> UI
+```
+
 ---
 
 ## 6. Supabase Data Layer

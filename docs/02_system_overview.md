@@ -8,7 +8,7 @@
 
 ## Executive Summary
 
-The AI Employee Control Plane converts a single freeform mission intent into governed execution across a consolidated **five-stage mission journey**: **Define, Prepare, Plan & Approve, Execute & Observe, Reflect & Improve**. Each stage preserves the safeguards, telemetry, and approval checkpoints established in the legacy eight-stage flow while reducing handoffs and documentation drift. Presentation, orchestration, execution, and data layers collaborate to deliver governed autonomy with continuous evidence.
+The AI Employee Control Plane converts a single freeform mission intent into governed execution across a **five-stage mission journey**: **Define, Prepare, Plan & Approve, Execute & Observe, Reflect & Improve**. Each stage preserves safeguards, telemetry, and approval checkpoints while reducing handoffs and documentation drift. Presentation, orchestration, execution, and data layers collaborate to deliver governed autonomy with continuous evidence.
 
 Key architectural pillars:
 
@@ -18,9 +18,7 @@ Key architectural pillars:
 - **Governed multi-agent execution** with streaming telemetry in Stage 4 (Execute & Observe)
 - **Feedback loops and library updates** completing Stage 5 (Reflect & Improve)
 
-The consolidation does not change schema or telemetry naming. Existing Supabase tables, CopilotKit interactions, Composio integrations, and Gemini ADK agent roles operate unchanged. Dashboards roll up the same events against the new stage labels, enabling teams to migrate without code changes.
-
-> **Legacy Mapping:** Intake + Mission Brief → Define; Toolkits & Connect + Data Inspect → Prepare; Plan → Plan & Approve; Governed Execution + Evidence → Execute & Observe; Feedback → Reflect & Improve.
+The system preserves schema and telemetry naming. Existing Supabase tables, CopilotKit interactions, Composio integrations, and Gemini ADK agent roles operate unchanged.
 
 ---
 
@@ -103,13 +101,13 @@ graph TB
 
 ## Five-Stage Mission Journey
 
-| Stage                 | Legacy Source                     | Primary Outcomes                                                  | Governance Checkpoints                       |
-| --------------------- | --------------------------------- | ----------------------------------------------------------------- | -------------------------------------------- |
-| **Define**            | Intake → Mission Brief            | Mission intent captured, safeguards aligned, brief locked         | Intent review, safeguard acceptance          |
-| **Prepare**           | Toolkits & Connect → Data Inspect | Toolkits authorized, data coverage validated, readiness confirmed | Toolkit approval, data coverage attestation  |
-| **Plan & Approve**    | Plan                              | Ranked plays reviewed, undo plans validated, approvals granted    | Play approval, risk sign-off                 |
-| **Execute & Observe** | Governed Execution → Evidence     | Governed actions run, validator monitoring, artifacts generated   | Live execution oversight, evidence packaging |
-| **Reflect & Improve** | Feedback                          | Feedback captured, library reuse identified, next steps logged    | Feedback routing, library curation           |
+| Stage                 | Primary Outcomes                                                  | Governance Checkpoints                       |
+| --------------------- | ----------------------------------------------------------------- | -------------------------------------------- |
+| **Define**            | Mission intent captured, safeguards aligned, brief locked         | Intent review, safeguard acceptance          |
+| **Prepare**           | Toolkits authorized, data coverage validated, readiness confirmed | Toolkit approval, data coverage attestation  |
+| **Plan & Approve**    | Ranked plays reviewed, undo plans validated, approvals granted    | Play approval, risk sign-off                 |
+| **Execute & Observe** | Governed actions run, validator monitoring, artifacts generated   | Live execution oversight, evidence packaging |
+| **Reflect & Improve** | Feedback captured, library reuse identified, next steps logged    | Feedback routing, library curation           |
 
 ### Stage 1 — Define
 
@@ -223,118 +221,8 @@ Governance checkpoints are callable via `mise run governance-check`, which now r
 
 ---
 
-## Legacy Compatibility Notes
+## System Notes
 
-- URLs, API endpoints, Supabase schemas, and telemetry events remain unchanged.
-- Existing missions stored with legacy stage labels receive a computed `stage_v3` column (view) for dashboards.
-- Eight-stage diagrams remain archived in `docs/diagrams/eight_stage_journey.mmd` for reference; new materials use `docs/diagrams/five_stage_journey.mmd`.
-
----
-
-## Migration Appendix
-
-### Stage Mapping Reference
-
-| Legacy Stage       | Five-Stage Destination | Rationale                                      |
-| ------------------ | ---------------------- | ---------------------------------------------- |
-| Intake             | Define                 | Mission capture unchanged; renamed for clarity |
-| Mission Brief      | Define                 | Brief locking now part of Stage 1              |
-| Toolkits & Connect | Prepare                | Authorization + toolkit selection consolidated |
-| Data Inspect       | Prepare                | Coverage checks happen before planning         |
-| Plan               | Plan & Approve         | Emphasizes approval checkpoint                 |
-| Governed Execution | Execute & Observe      | Live execution with observers                  |
-| Evidence           | Execute & Observe      | Artifact packaging tied to execution           |
-| Feedback           | Reflect & Improve      | Feedback loops and library contributions       |
-
-### Telemetry Alignment Matrix
-
-| Event                          | Legacy Stage       | Five-Stage Destination | Action Required             |
-| ------------------------------ | ------------------ | ---------------------- | --------------------------- |
-| `intent_submitted`             | Intake             | Define                 | Update dashboard label only |
-| `brief_generated`              | Mission Brief      | Define                 | None                        |
-| `brief_item_modified`          | Mission Brief      | Define                 | None                        |
-| `toolkit_recommended`          | Toolkits & Connect | Prepare                | Update stage filter         |
-| `toolkit_selected`             | Toolkits & Connect | Prepare                | None                        |
-| `data_preview_generated`       | Data Inspect       | Prepare                | None                        |
-| `planner_candidate_generated`  | Plan               | Plan & Approve         | None                        |
-| `plan_ranked`                  | Plan               | Plan & Approve         | None                        |
-| `plan_approved`                | Plan               | Plan & Approve         | None                        |
-| `execution_started`            | Governed Execution | Execute & Observe      | None                        |
-| `execution_step_completed`     | Governed Execution | Execute & Observe      | None                        |
-| `validator_alert_raised`       | Governed Execution | Execute & Observe      | None                        |
-| `evidence_bundle_generated`    | Evidence           | Execute & Observe      | None                        |
-| `feedback_submitted`           | Feedback           | Reflect & Improve      | None                        |
-| `mission_retrospective_logged` | Feedback           | Reflect & Improve      | None                        |
-| `library_contribution`         | Feedback           | Reflect & Improve      | None                        |
-
-### Implementation Checklist
-
-**Frontend/UI**
-
-- Update breadcrumb labels and stage badges to five-stage terminology
-- Replace `StageEightTimeline` component with `StageFiveTimeline`
-- Swap diagram references to `five_stage_journey.mmd`
-
-**Agent Orchestration**
-
-- Ensure planner emits `plan_stage=current` metadata for dashboards
-- Validator logging uses new `stage_label` constants (`DEFINE`, `PREPARE`, etc.)
-- Evidence agent tags bundles with `mission_stage: "Execute & Observe"`
-
-**Data & Analytics**
-
-- Update Supabase view `mission_stage_rollup_vw`
-- Refresh Metabase dashboards: replace eight-stage filters, add five-stage chart
-- Update readiness evidence templates in `docs/readiness/*`
-
-**Documentation & Enablement**
-
-- Add "Legacy Mapping" subsection across docs (complete)
-- Notify partner teams via Operations Playbook update (see docs/07_operations_playbook.md)
-- Archive eight-stage training deck in `docs/archive/`
-
-### Backward Compatibility Strategy
-
-- All APIs accept legacy stage parameters but normalize to five-stage internally
-- `StageBadge` component accepts both enums; legacy labels trigger deprecation warning
-- Analytics exports include both `stage_legacy` and `stage_v3` columns until December 2025
-
-### Migration Timeline (Suggested)
-
-| Week | Focus                                   |
-| ---- | --------------------------------------- |
-| 1    | Documentation + UI copy updates         |
-| 2    | Dashboard grouping updates              |
-| 3    | Partner enablement sessions             |
-| 4    | Governance sign-off on new checkpoints  |
-| 5-6  | Retrospective training, update runbooks |
-| 7    | Deprecate eight-stage UI assets         |
-| 8    | Remove legacy toggle from feature flag  |
-
-### Success Metrics
-
-- 100% missions tagged with five-stage labels by Week 4
-- Zero regressions in telemetry ingestion
-- Governance lead sign-off on checkpoint placements
-- Net promoter score for operators unchanged or improved
-
-### Assumptions & Risks
-
-- No Supabase schema changes are introduced
-- Partner integrations rely on telemetry event names, not stage labels
-- Governance sign-off requires updated runbooks (tracked in docs/07, docs/09)
-
-### Contacts & Escalations
-
-- Product Owner: `@product-lead`
-- Engineering Lead: `@eng-lead`
-- Governance Lead: `@trust-lead`
-- Analytics Lead: `@analytics`
-
----
-
-## Next Steps
-
-- Coordinate with UX to publish updated `docs/diagrams/five_stage_journey.mmd`
-- Align operations runbooks (docs/07) and readiness checklists (docs/09)
-- Monitor telemetry dashboards post-release and capture feedback for Reflect & Improve retro
+- URLs, API endpoints, Supabase schemas, and telemetry events remain unchanged
+- Historical missions automatically surface the new stage labels via Supabase views; no manual data cleanup required
+- Diagrams reference `docs/diagrams/five_stage_journey.mmd`

@@ -89,23 +89,6 @@ The unified workspace moves through five observable stages without route changes
 
 ---
 
-## Legacy Mapping Callout
-
-| Legacy Stage | Five-Stage Destination | Notes |
-|--------------|------------------------|-------|
-| Intake | Define | Mission intent capture unchanged |
-| Mission Brief | Define | Brief locking occurs before Prepare |
-| Toolkits & Connect | Prepare | Authorization and toolkit selection combined |
-| Data Inspect | Prepare | Coverage validation happens before planning |
-| Plan | Plan & Approve | Approval emphasis retained |
-| Governed Execution | Execute & Observe | Execution telemetry unchanged |
-| Evidence | Execute & Observe | Artifact packaging tied to execution |
-| Feedback | Reflect & Improve | Feedback loops and library updates |
-
-Use this table when aligning with stakeholders familiar with the eight-stage narrative.
-
----
-
 ## Interaction Patterns
 
 - **Accept/Edit Chips** — Hover reveals `Regenerate` and `Convert to Note`. Chips support multiline editing and mention syntax for teammates.

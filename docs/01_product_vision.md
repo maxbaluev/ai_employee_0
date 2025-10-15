@@ -103,7 +103,7 @@ Successful missions become library assets. Play recommendations improve with pre
 - ✓ Prove value in <15 minutes with zero-privilege artifacts (vs. weeks of setup)
 - ✓ Adaptive safeguards replace static policies (edit inline vs. legal review)
 - ✓ Undo plans for every action (vs. manual cleanup or permanent damage)
-- ✓ Transparent reasoning trails (vs. configuration obscurity)
+- ✓ Transparent reasoning trails anchored by the four-layer flow (Presentation → APIs → Orchestration → Data) instead of opaque configuration screens
 
 **vs. Lightweight Copilots:**
 - ✓ Autonomous execution with approval gates (vs. manual copy-paste)
@@ -158,6 +158,8 @@ Successful missions become library assets. Play recommendations improve with pre
 **The Innovation:**
 Single-input intake parses objectives, audiences, KPIs, safeguards, tone hints, and toolkit recommendations—all from a paragraph of context. Users edit chips inline rather than filling blank forms.
 
+**Flow Touchpoint:** `DefineStage → IntakeAPI → Coordinator → Planner` keeps the workspace, orchestration layer, and Supabase metadata synchronized from the first keystroke.
+
 **Business Impact:**
 - 3-second generation time (p95) reduces onboarding friction by 90%
 - 80% acceptance rate without regeneration proves quality
@@ -168,6 +170,8 @@ Single-input intake parses objectives, audiences, KPIs, safeguards, tone hints, 
 
 **The Innovation:**
 Recommended toolkit palette surfaces Composio integrations with auth badges (no-auth first, OAuth-ready second), impact estimates, and precedent missions. Users multi-select and validate via MCP inspection preview before committing credentials.
+
+**Flow Touchpoint:** `PrepareStage → ToolkitsAPI → Composio` shares coverage checks with `PrepareStage → InspectAPI → Inspector → Supabase`, giving validators and analysts a single source of truth.
 
 **Business Impact:**
 - Informed consent replaces blind OAuth grants
@@ -180,6 +184,8 @@ Recommended toolkit palette surfaces Composio integrations with auth badges (no-
 **The Innovation:**
 Mission-specific hints (tone, timing, budget, escalation) are generated with confidence scores, edited inline, and enforced by validator. Auto-fix suggestions, reviewer overrides, and feedback loops replace static policy documents.
 
+**Flow Touchpoint:** Safeguard edits propagate through `PlanStage → ApprovalAPI → Validator` and loop back via `ExecuteStage → Validator`, ensuring governance continuity across layers.
+
 **Business Impact:**
 - <200ms governance overhead (vs. manual reviews)
 - 82% auto-fix adoption reduces approval bottlenecks
@@ -190,6 +196,8 @@ Mission-specific hints (tone, timing, budget, escalation) are generated with con
 
 **The Innovation:**
 Every mission generates a complete evidence bundle: brief, tool outputs (redacted), ROI estimates, safeguard outcomes, undo instructions, telemetry summary. Artifacts are SHA-256 hashed for tamper detection.
+
+**Flow Touchpoint:** `ExecuteStage → EvidenceAPI → EvidenceAgent → Storage/Supabase` guarantees that operators, validators, and auditors access identical artifacts, while `EvidenceAgent → ReflectStage` feeds the learning loop.
 
 **Business Impact:**
 - Audit-ready compliance exports (PDF, CSV)

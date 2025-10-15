@@ -34,8 +34,6 @@ Every release cycle the cross-functional "Mission Operations Council" reviews te
 | **Execute & Observe** | Staff live monitoring window, run playbooks for alerts, document incident outcomes | OC + TA | `docs/readiness/execute_observe_runlog.md` |
 | **Reflect & Improve** | Collect feedback, classify reuse opportunities, update training backlog | KC + MO + TA | `docs/readiness/reflect_improve_retro.md` |
 
-> **Legacy Mapping:** Intake + Mission Brief → Define; Toolkits & Connect + Data Inspect → Prepare; Plan → Plan & Approve; Governed Execution + Evidence → Execute & Observe; Feedback → Reflect & Improve.
-
 ---
 
 ## Governance Checkpoints
@@ -124,11 +122,11 @@ Suggested backlog categories:
 
 ---
 
-## Legacy Considerations
+## Historical Notes
 
-- Historical reporting still references the eight-stage dataset; analytics dashboards should use `stage_legacy` and `stage_v3` views until December 2025.
-- Archive eight-stage runbooks in `docs/archive/operations/`; append cross-links pointing to their five-stage replacements.
-- Communicate the five-stage terminology change to partner operations teams and update shared glossaries.
+- Analytics dashboards use five-stage views for all current reporting
+- Runbooks are organized by five-stage terminology in `docs/readiness/runbooks/`
+- Partner operations teams have been aligned on five-stage terminology
 
 ---
 

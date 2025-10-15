@@ -331,7 +331,7 @@ Move completed tasks to `docs/readiness/YYYY_MM/completed_tasks.md` at end of ea
 ### Documentation Gaps
 - [ ] **Create missing evidence artifacts** listed in section 10 (intake_acceptance_report.md, inspection_resilience.md, etc.)
 - [ ] **Document Codex integration patterns** if using Codex-based code generation for agents
-- [ ] **Expand runbook library** with common incident scenarios (Stage 6 execution failures, OAuth token issues)
+- [ ] **Expand runbook library** with common incident scenarios (Execute & Observe stage failures, OAuth token issues)
 - [ ] **Add architecture decision records (ADRs)** in `docs/adrs/` for major design choices
 
 ### Automation Gaps
