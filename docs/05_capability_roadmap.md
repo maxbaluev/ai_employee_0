@@ -146,12 +146,17 @@ graph TD
   RunbookLib[Runbook Library]
 
   IntakeIntake --> BriefLoop
+  IntakeIntake --> ToolkitRec
   ToolkitRec --> OAuthLite
+  LibraryReuse --> ToolkitRec
+  OAuthLite --> DryRunStream
   DryRunStream --> UndoPortfolio
+  Observability --> UndoPortfolio
   LibraryReuse --> SafeguardLoop
-  Observability --> RunbookLib
   DryRunStream --> SafeguardLoop
-  OAuthLite --> UndoPortfolio
+  Observability --> SafeguardLoop
+  Observability --> RunbookLib
+  UndoPortfolio --> RunbookLib
 ```
 
 ---

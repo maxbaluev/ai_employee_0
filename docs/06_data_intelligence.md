@@ -24,6 +24,9 @@ flowchart LR
   Execution[Execution Logs]
   Evidence[Evidence Metadata]
   Feedback[Feedback Drawer]
+  Workspace[workspace_stream_open]
+  Composio[composio_* events]
+  SessionHB[session_heartbeat]
   Telemetry[Telemetry Service]
   Supabase[(Supabase Data Lake)]
   Views[Analytics Views]
@@ -36,6 +39,9 @@ flowchart LR
   Execution --> Telemetry
   Evidence --> Telemetry
   Feedback --> Telemetry
+  Workspace --> Telemetry
+  Composio --> Telemetry
+  SessionHB --> Telemetry
   Telemetry --> Supabase
   Supabase --> Views
   Views --> Dashboards
@@ -58,24 +64,28 @@ The following diagram highlights how mission inputs, tooling selections, executi
 flowchart LR
   Intent[Intake Prompt]
   Chips[Mission Chips]
-  Planner[Planner Pipeline]
   Toolkit[Toolkit Selection]
-  Execution[Inspection Execution]
+  Planner[Planner Pipeline]
+  Execution[Execution via Composio]
   Evidence[Evidence Bundles]
   Feedback[Feedback Drawer]
   Library[Library Embeddings]
   Analytics[Analytics Views]
+  Telemetry[Telemetry Events]
 
   Intent --> Chips
   Chips --> Toolkit
   Toolkit --> Planner
   Planner --> Execution
   Execution --> Evidence
+  Execution --> Telemetry
   Evidence --> Feedback
-  Feedback --> Library
-  Library --> Planner
   Evidence --> Analytics
+  Feedback --> Library
   Feedback --> Analytics
+  Library --> Planner
+  Analytics --> Library
+  Telemetry --> Analytics
   Analytics --> Planner
 ```
 
@@ -167,14 +177,19 @@ Regenerate materialized views nightly; ensure Supabase cron refresh completes wi
 flowchart TD
   Success[Missions with successful outcome]
   Artifacts[Artifacts + Evidence]
-  Embeddings[Embed + Index]
+  Embeddings[Embed + Index in Library]
   Recommendations[Planner Recommendations]
+  Execution[Mission Execution]
   Feedback[Feedback & Metrics]
+  Telemetry[Telemetry ingestion]
 
   Success --> Artifacts
   Artifacts --> Embeddings
   Embeddings --> Recommendations
-  Recommendations --> Success
+  Recommendations --> Execution
+  Execution --> Success
+  Execution --> Telemetry
+  Telemetry --> Feedback
   Feedback --> Recommendations
   Feedback --> Embeddings
 ```

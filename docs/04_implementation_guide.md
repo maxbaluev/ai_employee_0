@@ -135,6 +135,7 @@ uv run --with-requirements agent/requirements.txt pytest agent/tests
 **The AI Employee Control Plane standardizes on the native Composio SDK for toolkit execution.** The SDK exposes discovery, authentication, execution, triggers, and telemetry under a single identity context (`user_id` + `tenantId`). No additional router layer or MCP bridge is required.
 
 **Core SDK Surfaces:**
+
 - **Discovery:** `ComposioClient.tools.search()` and `ComposioClient.toolkits.get()` provide semantic catalog access for no-auth inspection.
 - **Authentication:** `ComposioClient.toolkits.authorize()` is the managed fast path for issuing mission-scoped Connect Links (`await req.wait_for_connection()`). Fall back to `ComposioClient.connected_accounts.link()` / `.status()` for custom auth configs, and `.revoke()` for disconnects.
 - **Sessions:** TypeScript clients isolate tenant context via `composio.createSession({ headers: { "x-tenant-id": tenantId } })`; Python adapters expose `provider.session(...)` context managers for the same boundary.
@@ -143,6 +144,7 @@ uv run --with-requirements agent/requirements.txt pytest agent/tests
 - **Telemetry:** Audit APIs (`client.audit.list_events`) and event hooks emit `composio_discovery`, `composio_auth_flow`, and `composio_tool_call` to our Supabase telemetry tables.
 
 **Progressive Trust Flow:**
+
 - **Define Stage:** Coordinator writes mission context; optional catalog warm-up via `client.tools.search()` seeds predicted coverage.
 - **Prepare Stage:** Inspector assembles capability reports and anticipated scopes without credentials. Output stored in Supabase readiness tables.
 - **Plan & Approve Stage:** Planner generates Connect Links, captures consent, and persists granted scopes. Validator attaches safeguards.
@@ -238,27 +240,32 @@ async def execute_plan(mission: Mission, actions: list[ToolInvocation]):
 ### 5.3 Composio SDK Best Practices
 
 **Discovery Optimization:**
+
 - Cache `client.tools.search()` results for one hour per mission theme; invalidate when tool taxonomy updates.
 - Store toolkit metadata (scopes, auth type, SLAs) in Supabase to support readiness dashboards.
 - Limit discovery payloads to the top 10 toolkits to control token usage, then narrow execution sets with `client.tools.get(..., limit=6)` before handing tools to the LLM.
 
 **OAuth & Consent:**
+
 - Always initiate Connect Links from Planner; Executors should never request new scopes.
 - Annotate Connect Links with mission metadata so the audit trail can be joined with Supabase records.
 - Use `client.connected_accounts.revoke()` during mission cleanup or tenant offboarding.
 
 **Execution Safeguards:**
+
 - Run Validator preflight checks before submitting actions to the provider adapter.
 - Prefer streaming providers for long-running actions; fall back to `client.tools.execute()` for bulk operations.
 - Use session-scoped adapters (`composio.createSession({...headers...})` or `provider.session(user_id=..., tenant_id=...)`) so every tool call carries mission + tenant headers.
 - Capture undo instructions in Supabase using Composio audit events (`event.payload.undo_hint`).
 
 **Telemetry & Observability:**
+
 - Emit `composio_discovery`, `composio_auth_flow`, `composio_tool_call`, and `composio_tool_call_error` with consistent labels (`mission_id`, `tenantId`, `toolkit`, `action`).
 - Monitor Connect Link drop-off to fine-tune scope requests.
 - Alert on consecutive failures per toolkit to pre-empt partner incidents.
 
 **Error Handling:**
+
 ```python
 async def call_with_guardrails(action: ToolInvocation):
     try:
@@ -279,25 +286,12 @@ async def call_with_guardrails(action: ToolInvocation):
 
 ### Partner Integration Architecture
 
-```mermaid
-graph LR
-  UI[Next.js Workspace]
-  CopilotKit[CopilotKit SDK]
-  ADK[Gemini ADK Agents]
-  Composio[Composio Toolkits]
-  Supabase[Supabase Platform]
-  Analytics[Analytics & Dashboards]
+```mermaidadap
 
-  UI --> CopilotKit
-  CopilotKit --> ADK
-  ADK --> Composio
-  ADK --> Supabase
-  Composio --> Supabase
-  Supabase --> Analytics
-  Analytics --> UI
 ```
 
 **Integration References:**
+
 - **CopilotKit:** See `libs_docs/copilotkit/llms-full.txt` for CoAgents patterns, streaming SSE, frontend actions, and state management
 - **Gemini ADK:** See `libs_docs/adk/llms-full.txt` for agent orchestration, evaluation frameworks, and session coordination
 - **Supabase:** See `libs_docs/supabase/llms_docs.txt` for database APIs, storage patterns, edge functions, and real-time subscriptions

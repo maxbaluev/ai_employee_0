@@ -70,31 +70,46 @@ graph TB
         Library(Mission Library)
         Composio(Composio Toolkits)
         OAuth(OAuth Vault)
+        Telemetry(Telemetry Events)
     end
 
     Workspace --> DefineStage
     DefineStage --> IntakeAPI
     IntakeAPI --> Coordinator
     Coordinator --> Planner
+
+    PrepareStage --> ToolkitsAPI
+    PrepareStage --> InspectAPI
+    Validator --> Inspector
+    Inspector --> InspectAPI
+    Inspector --> Composio
+    InspectAPI --> Supabase
+
+    PlanStage --> PlannerAPI
+    PlanStage --> ApprovalAPI
     Planner --> PlannerAPI
     PlannerAPI --> Supabase
     PlannerAPI --> Library
     Planner --> Validator
     Validator --> ToolkitsAPI
     ToolkitsAPI --> Composio
-    Validator --> Inspector
-    Inspector --> InspectAPI
-    InspectAPI --> Supabase
     Planner --> ApprovalAPI
     ApprovalAPI --> OAuth
+    ApprovalAPI --> Composio
+
+    ExecuteStage --> ExecutionAPI
+    ExecuteStage --> EvidenceAPI
     Executor --> ExecutionAPI
     ExecutionAPI --> Composio
+    ExecutionAPI --> Telemetry
     Executor --> EvidenceAgent
     EvidenceAgent --> EvidenceAPI
     EvidenceAPI --> Storage
-    ExecuteStage --> EvidenceAPI
+
     ReflectStage --> FeedbackAPI
     FeedbackAPI --> Supabase
+    FeedbackAPI --> Library
+    Telemetry --> Supabase
 ```
 
 ---
