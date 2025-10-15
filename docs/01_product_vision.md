@@ -1,6 +1,6 @@
 # AI Employee Control Plane: Product Vision
 
-**Version:** 3.0 (October 2025)
+**Version:** 3.1 (October 2025)
 **Audience:** Leadership, Product, GTM, Partners
 **Status:** Active vision and strategic direction
 
@@ -67,7 +67,7 @@ A single freeform input generates complete missions: objectives, audiences, KPIs
 
 **2. Progressive Trust Model**
 
-Start with **zero-privilege inspection** that produces drafts, lists, and schedules for stakeholder review. Once value is proven, users opt into **governed activation** with OAuth, approvals, and safeguard enforcement. Trust is earned, not assumed.
+Start with **no-auth inspection**: read-only exploration of public data, toolkit capabilities, and draft generation without requiring OAuth credentials. This mode produces proof-of-value artifacts (enriched contact lists, campaign drafts, competitive analysis) for stakeholder review before any credentials are requested. Once value is demonstrated through these inspection artifacts, users opt into **governed execution**—OAuth-authenticated workflows with approvals and safeguard enforcement for write actions and sensitive data access. Trust is earned through transparency, not assumed upfront.
 
 **3. Objective-First, Not Tool-First**
 
@@ -100,10 +100,11 @@ Successful missions become library assets. Play recommendations improve with pre
 ### Differentiation
 
 **vs. Traditional Automations:**
-- ✓ Prove value in <15 minutes with zero-privilege artifacts (vs. weeks of setup)
+- ✓ Prove value in <15 minutes with no-auth inspection artifacts—no credentials required upfront (vs. weeks of OAuth setup before seeing any value)
+- ✓ Separate inspection (read-only, public data) from execution (OAuth-gated, write actions)—users control when to grant access
 - ✓ Adaptive safeguards replace static policies (edit inline vs. legal review)
 - ✓ Undo plans for every action (vs. manual cleanup or permanent damage)
-- ✓ Transparent reasoning trails anchored by the four-layer flow (Presentation → APIs → Orchestration → Data) instead of opaque configuration screens
+- ✓ Transparent reasoning trails across the system architecture (Presentation → APIs → Orchestration → Data layers) instead of opaque configuration screens
 
 **vs. Lightweight Copilots:**
 - ✓ Autonomous execution with approval gates (vs. manual copy-paste)
@@ -166,12 +167,12 @@ Single-input intake parses objectives, audiences, KPIs, safeguards, tone hints, 
 - Persona-specific defaults accelerate playbook adoption
 - Lower training costs for new users
 
-### 2. User-Curated Tool Orchestration
+### 2. Tool Router-Driven Orchestration
 
 **The Innovation:**
-Recommended toolkit palette surfaces Composio integrations with auth badges (no-auth first, OAuth-ready second), impact estimates, and precedent missions. Users multi-select and validate via MCP inspection preview before committing credentials.
+All toolkit execution flows through the **Composio Tool Router**, a production-ready meta-tool interface providing a three-phase workflow across 500+ toolkits: **Discovery** ( `COMPOSIO_SEARCH_TOOLS` for no-auth inspection and plan context), **Authentication** (`COMPOSIO_MANAGE_CONNECTIONS` orchestrating OAuth plus the per-mission presigned session URLs returned by `composio.experimental.tool_router.create_session`), and **Execution** (`COMPOSIO_CREATE_PLAN` for multi-step orchestration, `COMPOSIO_MULTI_EXECUTE_TOOL` for governed actions, `COMPOSIO_REMOTE_WORKBENCH` / `COMPOSIO_REMOTE_BASH_TOOL` for containerized processing and scripted transforms). Inspector, Planner, and Executor agents interact exclusively via these six Tool Router meta-tools, giving stakeholders a single consistent interface.
 
-**Flow Touchpoint:** `PrepareStage → ToolkitsAPI → Composio` shares coverage checks with `PrepareStage → InspectAPI → Inspector → Supabase`, giving validators and analysts a single source of truth.
+**Flow Touchpoint:** `PrepareStage → InspectAPI → Inspector → SEARCH_TOOLS + optional MANAGE_CONNECTIONS (preview mode)` validates toolkit availability and previews anticipated connection requirements without requiring OAuth. `PlanStage → PlannerAPI → MANAGE_CONNECTIONS (formal)` establishes connections after stakeholder approval. `ExecuteStage → Executor → MULTI_EXECUTE_TOOL` handles authenticated actions using already-established connections, verifying freshness but not initiating new OAuth flows.
 
 **Business Impact:**
 - Informed consent replaces blind OAuth grants
@@ -472,7 +473,7 @@ Measures sustained value delivery and trust maturation
 |-------|--------|--------|-----------|
 | **Onboarding** | % tenants completing first inspection within Day 1 | ≥70% | Foundation |
 | **Time-to-Evidence** | Median minutes from intent to proof pack | ≤15 min | Foundation |
-| **Inspection Conversion** | % missions advancing to governed activation | ≥60% | Core |
+| **Inspection Conversion** | % missions advancing to governed execution | ≥60% | Core |
 | **OAuth Adoption** | Avg connected toolkits per tenant @ Day 30 | ≥2 | Core |
 | **Library Reuse** | Plays reused per tenant per month | ≥3 | Scale |
 | **Retention** | Net retention rate (expansions - churn) | ≥110% | Scale |
@@ -504,20 +505,21 @@ Measures sustained value delivery and trust maturation
 
 ## Strategic Partnerships
 
-### Composio: Toolkit Breadth & OAuth Excellence
+### Composio: Tool Router as Sole Integration Interface
 
-**Value:** 250+ toolkits, managed auth, case-study credibility (Assista AI, Fabrile)
+**Value:** Production-ready meta-tool interface providing three-phase workflow (Discovery, Authentication, Execution) across 500+ toolkits; eliminates per-toolkit MCP server complexity; managed OAuth with presigned session URLs; advanced containerized execution via Remote Workbench and Remote Bash; case-study credibility (Assista AI, Fabrile)
 
 **Integration:**
-- Discovery API for no-auth first recommendations
-- Connect Link for OAuth with scope transparency
-- Trigger lifecycle for event-driven automations
-- Success stories anchor proof-of-value narratives
+- **Six Tool Router Meta-Tools:** `COMPOSIO_SEARCH_TOOLS` (discovery), `COMPOSIO_CREATE_PLAN` (planning), `COMPOSIO_MANAGE_CONNECTIONS` (OAuth lifecycle), `COMPOSIO_MULTI_EXECUTE_TOOL` (execution), `COMPOSIO_REMOTE_WORKBENCH` (containerized Python sandbox), `COMPOSIO_REMOTE_BASH_TOOL` (scripted transforms)
+- **Inspector Agent (Prepare Stage):** Uses SEARCH_TOOLS for no-auth discovery + MANAGE_CONNECTIONS in "preview" mode to pre-populate anticipated connection requirements
+- **Planner + Validator (Plan & Approve Stage):** Consolidates plans; Manage Connections formally triggered here once stakeholders approve scopes
+- **Executor Agent (Execute & Observe Stage):** Uses MULTI_EXECUTE_TOOL with already-established connections (verifies freshness only; does not initiate new OAuth flows)
+- **Single Interface:** No per-toolkit MCP server configuration required; Tool Router handles all routing, rate limiting, and error recovery internally
 
 **Joint Goals:**
-- Co-marketing: "Composio Powered" badge
-- Shared customer references
-- Integration depth certifications
+- Co-marketing: "Composio Tool Router Powered" badge highlighting production readiness
+- Shared customer references showcasing simplified integration and advanced features (Remote Workbench, presigned URLs)
+- Integration depth certifications for Tool Router meta-tool usage patterns
 
 ---
 
@@ -577,7 +579,7 @@ Measures sustained value delivery and trust maturation
 ### Risk: Value Proof Stalls Without Credentials
 
 **Mitigation:**
-- Ship polished zero-privilege plays (campaign prep, competitor briefs)
+- Ship polished no-auth inspection plays (campaign prep, competitor briefs)
 - Spotlight upgrade pathways with case benchmarks
 - Provide ROI calculators showing potential lift
 - Offer free inspection credits for evaluation

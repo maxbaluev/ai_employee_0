@@ -1,11 +1,14 @@
 # AI Employee Control Plane — Gate G-B Control Plane
 
-This repository delivers the Gate G-B control plane for the AI Employee program. It pairs a CopilotKit-powered Next.js workspace with a packaged Gemini ADK backend, a Composio SDK integration, and Supabase migrations so you can generate zero-privilege proof packs before requesting oauth credentials.
+This repository delivers the Gate G-B control plane for the AI Employee program. It pairs a CopilotKit-powered Next.js workspace with a packaged Gemini ADK backend, a Composio SDK integration, and Supabase migrations.
+
+**Progressive Trust Model:** Start with **no-auth inspection**—read-only exploration of public data and toolkit capabilities to generate proof-of-value artifacts (contact enrichment drafts, campaign plans, competitive analysis) without requiring credentials. Once value is demonstrated, users opt into **governed execution** with OAuth for write actions, sensitive data access, and production workflows.
 
 ## Architecture Highlights
 
 - **Frontend:** `src/app/(control-plane)` renders the mission intake, artifact gallery, and Copilot sidebar.
-- **Backend:** `agent/` exposes a FastAPI app with a Gemini ADK agent (`agent/agents/control_plane.py`) and a Composio SDK-powered discovery client (`agent/tools/composio_client.py`).
+- **Backend:** `agent/` exposes a FastAPI app with a Gemini ADK agent (`agent/agents/control_plane.py`) integrating with the Composio Tool Router via meta-tool operations.
+- **Tool Router Integration:** Inspector, Planner, and Executor agents interact exclusively via Tool Router meta-tools (`COMPOSIO_SEARCH_TOOLS`, `COMPOSIO_CREATE_PLAN`, `COMPOSIO_MANAGE_CONNECTIONS`, `COMPOSIO_MULTI_EXECUTE_TOOL`, `COMPOSIO_REMOTE_WORKBENCH`, `COMPOSIO_REMOTE_BASH_TOOL`).
 - **Data Plane:** `supabase/migrations/0001_init.sql` provisions tenants, objectives, plays, approvals, tool telemetry, pgvector embeddings, and RLS policies.
 - Reference product docs live in `docs/` (architecture, execution tracker, guardrails, readiness schemas).
 
@@ -81,10 +84,21 @@ Record the CLI output in `docs/readiness/migration_log_G-A.md` and update
 baseline guardrail profiles using `docs/readiness/guardrail_profiles_seed.csv`
 before running QA.
 
-### Composio catalog utilities
+### Composio Tool Router Integration
 
-- Check SDK connectivity: `python -m agent.tools.composio_client --status` (paste the result into `docs/readiness/composio_status_G-A.txt`)
-- Force a fresh catalogue fetch: `python -m agent.tools.composio_client --refresh`
+**The AI Employee Control Plane standardizes on the Composio Tool Router as the sole interface for toolkit execution.**
+
+**Tool Router Meta-Tools:**
+- `COMPOSIO_SEARCH_TOOLS` — Semantic toolkit discovery and capability assessment
+- `COMPOSIO_CREATE_PLAN` — Multi-step execution planning with parallelism
+- `COMPOSIO_MANAGE_CONNECTIONS` — OAuth lifecycle (preview → create → verify → refresh)
+- `COMPOSIO_MULTI_EXECUTE_TOOL` — Parallel tool execution with result aggregation
+- `COMPOSIO_REMOTE_WORKBENCH` — Containerized Python sandbox for large-result processing
+- `COMPOSIO_REMOTE_BASH_TOOL` — Remote shell environment for scripted transforms
+
+**Sessions:** `composio.experimental.tool_router.create_session(user_id, options)` returns a presigned MCP URL per mission conversation. Inspector uses Tool Router search for no-auth discovery; Planner scopes sessions and formally triggers OAuth; Executor verifies connections and multi-executes governed actions.
+
+See `libs_docs/composio/llms.txt` for complete Tool Router API reference and meta-tool specifications.
 
 ## Linting & Checks
 
@@ -96,18 +110,18 @@ before running QA.
 - `src/app/(control-plane)/page.tsx` — Server component that hydrates Supabase data for the Gate G-A workspace.
 - `src/app/(control-plane)/ControlPlaneWorkspace.tsx` — Client workspace aligning with the UX blueprint and CopilotKit actions.
 - `agent/runtime/app.py` — FastAPI app factory consumed by both uvicorn and tests.
-- `agent/agents/control_plane.py` — Mission state tools (`set_mission_details`, `append_planner_note`, `upsert_artifact`) and catalog-aware prompts.
-- `agent/tools/composio_client.py` — Minimal Composio SDK client with CLI helpers.
+- `agent/agents/control_plane.py` — Mission state tools and Tool Router integration for Inspector and Executor agents.
+- `agent/tools/tool_router_client.py` — Tool Router meta-tool client wrapping `COMPOSIO_SEARCH_TOOLS`, `COMPOSIO_CREATE_PLAN`, `COMPOSIO_MANAGE_CONNECTIONS`, `COMPOSIO_MULTI_EXECUTE_TOOL`, `COMPOSIO_REMOTE_WORKBENCH`, `COMPOSIO_REMOTE_BASH_TOOL`.
 - `supabase/migrations/0001_init.sql` — Gates tenants, objectives, plays, approvals, tool telemetry, library embeddings, guardrail policies.
 - `docs/readiness/` — Machine-readable evidence bundles for future gates.
 - `docs/` — Canonical architecture, guardrail, and readiness references.
 
 ## Troubleshooting
 
-- **Agent connection warnings** usually mean the backend isn’t running or `GOOGLE_API_KEY` is missing. Ensure `mise run dev` (or `mise run agent`) is active.
+- **Agent connection warnings** usually mean the backend isn't running or `GOOGLE_API_KEY` is missing. Ensure `mise run dev` (or `mise run agent`) is active.
 - **Python import errors**: re-run `uv pip install -r agent/requirements.txt` to sync dependencies.
 - **Supabase RLS/pgvector errors**: confirm the migration has been applied (`supabase db push ...`).
-- **Catalog sync issues** when using the Composio SDK: confirm the SDK is installed, `COMPOSIO_API_KEY` is configured, and run `python -m agent.tools.composio_client --status` for diagnostics.
+- **Tool Router errors**: confirm `COMPOSIO_API_KEY` is configured. Check telemetry for `tool_router_call` events to diagnose meta-tool operation failures.
 
 ## Additional References
 

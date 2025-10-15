@@ -1,6 +1,6 @@
 # AI Employee Control Plane: Getting Started
 
-**Version:** 3.0 (October 2025)
+**Version:** 3.1 (October 2025)
 **Audience:** New developers, operators, and stakeholders
 **Purpose:** Set up environment, run the stack, complete your first mission
 **Status:** Active onboarding guide
@@ -583,10 +583,10 @@ tail -f .next/server/*.log  # Next.js logs (if available)
 
 ### Example Files
 
-- `docs/new_examples/coder.md` — Solo founder delivering an authentication refactor
-- `docs/new_exampels/revops.md` — Revenue operations case study (legacy directory)
-- `docs/new_exampels/support_leader.md` — Support triage narrative (legacy directory)
-- `docs/new_exampels/compliance_audit.md` — Governance review example (legacy directory)
+- `docs/examples/coder.md` — Solo founder delivering an authentication refactor
+- `docs/examples/revops.md` — Revenue operations case study
+- `docs/examples/support_leader.md` — Support triage narrative
+- `docs/examples/compliance_audit.md` — Governance review example
 
 ---
 

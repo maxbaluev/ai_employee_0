@@ -1,6 +1,6 @@
 # AI Employee Control Plane: Documentation Guide
 
-**Version:** 3.0 (October 2025)
+**Version:** 3.1 (October 2025)
 **Purpose:** Navigate the AI Employee Control Plane documentation suite
 **Audience:** All stakeholders — Product, Engineering, Operations, Governance, Partners
 
@@ -21,7 +21,7 @@ This documentation is organized as a **sequential knowledge base** that enables 
 1. **[Product Vision](./01_product_vision.md)** — Strategic direction, value proposition, personas, use cases
 2. **[System Overview](./02_system_overview.md)** — Architecture, data flows, technical specifications
 3. **[User Experience Blueprint](./03_user_experience.md)** — Five-stage journey, interaction patterns, accessibility
-4. **[Implementation Guide](./04_implementation_guide.md)** — Development setup, component catalog, integration patterns
+4. **[Implementation Guide](./04_implementation_guide.md)** — Development setup, component catalog, integration patterns, library docs cross-references
 5. **[Capability Roadmap](./05_capability_roadmap.md)** — Milestone-based roadmap with evidence requirements
 6. **[Data Intelligence](./06_data_intelligence.md)** — Telemetry, analytics, learning loops
 7. **[Operations Playbook](./07_operations_playbook.md)** — Deployment, monitoring, incident response, runbooks
@@ -172,6 +172,28 @@ This documentation is organized as a **sequential knowledge base** that enables 
 
 ---
 
+## Key Terminology
+
+To maintain consistency across all documentation, use these preferred terms:
+
+**Mission Lifecycle:**
+- **Five-Stage Journey:** Define → Prepare → Plan & Approve → Execute & Observe → Reflect & Improve (user-facing stages)
+- **Four-Layer Architecture:** Presentation → Orchestration → Execution → Data (technical stack layers)
+
+**Trust & Authorization:**
+- **No-Auth Inspection:** Read-only, public data exploration and preview generation without requiring OAuth credentials. Used for demos, proof-of-value artifacts, and fast iteration. No write actions or sensitive data access. (Preferred over "zero-privilege" or "OAuth inspection")
+- **Governed Execution:** OAuth-authenticated mission execution with user approvals and safeguard enforcement. Required for all write actions, sensitive data access, and production workflows. (Preferred over "governed activation")
+- **Progressive Trust:** The model of proving value through no-auth inspection artifacts before requesting OAuth credentials—earning access rather than assuming it
+
+**Agents:**
+- **Coordinator, Intake, Planner, Inspector, Executor, Validator, Evidence** — Capitalize when referring to specific agent roles
+
+**Integrations:**
+- **Composio Tool Router, CopilotKit, Gemini ADK, Supabase** — Partner technology names (always capitalized)
+- **Composio Tool Router** — The sole supported interface for toolkit execution, providing six meta-tools (`COMPOSIO_SEARCH_TOOLS`, `COMPOSIO_CREATE_PLAN`, `COMPOSIO_MANAGE_CONNECTIONS`, `COMPOSIO_MULTI_EXECUTE_TOOL`, `COMPOSIO_REMOTE_WORKBENCH`, `COMPOSIO_REMOTE_BASH_TOOL`) that handle discovery, planning, authentication, and governed execution across 500+ toolkits. Sessions are scoped per mission using `composio.experimental.tool_router.create_session` presigned URLs.
+
+---
+
 ## Documentation Standards
 
 ### Structure
@@ -195,10 +217,10 @@ This documentation is organized as a **sequential knowledge base** that enables 
 
 ### Partner SDK References
 
-- **[CopilotKit](../libs_docs/copilotkit/llms-full.txt)** — CoAgents, streaming, interrupts
-- **[Composio](../libs_docs/composio/llms.txt)** — Discovery, auth, execution, triggers
-- **[Gemini ADK](../libs_docs/adk/llms-full.txt)** — Agent orchestration, evaluation
-- **[Supabase](../libs_docs/supabase/llms_docs.txt)** — Database, storage, edge functions
+- **[CopilotKit](../libs_docs/copilotkit/llms-full.txt)** — CoAgents, streaming, interrupts, frontend action patterns
+- **[Composio Tool Router](../libs_docs/composio/llms.txt)** — Six meta-tools for the three-phase workflow (Discovery via `COMPOSIO_SEARCH_TOOLS`, Authentication via `COMPOSIO_MANAGE_CONNECTIONS`, Execution via `COMPOSIO_CREATE_PLAN`, `COMPOSIO_MULTI_EXECUTE_TOOL`, `COMPOSIO_REMOTE_WORKBENCH`, `COMPOSIO_REMOTE_BASH_TOOL`); sessions scoped per mission with `create_session`
+- **[Gemini ADK](../libs_docs/adk/llms-full.txt)** — Agent orchestration, multi-agent coordination, evaluation frameworks
+- **[Supabase](../libs_docs/supabase/llms_docs.txt)** — Database, storage, edge functions, real-time subscriptions
 
 ### Diagrams
 
@@ -211,10 +233,8 @@ Located in `diagrams/` (Mermaid format):
 
 ### Examples
 
-Canonical narratives live in `docs/new_examples/`:
+Real-world case studies and narrative examples live in `docs/examples/`:
 - `coder.md` — Professional AI programmer delivering an authentication refactor mission
-
-Legacy narratives are still available in `docs/new_exampels/` (retained for backward compatibility):
 - `revops.md` — Revenue operations case study with five-stage walkthrough
 - `support_leader.md` — Support leader navigating incident triage
 - `compliance_audit.md` — Governance lead conducting quarterly review
@@ -272,9 +292,9 @@ Located in `docs/readiness/`:
 
 | Date | Version | Changes | Author |
 |------|---------|---------|--------|
+| Oct 2025 | 3.1 | Documentation audit: Added Operations Playbook (07) and Release Readiness (09); renumbered Getting Started to 08; fixed examples directory references; added Inspector agent documentation; enhanced library docs cross-references; improved AGENTS.md clarity | AI Agent + Documentation Team |
 | Oct 2025 | 3.0 | Five-stage mission journey migration — consolidated docs, updated diagrams, created narrative examples | Product & Engineering |
 | Aug 2025 | 2.0 | Unified documentation overhaul — removed gate terminology, added milestone-based roadmap, created navigation guide | Product & Engineering |
-| (Future) | | | |
 
 ---
 
