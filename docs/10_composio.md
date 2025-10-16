@@ -294,15 +294,15 @@ Full procedures live in `docs/07_operations_playbook.md`.
 
 ## Implementation Checklist
 
-- [ ] `COMPOSIO_API_KEY` stored in secret manager and injected via mise.
-- [ ] Composio SDK client initialized with mission context wrapper (user/tenant IDs, correlation IDs).
-- [ ] Inspector cache seeded nightly via `client.tools.search()` to keep coverage stats fresh.
-- [ ] Connect Link approval UI built in CopilotKit with mission + scope display.
-- [ ] Executor emits telemetry and evidence artifacts for every tool call.
-- [ ] Validator enforces safeguards both preflight and postflight with hooks around provider adapters.
-- [ ] Evidence bundler attaches audit events and undo hints to each mission bundle.
-- [ ] Telemetry dashboards configured for discovery/auth/execution funnels and mirrored in chat callouts.
-- [ ] Alerts configured for rate limit, auth expiry, and discovery degradation thresholds with chat escalation scripts.
+- `COMPOSIO_API_KEY` stored in secret manager and injected via mise.
+- Composio SDK client initialized with mission context wrapper (user/tenant IDs, correlation IDs).
+- Inspector cache seeded nightly via `client.tools.search()` to keep coverage stats fresh.
+- Connect Link approval UI built in CopilotKit with mission + scope display.
+- Executor emits telemetry and evidence artifacts for every tool call.
+- Validator enforces safeguards both preflight and postflight with hooks around provider adapters.
+- Evidence bundler attaches audit events and undo hints to each mission bundle.
+- Telemetry dashboards configured for discovery/auth/execution funnels and mirrored in chat callouts.
+- Alerts configured for rate limit, auth expiry, and discovery degradation thresholds with chat escalation scripts.
 
 ---
 

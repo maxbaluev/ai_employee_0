@@ -472,12 +472,12 @@ Roadmap items tracked in `docs/05_capability_roadmap.md` (§Learning & Intellige
 
 ### 10.2 Telemetry Hygiene Checklist
 
-- [ ] Event emitted for each lifecycle transition (Home → Reflect).
-- [ ] `mission_id`, `tenantId`, `stage`, `persona`, and `correlation_id` present in context.
-- [ ] PII redaction applied before persistence and logged via `context.redaction_applied`.
-- [ ] Alias fields documented when UI uses legacy names (e.g., `brief_field_edited`).
-- [ ] Supabase indices refreshed after schema change (run `scripts/run_metrics_refresh.py`).
-- [ ] Eval sets updated when new events added (`mission_end_to_end` golden traces regenerated).
+- Event emitted for each lifecycle transition (Home → Reflect).
+- `mission_id`, `tenantId`, `stage`, `persona`, and `correlation_id` present in context.
+- PII redaction applied before persistence and logged via `context.redaction_applied`.
+- Alias fields documented when UI uses legacy names (e.g., `brief_field_edited`).
+- Supabase indices refreshed after schema change (run `scripts/run_metrics_refresh.py`).
+- Eval sets updated when new events added (`mission_end_to_end` golden traces regenerated).
 
 ### 10.3 Related Documents
 

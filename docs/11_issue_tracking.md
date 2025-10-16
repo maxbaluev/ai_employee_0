@@ -95,13 +95,13 @@ unblocked before execution.
 
 ## 5. Operational Hygiene Checklist
 
-- [ ] Keep the `.beads/` directory under version control and avoid manual edits
+- Keep the `.beads/` directory under version control and avoid manual edits
       to the database file.
-- [ ] Record blockers the moment you discover them so `bd ready` remains
+- Record blockers the moment you discover them so `bd ready` remains
       trustworthy for agents.
-- [ ] Review `bd dep tree` during release readiness checks alongside
+- Review `bd dep tree` during release readiness checks alongside
       `docs/09_release_readiness.md`.
-- [ ] Archive or close stale issues during Stage 6 (Reflect) to
+- Archive or close stale issues during Stage 6 (Reflect) to
       keep velocity reports accurate.
 
 ---

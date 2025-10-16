@@ -66,12 +66,12 @@ bd close <issue-id> --reason "Mitigated"
 
 ### Beads Operational Checklist
 
-- [x] `bd init` (or verify `.beads/` exists) before any operational work.
-- [ ] Ensure a deployment/incident/maintenance issue exists and is tagged appropriately.
-- [ ] Record blockers with `bd dep add` so `bd ready` stays trustworthy.
-- [ ] Update status with `bd update <ISSUE> --status in_progress` when hands are on the keyboard.
-- [ ] Close issues with `bd close <ISSUE> --reason "..."` and attach evidence links or runbook references.
-- [ ] Export dependency context to retrospectives with `bd dep tree <ISSUE>`.
+- `bd init` (or verify `.beads/` exists) before any operational work.
+- Ensure a deployment/incident/maintenance issue exists and is tagged appropriately.
+- Record blockers with `bd dep add` so `bd ready` stays trustworthy.
+- Update status with `bd update <ISSUE> --status in_progress` when hands are on the keyboard.
+- Close issues with `bd close <ISSUE> --reason "..."` and attach evidence links or runbook references.
+- Export dependency context to retrospectives with `bd dep tree <ISSUE>`.
 
 ---
 

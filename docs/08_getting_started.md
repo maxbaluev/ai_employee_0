@@ -551,16 +551,16 @@ tail -f logs/agent.log  # if logging configured
 
 Before proceeding to development, verify:
 
-- [ ] mise installed and active (`mise --version`)
-- [ ] All tools installed (`mise current` shows expected versions)
-- [ ] Dependencies installed (`node_modules/` and `agent/.venv/` exist)
-- [ ] `.env` configured with required keys
-- [ ] Supabase running and migrations applied
-- [ ] TypeScript types generated (`supabase/types.ts` exists)
-- [ ] **Beads tracker initialized** (`.beads/` exists, `bd list` works)
-- [ ] Frontend accessible at `http://localhost:3000`
-- [ ] Agent accessible at `http://localhost:8000/docs`
-- [ ] First mission completed successfully
+- mise installed and active (`mise --version`)
+- All tools installed (`mise current` shows expected versions)
+- Dependencies installed (`node_modules/` and `agent/.venv/` exist)
+- `.env` configured with required keys
+- Supabase running and migrations applied
+- TypeScript types generated (`supabase/types.ts` exists)
+- **Beads tracker initialized** (`.beads/` exists, `bd list` works)
+- Frontend accessible at `http://localhost:3000`
+- Agent accessible at `http://localhost:8000/docs`
+- First mission completed successfully
 
 ---
 

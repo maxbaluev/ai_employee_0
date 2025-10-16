@@ -428,8 +428,20 @@ async def call_with_guardrails(action: ToolInvocation):
 
 ### Partner Integration Architecture
 
-```mermaidadap
+```mermaid
+flowchart LR
+    UI[CopilotKit Frontend]
+    API[Gemini ADK Agent]
+    Supabase[(Supabase)]
+    Composio[Composio SDK Workspace]
+    Partners{Partner Toolkits}
 
+    UI --> API
+    API --> Supabase
+    API --> Composio
+    Composio --> Partners
+    Partners --> Composio
+    Supabase --> API
 ```
 
 **Integration References:**

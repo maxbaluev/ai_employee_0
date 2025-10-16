@@ -149,15 +149,15 @@ bd close BD-MILESTONE-XXX --reason "Tier 3 major release: phased rollout complet
 
 ### Product Readiness
 
-- [ ] User stories and acceptance criteria defined
-- [ ] Success metrics and KPIs established
-- [ ] Personas and use cases validated
-- [ ] Rollout plan and communication strategy prepared
-- [ ] Customer feedback mechanism in place
-- [ ] Pricing/packaging impact assessed (if applicable)
-- [ ] Competitive positioning updated
-- [ ] Go-to-market materials ready (for major releases)
-- [ ] **bd feature epic created** with child tasks and dependencies mapped
+- User stories and acceptance criteria defined
+- Success metrics and KPIs established
+- Personas and use cases validated
+- Rollout plan and communication strategy prepared
+- Customer feedback mechanism in place
+- Pricing/packaging impact assessed (if applicable)
+- Competitive positioning updated
+- Go-to-market materials ready (for major releases)
+- **bd feature epic created** with child tasks and dependencies mapped
 
 **Owner:** Product Manager
 **Evidence Location:** `docs/readiness/product/<feature_name>/`
@@ -168,32 +168,32 @@ bd close BD-MILESTONE-XXX --reason "Tier 3 major release: phased rollout complet
 ### Engineering Readiness
 
 #### Code Quality
-- [ ] All automated tests passing (unit, integration, e2e, agent evals)
-- [ ] Test coverage ≥85% for new code
-- [ ] Linting and formatting clean
-- [ ] TypeScript strict mode passing
-- [ ] No critical or high-severity security vulnerabilities
-- [ ] Peer code reviews completed
-- [ ] Tech debt documented and prioritized
-- [ ] **bd code quality issues resolved** before merge
+- All automated tests passing (unit, integration, e2e, agent evals)
+- Test coverage ≥85% for new code
+- Linting and formatting clean
+- TypeScript strict mode passing
+- No critical or high-severity security vulnerabilities
+- Peer code reviews completed
+- Tech debt documented and prioritized
+- **bd code quality issues resolved** before merge
 
 #### Performance
-- [ ] Latency targets met (p95 ≤ 200ms for API calls, ≤ 150ms for stage transitions)
-- [ ] SSE streaming heartbeat ≤ 5s
-- [ ] Database query performance validated (no N+1 queries)
-- [ ] Frontend bundle size within budget (≤ 500KB gzipped)
-- [ ] Memory leak testing completed
-- [ ] **Telemetry hygiene validated:** `pnpm ts-node scripts/audit_telemetry_events.py --mode check` passes
+- Latency targets met (p95 ≤ 200ms for API calls, ≤ 150ms for stage transitions)
+- SSE streaming heartbeat ≤ 5s
+- Database query performance validated (no N+1 queries)
+- Frontend bundle size within budget (≤ 500KB gzipped)
+- Memory leak testing completed
+- **Telemetry hygiene validated:** `pnpm ts-node scripts/audit_telemetry_events.py --mode check` passes
 
 #### Architecture
-- [ ] Component integration validated
-- [ ] API contracts documented and versioned
-- [ ] Database migrations tested (up and down) via Supabase single-migration workflow
-- [ ] Feature flags configured and tested
-- [ ] Rollback procedure validated
-- [ ] Observability instrumented (logs, metrics, traces per `docs/06_data_intelligence.md`)
-- [ ] **ADK agent coordination tested:** Session state handoffs verified across Inspector/Planner/Executor
-- [ ] **Composio SDK integration verified:** Discovery, Connect Links, execution, telemetry events logged
+- Component integration validated
+- API contracts documented and versioned
+- Database migrations tested (up and down) via Supabase single-migration workflow
+- Feature flags configured and tested
+- Rollback procedure validated
+- Observability instrumented (logs, metrics, traces per `docs/06_data_intelligence.md`)
+- **ADK agent coordination tested:** Session state handoffs verified across Inspector/Planner/Executor
+- **Composio SDK integration verified:** Discovery, Connect Links, execution, telemetry events logged
 
 **Owner:** Engineering Lead
 **Evidence Location:** `docs/readiness/engineering/<feature_name>/`
@@ -203,22 +203,22 @@ bd close BD-MILESTONE-XXX --reason "Tier 3 major release: phased rollout complet
 
 ### Trust & Security Readiness
 
-- [ ] Threat model reviewed and mitigations implemented
-- [ ] Authentication and authorization tested
-- [ ] PII redaction verified (telemetry, logs, error messages per `docs/06_data_intelligence.md` § Redaction)
-- [ ] Data encryption at rest and in transit validated
-- [ ] Vulnerability scan completed (SAST, DAST, dependency audit)
-- [ ] OAuth scopes follow least-privilege principle
-- [ ] **Composio trust model validated:**
-  - [ ] Inspector initiates Connect Links during Prepare stage
-  - [ ] All granted scopes logged before planning begins
-  - [ ] Planner assembles plays from established connections only
-  - [ ] Executor uses validated connections with audit trails
-- [ ] Safeguard logic validated (auto-fix, validator, approval gates)
-- [ ] Audit trail completeness verified
-- [ ] Incident response runbook prepared (see `docs/07_operations_playbook.md`)
-- [ ] Compliance requirements met (SOC 2, GDPR, HIPAA if applicable)
-- [ ] **bd security issues closed** with evidence artifacts
+- Threat model reviewed and mitigations implemented
+- Authentication and authorization tested
+- PII redaction verified (telemetry, logs, error messages per `docs/06_data_intelligence.md` § Redaction)
+- Data encryption at rest and in transit validated
+- Vulnerability scan completed (SAST, DAST, dependency audit)
+- OAuth scopes follow least-privilege principle
+- **Composio trust model validated:**
+  - Inspector initiates Connect Links during Prepare stage
+  - All granted scopes logged before planning begins
+  - Planner assembles plays from established connections only
+  - Executor uses validated connections with audit trails
+- Safeguard logic validated (auto-fix, validator, approval gates)
+- Audit trail completeness verified
+- Incident response runbook prepared (see `docs/07_operations_playbook.md`)
+- Compliance requirements met (SOC 2, GDPR, HIPAA if applicable)
+- **bd security issues closed** with evidence artifacts
 
 **Owner:** Trust/Security Lead
 **Evidence Location:** `docs/readiness/security/<feature_name>/`
@@ -229,33 +229,33 @@ bd close BD-MILESTONE-XXX --reason "Tier 3 major release: phased rollout complet
 ### Operations Readiness
 
 #### Deployment
-- [ ] Deployment runbook created and reviewed (linked from `docs/07_operations_playbook.md`)
-- [ ] Rollback procedure tested
-- [ ] Database migration strategy validated (Supabase single-migration workflow)
-- [ ] Environment configuration verified (dev, staging, production)
-- [ ] Feature flags tested for instant rollback
-- [ ] Canary deployment plan prepared (for Tier 2+)
-- [ ] Zero-downtime deployment validated
-- [ ] **bd deployment issue created** with rollback dependencies mapped
+- Deployment runbook created and reviewed (linked from `docs/07_operations_playbook.md`)
+- Rollback procedure tested
+- Database migration strategy validated (Supabase single-migration workflow)
+- Environment configuration verified (dev, staging, production)
+- Feature flags tested for instant rollback
+- Canary deployment plan prepared (for Tier 2+)
+- Zero-downtime deployment validated
+- **bd deployment issue created** with rollback dependencies mapped
 
 #### Monitoring & Observability
-- [ ] Key metrics instrumented (success rate, latency, error rate)
-- [ ] Dashboards created (operational, executive, governance views)
-- [ ] Alerts configured with appropriate thresholds
-- [ ] On-call rotation updated
-- [ ] Incident escalation path documented
-- [ ] Logging aggregation verified (structured JSON, correlation IDs)
-- [ ] Telemetry coverage validated (all critical paths emit events per `docs/06_data_intelligence.md`)
-- [ ] **Composio SDK telemetry validated:** `composio_discovery`, `composio_auth_flow`, `composio_tool_call` events logged
-- [ ] **ADK agent telemetry validated:** `session_heartbeat` events with lag and token usage
+- Key metrics instrumented (success rate, latency, error rate)
+- Dashboards created (operational, executive, governance views)
+- Alerts configured with appropriate thresholds
+- On-call rotation updated
+- Incident escalation path documented
+- Logging aggregation verified (structured JSON, correlation IDs)
+- Telemetry coverage validated (all critical paths emit events per `docs/06_data_intelligence.md`)
+- **Composio SDK telemetry validated:** `composio_discovery`, `composio_auth_flow`, `composio_tool_call` events logged
+- **ADK agent telemetry validated:** `session_heartbeat` events with lag and token usage
 
 #### Reliability
-- [ ] Load testing completed (expected traffic + 2x headroom)
-- [ ] Failure mode testing (database outage, API rate limits, network issues)
-- [ ] Data backup and restore tested (Supabase backup/restore verified)
-- [ ] Disaster recovery plan validated
-- [ ] SLA/SLO targets defined and instrumented
-- [ ] **bd operations issues resolved** before production deployment
+- Load testing completed (expected traffic + 2x headroom)
+- Failure mode testing (database outage, API rate limits, network issues)
+- Data backup and restore tested (Supabase backup/restore verified)
+- Disaster recovery plan validated
+- SLA/SLO targets defined and instrumented
+- **bd operations issues resolved** before production deployment
 
 **Owner:** Operations Lead
 **Evidence Location:** `docs/readiness/operations/<feature_name>/`
@@ -265,17 +265,17 @@ bd close BD-MILESTONE-XXX --reason "Tier 3 major release: phased rollout complet
 
 ### UX & Design Readiness
 
-- [ ] Design specifications complete (Figma, Storybook)
-- [ ] Design QA passed (pixel-perfect review)
-- [ ] Interaction patterns consistent with design system
-- [ ] Responsive design tested (desktop, tablet, mobile)
-- [ ] Accessibility audit passed (WCAG 2.1 AA compliance)
-- [ ] Keyboard navigation tested
-- [ ] Screen reader testing completed (NVDA, VoiceOver)
-- [ ] High-contrast and motion-reduced modes validated
-- [ ] Copy reviewed and approved (tone, clarity, terminology)
-- [ ] Internationalization ready (strings externalized, RTL tested if applicable)
-- [ ] **bd UX issues resolved** with design review sign-off
+- Design specifications complete (Figma, Storybook)
+- Design QA passed (pixel-perfect review)
+- Interaction patterns consistent with design system
+- Responsive design tested (desktop, tablet, mobile)
+- Accessibility audit passed (WCAG 2.1 AA compliance)
+- Keyboard navigation tested
+- Screen reader testing completed (NVDA, VoiceOver)
+- High-contrast and motion-reduced modes validated
+- Copy reviewed and approved (tone, clarity, terminology)
+- Internationalization ready (strings externalized, RTL tested if applicable)
+- **bd UX issues resolved** with design review sign-off
 
 **Owner:** UX Lead
 **Evidence Location:** `docs/readiness/ux/<feature_name>/`
@@ -285,17 +285,17 @@ bd close BD-MILESTONE-XXX --reason "Tier 3 major release: phased rollout complet
 
 ### Data & Analytics Readiness
 
-- [ ] Telemetry events defined and documented (see `docs/06_data_intelligence.md` § Event Catalog)
-- [ ] Event schema validated (`scripts/audit_telemetry_events.py` passes)
-- [ ] PII redaction verified (redaction helpers applied)
-- [ ] Analytics views created or updated
-- [ ] Dashboards refreshed and tested
-- [ ] Anomaly detection rules configured
-- [ ] Data retention policies applied (180 days per policy)
-- [ ] Export functionality tested (CSV, PDF for compliance)
-- [ ] Learning loops instrumented (library contributions, safeguard feedback)
-- [ ] **Composio SDK telemetry coverage:** Discovery, auth flows, execution, errors all logged
-- [ ] **bd analytics issues resolved** with dashboard evidence
+- Telemetry events defined and documented (see `docs/06_data_intelligence.md` § Event Catalog)
+- Event schema validated (`scripts/audit_telemetry_events.py` passes)
+- PII redaction verified (redaction helpers applied)
+- Analytics views created or updated
+- Dashboards refreshed and tested
+- Anomaly detection rules configured
+- Data retention policies applied (180 days per policy)
+- Export functionality tested (CSV, PDF for compliance)
+- Learning loops instrumented (library contributions, safeguard feedback)
+- **Composio SDK telemetry coverage:** Discovery, auth flows, execution, errors all logged
+- **bd analytics issues resolved** with dashboard evidence
 
 **Owner:** Data/Analytics Lead
 **Evidence Location:** `docs/readiness/analytics/<feature_name>/`
@@ -305,18 +305,18 @@ bd close BD-MILESTONE-XXX --reason "Tier 3 major release: phased rollout complet
 
 ### Governance Readiness
 
-- [ ] Safeguard logic reviewed and approved
-- [ ] Approval workflows tested (role-based gating)
-- [ ] Undo plans validated for all mutating actions
-- [ ] Evidence bundle completeness verified
-- [ ] Audit trail integrity checked (tamper detection, SHA-256 hashes)
-- [ ] Override policies documented and enforced
-- [ ] Compliance export functionality tested
-- [ ] Governance dashboard updated
-- [ ] Risk assessment completed (impact × reversibility matrix)
-- [ ] Policy alignment confirmed (internal governance policies)
-- [ ] **Composio trust stages validated:** Inspector OAuth initiation, Planner connection validation, Executor audit trails
-- [ ] **bd governance issues resolved** with compliance evidence
+- Safeguard logic reviewed and approved
+- Approval workflows tested (role-based gating)
+- Undo plans validated for all mutating actions
+- Evidence bundle completeness verified
+- Audit trail integrity checked (tamper detection, SHA-256 hashes)
+- Override policies documented and enforced
+- Compliance export functionality tested
+- Governance dashboard updated
+- Risk assessment completed (impact × reversibility matrix)
+- Policy alignment confirmed (internal governance policies)
+- **Composio trust stages validated:** Inspector OAuth initiation, Planner connection validation, Executor audit trails
+- **bd governance issues resolved** with compliance evidence
 
 **Owner:** Governance/Compliance Lead
 **Evidence Location:** `docs/readiness/governance/<feature_name>/`
@@ -652,8 +652,8 @@ All PRs must pass automated gates before merge:
 - ...
 
 ## Acceptance Criteria
-- [ ] Criterion 1 (measurable, testable)
-- [ ] Criterion 2
+- Criterion 1 (measurable, testable)
+- Criterion 2
 - ...
 
 ## Success Metrics
@@ -672,12 +672,12 @@ All PRs must pass automated gates before merge:
 **bd Issue:** BD-XXX
 
 ## Pre-Deployment Checklist
-- [ ] Backup database
-- [ ] Verify staging deployment
-- [ ] Alert on-call team
-- [ ] Run bd dependency check: `bd ready --json`
-- [ ] Verify telemetry audit: `pnpm ts-node scripts/audit_telemetry_events.py --mode check`
-- [ ] Review Supabase migration: `supabase db diff`
+- Backup database
+- Verify staging deployment
+- Alert on-call team
+- Run bd dependency check: `bd ready --json`
+- Verify telemetry audit: `pnpm ts-node scripts/audit_telemetry_events.py --mode check`
+- Review Supabase migration: `supabase db diff`
 - ...
 
 ## Deployment Steps
@@ -725,8 +725,8 @@ All PRs must pass automated gates before merge:
    - **bd Tracking:** BD-YYY
 
 ## Approval
-- [ ] Risks reviewed and mitigations acceptable
-- [ ] Sign-Off: <name, date>
+- Risks reviewed and mitigations acceptable
+- Sign-Off: <name, date>
 ```
 
 ### Template: bd Dependency Graph Export (NEW)
@@ -748,45 +748,45 @@ bd dep cycles
 Use this checklist for Tier 2+ releases involving Composio SDK integration:
 
 ### Inspector Stage (Prepare)
-- [ ] Discovery runs without OAuth: `client.tools.search()` completes
-- [ ] Anticipated connections identified and logged
-- [ ] Coverage estimates calculated and displayed
-- [ ] Connect Link approval flow tested in chat
-- [ ] OAuth initiated only after stakeholder approval: `client.toolkits.authorize()`
-- [ ] `wait_for_connection()` completes successfully
-- [ ] All granted scopes logged to Supabase before planning
-- [ ] Telemetry events logged: `composio_discovery`, `composio_auth_flow`
+- Discovery runs without OAuth: `client.tools.search()` completes
+- Anticipated connections identified and logged
+- Coverage estimates calculated and displayed
+- Connect Link approval flow tested in chat
+- OAuth initiated only after stakeholder approval: `client.toolkits.authorize()`
+- `wait_for_connection()` completes successfully
+- All granted scopes logged to Supabase before planning
+- Telemetry events logged: `composio_discovery`, `composio_auth_flow`
 
 ### Planner Stage (Plan)
-- [ ] Planner receives established connections from Inspector
-- [ ] Validator confirms scopes match mission requirements
-- [ ] Play assembly uses validated connections only (no new OAuth requests)
-- [ ] Tool usage patterns incorporated into ranking
-- [ ] Undo plans attached to all plays
-- [ ] `plan_selected` emitted when owner chooses preferred play
-- [ ] No scope escalation during planning
+- Planner receives established connections from Inspector
+- Validator confirms scopes match mission requirements
+- Play assembly uses validated connections only (no new OAuth requests)
+- Tool usage patterns incorporated into ranking
+- Undo plans attached to all plays
+- `plan_selected` emitted when owner chooses preferred play
+- No scope escalation during planning
 
 ### Approval Stage (Approve)
-- [ ] Approval modal summarises objectives, safeguards, undo plan, and scope usage
-- [ ] Required approver role assigned (or self-approval recorded with rationale)
-- [ ] Decision recorded in `mission_approvals` with timestamps and approver identity
-- [ ] Telemetry events logged: `approval_requested`, `approval_granted`/`approval_rejected`
-- [ ] Audit export verified (PDF/Slack) for governance handoff
+- Approval modal summarises objectives, safeguards, undo plan, and scope usage
+- Required approver role assigned (or self-approval recorded with rationale)
+- Decision recorded in `mission_approvals` with timestamps and approver identity
+- Telemetry events logged: `approval_requested`, `approval_granted`/`approval_rejected`
+- Audit export verified (PDF/Slack) for governance handoff
 
 ### Executor Stage (Execute)
-- [ ] Execution uses established connections with session context
-- [ ] Provider adapters correctly scope calls with `user_id` + `tenantId`
-- [ ] Validator preflight checks run before each tool call
-- [ ] Audit trail logged for all executions
-- [ ] Telemetry events logged: `composio_tool_call`, `composio_tool_call_error`
-- [ ] Rate limit handling tested (exponential backoff)
-- [ ] Auth expiry handling tested (graceful degradation)
+- Execution uses established connections with session context
+- Provider adapters correctly scope calls with `user_id` + `tenantId`
+- Validator preflight checks run before each tool call
+- Audit trail logged for all executions
+- Telemetry events logged: `composio_tool_call`, `composio_tool_call_error`
+- Rate limit handling tested (exponential backoff)
+- Auth expiry handling tested (graceful degradation)
 
 ### Evidence & Audit
-- [ ] Connect Link completion logs archived
-- [ ] Scope approval timestamps captured
-- [ ] Execution audit trail complete (including undo hints)
-- [ ] Compliance export includes Composio events
+- Connect Link completion logs archived
+- Scope approval timestamps captured
+- Execution audit trail complete (including undo hints)
+- Compliance export includes Composio events
 
 **Reference:** See `docs/10_composio.md` for full trust model documentation.
 
