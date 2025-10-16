@@ -190,6 +190,25 @@ supabase gen types typescript --linked --schema public,storage,graphql_public > 
 pnpm tsc --noEmit
 ```
 
+### Step 8: Initialize Beads Issue Tracker
+
+The Control Plane uses `bd` (Beads) for operational tracking of deployments, incidents, and follow-up tasks. Initialize the tracker in your local repository:
+
+```bash
+# Initialize Beads database in repo
+bd init
+
+# Verify initialization
+bd list --status open
+```
+
+**What this does:**
+- Creates `.beads/` directory with local SQLite database
+- Enables work capture and dependency tracking
+- Required for deployment automation and incident workflows
+
+**Note:** The `.beads/` directory should be committed to version control. See `docs/11_issue_tracking.md` for complete `bd` workflows and `docs/07_operations_playbook.md` for operational patterns.
+
 ---
 
 ## Running the Stack
@@ -296,17 +315,17 @@ consultative, not salesy. Send between 9am-5pm EST, Tuesday-Thursday only.
 
 2. **View toolkit recommendations** — The system suggests:
    - **HubSpot** (no-auth) — Contact enrichment and segmentation
-   - **Gmail** (OAuth required) — Draft and send emails
+   - **Gmail** (OAuth required) — Draft and send emails once scopes are approved
    - **Slack** (OAuth optional) — Notify reviewers in `#revenue-ops`
 
-3. **Select toolkits** — Choose the tooling you want available during planning:
+3. **Select toolkits** — Choose the tooling you want available during planning. Inspector scopes connections per mission:
    - ☑ HubSpot (no-auth inspection only)
-   - ☐ Gmail (flag for later authorization once the plan is approved)
-   - ☑ Slack (Inspector will initiate a Connect Link after you approve the scope in chat)
+   - ☑ Gmail (Inspector shares a Connect Link in chat after stakeholders approve the scopes so authorization finishes before Stage 3)
+   - ☑ Slack (Inspector offers an optional Connect Link for reviewer notifications you approve in chat)
 
 4. **Review auth badges** — Confirm readiness from the status chips:
-   - 🟢 No-auth ready
-   - 🟡 OAuth-ready (Inspector presents Connect Link after stakeholder approval; no OAuth prompts during discovery)
+   - 🟢 No-auth ready (safe to use immediately)
+   - 🟡 Awaiting Connect Link (Inspector initiated `client.toolkits.authorize()`; no OAuth prompts during read-only discovery)
 
 5. **Inspect data coverage** — Click **Inspect** to run read-only probes:
    - Coverage meter shows ✓ Objectives, ✓ Contacts, ✓ Safeguards, ✓ Automation readiness (≥85%)
@@ -527,6 +546,7 @@ Before proceeding to development, verify:
 - [ ] `.env` configured with required keys
 - [ ] Supabase running and migrations applied
 - [ ] TypeScript types generated (`supabase/types.ts` exists)
+- [ ] **Beads tracker initialized** (`.beads/` exists, `bd list` works)
 - [ ] Frontend accessible at `http://localhost:3000`
 - [ ] Agent accessible at `http://localhost:8000/docs`
 - [ ] First mission completed successfully

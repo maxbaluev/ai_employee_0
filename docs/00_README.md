@@ -35,7 +35,7 @@ This documentation is organized as a **sequential knowledge base** that enables 
 - **[AI Agent Guide (AGENTS.md)](../AGENTS.md)** — Quick reference for AI agents working with this codebase
 - **[Todo List (todo.md)](./todo.md)** — Actionable next steps referencing the unified documentation
 - **[Trust Model & Composio Integration](./10_composio.md)** — **Progressive trust staging with ADK agents**, Composio SDK alignment, OAuth flows, and chat touchpoints
-- **[Issue Tracking & Dependency Graph](./11_issue_tracking.md)** — `bd` command glossary, dependency best practices
+- **[Issue Tracking & Dependency Graph](./11_issue_tracking.md)** — External `bd` issue tracker quickstart for human/agent operators
 
 ---
 
@@ -94,14 +94,16 @@ This documentation is organized as a **sequential knowledge base** that enables 
 
 **Recommended Path:**
 
-1. [Operations Playbook](./07_operations_playbook.md) — Deployment, monitoring, incident response
-2. [System Overview](./02_system_overview.md) — Architecture and performance targets
-3. [Getting Started](./08_getting_started.md) — Environment setup for troubleshooting
-4. [Release Readiness](./09_release_readiness.md) — Pre-release checklists
-5. [Data Intelligence](./06_data_intelligence.md) — Telemetry and observability
+1. [Issue Tracking & Dependency Graph](./11_issue_tracking.md) — `bd` CLI quickstart for operator task tracking (external to product runtime)
+2. [Operations Playbook](./07_operations_playbook.md) — Deployment, monitoring, incident response
+3. [System Overview](./02_system_overview.md) — Architecture and performance targets
+4. [Getting Started](./08_getting_started.md) — Environment setup for troubleshooting
+5. [Release Readiness](./09_release_readiness.md) — Pre-release checklists
+6. [Data Intelligence](./06_data_intelligence.md) — Telemetry and observability
 
 **Key Questions Answered:**
 
+- How do I capture and sequence operational work in `bd`?
 - How do I deploy to different environments?
 - What should I monitor and alert on?
 - How do I respond to incidents?

@@ -279,7 +279,7 @@ Each mission lives in a single responsive workspace. Stage summaries stay visibl
 **UI essentials**
 - Outcome snapshot highlights human-friendly metrics (meetings booked, tickets resolved, risk mitigated) sourced from mission telemetry.
 - Evidence gallery groups artefacts (emails, exports, policies) with hash + redaction flags.
-- Follow-up checklist includes nudges such as “Notify exec sponsor” or “Schedule review” derived from `docs/07_operations_playbook.md`.
+- Follow-up checklist includes nudges such as “Notify exec sponsor” or “Schedule review” derived from `docs/07_operations_playbook.md`; each action links users directly to create or update the matching `bd` issue (`bd create … -l follow-up`), keeping the mission audit trail intact (see `docs/11_issue_tracking.md`).
 - Feedback is two taps: star rating + optional note. Next mission surfaces “What changed because of your feedback.”
 
 **Trust & accessibility**
@@ -358,4 +358,3 @@ Events align with naming in `docs/06_data_intelligence.md` so analytics stays co
 - Visual QA: leverage the browser tooling to confirm wireframe intent translates to accessible, polished UI.
 
 This playbook should feel lightweight, decisive, and ready to act. Every mission should answer, within seconds, “What is happening, what do I need to do, and what happens next?” for the people who run the business.
-

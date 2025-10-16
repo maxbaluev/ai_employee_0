@@ -8,10 +8,30 @@
 
 ## Purpose
 
-The Control Plane relies on the lightweight `bd` CLI to capture work, express
-dependencies, and surface "ready" missions for both humans and agents. This
+The Control Plane relies on the lightweight `bd` CLI to capture operational work, express
+dependencies, and surface "ready" tasks for both humans and agents. This
 document explains how to bootstrap the tracker, keep dependency data healthy,
 and plug the graph into automations without breaking repo hygiene.
+
+> `bd` is not part of the product runtime. It is an external CLI issue tracker (Beads) that
+> lives alongside the repo and helps teams coordinate deployments, incidents, and follow-up work.
+> Mission functionality inside the AI Employee Control Plane operates independently.
+
+For the upstream CLI reference see the official Beads quickstart: <https://github.com/steveyegge/beads>.
+
+### Quick Reference
+
+| Task | Command |
+| ---- | ------- |
+| Initialise local database (per clone) | `bd init` |
+| Create work item | `bd create "Task title" -p 1 -t task -l "ops"` |
+| List work | `bd list --status open` |
+| Find ready tasks (no blockers) | `bd ready --limit 10` |
+| Update status/assignee | `bd update <ISSUE_ID> --status in_progress --assignee you@example.com` |
+| Close with reason | `bd close <ISSUE_ID> --reason "Completed via PR #123"` |
+| Link dependency | `bd dep add <blocked> <blocker>` |
+| Visualise dependencies | `bd dep tree <ISSUE_ID>` |
+| Check for cycles | `bd dep cycles` |
 
 ---
 
@@ -33,18 +53,18 @@ and plug the graph into automations without breaking repo hygiene.
 ## 2. Core Workflow
 
 1. **Capture work immediately**
-   - `bd create "Fix login bug" -p 1 -t feature -d "..."` logs new missions.
+   - `bd create "Fix login bug" -p 1 -t task -d "..."` logs new operator work.
    - Add `--assignee <email>` if ownership is known.
 2. **Stay oriented**
    - `bd list --status open` or `bd list --priority 0` filters work queues.
 3. **Update status**
    - `bd update BD-123 --status in_progress --assignee you@company.com` keeps
-     mission state accurate.
+     the tracker accurate.
 4. **Close with context**
-   - `bd close BD-123 --reason "Fixed in PR #42"` writes the audit trail.
+    - `bd close BD-123 --reason "Fixed in PR #42"` writes the audit trail.
 
-Use `bd ready` when triaging: it only returns missions without blockers so AI
-agents can pick safe starting points.
+Use `bd ready` when triaging: it only returns tasks without blockers so
+operators (human or agent) can pick safe starting points.
 
 ---
 

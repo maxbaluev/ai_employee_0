@@ -10,6 +10,8 @@
 
 This document defines the cross-functional readiness criteria, evidence requirements, and sign-off process for releasing capabilities to production. It ensures that product launches maintain quality, security, compliance, and operational standards while enabling rapid iteration.
 
+> `bd` references in this guide point to the external Beads CLI issue tracker used by operators (see `docs/11_issue_tracking.md`). It is separate from the runtime features delivered to end users.
+
 **Key Principles:**
 - **Evidence-driven:** Every release backed by objective proof (test results, benchmarks, audits)
 - **Cross-functional alignment:** Product, Engineering, Trust, Operations, and UX collaborate on readiness

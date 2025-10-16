@@ -453,6 +453,7 @@ await self.telemetry.emit("error_recovery_triggered",
 - Feedback modal captures qualitative + quantitative signals
 - Library curator suggests reusable assets; contributions stored in `library_entries`
 - Post-mission checklist prompts next-step logging (`mission_followups`)
+- Operators capture residual work and dependencies in `bd` — see `docs/11_issue_tracking.md` for commands to create follow-up issues and link them back to the mission
 - Telemetry rollup: `feedback_submitted`, `mission_retrospective_logged`, `library_contribution`
 - Chat narrative: Evidence agent posts mission summary, feedback form, and follow-up checklist with owners.
 
@@ -508,7 +509,7 @@ Update dashboard grouping clauses (`supabase/functions/dashboard_views.sql`) to 
 - **Prepare:** Inspector previews anticipated scopes and presents Connect Link approval requests to stakeholders via chat. OAuth approvals logged with scope diff view; all granted scopes stored in `mission_connections` table. Coverage meter must reach ≥85% before progressing to planning.
 - **Plan & Approve:** Planner receives validated connections from Inspector. Risk matrix (impact × reversibility) reviewed alongside undo plan before granting play approvals. Focus shifts to mission strategy, tool usage patterns, and data investigation insights rather than credential management.
 - **Execute & Observe:** Validator monitors each tool call; auto-fix attempts logged; manual stop available via live control strip.
-- **Reflect & Improve:** Feedback routed to governance queue when safeguards were overridden or validator escalated auto-fix failures.
+- **Reflect & Improve:** Feedback routed to governance queue when safeguards were overridden or validator escalated auto-fix failures; follow-up actions are linked into the Beads tracker so operations and governance can audit resolution.
 
 Governance checkpoints are callable via `mise run governance-check`, which now references five-stage labels in its output.
 
