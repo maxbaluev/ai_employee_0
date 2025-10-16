@@ -91,4 +91,3 @@ unblocked before execution.
 - `AGENTS.md` — tl;dr for automation agents touching `bd`
 - `docs/09_release_readiness.md` — evidence expectations before closing issues
 - `docs/00_README.md` — navigation guide for the full documentation suite
-

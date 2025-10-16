@@ -6,11 +6,11 @@ This repository delivers the Gate G-B control plane for the AI Employee program.
 
 ## Architecture Highlights
 
-- **Frontend:** `src/app/(control-plane)` renders the mission intake, artifact gallery, and Copilot chat rail (see `docs/03a_chat_experience.md` for UX narrative).
-- **Backend:** `agent/` exposes a FastAPI app with a Gemini ADK agent (`agent/agents/control_plane.py`) that calls native Composio SDK clients for discovery, authentication, and governed tool execution.
-- **Composio SDK Integration:** Inspector, Planner, and Executor agents share a single Composio workspace. They discover toolkits, broker OAuth, and execute governed actions through the standard SDK (`ComposioClient`) using the **Gemini ADK backend** for orchestration, without any intermediary router layer.
-- **Data Plane:** `supabase/migrations/0001_init.sql` provisions tenants, objectives, plays, approvals, tool telemetry, pgvector embeddings, and RLS policies.
-- Reference product docs live in `docs/` (architecture, execution tracker, guardrails, readiness schemas).
+- **Frontend scaffolding:** `src/app/(control-plane)` now contains route groups and stage placeholders only. Use these shells to build the mission intake, readiness rail, planner, execution timeline, and evidence gallery described in `docs/03_user_experience.md` and `docs/04_implementation_guide.md`.
+- **Backend scaffolding:** `agent/` provides a FastAPI app (`agent/agent.py`) plus stub modules under `agent/agents/`, `agent/services/`, and `agent/tools/`. Replace the TODOs with real Gemini ADK agents and Composio integrations during implementation.
+- **Composio SDK integration:** No demo code remains. Implement Inspector/Planner/Executor flows using the native SDK (`ComposioClient`) as outlined in `docs/10_composio.md` when building out the backend.
+- **Data plane:** `supabase/migrations/0001_init.sql` still holds the unified schema for missions, readiness evidence, and telemetry.
+- All reference materials remain in `docs/` (architecture, guardrails, readiness roadmaps).
 
 ## Prerequisites
 
@@ -106,10 +106,15 @@ See `libs_docs/composio/llms.txt` for a curated index of native Composio guides 
 
 ## Repository Tour
 
-- `src/app/(control-plane)/page.tsx` — Server component that hydrates Supabase data for the Gate G-A workspace.
-- `src/app/(control-plane)/ControlPlaneWorkspace.tsx` — Client workspace aligning with the UX blueprint and CopilotKit actions.
-- `agent/runtime/app.py` — FastAPI app factory consumed by both uvicorn and tests.
-- `agent/agents/control_plane.py` — Mission state hooks and Composio SDK orchestration for Inspector and Executor agents (hydrated when the agent package is synced).
+- `src/app/page.tsx` — Landing page summarising the five-stage lifecycle. Replace with the real Define stage when intake components are ready.
+- `src/app/(control-plane)/layout.tsx` — CopilotKit-aware layout for mission routes with TODO markers for mission context and telemetry.
+- `src/app/(control-plane)/workspace/*` — Stage-specific placeholders (Define, Prepare, Plan, Execute, Reflect) ready for component wiring.
+- `src/app/api/**` — API route scaffolding returning 501 responses until agents are implemented.
+- `agent/agent.py` — FastAPI application stub ready for Gemini ADK Runner integration.
+- `agent/agents/` — Placeholder classes for Coordinator, Intake, Inspector, Planner, Validator, Executor, Evidence agents.
+- `agent/services/` — Stub wrappers for Composio, Supabase, and telemetry clients.
+- `agent/tools/` — Placeholder package for Composio tool wrappers and undo plans.
+- `agent/evals/` — Folder reserved for Gemini ADK evaluation specs.
 - `supabase/migrations/0001_init.sql` — Gates tenants, objectives, plays, approvals, tool telemetry, library embeddings, guardrail policies.
 - `docs/readiness/` — Machine-readable evidence bundles for future gates.
 - `docs/03a_chat_experience.md` — CopilotKit chat behaviour, interrupts, telemetry hooks.
