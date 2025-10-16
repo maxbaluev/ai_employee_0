@@ -119,6 +119,8 @@ Gabriela selects:
 - Supabase Storage: 🟢 Connected (service role key, read-only)
 - Google Sheets: ⚪ Deferred (CSV export sufficient)
 
+Inspector documents the validated service role keys so planning proceeds without additional credential prompts.
+
 ### Data Inspection
 
 Gabriela clicks **Inspect Data Coverage**. The system runs read-only queries:
@@ -167,7 +169,7 @@ Gabriela proceeds to Stage 3.
 
 ### Planner Streaming
 
-The Planner agent streams candidate plays:
+The Planner agent streams candidate plays, each annotated with sequencing, analyst bandwidth, and undo affordances so Gabriela understands operational impact before approving:
 
 **Play 1: "Comprehensive Mission Audit with Evidence Validation"**
 _Confidence: 0.93 · Library Match: 6 similar governance missions_

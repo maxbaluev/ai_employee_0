@@ -9,22 +9,23 @@ Reference it before diving into the vendor documentation that follows.
 | Stage             | Copilot Surface       | Purpose                                                                                              | Key Hooks                                     |
 | ----------------- | --------------------- | ---------------------------------------------------------------------------------------------------- | --------------------------------------------- |
 | Define            | Mission Intake Panel  | Capture intent, personas, KPIs; stream ADK rationale chips; optional lightweight toolkit discovery   | `useCopilotAction`, `useCopilotState`         |
-| Prepare           | Inspection Drawer     | Present no-auth coverage previews + **anticipated connection requirements**; show what OAuth is needed | `useCopilotSubscription`, `useCopilotNotifications` |
-| Plan & Approve    | Approval Timeline     | Surface safeguards, **formally request OAuth after stakeholder approval**, log audit trail           | `useCopilotSteps`, `useCopilotForms`          |
+| Prepare           | Inspection Drawer     | Present no-auth coverage previews, **collect stakeholder approval, and trigger Inspector-led Connect Links** | `useCopilotSubscription`, `useCopilotNotifications`, `useCopilotActions` |
+| Plan & Approve    | Approval Timeline     | Surface safeguards, stream ranked mission plays, capture approvals (no new OAuth prompts)           | `useCopilotSteps`, `useCopilotForms`          |
 | Execute & Observe | Live Runboard         | Stream Composio SDK execution checkpoints using already-established connections; raise intervention modals | `useCopilotStream`, `useCopilotEvents`        |
 | Reflect & Improve | Artifact Gallery      | Present evidence bundles, reuse suggestions, capture feedback                                        | `useCopilotFeed`, `useCopilotInsights`        |
 
 ## Progressive Trust UX (Revised Staging)
 
-1. **No-Auth Inspection (Prepare Stage - Inspector)** — Render Composio discovery results
-   with "No credentials required" badges. Show **anticipated connection requirements** list
-   so stakeholders see what OAuth will be needed before formal approval. Provide context
-   cards instead of OAuth prompts until value is demonstrated.
+1. **No-Auth Inspection + Connect Links (Prepare Stage - Inspector)** — Render Composio discovery results
+   with "No credentials required" badges. Show **anticipated connection requirements** list,
+   capture stakeholder approval inline, then trigger a CopilotKit action that opens the Inspector's
+   Connect Link modal. Inspector calls `ComposioClient.toolkits.authorize()` and streams
+   status updates (`initiated`, `approved`) back into the thread.
 
-2. **Formal OAuth Request (Plan & Approve Stage - Planner)** — After stakeholder reviews
-   plan and safeguards, trigger CopilotKit action with "Approve & Connect" modal. Call
-   `ComposioClient.connected_accounts.initiate()` via backend action and surface the generated
-   Connect Link URL in the modal so users complete authentication. All connections are established here.
+2. **Play Assembly (Plan & Approve Stage - Planner)** — With connections already established,
+   the Planner streams ranked mission plays, highlighting tool usage patterns, sequencing, resource needs,
+   and undo affordances. Reviewers approve, request revisions, or annotate plays without being prompted
+   for additional OAuth.
 
 3. **Governed Execution (Execute & Observe Stage - Executor)** — Mirror Composio SDK execution
    events as timeline updates using already-established connections. Show undo affordances
@@ -34,18 +35,22 @@ Reference it before diving into the vendor documentation that follows.
 ```tsx
 const { emitAction, subscribe } = useCopilotAction();
 
-function requestOAuth(scopeHint: string) {
+// Inspector stage: launch Connect Link modal after stakeholder approval
+function initiateConnectLink(request: ConnectLinkRequest) {
   emitAction({
-    type: 'composio.connect-link.request',
-    payload: { scopeHint },
+    type: 'composio.connect-link.present',
+    payload: request,
   });
 }
 
-subscribe('composio.execution-update', update => {
+// Planner stage: stream ranked plays (no OAuth prompts)
+subscribe('planner.play-streamed', play => {
   addTimelineEntry({
-    missionId: update.missionId,
-    status: update.status,
-    undoToken: update.undoToken,
+    missionId: play.missionId,
+    title: play.title,
+    confidence: play.confidence,
+    safeguards: play.safeguards,
+    undoPlan: play.undoPlan,
   });
 });
 ```

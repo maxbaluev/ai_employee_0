@@ -10,31 +10,36 @@ Progressive Trust workflow and **Composio SDK–first** architecture.
 | Mission Stage     | ADK Agent                           | Purpose                                                                                              | Composio SDK Interaction                                                         |
 | ----------------- | ----------------------------------- | ---------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
 | Define            | `CoordinatorAgent`                  | Normalize intake chip, create mission record, seed telemetry context; optional lightweight discovery | `ComposioClient.tools.search()` (optional warm-up)                               |
-| Prepare           | `InspectorAgent`                    | No-auth discovery + preview anticipated connections; surface credential requirements to stakeholders | `ComposioClient.tools.search()` + cached schema previews                         |
-| Plan & Approve    | `PlannerAgent` + `ValidatorAgent`   | Consolidate plan, attach safeguards; **formally trigger OAuth after stakeholder approval**          | `ComposioClient.connected_accounts.initiate()` / `.status()`                     |
+| Prepare           | `InspectorAgent`                    | No-auth discovery + preview anticipated connections; **formally trigger OAuth after stakeholder approval via Connect Links** | `ComposioClient.tools.search()` + `ComposioClient.toolkits.authorize()` + `wait_for_connection()` |
+| Plan & Approve    | `PlannerAgent` + `ValidatorAgent`   | Assemble mission plays (playbooks) from established connections; emphasize tool usage patterns and data investigation insights; attach safeguards | `ComposioClient.connected_accounts.status()` (validate scopes from Inspector) |
 | Execute & Observe | `ExecutorAgent`                     | Verify connection freshness, execute with already-established OAuth; no new OAuth flows initiated    | Provider adapters (`session.handle_tool_call(...)`) or `ComposioClient.tools.execute()` |
 | Reflect & Improve | `EvidenceAgent`                     | Package artifacts, hash bundles, publish to library, update telemetry                                | `ComposioClient.audit.list_events()` + trigger workflows                         |
 
-**Key Flow Change:** Inspector (Prepare) previews anticipated connections; Planner (Plan & Approve) formally establishes OAuth after stakeholder approval via Connect Links; Executor (Execute & Observe) verifies and executes only—never initiates new OAuth flows.
+**Key Flow Change:** Inspector (Prepare) previews anticipated connections AND formally establishes OAuth after stakeholder approval via Connect Links, logging all granted scopes; Planner (Plan & Approve) receives established connections and assembles mission plays emphasizing tool usage patterns and data investigation insights—no OAuth initiation; Executor (Execute & Observe) executes only using established connections—never initiates new OAuth flows.
 
 ## Progressive Trust With ADK (Revised Staging)
 
-1. **No-Auth Inspection (Prepare Stage - Inspector)**
+1. **Discovery & OAuth (Prepare Stage - Inspector)**
    - Inspector runs discovery workflows without credentials using `ComposioClient.tools.search()`
    - Inspector previews anticipated connection requirements from toolkit metadata and caches results in Supabase (`mission_inspections` table)
-   - Never sends write actions; limits outputs to previews, schema checks, and connection requirements
+   - After stakeholder review via chat, Inspector formally triggers OAuth via `ComposioClient.toolkits.authorize()` and awaits `wait_for_connection()`
+   - Granted scopes and Connect Link metadata stored in Supabase (`mission_connections` table) for auditability
+   - All required connections established by end of Prepare stage before planning begins
+   - Never sends write actions during discovery; limits outputs to previews, schema checks, and connection establishment
 
-2. **Formal OAuth (Plan & Approve Stage - Planner + Validator)**
-   - Planner consolidates execution plan and surfaces safeguards via CopilotKit workspace
-   - After stakeholder approval, Planner formally triggers OAuth via `ComposioClient.connected_accounts.initiate()` and polls `.status()`
-   - Granted scopes and link metadata stored in Supabase for auditability
-   - All required connections established by end of this stage
+2. **Play Assembly (Plan & Approve Stage - Planner + Validator)**
+   - Planner receives established connections from Inspector with validated scopes
+   - Planner consolidates mission plays (playbooks) emphasizing tool usage patterns, data investigation insights, and precedent hits from the mission library
+   - Planner tags each play with sequencing, resource requirements, and undo affordances before ranking
+   - Validator confirms scopes match mission requirements via `ComposioClient.connected_accounts.status()` and attaches safeguard matrices per play
+   - Planning focuses on mission strategy and governed pathways—not credential management—and emits rationale to CopilotKit chat for reviewer sign-off
+   - Surfaces mission plays via CopilotKit workspace with rationale, confidence scores, safeguard coverage, and undo plans
 
 3. **Governed Execution (Execute & Observe Stage - Executor)**
    - Executor verifies connection freshness by reading cached approvals and ensuring scopes are valid
-   - Executes approved actions via provider adapters (preferred) or direct `ComposioClient.tools.execute()` calls
+   - Executes approved actions via provider adapters (preferred) or direct `ComposioClient.tools.execute()` calls using established connections
    - Validator enforces safeguards before and after each execution
-   - SDK handles OAuth refresh automatically; if refresh fails, surfaces error (does not re-initiate OAuth)
+   - SDK handles OAuth refresh automatically; if refresh fails, surfaces error and reroutes to Inspector for re-authorization (does not independently initiate new OAuth)
 
 ## Reference Implementation Snippets
 

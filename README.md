@@ -6,7 +6,7 @@ This repository delivers the Gate G-B control plane for the AI Employee program.
 
 ## Architecture Highlights
 
-- **Frontend:** `src/app/(control-plane)` renders the mission intake, artifact gallery, and Copilot sidebar.
+- **Frontend:** `src/app/(control-plane)` renders the mission intake, artifact gallery, and Copilot chat rail (see `docs/03a_chat_experience.md` for UX narrative).
 - **Backend:** `agent/` exposes a FastAPI app with a Gemini ADK agent (`agent/agents/control_plane.py`) that calls native Composio SDK clients for discovery, authentication, and governed tool execution.
 - **Composio SDK Integration:** Inspector, Planner, and Executor agents share a single Composio workspace. They discover toolkits, broker OAuth, and execute governed actions through the standard SDK (`ComposioClient`) and provider adapters, without any intermediary router layer.
 - **Data Plane:** `supabase/migrations/0001_init.sql` provisions tenants, objectives, plays, approvals, tool telemetry, pgvector embeddings, and RLS policies.
@@ -112,6 +112,7 @@ See `libs_docs/composio/llms.txt` for a curated index of native Composio guides 
 - `agent/agents/control_plane.py` — Mission state hooks and Composio SDK orchestration for Inspector and Executor agents (hydrated when the agent package is synced).
 - `supabase/migrations/0001_init.sql` — Gates tenants, objectives, plays, approvals, tool telemetry, library embeddings, guardrail policies.
 - `docs/readiness/` — Machine-readable evidence bundles for future gates.
+- `docs/03a_chat_experience.md` — CopilotKit chat behaviour, interrupts, telemetry hooks.
 - `docs/` — Canonical architecture, guardrail, and readiness references.
 
 ## Troubleshooting

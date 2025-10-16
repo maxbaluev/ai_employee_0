@@ -562,6 +562,8 @@ WHERE flag_name = 'mission_type_<low_priority>';
 
 # Request quota increase from Composio if usage is legitimate
 
+# If Connect Link approvals are piling up, re-open Prepare stage with Inspector to re-sequence OAuth before Planner emits new plays
+
 # Enable circuit breaker for high-traffic toolkits (see executor config)
 ```
 

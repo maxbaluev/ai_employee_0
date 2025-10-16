@@ -156,6 +156,7 @@ Regenerate materialized views nightly; ensure Supabase cron refresh completes wi
 2. Feed negative signals into retrieval scoring
 3. Adjust weighting for library vs. generative plays
 4. Validate via `adk eval` execution ranking suite
+5. Correlate play acceptance with Prepare-stage coverage metrics (authorized toolkits, data freshness) so ranking models learn which investigations drive approvals
 
 ### Loop 3: Safeguard Reinforcement
 

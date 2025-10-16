@@ -237,7 +237,8 @@ Director of Business Development, mid-market SaaS, managing 200+ dormant account
 **Control Plane Solution:**
 - Paste objective → receive tailored campaign with enriched contacts
 - Dry-run proof pack shows 87 contacts, draft messages, 3-5% reply estimate
-- OAuth approval for send permissions after stakeholder review
+- Prepare stage Inspector presents Connect Link OAuth requests after stakeholder review; approvals land before planning begins
+- Plan & Approve stage Planner assembles outreach plays from established connections, ranking variants using tool usage patterns and data investigation output
 - Track attribution: replies, meetings booked, pipeline created
 
 **Success Metrics:**

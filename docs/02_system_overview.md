@@ -26,7 +26,7 @@ The system preserves schema and telemetry naming. Existing Supabase tables, Copi
 
 ### Layered System
 
-1. **Presentation Layer** — Next.js (App Router) + CopilotKit CoAgents, Tailwind UI primitives, artifact gallery, approval modals
+1. **Presentation Layer** — Next.js (App Router) + CopilotKit CoAgents, Tailwind UI primitives, artifact gallery, approval modals, persistent chat rail
 2. **Orchestration Layer** — Gemini ADK agents (Coordinator, Planner, Executor, Validator, Evidence, Inspector) with shared session state
 3. **Execution Layer** — Composio toolkits, provider adapters, OAuth token vault, undo handlers
 4. **Data Layer** — Supabase (Postgres + Storage + Functions) for mission metadata, telemetry, evidence bundles, library embeddings
@@ -124,28 +124,38 @@ graph TB
 | **Execute & Observe** | Governed actions run, validator monitoring, artifacts generated   | Live execution oversight, evidence packaging |
 | **Reflect & Improve** | Feedback captured, library reuse identified, next steps logged    | Feedback routing, library curation           |
 
+**Chat orchestration:** CopilotKit maintains a single conversational spine across all stages, broadcasting telemetry, approvals, and evidence updates without route changes. Refer to `docs/03a_chat_experience.md` for UI specifics.
+
 ### Stage 1 — Define
 
 - Intake banner (`src/app/(control-plane)/mission/define/page.tsx`) sends text to `IntakeAPI`
 - Gemini/Claude parsing yields objective, audience, KPI, safeguard chips
 - Supabase `mission_metadata`, `mission_safeguards` persist accepted chips with provenance
 - Telemetry rollup: `intent_submitted`, `brief_generated`, `brief_item_modified`
+- Chat narrative: Mission intent summary, chip regeneration prompts, and “Brief locked” confirmation receipts.
 
 ### Stage 2 — Prepare
 
-- Recommended toolkits via Composio discovery (`client.tools.search()` + `client.toolkits.get()`), prioritized by no-auth readiness
-- Inspector previews anticipated scopes only; **no OAuth is initiated in this stage**
+- Recommended toolkits via Composio discovery (`client.tools.search()` + `client.toolkits.get()`), prioritized by readiness
+- Inspector previews anticipated scopes and connection requirements without initiating OAuth
+- After stakeholder review and approval via chat, Inspector initiates OAuth via `client.toolkits.authorize()` Connect Links
+- Inspector awaits `wait_for_connection()` handshake before proceeding; all granted scopes logged in Supabase
 - Data inspection previews sample records via read-only SDK probes (`client.tools.execute()` on inspection-safe actions)
-- Supabase tables: `toolkit_selections`, `data_inspection_checks`
-- Telemetry rollup: `toolkit_recommended`, `toolkit_selected`, `data_preview_generated`, `safeguard_reviewed`, `composio_discovery`
+- Supabase tables: `toolkit_selections`, `data_inspection_checks`, `mission_connections` (approved scopes + timestamps)
+- Telemetry rollup: `toolkit_recommended`, `toolkit_selected`, `data_preview_generated`, `safeguard_reviewed`, `composio_discovery`, `composio_auth_flow`
+- Chat narrative: Inspector cards summarize readiness gaps, present Connect Link approval modals, log granted scopes, and confirm readiness before planning.
 
 ### Stage 3 — Plan & Approve
 
-- Planner agent ranks plays using library embeddings (`library_entries`, `library_embeddings`)
+- Planner agent receives established connections from Inspector with validated scopes
+- Planner ranks plays (mission playbooks) using library embeddings (`library_entries`, `library_embeddings`), tool usage patterns, and data investigation insights
+- Each play is annotated with sequencing, resource requirements, and undo affordances before ranking so reviewers understand operational impact
+- Plays emphasize mission strategy, sequencing, and safeguard alignment rather than credential discovery
 - Undo plans generated per mutating step; stored in `mission_undo_plans`
-- Planner calls `client.toolkits.authorize()` to generate Connect Links, awaits `wait_for_connection()`; validator verifies scopes via `client.connected_accounts.status()` before approving
+- Validator verifies scopes via `client.connected_accounts.status()` against Inspector's approved connections before play approval
 - Approvals captured in `mission_approvals` with role-based gating
-- Telemetry rollup: `planner_candidate_generated`, `plan_ranked`, `plan_approved`, `composio_auth_flow`
+- Telemetry rollup: `planner_candidate_generated`, `plan_ranked`, `plan_approved`
+- Chat narrative: Planner streams ranked plays with rationale, embeds undo plan callouts, highlights tool usage patterns, and confirms scope alignment from Inspector.
 
 ### Stage 4 — Execute & Observe
 
@@ -153,6 +163,7 @@ graph TB
 - Evidence agent streams outputs, attaches to artifact gallery (`mission_artifacts`)
 - Undo handler applies rollbacks when triggered
 - Telemetry rollup: `execution_started`, `execution_step_completed`, `validator_alert_raised`, `evidence_bundle_generated`, `composio_tool_call`, `composio_tool_call_error`, `session_heartbeat`
+- Chat narrative: Executor streams tool calls, validator flags safeguards, evidence agent delivers hash cards and undo countdowns.
 
 ### Stage 5 — Reflect & Improve
 
@@ -160,6 +171,7 @@ graph TB
 - Library curator suggests reusable assets; contributions stored in `library_entries`
 - Post-mission checklist prompts next-step logging (`mission_followups`)
 - Telemetry rollup: `feedback_submitted`, `mission_retrospective_logged`, `library_contribution`
+- Chat narrative: Evidence agent posts mission summary, feedback form, and follow-up checklist with owners.
 
 ---
 
@@ -179,10 +191,10 @@ Events emitted by the UI, Gemini ADK agents, CopilotKit workspace, and Composio 
 | `toolkit_recommended`          | Prepare           | Ranked toolkit suggestions                      |
 | `toolkit_selected`             | Prepare           | User selection captured                         |
 | `data_preview_generated`       | Prepare           | Read-only inspection outputs                    |
-| `planner_candidate_generated`  | Plan & Approve    | Each play candidate                             |
-| `plan_ranked`                  | Plan & Approve    | Final ordering emitted                          |
+| `composio_auth_flow`           | Prepare           | Connect Link lifecycle (`initiated/approved/expired`); Inspector-initiated after approval |
+| `planner_candidate_generated`  | Plan & Approve    | Each play candidate (mission playbooks)         |
+| `plan_ranked`                  | Plan & Approve    | Final ordering emitted with tool usage patterns |
 | `plan_approved`                | Plan & Approve    | Approval modal confirmed                        |
-| `composio_auth_flow`           | Plan & Approve    | Connect Link lifecycle (`initiated/approved/expired`)
 | `execution_started`            | Execute & Observe | First governed action                           |
 | `execution_step_completed`     | Execute & Observe | Step-by-step tracing                            |
 | `validator_alert_raised`       | Execute & Observe | Safeguard hit, auto-fix                         |
@@ -210,8 +222,8 @@ Update dashboard grouping clauses (`supabase/functions/dashboard_views.sql`) to 
 ## Governance Alignment
 
 - **Define:** Safeguard chips require dual acknowledgement (mission owner + governance delegate). Validator enforces accepted constraints downstream.
-- **Prepare:** OAuth approvals logged with scope diff view; coverage meter must reach ≥85% before progressing.
-- **Plan & Approve:** Risk matrix (impact × reversibility) reviewed alongside undo plan before granting approvals.
+- **Prepare:** Inspector previews anticipated scopes and presents Connect Link approval requests to stakeholders via chat. OAuth approvals logged with scope diff view; all granted scopes stored in `mission_connections` table. Coverage meter must reach ≥85% before progressing to planning.
+- **Plan & Approve:** Planner receives validated connections from Inspector. Risk matrix (impact × reversibility) reviewed alongside undo plan before granting play approvals. Focus shifts to mission strategy, tool usage patterns, and data investigation insights rather than credential management.
 - **Execute & Observe:** Validator monitors each tool call; auto-fix attempts logged; manual stop available via live control strip.
 - **Reflect & Improve:** Feedback routed to governance queue when safeguards were overridden or validator escalated auto-fix failures.
 

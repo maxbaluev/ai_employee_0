@@ -11,7 +11,7 @@
 The Control Plane now operates as a single continuous system aligned with the five-stage mission journey. Instead of rigid gate silos, we track five capability pillars that mature together and map to stages as follows:
 
 1. **Generative Intake & Briefing** *(Define)* — Objective-first onboarding with editable chips
-2. **Capability Orchestration** *(Prepare)* — Toolkit discovery, connection, and governed execution
+2. **Capability Orchestration** *(Prepare)* — Toolkit discovery, stakeholder-reviewed Connect Link OAuth, and readiness validation before planning
 3. **Evidence & Undo Confidence** *(Execute & Observe)* — Dry-run artifacts, undo plans, audit trails
 4. **Learning & Intelligence** *(Plan & Approve → Reflect & Improve)* — Telemetry loops, library reuse, adaptive safeguards
 5. **Operational Excellence** *(All Stages)* — Monitoring, compliance, and incident readiness
@@ -67,7 +67,7 @@ Each milestone adheres to this template:
    - Dependencies: Library embeddings refresh
 
 2. **OAuth Lite Activation** (Status: ❌)
-   - Objective: Progressive OAuth with scope explanations and rollback
+   - Objective: Progressive OAuth initiated by Inspector during Prepare stage with scope explanations and rollback
    - Scope: Connect Link integration, scope previews, audit logging
    - Evidence: `docs/readiness/oauth_scope_audit.md`
    - Telemetry: `connect_link_completed`, `connection_deferred`

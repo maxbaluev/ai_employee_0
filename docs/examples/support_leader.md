@@ -95,15 +95,28 @@ The system suggests:
    _Precedent: 31 missions used Slack escalations_
    🟡 OAuth required
 
-Sam selects all three and authorizes:
-- ☑ **Zendesk** — Connect Link OAuth flow → Authorizes `tickets:read`, `tickets:comment` scopes
-- ☑ **Confluence** — No-auth for public KB (sufficient for this mission)
-- ☑ **Slack** — Connect Link OAuth flow → Authorizes `chat:write`, `channels:read` scopes
+Sam reviews the toolkit recommendations and Inspector presents OAuth approval requests for the required toolkits.
+
+**Zendesk OAuth (Prepare Stage):**
+Inspector presents Connect Link approval modal:
+- **Toolkit:** Zendesk
+- **Scopes:** `tickets:read`, `tickets:comment`
+- **Purpose:** Read high-priority tickets and draft responses
+
+Sam clicks **Approve** → Connect Link opens → Authorizes → Inspector awaits `wait_for_connection()` → Scopes logged in `mission_connections`.
+
+**Slack OAuth (Prepare Stage):**
+Inspector presents Connect Link approval modal:
+- **Toolkit:** Slack
+- **Scopes:** `chat:write`, `channels:read`
+- **Purpose:** Escalate critical tickets to #eng-oncall
+
+Sam clicks **Approve** → Connect Link opens → Authorizes → Inspector logs granted scopes.
 
 **Toolkit Status:**
-- Zendesk: 🟢 Connected (OAuth complete)
+- Zendesk: 🟢 Connected (OAuth complete via Inspector)
 - Confluence: 🟢 Connected (no-auth, public KB only)
-- Slack: 🟢 Connected (OAuth complete)
+- Slack: 🟢 Connected (OAuth complete via Inspector)
 
 ### Data Inspection
 
@@ -153,15 +166,21 @@ Sam proceeds to Stage 3.
 
 ## Stage 3: Plan & Approve
 
+### Planner Receives Established Connections
+
+Planner agent receives from Inspector:
+- **Established connections:** Zendesk (OAuth complete), Confluence (no-auth, public KB), Slack (OAuth complete)
+- **Data investigation insights:** 47 tickets matched, 98% KB coverage, 6 tickets approaching SLA breach
+
 ### Planner Streaming
 
-The Planner agent streams candidate plays:
+The Planner agent assembles triage strategies (mission playbooks) based on tool usage patterns and KB coverage, annotating sequencing, staffing needs, and undo affordances for each option. Sam sees:
 
 **Play 1: "Automated Triage & Response with Escalation"**
 _Confidence: 0.91 · Library Match: 8 similar support missions_
 
 **Rationale:**
-"Categorizes tickets by issue type, drafts empathetic responses using KB articles, escalates novel errors to #eng-oncall. Maintains SLA compliance. Undo plan: comments remain in draft state until approval."
+"Based on Inspector's data investigation (47 tickets, 98% KB coverage, 6 SLA risks), this play categorizes tickets by issue type, drafts empathetic responses using verified Confluence KB articles, and escalates novel errors to #eng-oncall via Slack. All required connections are established (Zendesk, Confluence, Slack). Maintains SLA compliance. Undo plan: comments remain in draft state until approval."
 
 **Steps:**
 1. Fetch and categorize 47 tickets (auth, rate-limit, timeout)

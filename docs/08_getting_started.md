@@ -301,24 +301,24 @@ consultative, not salesy. Send between 9am-5pm EST, Tuesday-Thursday only.
 
 3. **Select toolkits** — Choose the tooling you want available during planning:
    - ☑ HubSpot (no-auth inspection only)
-   - ☐ Gmail (defer OAuth until execution)
-   - ☑ Slack (authorize via Connect Link if notifications help)
+   - ☐ Gmail (flag for later authorization once the plan is approved)
+   - ☑ Slack (Inspector will initiate a Connect Link after you approve the scope in chat)
 
 4. **Review auth badges** — Confirm readiness from the status chips:
    - 🟢 No-auth ready
-   - 🟡 OAuth-ready (authorization optional during inspection)
+   - 🟡 OAuth-ready (Inspector presents Connect Link after stakeholder approval; no OAuth prompts during discovery)
 
 5. **Inspect data coverage** — Click **Inspect** to run read-only probes:
    - Coverage meter shows ✓ Objectives, ✓ Contacts, ✓ Safeguards, ✓ Automation readiness (≥85%)
    - Summary confirms 87 contacts match criteria and 4 are excluded by the do-not-contact list
 
-**Expected Result:** Coverage and safeguards validate, unlocking planning.
+**Expected Result:** Coverage and safeguards validate, unlocking planning with all approved toolkits already authorized.
 
 ---
 
 ### Stage 3: Plan & Approve
 
-1. **Watch planner stream** — The planner agent surfaces 3 candidate plays:
+1. **Watch planner stream** — The planner agent surfaces 3 candidate plays, each annotated with sequencing, resource needs, and undo affordances:
    - **Play 1:** "Targeted Q2 Win-Back Campaign" (library precedent ×5)
    - **Play 2:** "Executive Sponsor Follow-Up" (library precedent ×2)
    - **Play 3:** "Product Usage Re-engagement" (library precedent ×3)

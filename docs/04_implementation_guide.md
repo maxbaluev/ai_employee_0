@@ -92,9 +92,9 @@ uv run --with-requirements agent/requirements.txt pytest agent/tests
 
 - **CoordinatorAgent** — Stage orchestration, safeguards enforcement, telemetry fan-out
 - **IntakeAgent** — Chip generation, confidence scoring, rationale hints
-- **PlannerAgent** — Play generation with hybrid ranking (retrieval + rule-based filters)
-- **InspectorAgent** — Data coverage validation, read-only toolkit previews, capability assessment during Prepare stage
-- **ExecutorAgent** — Composio tool execution, state tracking, heartbeat updates
+- **InspectorAgent** — Data coverage validation, toolkit discovery, anticipated scope previews, OAuth Connect Link initiation after approval, connection establishment during Prepare stage
+- **PlannerAgent** — Play (mission playbook) generation with hybrid ranking (retrieval + rule-based filters), emphasizing tool usage patterns and data investigation insights from established connections
+- **ExecutorAgent** — Composio tool execution using established connections, state tracking, heartbeat updates
 - **ValidatorAgent** — Safeguard verification, success heuristics, undo planning
 - **EvidenceAgent** — Artifact packaging, hash generation, library updates
 
@@ -146,13 +146,13 @@ uv run --with-requirements agent/requirements.txt pytest agent/tests
 **Progressive Trust Flow:**
 
 - **Define Stage:** Coordinator writes mission context; optional catalog warm-up via `client.tools.search()` seeds predicted coverage.
-- **Prepare Stage:** Inspector assembles capability reports and anticipated scopes without credentials. Output stored in Supabase readiness tables.
-- **Plan & Approve Stage:** Planner generates Connect Links, captures consent, and persists granted scopes. Validator attaches safeguards.
-- **Execute & Observe Stage:** Executor runs approved actions via provider adapters/SDK, streams results to CopilotKit, logs audit trails, and triggers evidence packaging.
+- **Prepare Stage:** Inspector discovers toolkits via `client.tools.search()`, previews anticipated scopes without initiating OAuth, presents Connect Link approval requests to stakeholders via chat, initiates OAuth via `client.toolkits.authorize()` after approval, awaits `wait_for_connection()` handshake, and logs all granted scopes in Supabase. Output stored in Supabase readiness tables and `mission_connections`.
+- **Plan & Approve Stage:** Planner receives established connections from Inspector with validated scopes. Planner assembles mission plays (playbooks) emphasizing tool usage patterns, data investigation insights, and precedent missions, tagging sequencing, resource requirements, and undo affordances before ranking. Validator confirms scope alignment against Inspector's approved connections. Focus shifts to play ranking and safeguard attachment rather than credential management.
+- **Execute & Observe Stage:** Executor runs approved actions via provider adapters/SDK using established connections, streams results to CopilotKit, logs audit trails, and triggers evidence packaging.
 
 ### 5.2 Implementation Patterns
 
-**Inspector Agent (No-Auth Discovery + Coverage):**
+**Inspector Agent (Discovery + OAuth Initiation):**
 
 ```python
 from composio import ComposioClient
@@ -160,6 +160,7 @@ from composio import ComposioClient
 client = ComposioClient(api_key=settings.COMPOSIO_API_KEY)
 
 async def inspect_mission(mission: Mission) -> InspectionReport:
+    """Phase 1: Discovery and scope preview (no OAuth yet)"""
     search = await client.tools.search(query=mission.objective, limit=10, include_metadata=True)
     toolkits = [ToolkitSummary.from_api(tk) for tk in search.toolkits]
 
@@ -179,15 +180,13 @@ async def inspect_mission(mission: Mission) -> InspectionReport:
         anticipated_connections=anticipated_connections,
         coverage_estimate=coverage.estimate(toolkits, mission.objective),
     )
-```
 
-**Planner + Validator (Connect Link + Safeguards):**
 
-```python
-async def establish_connections(mission: Mission, scopes: list[AnticipatedConnection]) -> list[ConnectedAccount]:
+async def establish_connections(mission: Mission, approved_scopes: list[AnticipatedConnection]) -> list[ConnectedAccount]:
+    """Phase 2: OAuth initiation after stakeholder approval via chat"""
     requests = []
 
-    for scope in scopes:
+    for scope in approved_scopes:
         payload = scope.to_request()
         req = await client.toolkits.authorize(
             user_id=mission.user_id,
@@ -197,21 +196,44 @@ async def establish_connections(mission: Mission, scopes: list[AnticipatedConnec
             expires_in_minutes=30,
         )
 
+        # Store Connect Link for chat display and audit
         await supabase.store_connect_request(mission.id, req.redirect_url, scope)
         requests.append(req)
 
+    # Wait for stakeholder to complete OAuth flow
     approvals = []
     for req in requests:
         approvals.append(await req.wait_for_connection(timeout=900))
 
-    validator.ensure_scopes_match(approvals, mission.required_scopes)
+    # Log granted scopes for Planner and Validator
+    await supabase.store_approved_connections(mission.id, approvals)
+
+    telemetry.emit("composio_auth_flow", mission_id=mission.id, status="approved", count=len(approvals))
+
     return approvals
+```
 
+**Planner + Validator (Play Assembly from Established Connections):**
 
-async def wait_for_approval(mission: Mission) -> list[ConnectedAccount]:
-    """Optional double-check before execution"""
+```python
+async def assemble_mission_plays(mission: Mission) -> list[MissionPlay]:
+    """Planner receives established connections from Inspector"""
+    # Retrieve approved connections from Inspector
     accounts = await client.connected_accounts.status(user_id=mission.user_id)
-    return [acct for acct in accounts if acct.metadata.get("mission_id") == mission.id]
+    mission_accounts = [acct for acct in accounts if acct.metadata.get("mission_id") == mission.id]
+
+    # Validator confirms scopes match mission requirements
+    validator.ensure_scopes_match(mission_accounts, mission.required_scopes)
+
+    # Assemble plays emphasizing tool usage patterns and data investigation
+    plays = await generate_plays(
+        mission=mission,
+        available_toolkits=[acct.toolkit for acct in mission_accounts],
+        library_precedent=await library.search_similar(mission.objective),
+        tool_usage_patterns=await analyze_tool_patterns(mission_accounts),
+    )
+
+    return plays
 ```
 
 **Executor Agent (Governed Execution + Telemetry):**
@@ -247,9 +269,10 @@ async def execute_plan(mission: Mission, actions: list[ToolInvocation]):
 
 **OAuth & Consent:**
 
-- Always initiate Connect Links from Planner; Executors should never request new scopes.
+- Always initiate Connect Links from Inspector during Prepare stage; Executors should never request new scopes, and Planner should only assemble plays from established connections.
 - Annotate Connect Links with mission metadata so the audit trail can be joined with Supabase records.
 - Use `client.connected_accounts.revoke()` during mission cleanup or tenant offboarding.
+- Planner validates that approved connections from Inspector satisfy mission requirements before assembling plays.
 
 **Execution Safeguards:**
 

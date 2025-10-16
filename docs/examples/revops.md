@@ -110,14 +110,23 @@ Riley selects:
 - ☐ **Gmail** (defer OAuth until after approval)
 - ☑ **Slack** (authorize via Connect Link)
 
-### OAuth Flow (Slack)
+### OAuth Flow (Prepare Stage)
 
-Riley clicks "Connect Slack" → Connect Link side drawer opens → She reviews scopes (`chat:write`, `channels:read`) → Authorizes → Token stored encrypted in `oauth_tokens` table.
+After reviewing toolkit recommendations, Riley sees that Slack requires OAuth. Inspector presents a Connect Link approval modal via chat.
+
+Riley reviews the request:
+- **Toolkit:** Slack
+- **Scopes:** `chat:write`, `channels:read`
+- **Purpose:** Notify #revenue-ops when sequences are ready for review
+
+Riley clicks **Approve** → Connect Link opens in side drawer → She authorizes → Inspector awaits `wait_for_connection()` → Token stored encrypted in `mission_connections` table with mission metadata.
+
+**Gmail Note:** Riley opts to defer Gmail OAuth until she's reviewed the plan. Inspector notes this and will present Gmail authorization after plan approval if needed.
 
 **Toolkit Status:**
-- HubSpot: 🟢 Connected (no-auth)
-- Gmail: 🟡 Deferred (OAuth after approval)
-- Slack: 🟢 Connected (OAuth complete)
+- HubSpot: 🟢 Connected (no-auth, read-only)
+- Gmail: 🟡 Deferred (will authorize after reviewing draft strategy)
+- Slack: 🟢 Connected (OAuth complete via Inspector)
 
 ### Data Inspection
 
@@ -155,31 +164,43 @@ Riley proceeds to Stage 3.
 
 ## Stage 3: Plan & Approve
 
+### Planner Receives Established Connections
+
+Planner agent receives:
+- **Established connections:** HubSpot (no-auth, read-only), Slack (OAuth complete)
+- **Deferred:** Gmail (awaiting approval for send scope)
+- **Data investigation insights:** 83 contacts matched, 92% coverage, 4 excluded via do-not-contact
+
 ### Planner Streaming
 
-The Planner agent begins streaming candidate plays. Riley sees:
+The Planner agent assembles mission plays based on tool usage patterns and data investigation, annotating sequencing, resource requirements, and undo affordances for each option. Riley sees:
 
 **Play 1: "Targeted Q2 Win-Back Campaign"**
 _Confidence: 0.87 · Library Match: 5 similar missions_
 
 **Rationale:**
-"Combines HubSpot enrichment with personalized email drafts. Uses warm, consultative tone. Schedules review before send. Undo plan: discard drafts."
+"Leverages HubSpot enrichment (already connected) to generate personalized email drafts. Emphasizes warm, consultative tone from safeguards. Schedules review before send. Requires Gmail OAuth for final send step—Inspector will present approval if you proceed."
 
 **Steps:**
-1. Enrich 83 contacts with recent activity, ARR changes, industry trends
-2. Generate personalized email drafts (templated with placeholders)
+1. Enrich 83 contacts with recent activity, ARR changes, industry trends (HubSpot, no-auth)
+2. Generate personalized email drafts (templated with placeholders) using data investigation insights
 3. Apply tone safeguards (validator auto-fix enabled)
 4. Package for review and approval
-5. Send via Gmail (OAuth required at execution)
+5. [Conditional] Send via Gmail—Inspector will request OAuth if approved
 
 **Undo Plan:**
-"Drafts discarded from workspace. No external mutations until approval."
+"Drafts discarded from workspace. No external mutations until Gmail OAuth + final send approval."
 
 **Safeguards Enforced:**
-- ✓ Warm, consultative tone
-- ✓ Send window: 9am-5pm local time, Tue-Thu
-- ✓ Do-not-contact exclusions
+- ✓ Warm, consultative tone (from Define stage)
+- ✓ Send window: 9am-5pm local time, Tue-Thu (from Define stage)
+- ✓ Do-not-contact exclusions (validated during Prepare)
 - ✓ Validator monitoring enabled
+
+**Tool Usage Patterns Detected:**
+- HubSpot: Read-only enrichment (83 contact records)
+- Gmail: Deferred send (pending approval)
+- Slack: Notification upon completion
 
 ---
 
@@ -222,10 +243,25 @@ Play: Targeted Q2 Win-Back Campaign
 Expected Outcome: 83 personalized email drafts
 Risk Level: Medium-Low
 Undo Plan: Discard drafts (no external mutations)
-Required OAuth: Gmail (send scope) — deferred until approval
+Required OAuth: Gmail (send scope) — Inspector will request authorization before execution
 ```
 
 Riley clicks **Approve Play**.
+
+### Gmail OAuth Completion (Inspector Returns)
+
+Since the approved play requires Gmail send capabilities, Inspector presents one final Connect Link request:
+
+**Toolkit:** Gmail
+**Scopes:** `gmail.send`, `gmail.compose`
+**Purpose:** Send personalized outreach emails (83 drafts)
+
+Riley clicks **Approve** → Connect Link opens → She authorizes → Inspector logs granted scopes → Planner confirms all required connections are now established.
+
+**Final Toolkit Status:**
+- HubSpot: 🟢 Connected
+- Gmail: 🟢 Connected (OAuth complete)
+- Slack: 🟢 Connected
 
 **Telemetry Emitted:**
 - `planner_candidate_generated` (play_id: "play_1", confidence: 0.87, precedent_count: 5)
@@ -233,6 +269,7 @@ Riley clicks **Approve Play**.
 - `planner_candidate_generated` (play_id: "play_3", confidence: 0.65)
 - `plan_ranked` (selected_play: "play_1", rationale_shown: true)
 - `plan_approved` (play_id: "play_1", reviewer_id: "riley_chen", risk_level: "medium_low")
+- `composio_auth_flow` (toolkit: "gmail", status: "approved", scopes: ["gmail.send", "gmail.compose"])
 
 ---
 

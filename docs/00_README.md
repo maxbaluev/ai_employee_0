@@ -1,6 +1,6 @@
 # AI Employee Control Plane: Documentation Guide
 
-**Version:** 3.1 (October 2025)
+**Version:** 3.2 (October 2025)
 **Purpose:** Navigate the AI Employee Control Plane documentation suite
 **Audience:** All stakeholders — Product, Engineering, Operations, Governance, Partners
 
@@ -21,17 +21,19 @@ This documentation is organized as a **sequential knowledge base** that enables 
 1. **[Product Vision](./01_product_vision.md)** — Strategic direction, value proposition, personas, use cases
 2. **[System Overview](./02_system_overview.md)** — Architecture, data flows, technical specifications
 3. **[User Experience Blueprint](./03_user_experience.md)** — Five-stage journey, interaction patterns, accessibility
-4. **[Implementation Guide](./04_implementation_guide.md)** — Development setup, component catalog, integration patterns, library docs cross-references
-5. **[Capability Roadmap](./05_capability_roadmap.md)** — Milestone-based roadmap with evidence requirements
-6. **[Data Intelligence](./06_data_intelligence.md)** — Telemetry, analytics, learning loops
-7. **[Operations Playbook](./07_operations_playbook.md)** — Deployment, monitoring, incident response, runbooks
-8. **[Getting Started](./08_getting_started.md)** — Environment setup, running the stack, first mission walkthrough
-9. **[Release Readiness](./09_release_readiness.md)** — Cross-functional checklists, evidence artifacts, sign-off process
+4. **[Chat Experience Guide](./03a_chat_experience.md)** — CopilotKit rail behaviour, message types, telemetry hooks
+5. **[Implementation Guide](./04_implementation_guide.md)** — Development setup, component catalog, integration patterns, library docs cross-references
+6. **[Capability Roadmap](./05_capability_roadmap.md)** — Milestone-based roadmap with evidence requirements
+7. **[Data Intelligence](./06_data_intelligence.md)** — Telemetry, analytics, learning loops
+8. **[Operations Playbook](./07_operations_playbook.md)** — Deployment, monitoring, incident response, runbooks
+9. **[Getting Started](./08_getting_started.md)** — Environment setup, running the stack, first mission walkthrough
+10. **[Release Readiness](./09_release_readiness.md)** — Cross-functional checklists, evidence artifacts, sign-off process
 
 ### Special Purpose Documents
 
 - **[AI Agent Guide (AGENTS.md)](../AGENTS.md)** — Quick reference for AI agents working with this codebase
 - **[Todo List (todo.md)](./todo.md)** — Actionable next steps referencing the unified documentation
+- **[Trust Model Clarification](./10_composio.md)** — Progressive trust + Composio SDK alignment with chat touchpoints
 
 ---
 
@@ -42,13 +44,16 @@ This documentation is organized as a **sequential knowledge base** that enables 
 **Goal:** Understand vision, strategy, metrics, and customer value
 
 **Recommended Path:**
+
 1. [Product Vision](./01_product_vision.md) — Market context, value prop, GTM strategy
 2. [User Experience Blueprint](./03_user_experience.md) — Five-stage journey, personas
-3. [Capability Roadmap](./05_capability_roadmap.md) — Milestone plan with dependencies
-4. [Release Readiness](./09_release_readiness.md) — Launch criteria and sign-off process
-5. [Data Intelligence](./06_data_intelligence.md) — Analytics dashboards and success metrics
+3. [Chat Experience Guide](./03a_chat_experience.md) — How the CopilotKit rail keeps missions collaborative
+4. [Capability Roadmap](./05_capability_roadmap.md) — Milestone plan with dependencies
+5. [Release Readiness](./09_release_readiness.md) — Launch criteria and sign-off process
+6. [Data Intelligence](./06_data_intelligence.md) — Analytics dashboards and success metrics
 
 **Key Questions Answered:**
+
 - What problem does this solve and for whom?
 - What are the strategic differentiators?
 - How do we measure success?
@@ -61,14 +66,17 @@ This documentation is organized as a **sequential knowledge base** that enables 
 **Goal:** Build, extend, and maintain the Control Plane
 
 **Recommended Path:**
+
 1. [Getting Started](./08_getting_started.md) — Setup environment and run first mission
 2. [System Overview](./02_system_overview.md) — Architecture, layers, data flows
-3. [Implementation Guide](./04_implementation_guide.md) — Component catalog, patterns, testing
-4. [AGENTS.md](../AGENTS.md) — Quick setup, toolchain, workflows
-5. [Capability Roadmap](./05_capability_roadmap.md) — Technical milestones and dependencies
-6. [Operations Playbook](./07_operations_playbook.md) — Deployment, monitoring, runbooks
+3. [Chat Experience Guide](./03a_chat_experience.md) — Chat APIs, interrupts, telemetry hooks
+4. [Implementation Guide](./04_implementation_guide.md) — Component catalog, patterns, testing
+5. [AGENTS.md](../AGENTS.md) — Quick setup, toolchain, workflows
+6. [Capability Roadmap](./05_capability_roadmap.md) — Technical milestones and dependencies
+7. [Operations Playbook](./07_operations_playbook.md) — Deployment, monitoring, runbooks
 
 **Key Questions Answered:**
+
 - How do I set up my development environment?
 - What's the system architecture and how do components interact?
 - Where do I add new features and what patterns should I follow?
@@ -81,6 +89,7 @@ This documentation is organized as a **sequential knowledge base** that enables 
 **Goal:** Deploy, monitor, and maintain production reliability
 
 **Recommended Path:**
+
 1. [Operations Playbook](./07_operations_playbook.md) — Deployment, monitoring, incident response
 2. [System Overview](./02_system_overview.md) — Architecture and performance targets
 3. [Getting Started](./08_getting_started.md) — Environment setup for troubleshooting
@@ -88,6 +97,7 @@ This documentation is organized as a **sequential knowledge base** that enables 
 5. [Data Intelligence](./06_data_intelligence.md) — Telemetry and observability
 
 **Key Questions Answered:**
+
 - How do I deploy to different environments?
 - What should I monitor and alert on?
 - How do I respond to incidents?
@@ -100,6 +110,7 @@ This documentation is organized as a **sequential knowledge base** that enables 
 **Goal:** Ensure safety, auditability, and regulatory compliance
 
 **Recommended Path:**
+
 1. [Product Vision](./01_product_vision.md) — Trust model, safeguards philosophy
 2. [User Experience Blueprint](./03_user_experience.md) — Approval workflows, evidence generation
 3. [System Overview](./02_system_overview.md) — Security architecture, audit trails
@@ -108,6 +119,7 @@ This documentation is organized as a **sequential knowledge base** that enables 
 6. [Operations Playbook](./07_operations_playbook.md) — Security controls, compliance procedures
 
 **Key Questions Answered:**
+
 - How are actions authorized and audited?
 - What safeguards prevent unauthorized behavior?
 - How do we generate compliance evidence?
@@ -120,6 +132,7 @@ This documentation is organized as a **sequential knowledge base** that enables 
 **Goal:** Instrument telemetry, build dashboards, enable learning loops
 
 **Recommended Path:**
+
 1. [Data Intelligence](./06_data_intelligence.md) — Event catalog, analytics views, learning loops
 2. [User Experience Blueprint](./03_user_experience.md) — Stage-to-event matrix
 3. [System Overview](./02_system_overview.md) — Data layer architecture
@@ -127,6 +140,7 @@ This documentation is organized as a **sequential knowledge base** that enables 
 5. [Capability Roadmap](./05_capability_roadmap.md) — Analytics milestones
 
 **Key Questions Answered:**
+
 - What events are emitted and what do they contain?
 - How do I add new telemetry or analytics views?
 - What dashboards exist and how are they refreshed?
@@ -139,13 +153,16 @@ This documentation is organized as a **sequential knowledge base** that enables 
 **Goal:** Understand user flows, interaction patterns, accessibility requirements
 
 **Recommended Path:**
+
 1. [User Experience Blueprint](./03_user_experience.md) — Five-stage flow, patterns, accessibility
-2. [Product Vision](./01_product_vision.md) — Personas, use cases, value proposition
-3. [Implementation Guide](./04_implementation_guide.md) — Component catalog, Storybook
-4. [System Overview](./02_system_overview.md) — CopilotKit integration patterns
-5. [Data Intelligence](./06_data_intelligence.md) — Telemetry for UX insights
+2. [Chat Experience Guide](./03a_chat_experience.md) — Message design, interrupts, accessibility copy
+3. [Product Vision](./01_product_vision.md) — Personas, use cases, value proposition
+4. [Implementation Guide](./04_implementation_guide.md) — Component catalog, Storybook
+5. [System Overview](./02_system_overview.md) — CopilotKit integration patterns
+6. [Data Intelligence](./06_data_intelligence.md) — Telemetry for UX insights
 
 **Key Questions Answered:**
+
 - How do the five mission stages work together and what are the handoffs?
 - What interaction patterns should I follow?
 - What are the accessibility requirements?
@@ -158,6 +175,7 @@ This documentation is organized as a **sequential knowledge base** that enables 
 **Goal:** Understand integration points with Composio, CopilotKit, Gemini ADK, Supabase
 
 **Recommended Path:**
+
 1. [System Overview](./02_system_overview.md) — Integration patterns and data flows
 2. [Implementation Guide](./04_implementation_guide.md) — SDK usage, API contracts
 3. [Product Vision](./01_product_vision.md) — Strategic partnerships
@@ -165,6 +183,7 @@ This documentation is organized as a **sequential knowledge base** that enables 
 5. [Getting Started](./08_getting_started.md) — Test integrations locally
 
 **Key Questions Answered:**
+
 - How does the Control Plane integrate with our platform?
 - What APIs and patterns are used?
 - What are the joint success metrics?
@@ -177,18 +196,24 @@ This documentation is organized as a **sequential knowledge base** that enables 
 To maintain consistency across all documentation, use these preferred terms:
 
 **Mission Lifecycle:**
+
 - **Five-Stage Journey:** Define → Prepare → Plan & Approve → Execute & Observe → Reflect & Improve (user-facing stages)
+- **Prepare (Inspector):** Conducts no-auth discovery, previews anticipated scopes, and—once stakeholders approve—initiates every Connect Link OAuth flow. All granted scopes are logged before planning begins.
+- **Plan & Approve (Planner):** Works entirely from established connections to assemble ranked mission plays grounded in tool usage patterns, data investigation output, and library precedent; never requests new scopes.
 - **Four-Layer Architecture:** Presentation → Orchestration → Execution → Data (technical stack layers)
 
 **Trust & Authorization:**
+
 - **No-Auth Inspection:** Read-only, public data exploration and preview generation without requiring OAuth credentials. Used for demos, proof-of-value artifacts, and fast iteration. No write actions or sensitive data access. (Preferred over "zero-privilege" or "OAuth inspection")
 - **Governed Execution:** OAuth-authenticated mission execution with user approvals and safeguard enforcement. Required for all write actions, sensitive data access, and production workflows. (Preferred over "governed activation")
 - **Progressive Trust:** The model of proving value through no-auth inspection artifacts before requesting OAuth credentials—earning access rather than assuming it
 
 **Agents:**
+
 - **Coordinator, Intake, Planner, Inspector, Executor, Validator, Evidence** — Capitalize when referring to specific agent roles
 
 **Integrations:**
+
 - **Composio SDK, CopilotKit, Gemini ADK, Supabase** — Partner technology names (always capitalized)
 - **Composio SDK** — The sole supported interface for toolkit execution. Use `ComposioClient` for discovery, Connect Links for OAuth, provider adapters for LLM-specific execution, and triggers/workflows for async orchestration. Mission scoping relies on passing the `user_id` + `tenantId` pair to every call—no presigned URLs required.
 
@@ -225,6 +250,7 @@ To maintain consistency across all documentation, use these preferred terms:
 ### Diagrams
 
 Located in `diagrams/` (Mermaid format):
+
 - `five_stage_journey.mmd` — Mission workflow visualization
 - `adaptive_safeguards_lifecycle.mmd` — Safeguard generation and enforcement
 - `end_to_end_data_flow.mmd` — System-wide data movement
@@ -234,6 +260,7 @@ Located in `diagrams/` (Mermaid format):
 ### Examples
 
 Real-world case studies and narrative examples live in `docs/examples/`:
+
 - `coder.md` — Professional AI programmer delivering an authentication refactor mission
 - `revops.md` — Revenue operations case study with five-stage walkthrough
 - `support_leader.md` — Support leader navigating incident triage
@@ -242,6 +269,7 @@ Real-world case studies and narrative examples live in `docs/examples/`:
 ### Evidence Artifacts
 
 Located in `docs/readiness/`:
+
 - Milestone acceptance reports
 - Performance benchmarks
 - Security audits
@@ -290,11 +318,12 @@ Located in `docs/readiness/`:
 
 ## Document Change Log
 
-| Date | Version | Changes | Author |
-|------|---------|---------|--------|
-| Oct 2025 | 3.1 | Documentation audit: Added Operations Playbook (07) and Release Readiness (09); renumbered Getting Started to 08; fixed examples directory references; added Inspector agent documentation; enhanced library docs cross-references; improved AGENTS.md clarity | AI Agent + Documentation Team |
-| Oct 2025 | 3.0 | Five-stage mission journey migration — consolidated docs, updated diagrams, created narrative examples | Product & Engineering |
-| Aug 2025 | 2.0 | Unified documentation overhaul — removed gate terminology, added milestone-based roadmap, created navigation guide | Product & Engineering |
+| Date     | Version | Changes                                                                                                                                                                                                                                                        | Author                        |
+| -------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------- |
+| Oct 2025 | 3.2     | Added Chat Experience Guide (03a); wove chat narrative into System Overview, User Experience, and Trust Model docs; updated navigation paths and changelog                                                                                                     | Documentation Team            |
+| Oct 2025 | 3.1     | Documentation audit: Added Operations Playbook (07) and Release Readiness (09); renumbered Getting Started to 08; fixed examples directory references; added Inspector agent documentation; enhanced library docs cross-references; improved AGENTS.md clarity | AI Agent + Documentation Team |
+| Oct 2025 | 3.0     | Five-stage mission journey migration — consolidated docs, updated diagrams, created narrative examples                                                                                                                                                         | Product & Engineering         |
+| Aug 2025 | 2.0     | Unified documentation overhaul — removed gate terminology, added milestone-based roadmap, created navigation guide                                                                                                                                             | Product & Engineering         |
 
 ---
 

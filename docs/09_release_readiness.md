@@ -149,6 +149,7 @@ This document defines the cross-functional readiness criteria, evidence requirem
 - [ ] Data encryption at rest and in transit validated
 - [ ] Vulnerability scan completed (SAST, DAST, dependency audit)
 - [ ] OAuth scopes follow least-privilege principle
+- [ ] Prepare-stage Connect Link flows tested (Inspector initiates, Planner consumes established connections only)
 - [ ] Safeguard logic validated (auto-fix, validator, approval gates)
 - [ ] Audit trail completeness verified
 - [ ] Incident response runbook prepared

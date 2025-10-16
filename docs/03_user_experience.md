@@ -14,6 +14,8 @@ Deliver a single mission workspace that feels confidently autonomous yet deeply 
 2. **What do I need to decide?** Approvals, edits, and safeguards present actionable choices without clutter.
 3. **What happens next?** Each stage advertises downstream impact, undo plans, and feedback channels.
 
+**Chat spine:** The CopilotKit rail narrates those answers in real time—stage banners, approval prompts, evidence cards, and undo countdowns keep the workspace collaborative without forcing route changes. See `docs/03a_chat_experience.md` for detailed chat flows.
+
 ---
 
 ## Design Principles
@@ -30,17 +32,17 @@ Deliver a single mission workspace that feels confidently autonomous yet deeply 
 
 ## Mission Workspace Anatomy
 
-| Surface | Purpose | Key Components | States |
-| ---------------------------- | ----------------------------------------- | ------------------------------------------------------ | --------------------------------- |
-| **Generative Intake Banner** | Collect mission intent and constraints | `MissionIntake`, `ChipStack`, sample prompt carousel | idle · streaming · review |
-| **Pinned Brief Card** | Persist accepted chips as mission truth | `MissionBriefCard`, confidence badges | draft · locked · edited |
-| **Toolkit Canvas** | Curate capabilities and connection status | `RecommendedToolStrip`, `ConnectionSlot`, `ScopeBadge` | discover · authorize · ready |
-| **Coverage Meter** | Verify readiness before execution | `CoverageRadial`, `ReadinessLegend` | ready · warning · blocked |
-| **Planner Insight Rail** | Present ranked plays and rationale | `PlayCard`, `RationaleTooltip`, `SafeguardPill` | streaming · selected · superseded |
-| **Streaming Status Panel** | Visualize execution timeline | `ExecutionTimeline`, `HeartbeatBadge`, `ActionLog` | idle · running · paused |
-| **Evidence Gallery** | Review artifacts, hash audit, export | `ArtifactCard`, `HashBadge`, `ExportMenu` | pending · validated · undoing |
-| **Undo Bar** | Summarize rollback plan | `UndoCountdown`, `ImpactSummary`, `ConfirmButton` | idle · armed · executed |
-| **Feedback Drawer** | Capture per-artifact and mission feedback | `FeedbackTimeline`, `QuickReactions`, `FollowupPrompt` | closed · open · submitted |
+| Surface | Purpose | Key Components | States | Chat Integration |
+| ---------------------------- | ----------------------------------------- | ------------------------------------------------------ | --------------------------------- | ------------------------------------------------------------ |
+| **Generative Intake Banner** | Collect mission intent and constraints | `MissionIntake`, `ChipStack`, sample prompt carousel | idle · streaming · review | Narration summarises chips and prompts for edits before locking |
+| **Pinned Brief Card** | Persist accepted chips as mission truth | `MissionBriefCard`, confidence badges | draft · locked · edited | Chat posts “Brief locked” receipts and links to edit history |
+| **Toolkit Canvas** | Curate capabilities and connection status | `RecommendedToolStrip`, `ConnectionSlot`, `ScopeBadge` | discover · authorize · ready | Inspector cards show coverage %, missing scopes, Connect Link status |
+| **Coverage Meter** | Verify readiness before execution | `CoverageRadial`, `ReadinessLegend` | ready · warning · blocked | Chat banner calls out readiness gaps and links to required actions |
+| **Planner Insight Rail** | Present ranked plays and rationale | `PlayCard`, `RationaleTooltip`, `SafeguardPill` | streaming · selected · superseded | Planner narrates ranked plays with confidence badges + undo summary |
+| **Streaming Status Panel** | Visualize execution timeline | `ExecutionTimeline`, `HeartbeatBadge`, `ActionLog` | idle · running · paused | Executor streams tool calls; validator interrupts appear inline |
+| **Evidence Gallery** | Review artifacts, hash audit, export | `ArtifactCard`, `HashBadge`, `ExportMenu` | pending · validated · undoing | Evidence agent drops artifact cards with hashes and download links |
+| **Undo Bar** | Summarize rollback plan | `UndoCountdown`, `ImpactSummary`, `ConfirmButton` | idle · armed · executed | Chat countdown mirrors undo timer and announces result |
+| **Feedback Drawer** | Capture per-artifact and mission feedback | `FeedbackTimeline`, `QuickReactions`, `FollowupPrompt` | closed · open · submitted | Chat prompts mission recap, feedback form, and library suggestions |
 
 All surfaces live in `MissionWorkspaceLayout` with responsive breakpoints (≥1280 desktop, 1024 tablet, 768 mobile). Side rails collapse intelligently; critical controls remain in the primary column.
 
@@ -61,30 +63,40 @@ The unified workspace moves through five observable stages without route changes
 #### Define
 - Paste mission intent, receive chips (objective, audience, KPI, safeguard, timeline).
 - Edit or regenerate any chip; accept all to lock the brief.
+- Chat: Narration summarises extracted chips and asks for confirmation before emitting the lock receipt.
 - Telemetry: `intent_submitted`, `brief_generated`, `mission_brief_locked`.
 
 #### Prepare
 - Recommended toolkits displayed with rationale, precedent, and auth status.
-- OAuth drawer surfaces scopes; data inspection previews sample records with redaction.
-- Coverage meter requires ≥85% readiness before advancing.
-- Telemetry: `toolkit_recommended`, `toolkit_selected`, `data_preview_generated`, `safeguard_reviewed`.
+- Inspector previews anticipated scopes and connection requirements without initiating OAuth.
+- After stakeholder review via chat, Inspector presents Connect Link approval modals.
+- Upon approval, Inspector initiates OAuth flows and awaits connection handshake.
+- Data inspection previews sample records with redaction; all granted scopes logged.
+- Coverage meter requires ≥85% readiness before advancing to planning.
+- Chat: Inspector cards show coverage deltas, scope previews, Connect Link approval requests, granted scope confirmations, and readiness validation.
+- Telemetry: `toolkit_recommended`, `toolkit_selected`, `data_preview_generated`, `safeguard_reviewed`, `composio_auth_flow`.
 
 #### Plan & Approve
-- Planner streams candidate plays ranked by impact and similarity.
+- Planner receives established connections from Inspector with validated scopes.
+- Planner streams candidate plays (mission playbooks) ranked by impact, similarity, tool usage patterns, and data investigation insights.
+- Each play surfaces sequencing, resource requirements, and undo affordances so reviewers understand operational blast radius before approving.
 - Users approve plays, request revisions, attach manual steps, and validate undo plans.
-- Approval modal summarizes risk assessment and required safeguards.
+- Approval modal summarizes risk assessment, required safeguards, and confirmed scope alignment from Inspector.
+- Chat: Play cards with rationale and confidence scores, undo plan previews, tool usage pattern highlights, and quick replies for approval/revision keep reviewers in the mission thread.
 - Telemetry: `planner_candidate_generated`, `plan_ranked`, `plan_approved`.
 
 #### Execute & Observe
 - Streaming panel shows tool calls, validator checks, and auto-fix attempts.
 - Evidence cards populate in real time with hash badges and redaction states.
 - Undo countdown visible for each mutating action.
+- Chat: Executor streams each step, validator flags blockages inline, and undo timers mirror the bar to keep humans alert.
 - Telemetry: `execution_started`, `execution_step_completed`, `validator_alert_raised`, `evidence_bundle_generated`.
 
 #### Reflect & Improve
 - Feedback drawer enables per-artifact reactions and mission-level surveys.
 - Library suggestions highlight reusable plays and prompt templates.
 - Checklist captures follow-up tasks and owner assignments.
+- Chat: Evidence agent posts mission summary, feedback form card, and follow-up checklist assignments with owners.
 - Telemetry: `feedback_submitted`, `mission_retrospective_logged`, `library_contribution`.
 
 ---
@@ -139,8 +151,8 @@ Every pattern includes design tokens for spacing, color, typography, and motion.
 | Stage | Primary Events | Optional Events | Payload Highlights |
 |-------|----------------|-----------------|--------------------|
 | Define | `intent_submitted`, `brief_generated`, `mission_brief_locked` | `chip_regenerated`, `chip_discarded` | token counts, tone hints, safeguard presence |
-| Prepare | `toolkit_recommended`, `toolkit_selected`, `data_preview_generated`, `safeguard_reviewed` | `coverage_override_requested` | toolkit id, coverage gaps, scope rationale |
-| Plan & Approve | `planner_candidate_generated`, `plan_ranked`, `plan_approved` | `planner_retry_requested` | confidence score, undo summary, reviewer id |
+| Prepare | `toolkit_recommended`, `toolkit_selected`, `data_preview_generated`, `safeguard_reviewed`, `composio_auth_flow` | `coverage_override_requested` | toolkit id, coverage gaps, scope rationale, Connect Link status |
+| Plan & Approve | `planner_candidate_generated`, `plan_ranked`, `plan_approved` | `planner_retry_requested` | confidence score, undo summary, reviewer id, tool usage patterns |
 | Execute & Observe | `execution_started`, `execution_step_completed`, `validator_alert_raised`, `evidence_bundle_generated` | `execution_paused` | tool call id, validator critique, artifact hash |
 | Reflect & Improve | `feedback_submitted`, `mission_retrospective_logged`, `library_contribution` | `followup_scheduled` | rating, effort saved, reusable asset id |
 
@@ -152,4 +164,3 @@ Every pattern includes design tokens for spacing, color, typography, and motion.
 - **Support Leader (Sam)** — Focuses on Execute & Observe dashboards for SLA adherence.
 - **Governance Lead (Gabriela)** — Evaluates Plan & Approve checkpoints and safeguard audit trails.
 - **Platform Engineer (Priya)** — Monitors telemetry integrity across all stages via Appendix A.
-

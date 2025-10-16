@@ -135,15 +135,24 @@ Jordan selects:
 - ☑ **Linear** (defer OAuth, will update manually)
 - ☑ **Vercel** (authorize via API token from clipboard)
 
-### OAuth & API Token Flow
+### OAuth & API Token Flow (Prepare Stage)
 
-**Vercel:** Jordan pastes API token → System validates scopes (`read`, `write`, `deploy`) → Token stored encrypted in `oauth_tokens` table.
+Inspector identifies that Vercel requires an API token for deployment capabilities. After reviewing toolkit recommendations, Jordan sees the authorization request via chat.
+
+**Vercel Authorization:**
+- Inspector presents: "Vercel API token required for deployment and preview environments"
+- **Scopes needed:** `read`, `write`, `deploy`
+- **Purpose:** Zero-downtime deployment validation
+
+Jordan pastes API token from clipboard → Inspector validates scopes → Token stored encrypted in `mission_connections` table with mission metadata → `composio_auth_flow` event emitted.
 
 **Toolkit Status:**
-- GitHub: 🟢 Connected (GITHUB_TOKEN from env)
+- GitHub: 🟢 Connected (GITHUB_TOKEN from env, no additional OAuth needed)
 - Supabase: 🟢 Connected (API key validated)
 - Linear: 🟡 Deferred (manual updates)
-- Vercel: 🟢 Connected (API token authorized)
+- Vercel: 🟢 Connected (API token authorized via Inspector)
+
+Inspector logs the granted credentials and confirms planning can proceed without any additional OAuth prompts.
 
 ### Repository & Data Inspection
 
@@ -201,15 +210,22 @@ Jordan reviews the inspection report, noting the JWT race condition severity. Th
 
 ## Stage 3: Plan & Approve
 
+### Planner Receives Established Connections
+
+Planner agent receives from Inspector:
+- **Established connections:** GitHub (env token), Supabase (API key), Vercel (API token)
+- **Deferred:** Linear (manual updates)
+- **Data investigation insights:** 23 auth files analyzed, 127 existing tests, 82% coverage, 4 security vulnerabilities identified
+
 ### Planner Streaming
 
-The Planner agent begins streaming candidate implementation strategies. Jordan sees:
+The Planner agent assembles implementation strategies (mission playbooks) based on tool usage patterns, codebase analysis, and security insights. Jordan sees:
 
 **Play 1: "Incremental Auth Hardening with Feature Flags"**
 _Confidence: 0.91 · Library Match: 8 similar auth refactors_
 
 **Rationale:**
-"Address critical JWT race condition first, then layer in CSRF and token revocation. Use feature flags to toggle new auth logic independently. Maintains backward compatibility. Enables progressive rollout with instant rollback."
+"Based on Inspector's security scan (4 vulnerabilities) and codebase analysis (23 auth files, 127 tests), this play prioritizes the critical JWT race condition, then layers in CSRF and token revocation. Leverages established connections: GitHub for code changes and PR creation, Supabase for schema migrations, and Vercel for zero-downtime canary deployment. Feature flags enable progressive rollout with instant rollback. All required toolkits are already authorized."
 
 **Implementation Steps:**
 1. **Phase 1 — JWT Refresh Fix (Critical):**
