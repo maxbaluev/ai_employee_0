@@ -606,7 +606,7 @@ All PRs must pass automated gates before merge:
 
 - **[Product Vision](./01_product_vision.md)** — Strategic context and value proposition
 - **[System Overview](./02_system_overview.md)** — Architecture and technical specifications
-- **[User Experience Blueprint](./03_user_experience.md)** — UX contracts and accessibility
+- **[User Experience Playbook](./03_user_experience.md)** — UX contracts and accessibility
 - **[Implementation Guide](./04_implementation_guide.md)** — Development standards and patterns
 - **[Capability Roadmap](./05_capability_roadmap.md)** — Milestone planning and dependencies
 - **[Data Intelligence](./06_data_intelligence.md)** — Telemetry and analytics requirements

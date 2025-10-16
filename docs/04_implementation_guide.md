@@ -135,6 +135,9 @@ class InspectorAgent(BaseAgent):
 
 ### Agent Responsibilities & State Interactions
 
+> For the stage-by-stage diagram and session schema, reference
+> `docs/02_system_overview.md` § **ADK Agent Coordination & State Flow**.
+
 | Agent | Reads from `ctx.session.state` | Writes to `ctx.session.state` | Composio SDK Calls | Sub-Agents |
 |-------|-------------------------------|------------------------------|-------------------|------------|
 | **CoordinatorAgent** | All keys (monitors full state) | `mission_id`, `tenant_id`, `user_id`, `current_stage` | None | IntakeAgent, InspectorAgent, PlannerAgent, ExecutorAgent, EvidenceAgent |

@@ -20,7 +20,7 @@ This documentation is organized as a **sequential knowledge base** that enables 
 
 1. **[Product Vision](./01_product_vision.md)** — Strategic direction, value proposition, personas, use cases
 2. **[System Overview](./02_system_overview.md)** — **ADK agent architecture**, data flows, Composio integration, technical specifications
-3. **[User Experience Blueprint](./03_user_experience.md)** — Five-stage journey, agent-driven interaction patterns, accessibility
+3. **[User Experience Playbook](./03_user_experience.md)** — Five-stage journey, agent-driven interaction patterns, accessibility
 4. **[Chat Experience Guide](./03a_chat_experience.md)** — CopilotKit rail behaviour, agent narration, message types, telemetry hooks
 5. **[Implementation Guide](./04_implementation_guide.md)** — **Gemini ADK agent development**, Composio SDK patterns, component catalog, library docs cross-references
 6. **[Capability Roadmap](./05_capability_roadmap.md)** — Milestone-based roadmap with evidence requirements
@@ -28,12 +28,14 @@ This documentation is organized as a **sequential knowledge base** that enables 
 8. **[Operations Playbook](./07_operations_playbook.md)** — Deployment, monitoring, agent orchestration, incident response, runbooks
 9. **[Getting Started](./08_getting_started.md)** — Environment setup, running the ADK agent stack, first mission walkthrough
 10. **[Release Readiness](./09_release_readiness.md)** — Cross-functional checklists, evidence artifacts, sign-off process
+11. **[Issue Tracking & Dependency Graph](./11_issue_tracking.md)** — `bd` workflow, dependency hygiene, automation safeguards
 
 ### Special Purpose Documents
 
 - **[AI Agent Guide (AGENTS.md)](../AGENTS.md)** — Quick reference for AI agents working with this codebase
 - **[Todo List (todo.md)](./todo.md)** — Actionable next steps referencing the unified documentation
 - **[Trust Model & Composio Integration](./10_composio.md)** — **Progressive trust staging with ADK agents**, Composio SDK alignment, OAuth flows, and chat touchpoints
+- **[Issue Tracking & Dependency Graph](./11_issue_tracking.md)** — `bd` command glossary, dependency best practices
 
 ---
 
@@ -46,7 +48,7 @@ This documentation is organized as a **sequential knowledge base** that enables 
 **Recommended Path:**
 
 1. [Product Vision](./01_product_vision.md) — Market context, value prop, GTM strategy
-2. [User Experience Blueprint](./03_user_experience.md) — Five-stage journey, personas
+2. [User Experience Playbook](./03_user_experience.md) — Five-stage journey, personas
 3. [Chat Experience Guide](./03a_chat_experience.md) — How the CopilotKit rail keeps missions collaborative
 4. [Capability Roadmap](./05_capability_roadmap.md) — Milestone plan with dependencies
 5. [Release Readiness](./09_release_readiness.md) — Launch criteria and sign-off process
@@ -114,7 +116,7 @@ This documentation is organized as a **sequential knowledge base** that enables 
 **Recommended Path:**
 
 1. [Product Vision](./01_product_vision.md) — Trust model, safeguards philosophy
-2. [User Experience Blueprint](./03_user_experience.md) — Approval workflows, evidence generation
+2. [User Experience Playbook](./03_user_experience.md) — Approval workflows, evidence generation
 3. [System Overview](./02_system_overview.md) — Security architecture, audit trails
 4. [Data Intelligence](./06_data_intelligence.md) — Governance dashboards, analytics
 5. [Release Readiness](./09_release_readiness.md) — Security and compliance checklists
@@ -136,7 +138,7 @@ This documentation is organized as a **sequential knowledge base** that enables 
 **Recommended Path:**
 
 1. [Data Intelligence](./06_data_intelligence.md) — Event catalog, analytics views, learning loops
-2. [User Experience Blueprint](./03_user_experience.md) — Stage-to-event matrix
+2. [User Experience Playbook](./03_user_experience.md) — Stage-to-event matrix
 3. [System Overview](./02_system_overview.md) — Data layer architecture
 4. [Implementation Guide](./04_implementation_guide.md) — Telemetry client implementation
 5. [Capability Roadmap](./05_capability_roadmap.md) — Analytics milestones
@@ -156,7 +158,7 @@ This documentation is organized as a **sequential knowledge base** that enables 
 
 **Recommended Path:**
 
-1. [User Experience Blueprint](./03_user_experience.md) — Five-stage flow, patterns, accessibility
+1. [User Experience Playbook](./03_user_experience.md) — Five-stage flow, patterns, accessibility
 2. [Chat Experience Guide](./03a_chat_experience.md) — Message design, interrupts, accessibility copy
 3. [Product Vision](./01_product_vision.md) — Personas, use cases, value proposition
 4. [Implementation Guide](./04_implementation_guide.md) — Component catalog, Storybook
@@ -288,7 +290,7 @@ Located in `docs/readiness/`:
 
 1. Read [Product Vision](./01_product_vision.md) to understand the "why"
 2. Follow [Getting Started](./08_getting_started.md) to run the system locally
-3. Walk through a mission end-to-end using [User Experience Blueprint](./03_user_experience.md)
+3. Walk through a mission end-to-end using [User Experience Playbook](./03_user_experience.md)
 4. Dive into [System Overview](./02_system_overview.md) and [Implementation Guide](./04_implementation_guide.md) based on your role
 
 ### How do I find specific technical details?

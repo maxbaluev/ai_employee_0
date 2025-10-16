@@ -106,6 +106,7 @@ For comprehensive guides beyond quick setup:
 - **[Getting Started](docs/08_getting_started.md)** — Detailed setup walkthrough and first mission
 - **[Capability Roadmap](docs/05_capability_roadmap.md)** — Milestone-based development plan
 - **[Implementation Guide](docs/04_implementation_guide.md)** — Component catalog and integration patterns
+- **[Issue Tracking & Dependency Graph](docs/11_issue_tracking.md)** — `bd` commands, dependency best practices, automation notes
 - **[Actionable Next Steps](docs/todo.md)** — Current priorities and tasks
 
 **For AI agents:** Reference these docs when implementing features or troubleshooting complex issues beyond this quick reference.

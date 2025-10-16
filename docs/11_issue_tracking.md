@@ -1,0 +1,94 @@
+# AI Employee Control Plane: Issue Tracking & Dependency Graph
+
+**Version:** 1.0 (October 16, 2025)
+**Audience:** Engineering Leads, Product Operations, Automation Agents
+**Status:** Canonical guidance for `bd` usage inside this repo
+
+---
+
+## Purpose
+
+The Control Plane relies on the lightweight `bd` CLI to capture work, express
+dependencies, and surface "ready" missions for both humans and agents. This
+document explains how to bootstrap the tracker, keep dependency data healthy,
+and plug the graph into automations without breaking repo hygiene.
+
+---
+
+## 1. Getting Started
+
+- Run `bd init` in the repository root after every fresh clone. This seeds the
+  `.beads/` workspace database expected by project automation.
+- `bd init --prefix <slug>` overrides the default issue key if you need a custom
+  prefix (the default is derived from the repo name).
+- Database discovery order: explicit `--db` flag → `$BEADS_DB` → repo
+  `.beads/*.db` → `~/.beads/default.db`. Use a custom path only when you
+  intentionally share a board across repos.
+
+> **Tip:** The repo assumes the local `.beads/` database exists; avoid deleting
+> it or automation dashboards will fail to sync.
+
+---
+
+## 2. Core Workflow
+
+1. **Capture work immediately**
+   - `bd create "Fix login bug" -p 1 -t feature -d "..."` logs new missions.
+   - Add `--assignee <email>` if ownership is known.
+2. **Stay oriented**
+   - `bd list --status open` or `bd list --priority 0` filters work queues.
+3. **Update status**
+   - `bd update BD-123 --status in_progress --assignee you@company.com` keeps
+     mission state accurate.
+4. **Close with context**
+   - `bd close BD-123 --reason "Fixed in PR #42"` writes the audit trail.
+
+Use `bd ready` when triaging: it only returns missions without blockers so AI
+agents can pick safe starting points.
+
+---
+
+## 3. Dependency Management
+
+- `bd dep add <blocked> <blocker>` encodes relationships. Supported dependency
+  types are `blocks`, `related`, `parent-child`, and `discovered-from` (the
+  latter is emitted automatically by agents).
+- `bd dep tree <issue>` prints upstream blockers for quick reviews.
+- `bd dep cycles` guards against circular dependencies before work begins.
+
+Keep dependency graphs tidy so governance reviews can prove every automation was
+unblocked before execution.
+
+---
+
+## 4. Automation & Integrations
+
+- Append `--json` to any command (for example, `bd ready --json`) to emit
+  machine-readable output for agents or dashboards.
+- Automation scripts rely on the short debounce that exports/imports JSONL
+  snapshots. Suppress syncing with `--no-auto-flush` or `--no-auto-import` when
+  running experiments that should not touch the shared backlog.
+- Use `mise exec -- bd …` if you need to load secrets from `.env` for scripts
+  that bridge Supabase or Composio telemetry.
+
+---
+
+## 5. Operational Hygiene Checklist
+
+- [ ] Keep the `.beads/` directory under version control and avoid manual edits
+      to the database file.
+- [ ] Record blockers the moment you discover them so `bd ready` remains
+      trustworthy for agents.
+- [ ] Review `bd dep tree` during release readiness checks alongside
+      `docs/09_release_readiness.md`.
+- [ ] Archive or close stale issues during the "Reflect & Improve" stage to
+      keep velocity reports accurate.
+
+---
+
+### Related Docs
+
+- `AGENTS.md` — tl;dr for automation agents touching `bd`
+- `docs/09_release_readiness.md` — evidence expectations before closing issues
+- `docs/00_README.md` — navigation guide for the full documentation suite
+

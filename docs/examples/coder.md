@@ -39,7 +39,7 @@
 - Vercel connect link describes scopes plainly (“Create preview deploys, promote to production”). Token stored with mission metadata.
 - Data preview highlights failing Jest suites and open Linear tickets so Jordan can prioritise.
 
-### Plan — Phased Blueprint
+### Plan — Phased Playbook
 - Best plan details five phases, each with expected duration and success criteria:
   1. Diagnostics & logging improvements
   2. Refresh token lifecycle rewrite
@@ -79,4 +79,3 @@
 - Plain-language scope cards speed up complex tool authorisations.
 - Phased live checklist keeps deep engineering work legible for stakeholders.
 - Persisting undo paths (feature flags + Git rollback) maintain risk tolerance even in high-stakes deploys.
-

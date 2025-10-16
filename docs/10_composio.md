@@ -110,6 +110,19 @@ EvidenceAgent (ADK) → Read execution_results from session state
 - **Triggers & Workflows:** Long-running actions (bulk email, exports) move to `client.triggers` so Executor threads remain responsive; chat uses progress pips to keep humans informed.
 - **Undo Plans:** `client.audit.list_events()` supplies action payloads and undo hints for each tool call. CopilotKit’s undo drawer references the same audit events the SDK records.
 
+### 5. Toolkit Coverage Snapshot
+
+| Category | Representative Toolkits | Practical Coverage |
+| -------- | ----------------------- | ------------------ |
+| CRM & RevOps | HubSpot, Salesforce, Zendesk, Pipedrive, Zoho | Pipeline management, customer success escalations, service desk automations |
+| Communication & Meetings | Slack, Gmail, Outlook, Zoom, Microsoft Teams, Webex | Multi-channel outreach, approvals, incident broadcast flows |
+| Data & Analytics | Snowflake, BigQuery, Mixpanel, Amplitude, PostHog, ClickHouse | Mission insights, experiment dashboards, anomaly detection |
+| Productivity & Knowledge | Notion, Linear, ClickUp, Airtable, Coda, Todoist | Task orchestration, documentation updates, backlog grooming |
+| Marketing & Growth | Brevo, MailerLite, Campaign Cleaner, Instantly, Hunter | Lifecycle email, lead enrichment, campaign execution |
+| Automation & Web Agents | Apify, AgentQL, BrightData, Firecrawl, Tavily | Structured web extraction, research taps, enrichment pipelines |
+
+> Source: `libs_docs/composio/llms.txt` — review it when verifying toolkit availability or adding new mission playbooks.
+
 ---
 
 ## Progressive Trust with ADK Agents & Composio SDK

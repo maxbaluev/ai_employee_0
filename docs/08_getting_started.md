@@ -402,7 +402,7 @@ Try these mission templates:
 
 ### Dive Deeper into Documentation
 
-- **[User Experience Blueprint](./03_user_experience.md)** — Understand all five stages in detail
+- **[User Experience Playbook](./03_user_experience.md)** — Understand all five stages in detail
 - **[System Overview](./02_system_overview.md)** — Learn architecture and data flows
 - **[Implementation Guide](./04_implementation_guide.md)** — Extend with custom components or agents
 
