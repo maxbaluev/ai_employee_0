@@ -272,6 +272,7 @@ Document validations on the bd issue before promoting builds.
 ### Lifecycle
 
 1. **Detect & Triage (0-5 min)**
+
    ```bash
    INCIDENT=$(bd create "SEV1: <summary>" -p 0 -t incident -l "incident,sev1" --json | jq -r '.id')
    bd update "$INCIDENT" --status in_progress --assignee "$ONCALL_EMAIL"
@@ -279,6 +280,7 @@ Document validations on the bd issue before promoting builds.
    ```
 
    - Announce in `#incidents` with the bd link and pager context.
+
 2. **Mitigate & Contain (5-30 min)**
    - Roll back, toggle flags, scale resources, or enable circuit breaker.
    - Every 15 minutes run `bd comment "$INCIDENT" "Update…"` and attach Grafana screenshots, command logs, and `bd dep tree` output if new blockers appear.
