@@ -1,19 +1,29 @@
-"""Placeholder Gemini ADK agents for the mission lifecycle.
+"""Gemini ADK agents for the mission lifecycle.
 
-Implement the Coordinator, Intake, Inspector, Planner, Validator, Executor, and
-Evidence agents in this package following the architecture described in:
+This package implements the seven-stage mission journey agents following the
+architecture described in:
 
 * docs/02_system_overview.md — section "Backend Agents (Gemini ADK)"
 * docs/04_implementation_guide.md — section 3
 * docs/10_composio.md — Composio trust model & OAuth flows
 
-Until those modules exist, imports from ``agent.agents`` should be treated as
-stubs. Each file should expose a class with the same name as the agent (for
-example ``CoordinatorAgent``) inheriting from the appropriate ADK base class.
+Implemented Agents:
+- CoordinatorAgent: Orchestrates seven-stage mission lifecycle (TASK-ADK-001)
+
+Planned Agents (stubs):
+- IntakeAgent: Stage 1 (Define) brief generation
+- InspectorAgent: Stage 2 (Prepare) toolkit discovery and OAuth
+- PlannerAgent: Stage 3 (Plan) play ranking
+- ValidatorAgent: Safeguard enforcement across stages
+- ExecutorAgent: Stage 5 (Execute) governed tool execution
+- EvidenceAgent: Stages 5-6 artifact packaging
 """
+
+from agent.agents.coordinator import CoordinatorAgent, MissionStage
 
 __all__ = [
     "CoordinatorAgent",
+    "MissionStage",
     "IntakeAgent",
     "InspectorAgent",
     "PlannerAgent",
@@ -30,7 +40,7 @@ class _NotImplementedStub:
         )
 
 
-CoordinatorAgent = _NotImplementedStub
+# Stubs for not-yet-implemented agents
 IntakeAgent = _NotImplementedStub
 InspectorAgent = _NotImplementedStub
 PlannerAgent = _NotImplementedStub

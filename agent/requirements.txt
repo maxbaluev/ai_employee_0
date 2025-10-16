@@ -7,3 +7,5 @@ google-genai
 ag-ui-adk
 composio==0.8.20
 httpx
+pytest>=8.0.0
+pytest-asyncio>=0.23.0
