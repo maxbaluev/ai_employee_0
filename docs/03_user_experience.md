@@ -57,6 +57,23 @@ Template or intent → Tool readiness → Ranked plays → Assignee approves →
 
 Each mission lives in a single responsive workspace. Stage summaries stay visible but collapsed, so the current decision is always obvious.
 
+## Stage-Aware Copilot Surfaces
+
+The workspace follows the CopilotKit stage-aware pattern from `libs_docs/copilotkit/llms-full.txt`, keeping each collaboration surface focused on a single decision while sharing state through CopilotKit.
+
+| Stage | Copilot Surface | What the Surface Delivers | Primary Hooks |
+| --- | --- | --- | --- |
+| **Define** | Mission Intake Panel | Capture intent, personas, and KPIs; stream ADK rationale chips without forcing premature locks. | `useCopilotReadable`, `useCopilotAction` |
+| **Prepare** | Inspection Drawer | Show no-auth discovery, anticipated scopes, and Connect Link approvals once stakeholders consent. | `useCopilotReadable`, `useCopilotAction`, `useCopilotChat` |
+| **Plan & Approve** | Approval Timeline | Stream planner-ranked plays, highlight safeguards, and collect approvals without new OAuth prompts. | `useCopilotAction`, `useCopilotChat`, `useCopilotChatSuggestions` |
+| **Execute & Observe** | Live Runboard | Mirror Composio SDK tool calls, surface intervention modals, and display undo countdowns. | `useCopilotChat`, `useCopilotAction` |
+| **Reflect & Improve** | Artifact Gallery | Package evidence bundles, suggest library reuse, and gather structured feedback. | `useCopilotReadable`, `useCopilotAction`, `useCopilotChat` |
+
+**Progressive trust guardrails:**
+- Prepare surfaces attach "No credentials required" badges to inspection results and preview anticipated OAuth scopes before Connect Links launch.
+- Planner and approver flows reuse validated connections; if freshness checks fail they route back to Prepare instead of reissuing prompts.
+- Execution stages never request new OAuth scopes—only connection freshness—and anchor undo affordances to Composio audit events.
+
 ---
 
 ## Stage 0 — Home Overview (before missions)

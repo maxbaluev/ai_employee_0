@@ -86,10 +86,13 @@ This guide explains what users see, how the chat reacts to system events, and wh
 
 ## 6. Implementation Pointers
 
-- Wrap mission layouts with `<CopilotKit runtimeUrl="/api/copilotkit">` so CopilotKit state is available to all stages.
-- Use `useCopilotChatSuggestions` to populate stage-specific quick actions.
-- The evidence gallery listens to `copilotkit_emit_message` events to cross-link artifacts with chat posts.
-- For long-running executions, emit interim messages using `copilotkit_emit_message` every 20 seconds to maintain heartbeat and reassure the user.
+- Wrap mission layouts with `<CopilotKit runtimeUrl="/api/copilotkit">` so CopilotKit state flows across the entire workspace.
+- In Define, pair `useCopilotReadable` with `useCopilotAction` so intent edits stay live while rationale chips stream in.
+- In Prepare, reuse `useCopilotReadable`, `useCopilotAction`, and `useCopilotChat` to surface discovery updates and launch Connect Links post-approval.
+- In Plan & Approve, combine `useCopilotAction`, `useCopilotChat`, and `useCopilotChatSuggestions` to stream ranked plays and capture approvals without triggering additional OAuth.
+- In Execute, mirror Composio checkpoints via `useCopilotChat` and let undo controls route back through `useCopilotAction` handlers.
+- In Reflect, publish evidence bundles through `useCopilotReadable` + `useCopilotChat` and allow reuse prompts via `useCopilotAction` tied to Supabase artifacts.
+- For long-running executions, maintain heartbeats with incremental `copilotkit_emit_message` payloads every 20 seconds.
 - Interrupt flows rely on `copilotkit_interrupt` – ensure each interrupt message acknowledges the prior action and states whether work is paused or cancelled.
 
 ---

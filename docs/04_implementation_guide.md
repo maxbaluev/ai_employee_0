@@ -41,10 +41,12 @@ Optional:
 
 - **App Router:** `src/app/(control-plane)/layout.tsx` hosts `MissionWorkspaceLayout`
 - **State:** `MissionStageProvider` orchestrates seven-stage flow with shared context (`HOME`, `DEFINE`, `PREPARE`, `PLAN`, `APPROVE`, `EXECUTE`, `REFLECT`)
-- **CopilotKit Hooks:**
-  - `useCopilotReadable` exposes mission brief, toolkits, safeguards
-  - `useCopilotAction` handles chip acceptance, play selection, undo decisions
-  - `copilotkit_emit_message` streams planner/execution updates
+- **CopilotKit Hooks (stage-aware):**
+  - **Mission Intake Panel (Define):** `useCopilotReadable`, `useCopilotAction` keep intent chips editable while streaming rationale summaries.
+  - **Inspection Drawer (Prepare):** `useCopilotReadable`, `useCopilotAction`, `useCopilotChat` surface discovery results, preview scopes, and trigger Connect Link modals once stakeholders consent.
+  - **Approval Timeline (Plan & Approve):** `useCopilotAction`, `useCopilotChat`, `useCopilotChatSuggestions` stream ranked plays, capture approvals, and persist safeguard acknowledgements without prompting for new OAuth scopes.
+  - **Runboard (Execute & Observe):** `useCopilotChat`, `useCopilotAction` mirror Composio SDK tool calls, validator interrupts, and undo countdowns.
+  - **Artifact Gallery (Reflect):** `useCopilotReadable`, `useCopilotAction`, `useCopilotChat` package evidence bundles, reuse prompts, and gather structured feedback.
 - **Styling:** Tailwind v4 + custom tokens (see `src/styles/tokens.ts`)
 - **Testing:** Vitest + Testing Library (`pnpm test:ui`), Playwright for e2e
 
@@ -66,6 +68,7 @@ Optional:
 - **Streaming:** Server-sent events via `/api/stream/*`; ensure SSE reconnect handlers manage `429` backoffs.
 - **State Persistence:** Use `MissionWorkspaceStore` (Zustand) backed by `sessionStorage` to maintain context across reloads; persist current seven-stage state for telemetry alignment.
 - **Accessibility:** Wrap streaming sections in `aria-live="polite"`; provide keyboard shortcuts for primary actions.
+- **Progressive Trust Guardrails:** Connect Links launch only from Prepare after stakeholder approval, planner/approver flows reuse validated credentials, and Execute never re-prompts—just freshness-checks before tool calls while anchoring undo plans to Composio audit events.
 - **Error Handling:** Display inline callouts with retry affordances; log telemetry (`error_surface_viewed`).
 - **Storybook:** Add stories under `stories/mission-workspace/*.stories.tsx` with controls and accessibility notes.
 
