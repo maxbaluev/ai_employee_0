@@ -4,13 +4,13 @@
 **Purpose:** Navigate the AI Employee Control Plane documentation suite
 **Audience:** All stakeholders — Product, Engineering, Operations, Governance, Partners
 
-> **Five-Stage Mission Journey:** All docs align to the consolidated lifecycle — **Define, Prepare, Plan & Approve, Execute & Observe, Reflect & Improve**.
+> **Seven-Stage Mission Journey:** All docs align to the consolidated lifecycle — **Stage 0 (Home Overview), Stage 1 (Define), Stage 2 (Prepare), Stage 3 (Plan), Stage 4 (Approve), Stage 5 (Execute), Stage 6 (Reflect)**.
 
 ---
 
 ## How to Use This Documentation
 
-This documentation is organized as a **sequential knowledge base** that enables understanding and building the AI Employee Control Plane from scratch. **The platform is built on a Gemini ADK-driven agent architecture tightly coupled with Composio state management**, delivering progressive trust through Inspector/Planner/Executor agents across a five-stage mission lifecycle. Documents are numbered for suggested reading order, but you can jump to specific topics based on your role.
+This documentation is organized as a **sequential knowledge base** that enables understanding and building the AI Employee Control Plane from scratch. **The platform is built on a Gemini ADK-driven agent architecture tightly coupled with Composio state management**, delivering progressive trust through Inspector/Planner/Executor agents across a seven-stage mission lifecycle. Documents are numbered for suggested reading order, but you can jump to specific topics based on your role.
 
 ---
 
@@ -20,7 +20,7 @@ This documentation is organized as a **sequential knowledge base** that enables 
 
 1. **[Product Vision](./01_product_vision.md)** — Strategic direction, value proposition, personas, use cases
 2. **[System Overview](./02_system_overview.md)** — **ADK agent architecture**, data flows, Composio integration, technical specifications
-3. **[User Experience Playbook](./03_user_experience.md)** — Five-stage journey, agent-driven interaction patterns, accessibility
+3. **[User Experience Playbook](./03_user_experience.md)** — Seven-stage journey, agent-driven interaction patterns, accessibility
 4. **[Chat Experience Guide](./03a_chat_experience.md)** — CopilotKit rail behaviour, agent narration, message types, telemetry hooks
 5. **[Implementation Guide](./04_implementation_guide.md)** — **Gemini ADK agent development**, Composio SDK patterns, component catalog, library docs cross-references
 6. **[Capability Roadmap](./05_capability_roadmap.md)** — Milestone-based roadmap with evidence requirements
@@ -48,7 +48,7 @@ This documentation is organized as a **sequential knowledge base** that enables 
 **Recommended Path:**
 
 1. [Product Vision](./01_product_vision.md) — Market context, value prop, GTM strategy
-2. [User Experience Playbook](./03_user_experience.md) — Five-stage journey, personas
+2. [User Experience Playbook](./03_user_experience.md) — Seven-stage journey, personas
 3. [Chat Experience Guide](./03a_chat_experience.md) — How the CopilotKit rail keeps missions collaborative
 4. [Capability Roadmap](./05_capability_roadmap.md) — Milestone plan with dependencies
 5. [Release Readiness](./09_release_readiness.md) — Launch criteria and sign-off process
@@ -160,7 +160,7 @@ This documentation is organized as a **sequential knowledge base** that enables 
 
 **Recommended Path:**
 
-1. [User Experience Playbook](./03_user_experience.md) — Five-stage flow, patterns, accessibility
+1. [User Experience Playbook](./03_user_experience.md) — Seven-stage flow, patterns, accessibility
 2. [Chat Experience Guide](./03a_chat_experience.md) — Message design, interrupts, accessibility copy
 3. [Product Vision](./01_product_vision.md) — Personas, use cases, value proposition
 4. [Implementation Guide](./04_implementation_guide.md) — Component catalog, Storybook
@@ -169,7 +169,7 @@ This documentation is organized as a **sequential knowledge base** that enables 
 
 **Key Questions Answered:**
 
-- How do the five mission stages work together and what are the handoffs?
+- How do the seven mission stages work together and what are the handoffs?
 - What interaction patterns should I follow?
 - What are the accessibility requirements?
 - How do I verify telemetry fires for UX events?
@@ -203,9 +203,10 @@ To maintain consistency across all documentation, use these preferred terms:
 
 **Mission Lifecycle:**
 
-- **Five-Stage Journey:** Define → Prepare → Plan & Approve → Execute & Observe → Reflect & Improve (user-facing stages)
-- **Prepare (Inspector):** Conducts no-auth discovery, previews anticipated scopes, and—once stakeholders approve—initiates every Connect Link OAuth flow. All granted scopes are logged before planning begins.
-- **Plan & Approve (Planner):** Works entirely from established connections to assemble ranked mission plays grounded in tool usage patterns, data investigation output, and library precedent; never requests new scopes.
+- **Seven-Stage Journey:** Stage 0 (Home Overview) → Stage 1 (Define) → Stage 2 (Prepare) → Stage 3 (Plan) → Stage 4 (Approve) → Stage 5 (Execute) → Stage 6 (Reflect) (user-facing stages)
+- **Stage 2 — Prepare (Inspector):** Conducts no-auth discovery, previews anticipated scopes, and—once stakeholders approve—initiates every Connect Link OAuth flow. All granted scopes are logged before planning begins.
+- **Stage 3 — Plan (Planner):** Works entirely from established connections to assemble ranked mission plays grounded in tool usage patterns, data investigation output, and library precedent; never requests new scopes.
+- **Stage 4 — Approve:** Dedicated approval checkpoint with stakeholder review and audit trail before execution.
 - **Four-Layer Architecture:** Presentation → Orchestration → Execution → Data (technical stack layers)
 
 **Trust & Authorization:**
@@ -259,7 +260,7 @@ To maintain consistency across all documentation, use these preferred terms:
 
 Located in `diagrams/` (Mermaid format):
 
-- `five_stage_journey.mmd` — Mission workflow visualization
+- `seven_stage_journey.mmd` — Mission workflow visualization
 - `adaptive_safeguards_lifecycle.mmd` — Safeguard generation and enforcement
 - `end_to_end_data_flow.mmd` — System-wide data movement
 - `library_learning_loop.mmd` — Play reuse and learning
@@ -270,7 +271,7 @@ Located in `diagrams/` (Mermaid format):
 Real-world case studies and narrative examples live in `docs/examples/`:
 
 - `coder.md` — Professional AI programmer delivering an authentication refactor mission
-- `revops.md` — Revenue operations case study with five-stage walkthrough
+- `revops.md` — Revenue operations case study with seven-stage walkthrough
 - `support_leader.md` — Support leader navigating incident triage
 - `compliance_audit.md` — Governance lead conducting quarterly review
 
@@ -330,7 +331,7 @@ Located in `docs/readiness/`:
 | -------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------- |
 | Oct 2025 | 3.2     | Added Chat Experience Guide (03a); wove chat narrative into System Overview, User Experience, and Trust Model docs; updated navigation paths and changelog                                                                                                     | Documentation Team            |
 | Oct 2025 | 3.1     | Documentation audit: Added Operations Playbook (07) and Release Readiness (09); renumbered Getting Started to 08; fixed examples directory references; added Inspector agent documentation; enhanced library docs cross-references; improved AGENTS.md clarity | AI Agent + Documentation Team |
-| Oct 2025 | 3.0     | Five-stage mission journey migration — consolidated docs, updated diagrams, created narrative examples                                                                                                                                                         | Product & Engineering         |
+| Oct 2025 | 3.0     | Seven-stage mission journey migration — consolidated docs, updated diagrams, created narrative examples                                                                                                                                                         | Product & Engineering         |
 | Aug 2025 | 2.0     | Unified documentation overhaul — removed gate terminology, added milestone-based roadmap, created navigation guide                                                                                                                                             | Product & Engineering         |
 
 ---

@@ -3,7 +3,7 @@
 **Version:** 3.0 (October 16, 2025)
 **Audience:** Data Engineering, Analytics, Product Operations, Governance, Agent Platform Engineering
 **Status:** Authoritative reference for telemetry, analytics, and learning loops
-**Lifecycle Alignment:** Home → Define → Prepare → Plan & Approve → Execute & Observe → Reflect & Improve
+**Lifecycle Alignment:** Home → Define → Prepare → Plan → Approve → Execute → Reflect
 
 ---
 
@@ -29,9 +29,10 @@ flowchart LR
     Home[Home Overview]
     Define[Define Stage UI]
     Prepare[Prepare Stage UI]
-    Plan[Plan & Approve UI]
-    Execute[Execute & Observe UI]
-    Reflect[Reflect & Improve UI]
+    Plan[Plan Stage UI]
+    Approve[Approve Stage UI]
+    Execute[Execute Stage UI]
+    Reflect[Reflect Stage UI]
   end
 
   subgraph Agents & Services
@@ -66,6 +67,7 @@ flowchart LR
   Define --> TelemetryClient
   Prepare --> TelemetryClient
   Plan --> TelemetryClient
+  Approve --> TelemetryClient
   Execute --> TelemetryClient
   Reflect --> TelemetryClient
 
@@ -98,7 +100,7 @@ flowchart LR
 - `missions`, `mission_metadata`, `mission_stage_status` — lifecycle status, persona, and timestamps.
 - `mission_connections` — Inspector-approved Connect Link events with scopes and expiry (Stage 2).
 - `mission_sessions` — ADK session snapshots keyed by agent type for lag and token analysis.
-- `mission_approvals` — Plan & Approve decisions with approver role, rationale, and timestamps.
+- `mission_approvals` — Approve stage decisions with approver role, rationale, and timestamps.
 - `mission_artifacts`, `mission_evidence` — Evidence bundles referenced in Reflect stage.
 - `mission_feedback` — Ratings, effort saved, blocker notes for learning loops.
 
@@ -107,7 +109,7 @@ flowchart LR
 - `telemetry_events` — Canonical event log (schema in §2.3).
 - `workspace_stream_sessions` — CopilotKit SSE sessions with sampling mode and disconnect telemetry.
 - `composio_audit_events` — Discovery, OAuth, tool execution, and error outcomes from the Composio SDK.
-- `undo_events` — Planned and executed rollback steps, including validator context (Stage 4).
+- `undo_events` — Planned and executed rollback steps, including validator context (Stage 5).
 
 **Analytics & Library:**
 
@@ -138,9 +140,10 @@ CREATE TABLE telemetry_events (
     'Home',
     'Define',
     'Prepare',
-    'Plan & Approve',
-    'Execute & Observe',
-    'Reflect & Improve'
+    'Plan',
+    'Approve',
+    'Execute',
+    'Reflect'
   )),
   status TEXT CHECK (status IN ('info', 'success', 'warning', 'error')),
   context JSONB NOT NULL,
@@ -198,20 +201,27 @@ All telemetry eventually lands in `telemetry_events`. Stage naming matches the l
 | `coverage_preview_opened` | User expands coverage pane | `toolkit`, `field_summary`, `time_to_view` | Engagement with inspection outputs |
 | `governance_override_requested` | Governance toggles scope or policy | `override_type`, `requested_by`, `rationale` | Compliance review workload |
 
-### 3.4 Stage 3: Plan & Approve
+### 3.4 Stage 3: Plan
 
 | Event | Triggered By | Context Fields | Analytics Use |
 |-------|--------------|----------------|---------------|
 | `planner_candidate_generated` | PlannerAgent yields play | `play_id`, `confidence`, `library_precedent_count`, `tool_usage_pattern`, `undo_plan_included` | Play diversity, retrieval balance |
 | `plan_ranked` | Planner orders plays | `play_ids_ordered`, `ranking_method`, `validator_critique`, `aliases` (`planner_generated`) | Ranking quality (Loop 2) |
 | `plan_adjusted` | Operator tweaks parameters | `adjustment_type`, `before_value`, `after_value`, `reason_note` | Adjustment hotspots, UI tuning |
-| `approval_requested` | Owner assigns approver | `approval_type` (plan/toolkit/safeguard), `approver_role`, `due_at` | Approval queue health |
-| `plan_approved` | Approver confirms play | `play_id`, `approver_role`, `approval_timestamp`, `undo_window_seconds` | Time-to-approve, trust signals |
-| `plan_rejected` | Approver declines | `play_id`, `rejection_reason`, `feedback_note` | Negative signal for planner tuning |
-| `audit_event_recorded` | Approval exported to audit | `mission_id`, `artifact_hash`, `export_format` | Governance traceability |
+| `plan_selected` | Operator chooses play for approval | `play_id`, `selection_method` (auto/manual), `reason_note`, `undo_plan_id` | Selection clarity, play win rates |
 | `validator_scope_check` | Validator verifies scopes | `required_scopes`, `granted_scopes`, `alignment_status` | Inspector → Planner handshake quality |
 
-### 3.5 Stage 4: Execute & Observe
+### 3.5 Stage 4: Approve
+
+| Event | Triggered By | Context Fields | Analytics Use |
+|-------|--------------|----------------|---------------|
+| `approval_requested` | Owner assigns approver | `approval_type` (plan/toolkit/safeguard), `approver_role`, `due_at`, `play_id` | Approval queue health |
+| `approval_delegated` | Approval reassigned | `from_role`, `to_role`, `reason`, `delegated_by` | Workload balancing |
+| `approval_granted` | Approver confirms play | `play_id`, `approver_role`, `approval_timestamp`, `undo_window_seconds` | Time-to-approve, trust signals |
+| `approval_rejected` | Approver declines | `play_id`, `rejection_reason`, `feedback_note` | Negative signal for planner tuning |
+| `audit_event_recorded` | Approval exported to audit | `mission_id`, `artifact_hash`, `export_format`, `approver_role` | Governance traceability |
+
+### 3.6 Stage 5: Execute
 
 | Event | Triggered By | Context Fields | Analytics Use |
 |-------|--------------|----------------|---------------|
@@ -226,7 +236,7 @@ All telemetry eventually lands in `telemetry_events`. Stage naming matches the l
 | `undo_completed` | Rollback executed | `undo_plan_id`, `actions_reversed`, `duration_ms`, `outcome` | Undo efficacy (target ≥95%) |
 | `session_heartbeat` | ADK Runner heartbeat | `agent_name`, `lag_ms`, `token_usage`, `session_state_size_bytes` | Agent performance (Agent dashboard) |
 
-### 3.6 Stage 5: Reflect & Improve
+### 3.7 Stage 6: Reflect
 
 | Event | Triggered By | Context Fields | Analytics Use |
 |-------|--------------|----------------|---------------|
@@ -239,7 +249,7 @@ All telemetry eventually lands in `telemetry_events`. Stage naming matches the l
 
 **Beads Integration Note:** Follow-up actions can be captured as `bd` issues and tracked operationally. When operators create follow-ups using `bd create`, they can link the mission using `bd dep add` for audit trails. See `docs/11_issue_tracking.md` §2 (Core Workflow) and `docs/07_operations_playbook.md` for deployment and incident tracking patterns.
 
-### 3.7 Cross-Stage & Platform Events
+### 3.8 Cross-Stage & Platform Events
 
 | Event | Triggered By | Context Fields | Analytics Use |
 |-------|--------------|----------------|---------------|
@@ -251,16 +261,17 @@ All telemetry eventually lands in `telemetry_events`. Stage naming matches the l
 
 **Operational Workflow:** Incident events should include a `bd_issue` field linking to the operational tracker. Operators create incidents using `bd create "SEV1: <summary>" -p 0 -t incident` and update status throughout the lifecycle. See `docs/07_operations_playbook.md` §Incident Management and `docs/11_issue_tracking.md` for complete workflows.
 
-### 3.8 Stage-to-Event Matrix
+### 3.9 Stage-to-Event Matrix
 
 | Stage | Primary Events | Secondary & Alias Events |
 |-------|----------------|--------------------------|
-| **Home** | `home_tile_opened`, `readiness_badge_rendered`, `alert_rail_viewed` | `mission_list_action_taken` |
-| **Define** | `intent_submitted`, `brief_generated`, `brief_item_modified`, `mission_brief_locked` | `safeguard_added`, alias `brief_field_edited` |
-| **Prepare** | `composio_discovery`, `toolkit_recommended`, `toolkit_connected`, `composio_auth_flow`, `data_preview_generated`, `readiness_status_changed` | `coverage_preview_opened`, `governance_override_requested` |
-| **Plan & Approve** | `planner_candidate_generated`, `plan_ranked`, `plan_approved`, `approval_requested` | `plan_adjusted`, `plan_rejected`, `audit_event_recorded`, `validator_scope_check` |
-| **Execute & Observe** | `execution_started`, `execution_step_completed`, `composio_tool_call`, `validator_alert_raised`, `undo_available`, `session_heartbeat` | `composio_tool_call_error`, `validator_override_requested`, `undo_requested`, `undo_completed` |
-| **Reflect & Improve** | `mission_completed`, `feedback_submitted`, `library_contribution` | `evidence_opened`, `mission_retrospective_logged`, `followup_scheduled` |
+| **Stage 0 — Home** | `home_tile_opened`, `readiness_badge_rendered`, `alert_rail_viewed` | `mission_list_action_taken`, `approval_opened` |
+| **Stage 1 — Define** | `intent_submitted`, `brief_generated`, `brief_item_modified`, `mission_brief_locked` | `safeguard_added`, alias `brief_field_edited` |
+| **Stage 2 — Prepare** | `composio_discovery`, `toolkit_recommended`, `toolkit_connected`, `composio_auth_flow`, `data_preview_generated`, `readiness_status_changed` | `coverage_preview_opened`, `governance_override_requested` |
+| **Stage 3 — Plan** | `planner_candidate_generated`, `plan_ranked`, `plan_selected` | `plan_adjusted`, `validator_scope_check` |
+| **Stage 4 — Approve** | `approval_requested`, `approval_delegated`, `approval_granted`, `approval_rejected` | `audit_event_recorded`, `approval_exported` |
+| **Stage 5 — Execute** | `execution_started`, `execution_step_completed`, `composio_tool_call`, `validator_alert_raised`, `undo_available`, `session_heartbeat` | `composio_tool_call_error`, `validator_override_requested`, `undo_requested`, `undo_completed` |
+| **Stage 6 — Reflect** | `mission_completed`, `feedback_submitted`, `library_contribution` | `evidence_opened`, `mission_retrospective_logged`, `followup_scheduled` |
 
 Maintain test fixtures for this catalog in `agent/evals/mission_end_to_end.evalset.json` and keep the release checklist items in `docs/09_release_readiness.md` synced.
 
@@ -328,12 +339,12 @@ Learning loops keep telemetry actionable. Each loop aligns with milestones in `d
 - **Actions:** Weekly review of chip edit deltas by persona, prompt tuning for IntakeAgent (see `agent/agents/intake.py` once implemented), regression tests via `intake_quality` eval set.
 - **Success Metrics:** ≥80% briefs locked without edits, <2 average chip edits, time-to-lock <2 minutes.
 
-### 5.2 Loop B — Planner Excellence (Plan & Approve)
+### 5.2 Loop B — Planner Excellence (Plan → Approve)
 
-- **Goal:** Lift first-play approval and tighten ranking confidence.
-- **Signals:** `plan_ranked`, `plan_rejected`, validator critiques, library precedent counts, readiness coverage metrics from Stage 2.
-- **Actions:** Analyze rejection reasons weekly, adjust hybrid weighting in PlannerAgent, cross-check coverage vs approval correlation using Supabase analytics views, validate with `ranking_quality` and `mission_end_to_end` eval sets.
-- **Success Metrics:** ≥70% first-play approval, rejection rate <15%, library reuse ≥40%, validator high-severity alerts <20%.
+- **Goal:** Lift first-play selection through approval and tighten ranking confidence.
+- **Signals:** `plan_ranked`, `plan_selected`, `approval_granted`, `approval_rejected`, validator critiques, library precedent counts, readiness coverage metrics from Stage 2.
+- **Actions:** Analyze rejection and delegation reasons weekly, adjust hybrid weighting in PlannerAgent, compare coverage vs approval correlation using Supabase analytics views, validate with `ranking_quality` and `mission_end_to_end` eval sets.
+- **Success Metrics:** ≥70% selected play approved without revision, rejection rate <15%, library reuse ≥40%, validator high-severity alerts <20%.
 
 ### 5.3 Loop C — Safeguard Reinforcement (Prepare → Execute)
 
@@ -451,13 +462,13 @@ Roadmap items tracked in `docs/05_capability_roadmap.md` (§Learning & Intellige
 | `brief_item_modified` | Define | Set `context.aliases = ['brief_field_edited']` when UI surfaces variant |
 | `composio_discovery` | Prepare | Inspector no-auth tool search |
 | `toolkit_connected` | Prepare | Inspector or operator completed OAuth |
-| `plan_ranked` | Plan & Approve | Include ranking method and validator critique summary |
-| `approval_requested` | Plan & Approve | Drives governance SLA metrics |
-| `composio_tool_call` | Execute & Observe | Include `outcome` (`success`, `rate_limit`, `auth_expired`, etc.) |
-| `undo_available` | Execute & Observe | Must fire before any irreversible action |
-| `session_heartbeat` | Execute & Observe | Lists agent lag and token usage every 30s |
-| `feedback_submitted` | Reflect & Improve | Contains quantitative (rating, effort saved) + qualitative fields |
-| `library_contribution` | Reflect & Improve | Add mission linkage for future retrieval |
+| `plan_ranked` | Stage 3 — Plan | Include ranking method and validator critique summary |
+| `approval_requested` | Stage 4 — Approve | Drives governance SLA metrics |
+| `composio_tool_call` | Stage 5 — Execute | Include `outcome` (`success`, `rate_limit`, `auth_expired`, etc.) |
+| `undo_available` | Stage 5 — Execute | Must fire before any irreversible action |
+| `session_heartbeat` | Stage 5 — Execute | Lists agent lag and token usage every 30s |
+| `feedback_submitted` | Stage 6 — Reflect | Contains quantitative (rating, effort saved) + qualitative fields |
+| `library_contribution` | Stage 6 — Reflect | Add mission linkage for future retrieval |
 
 ### 10.2 Telemetry Hygiene Checklist
 
@@ -486,4 +497,3 @@ Roadmap items tracked in `docs/05_capability_roadmap.md` (§Learning & Intellige
 **Document Owner:** Data Intelligence Team  
 **Next Review:** January 2026  
 **Feedback:** Open an issue referencing this document or drop context in `docs/readiness/feedback/` when the folder lands.
-

@@ -13,7 +13,7 @@ This guide walks you through:
 
 1. **Environment Setup** — Install tools, configure secrets, verify dependencies
 2. **Running the Stack** — Start local development environment (UI + Agent + Supabase)
-3. **First Mission Walkthrough** — Experience the five-stage mission journey hands-on
+3. **First Mission Walkthrough** — Experience the seven-stage mission journey hands-on
 4. **Troubleshooting** — Common issues and solutions
 5. **Next Steps** — Where to go after initial setup
 
@@ -335,7 +335,7 @@ consultative, not salesy. Send between 9am-5pm EST, Tuesday-Thursday only.
 
 ---
 
-### Stage 3: Plan & Approve
+### Stage 3: Plan
 
 1. **Watch planner stream** — The planner agent surfaces 3 candidate plays, each annotated with sequencing, resource needs, and undo affordances:
    - **Play 1:** "Targeted Q2 Win-Back Campaign" (library precedent ×5)
@@ -355,7 +355,18 @@ consultative, not salesy. Send between 9am-5pm EST, Tuesday-Thursday only.
 
 ---
 
-### Stage 4: Execute & Observe
+### Stage 4: Approve
+
+1. **Open the approval modal** — Stage 4 surfaces the selected play with objectives, affected audiences, safeguards, undo plan, and required scopes.
+2. **Assign approver** — Add the governance stakeholder (or self-approve if permitted) and set a due time.
+3. **Capture the decision** — Approver selects **Approve** or **Request changes**, leaving rationale for audit.
+4. **Export summary** (optional) — Generate PDF/Slack export so stakeholders outside the workspace can review the decision trail.
+
+**Expected Result:** Approval recorded with audit trail, unlocking governed execution.
+
+---
+
+### Stage 5: Execute
 
 1. **Start execution** — Click "Run Execution" to begin governed actions.
 
@@ -383,7 +394,7 @@ consultative, not salesy. Send between 9am-5pm EST, Tuesday-Thursday only.
 
 ---
 
-### Stage 5: Reflect & Improve
+### Stage 6: Reflect
 
 1. **Open feedback drawer** — Click feedback icon
 2. **Submit feedback** — Provide quick reaction:
@@ -421,7 +432,7 @@ Try these mission templates:
 
 ### Dive Deeper into Documentation
 
-- **[User Experience Playbook](./03_user_experience.md)** — Understand all five stages in detail
+- **[User Experience Playbook](./03_user_experience.md)** — Understand all seven stages in detail
 - **[System Overview](./02_system_overview.md)** — Learn architecture and data flows
 - **[Implementation Guide](./04_implementation_guide.md)** — Extend with custom components or agents
 

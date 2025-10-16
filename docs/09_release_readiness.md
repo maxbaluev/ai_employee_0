@@ -110,7 +110,7 @@ bd close BD-XXX --reason "Tier 2 feature deployed: 100% rollout complete"
 - ✓ Training materials updated
 - ✓ **bd release milestone:** All child issues closed, dependency graph clean
 - ✓ **Supabase single-migration validated:** Schema diff reviewed, rollback tested
-- ✓ **Composio SDK trust stages:** All five-stage handoffs tested end-to-end
+- ✓ **Composio SDK trust stages:** All seven-stage handoffs tested end-to-end
 
 **Evidence:**
 - Security audit report (signed by Trust Lead)
@@ -757,15 +757,23 @@ Use this checklist for Tier 2+ releases involving Composio SDK integration:
 - [ ] All granted scopes logged to Supabase before planning
 - [ ] Telemetry events logged: `composio_discovery`, `composio_auth_flow`
 
-### Planner Stage (Plan & Approve)
+### Planner Stage (Plan)
 - [ ] Planner receives established connections from Inspector
 - [ ] Validator confirms scopes match mission requirements
 - [ ] Play assembly uses validated connections only (no new OAuth requests)
 - [ ] Tool usage patterns incorporated into ranking
 - [ ] Undo plans attached to all plays
+- [ ] `plan_selected` emitted when owner chooses preferred play
 - [ ] No scope escalation during planning
 
-### Executor Stage (Execute & Observe)
+### Approval Stage (Approve)
+- [ ] Approval modal summarises objectives, safeguards, undo plan, and scope usage
+- [ ] Required approver role assigned (or self-approval recorded with rationale)
+- [ ] Decision recorded in `mission_approvals` with timestamps and approver identity
+- [ ] Telemetry events logged: `approval_requested`, `approval_granted`/`approval_rejected`
+- [ ] Audit export verified (PDF/Slack) for governance handoff
+
+### Executor Stage (Execute)
 - [ ] Execution uses established connections with session context
 - [ ] Provider adapters correctly scope calls with `user_id` + `tenantId`
 - [ ] Validator preflight checks run before each tool call

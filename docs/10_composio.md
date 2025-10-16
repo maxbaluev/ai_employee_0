@@ -8,11 +8,11 @@
 
 ## Executive Summary
 
-The Control Plane is built on a **Gemini ADK-driven agent architecture tightly coupled with Composio state management**. ADK agents (Inspector, Planner, Executor, Validator, Evidence) orchestrate Composio SDK interactions through shared session state (`ctx.session.state`), delivering progressive trust across the five-stage mission lifecycle. Each agent reads from and writes to the session state, enabling stateful handoffs while Composio provides toolkit discovery, OAuth management, provider adapters, and audit telemetry. The native SDK removes the legacy router layer, and ADK's event-driven coordination ensures every SDK interaction is mirrored in the CopilotKit chat for stakeholder visibility.
+The Control Plane is built on a **Gemini ADK-driven agent architecture tightly coupled with Composio state management**. ADK agents (Inspector, Planner, Executor, Validator, Evidence) orchestrate Composio SDK interactions through shared session state (`ctx.session.state`), delivering progressive trust across the seven-stage mission lifecycle. Each agent reads from and writes to the session state, enabling stateful handoffs while Composio provides toolkit discovery, OAuth management, provider adapters, and audit telemetry. The native SDK removes the legacy router layer, and ADK's event-driven coordination ensures every SDK interaction is mirrored in the CopilotKit chat for stakeholder visibility.
 
 Key outcomes:
 
-- **ADK-Driven Progressive Trust:** Inspector agent discovers toolkits (Prepare), Planner agent assembles plays from established connections (Plan & Approve), Executor agent runs governed actions (Execute & Observe) – all coordinated via ADK session state and narrated in chat
+- **ADK-Driven Progressive Trust:** Inspector agent discovers toolkits (Stage 2 — Prepare), Planner agent assembles plays from established connections (Stage 3 — Plan), approval checkpoint (Stage 4 — Approve), Executor agent runs governed actions (Stage 5 — Execute) – all coordinated via ADK session state and narrated in chat
 - **Stateful Agent Coordination:** All ADK agents share `ctx.session.state` dictionary for mission context, granted scopes, ranked plays, execution results, and evidence bundles – enabling smooth handoffs across stages
 - **Governed Auth:** Inspector previews scopes, initiates Connect Links after approval, awaits `wait_for_connection()`, and logs granted scopes to session state; Planner validates scope alignment; Executor never requests new OAuth
 - **Unified Telemetry:** Every discovery, auth, and tool call emits `composio_discovery`, `composio_auth_flow`, `composio_tool_call`, and `composio_tool_call_error` events tagged with mission, tenant, toolkit, and action metadata, with ADK events yielded to CopilotKit for chat visibility
@@ -62,7 +62,7 @@ EvidenceAgent (ADK) → Read execution_results from session state
 
 ### 2. Governed Authentication via ADK Agents
 
-- **InspectorAgent (Prepare Stage):**
+- **InspectorAgent (Stage 2 — Prepare):**
   - Discovers toolkits via `client.tools.search()` and writes `anticipated_connections` to `ctx.session.state`
   - Previews scopes without initiating OAuth, awaits stakeholder approval via chat
   - Calls `client.toolkits.authorize()` after approval to generate Connect Links
@@ -70,19 +70,19 @@ EvidenceAgent (ADK) → Read execution_results from session state
   - All scopes, timestamps, and metadata persisted to Supabase (`mission_connections` table)
   - Chat displays Connect Link summary, requested scopes, countdown timers during validation
 
-- **PlannerAgent (Plan & Approve Stage):**
+- **PlannerAgent (Stage 3 — Plan):**
   - Reads `granted_scopes` from session state (established by Inspector)
   - Assembles mission plays from approved connections without initiating new OAuth
   - Focuses on tool usage patterns, data investigation insights, and precedent missions
   - Writes `ranked_plays`, `undo_plans`, `tool_usage_patterns` to session state
 
-- **ValidatorAgent (Cross-Stage):**
+- **ValidatorAgent (Cross-Stage: Stages 2, 3, 4, 5):**
   - Reads `safeguards` and `granted_scopes` from session state
   - Validates scope alignment via `client.connected_accounts.status()` before play approval
   - Performs preflight/postflight checks during execution
   - Writes `validation_results` to session state; chat surfaces validator alerts inline
 
-- **ExecutorAgent (Execute & Observe Stage):**
+- **ExecutorAgent (Stage 5 — Execute):**
   - Reads `ranked_plays` and `granted_scopes` from session state
   - Executes approved actions via `provider.session(...).handle_tool_call(...)` using established connections
   - Never initiates new OAuth; if auth expires, surfaces error and reroutes to Inspector for re-authorization
@@ -101,7 +101,7 @@ EvidenceAgent (ADK) → Read execution_results from session state
 - **Dashboards:** Integration Health dashboard plots success/error rates, Connect Link completion, and per-toolkit volume, while chat mirrors critical alerts for the active mission.
 - **Alerts:**
   - Error rate >10% per toolkit triggers a chat interrupt pointing to Runbook 4.
-  - Consecutive `AUTH_EXPIRED` events escalate to Plan & Approve with a chat prompt to re-request scopes.
+  - Consecutive `AUTH_EXPIRED` events escalate to the Approve stage with a chat prompt to re-request scopes before execution resumes.
   - Spikes in `RATE_LIMIT` trigger adaptive backoff and a chat notification summarizing the retry schedule.
 
 ### 4. Operational Efficiency
@@ -129,17 +129,19 @@ EvidenceAgent (ADK) → Read execution_results from session state
 
 | Trust Stage | ADK Agent | Composio SDK Interaction | Session State Artifacts | Chat Experience |
 |-------------|-----------|-------------------------|------------------------|-----------------|
-| **Define** | IntakeAgent | None | `mission_brief`, `safeguards`, `confidence_scores` | Coordinator narrates chip generation, requests edits |
-| **Prepare (Inspector)** | InspectorAgent | `client.tools.search()` → `toolkits.authorize()` → `wait_for_connection()` | `anticipated_connections`, `granted_scopes`, `coverage_estimate`, `readiness_status` | Inspector posts discovery cards with coverage score, Connect Link modal, granted scope confirmations |
-| **Plan & Approve (Planner + Validator)** | PlannerAgent, ValidatorAgent | Validator: `client.connected_accounts.status()` | `ranked_plays`, `undo_plans`, `tool_usage_patterns`, `validation_results` | Planner shares ranked plays with tool patterns, safeguard recap, undo plans; Validator confirms scope alignment |
-| **Execute & Observe (Executor + Validator)** | ExecutorAgent, ValidatorAgent | `provider.session(...).handle_tool_call(...)` | `execution_results`, `heartbeat_timestamp` | Executor streams action logs, validator alerts, undo timers |
-| **Reflect & Improve (Evidence)** | EvidenceAgent | `client.audit.list_events()` + triggers | `evidence_bundles`, `library_contributions` | Evidence agent posts retrospective bundles, feedback form, follow-up checklist |
+| **Stage 0 — Home** | Coordinator | None | Mission list, approval queue | Dashboard displays active missions, pending approvals, recent outcomes |
+| **Stage 1 — Define** | IntakeAgent | None | `mission_brief`, `safeguards`, `confidence_scores` | Coordinator narrates chip generation, requests edits |
+| **Stage 2 — Prepare** | InspectorAgent | `client.tools.search()` → `toolkits.authorize()` → `wait_for_connection()` | `anticipated_connections`, `granted_scopes`, `coverage_estimate`, `readiness_status` | Inspector posts discovery cards with coverage score, Connect Link modal, granted scope confirmations |
+| **Stage 3 — Plan** | PlannerAgent, ValidatorAgent | Validator: `client.connected_accounts.status()` | `ranked_plays`, `undo_plans`, `tool_usage_patterns`, `validation_results` | Planner shares ranked plays with tool patterns, safeguard recap, undo plans; Validator confirms scope alignment |
+| **Stage 4 — Approve** | Coordinator (approval routing) | None | `approval_decision`, `approval_audit` | Approval modal presents mission context, stakeholder reviews and approves/rejects |
+| **Stage 5 — Execute** | ExecutorAgent, ValidatorAgent | `provider.session(...).handle_tool_call(...)` | `execution_results`, `heartbeat_timestamp` | Executor streams action logs, validator alerts, undo timers |
+| **Stage 6 — Reflect** | EvidenceAgent | `client.audit.list_events()` + triggers | `evidence_bundles`, `library_contributions` | Evidence agent posts retrospective bundles, feedback form, follow-up checklist |
 
 > **See also:** `docs/03a_chat_experience.md` for narrative walkthrough of each chat touchpoint and `docs/02_system_overview.md` §ADK Agent Coordination for state flow diagrams.
 
 ### ADK Agent Responsibilities by Stage
 
-**InspectorAgent (Prepare Stage):**
+**InspectorAgent (Stage 2 — Prepare):**
 - Reads `mission_brief` from session state
 - Runs `client.tools.search(mission.objective)` and writes `anticipated_connections` to session state
 - Computes coverage percentage and writes `coverage_estimate` to session state
@@ -151,7 +153,7 @@ EvidenceAgent (ADK) → Read execution_results from session state
 - Emits `composio_discovery`, `composio_auth_flow` telemetry events
 - Chat: Discovery cards, coverage deltas, Connect Link approval requests, granted scope confirmations
 
-**PlannerAgent (Plan & Approve Stage):**
+**PlannerAgent (Stage 3 — Plan):**
 - Reads `granted_scopes`, `mission_brief`, `coverage_estimate` from session state (established by Inspector)
 - Assembles mission plays (playbooks) emphasizing tool usage patterns, data investigation insights, library precedent
 - Tags each play with sequencing, resource requirements, undo affordances
@@ -168,7 +170,7 @@ EvidenceAgent (ADK) → Read execution_results from session state
 - Writes `validation_results`, `auto_fix_attempts` to session state
 - Chat: Surfaces validator alerts inline with suggested fixes, compliance verdict badges
 
-**ExecutorAgent (Execute & Observe Stage):**
+**ExecutorAgent (Stage 5 — Execute):**
 - Reads `ranked_plays`, `granted_scopes` from session state
 - Uses provider adapters via `provider.session(user_id, tenant_id).handle_tool_call(action)`
 - Coordinates with ValidatorAgent for preflight/postflight checks
@@ -178,7 +180,7 @@ EvidenceAgent (ADK) → Read execution_results from session state
 - Coordinates with EvidenceAgent for artifact packaging
 - Chat: Streams tool calls, validator flags, evidence cards as steps complete
 
-**EvidenceAgent (Execute & Observe, Reflect & Improve):**
+**EvidenceAgent (Stages 5, 6 — Execute, Reflect):**
 - Reads `execution_results`, `undo_plans` from session state
 - Calls `client.audit.list_events()` for undo hints and audit trails
 - Packages artifacts with SHA-256 hashes
@@ -279,7 +281,7 @@ CopilotKit emits lightweight chat annotations each time a telemetry record lands
    - Chat Action: Planner pings owners with quick-reply buttons to resend or cancel.
 3. **Runbook 3 – Auth Expired Mid-Mission:**
    - Symptom: `composio_tool_call` errors with `AUTH_EXPIRED`.
-   - Fix: Mark mission paused, route to Plan & Approve for re-approval, re-run validator before resuming.
+  - Fix: Mark mission paused, route back through Plan and Approve for re-validation, re-run validator before resuming.
    - Chat Action: Executor stops streaming, posts undo hint, and reassigns to Planner automatically.
 4. **Runbook 4 – Rate Limit Exceeded:**
    - Symptom: Consecutive `RATE_LIMIT` statuses.

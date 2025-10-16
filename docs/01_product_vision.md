@@ -113,7 +113,7 @@ Successful missions become library assets. Play recommendations improve with pre
 - ✓ Compounding library of proven plays (vs. ephemeral recommendations)
 
 **vs. Legacy Stage-Gated Systems:**
-- ✓ Five-stage journey with preserved checkpoints (vs. scattered gates)
+- ✓ Seven-stage journey with preserved checkpoints (vs. scattered gates)
 - ✓ Generative scaffolding from freeform input (vs. blank forms)
 - ✓ Continuous workspace visibility across stages (vs. segmented interfaces)
 - ✓ Integrated feedback loops (vs. post-mortem analysis)
@@ -235,11 +235,12 @@ Director of Business Development, mid-market SaaS, managing 200+ dormant account
 "When I have a quarterly pipeline target, I want to receive ready-to-run outreach plays so I can demonstrate lift before granting send permissions."
 
 **Control Plane Solution:**
-- Paste objective → receive tailored campaign with enriched contacts
+- Stage 1 (Define): Paste objective → receive tailored campaign with enriched contacts
 - Dry-run proof pack shows 87 contacts, draft messages, 3-5% reply estimate
-- Prepare stage Inspector presents Connect Link OAuth requests after stakeholder review; approvals land before planning begins
-- Plan & Approve stage Planner assembles outreach plays from established connections, ranking variants using tool usage patterns and data investigation output
-- Track attribution: replies, meetings booked, pipeline created
+- Stage 2 (Prepare): Inspector presents Connect Link OAuth requests after stakeholder review; approvals land before planning begins
+- Stage 3 (Plan): Planner assembles outreach plays from established connections, ranking variants using tool usage patterns and data investigation output
+- Stage 4 (Approve): Stakeholder approves selected play with full audit trail
+- Stage 5 (Execute): Track attribution: replies, meetings booked, pipeline created
 
 **Success Metrics:**
 - Time-to-proof: <15 minutes

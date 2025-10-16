@@ -26,7 +26,7 @@ Our release process requires the Gemini ADK backend to demonstrate stable missio
 | `ranking_quality.evalset.json` | Planner ordering | Top-ranked play matches golden judgement | `ranking-quality.json` |
 | `execution_safety.evalset.json` | Safeguards | Validator blocks unsafe actions, undo plan recorded | `execution-safety.json` |
 | `error_recovery.evalset.json` | Resilience | Rate limit + auth expiry paths recover without data loss | `error-recovery.json` |
-| `mission_end_to_end.evalset.json` | Full lifecycle | All five stages generate expected telemetry & evidence | `mission-end-to-end.html` |
+| `mission_end_to_end.evalset.json` | Full lifecycle | All seven stages generate expected telemetry & evidence | `mission-end-to-end.html` |
 
 Store generated artifacts under `docs/readiness/agent-evals/artifacts/<YYYY-MM-DD>/` and link them in the release readiness checklist.
 
@@ -42,4 +42,3 @@ Store generated artifacts under `docs/readiness/agent-evals/artifacts/<YYYY-MM-D
 - `docs/04_implementation_guide.md` §ADK Evaluation Framework — how we structure eval sets.
 - `docs/07_operations_playbook.md` — runbooks for evaluation failures (Runbook 4).
 - `docs/09_release_readiness.md` — checklist items referencing this summary.
-

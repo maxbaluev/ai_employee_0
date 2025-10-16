@@ -8,15 +8,17 @@
 
 ## Executive Summary
 
-The AI Employee Control Plane converts a single freeform mission intent into governed execution across a **five-stage mission journey**: **Define, Prepare, Plan & Approve, Execute & Observe, Reflect & Improve**. Each stage preserves safeguards, telemetry, and approval checkpoints while reducing handoffs and documentation drift. Presentation, orchestration, execution, and data layers collaborate to deliver governed autonomy with continuous evidence.
+The AI Employee Control Plane converts a single freeform mission intent into governed execution across a **seven-stage mission journey**: **Stage 0 (Home Overview), Stage 1 (Define), Stage 2 (Prepare), Stage 3 (Plan), Stage 4 (Approve), Stage 5 (Execute), Stage 6 (Reflect)**. Each stage preserves safeguards, telemetry, and approval checkpoints while reducing handoffs and documentation drift. Presentation, orchestration, execution, and data layers collaborate to deliver governed autonomy with continuous evidence.
 
 Key architectural pillars:
 
-- **Generative intent capture** that produces mission briefs, safeguards, and KPIs inside Stage 1 (Define)
+- **Pre-mission context** via Stage 0 (Home Overview) showing active missions, pending approvals, and outcomes
+- **Generative intent capture** that produces mission briefs, safeguards, and KPIs in Stage 1 (Define)
 - **Progressive trust** with toolkit validation and data inspection in Stage 2 (Prepare)
-- **Ranked plays, approvals, and undo plans** orchestrated in Stage 3 (Plan & Approve)
-- **Governed multi-agent execution** with streaming telemetry in Stage 4 (Execute & Observe)
-- **Feedback loops and library updates** completing Stage 5 (Reflect & Improve)
+- **Ranked plays and undo plans** generated in Stage 3 (Plan)
+- **Dedicated approval checkpoint** with stakeholder review in Stage 4 (Approve)
+- **Governed multi-agent execution** with streaming telemetry in Stage 5 (Execute)
+- **Feedback loops and library updates** completing Stage 6 (Reflect)
 
 The system preserves schema and telemetry naming. Existing Supabase tables, CopilotKit interactions, Composio integrations, and Gemini ADK agent roles operate unchanged.
 
@@ -51,9 +53,10 @@ graph TB
         Workspace(Next.js Workspace)
         DefineStage(Define Stage Workspace)
         PrepareStage(Prepare Stage Toolkit Panel)
-        PlanStage(Plan & Approve Console)
-        ExecuteStage(Execute & Observe Stream)
-        ReflectStage(Reflect & Improve Console)
+        PlanStage(Plan Stage Console)
+        ApproveStage(Approve Stage Decision Rail)
+        ExecuteStage(Execute Stage Stream)
+        ReflectStage(Reflect Stage Console)
     end
 
     subgraph Control Plane APIs
@@ -86,6 +89,7 @@ graph TB
     end
 
     Workspace --> DefineStage
+    Workspace --> ApproveStage
     DefineStage --> IntakeAPI
     IntakeAPI --> Coordinator
     Coordinator --> Planner
@@ -98,7 +102,7 @@ graph TB
     InspectAPI --> Supabase
 
     PlanStage --> PlannerAPI
-    PlanStage --> ApprovalAPI
+    ApproveStage --> ApprovalAPI
     Planner --> PlannerAPI
     PlannerAPI --> Supabase
     PlannerAPI --> Library
@@ -128,19 +132,19 @@ graph TB
 
 ## ADK Agent Coordination & State Flow
 
-The Control Plane agents form a **stateful multi-agent system** where each agent reads from and writes to a shared session state (`ctx.session.state`), enabling smooth handoffs across the five-stage mission lifecycle.
+The Control Plane agents form a **stateful multi-agent system** where each agent reads from and writes to a shared session state (`ctx.session.state`), enabling smooth handoffs across the seven-stage mission lifecycle.
 
 ### Agent Roles & Responsibilities
 
-| ADK Agent            | Stage(s)                                   | Primary Responsibilities                                                                                                                | State Interactions                                                                                                       | Composio SDK Usage                                                              |
-| -------------------- | ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------- |
-| **CoordinatorAgent** | All                                        | Stage orchestration, safeguards enforcement, telemetry fan-out, mission context initialization                                          | Writes `mission_id`, `tenant_id`, `current_stage`; reads all downstream state                                            | None direct; coordinates other agents                                           |
-| **IntakeAgent**      | Define                                     | Chip generation (objective, audience, KPI, safeguards), confidence scoring, rationale hints                                             | Writes `mission_brief`, `safeguards`, `confidence_scores`                                                                | None                                                                            |
-| **InspectorAgent**   | Prepare                                    | Toolkit discovery, anticipated scope previews, OAuth initiation via Connect Links after approval, connection establishment              | Writes `anticipated_connections`, `granted_scopes`, `coverage_estimate`, `readiness_status`; reads `mission_brief`       | `client.tools.search()`, `client.toolkits.authorize()`, `wait_for_connection()` |
-| **PlannerAgent**     | Plan & Approve                             | Play generation emphasizing tool usage patterns + data investigation insights, hybrid ranking (retrieval + rules), safeguard attachment | Reads `granted_scopes`, `mission_brief`, `coverage_estimate`; writes `ranked_plays`, `undo_plans`, `tool_usage_patterns` | None direct; uses Inspector's approved connections                              |
-| **ValidatorAgent**   | Prepare, Plan & Approve, Execute & Observe | Scope verification, safeguard preflight/postflight checks, success heuristics, undo planning                                            | Reads `safeguards`, `granted_scopes`, `current_action`; writes `validation_results`, `auto_fix_attempts`                 | `client.connected_accounts.status()` for scope validation                       |
-| **ExecutorAgent**    | Execute & Observe                          | Governed tool execution via **ADK backend calling Composio SDK**, state tracking, heartbeat updates                                                        | Reads `ranked_plays`, `granted_scopes`; writes `execution_results`, `heartbeat_timestamp`                                | ADK agent calls `client.tools.execute()` for execution                     |
-| **EvidenceAgent**    | Execute & Observe, Reflect & Improve       | Artifact packaging, hash generation, library updates, mission retrospective                                                             | Reads `execution_results`, `undo_plans`; writes `evidence_bundles`, `library_contributions`                              | `client.audit.list_events()` for undo hints                                     |
+| ADK Agent            | Stage(s)                     | Primary Responsibilities                                                                                                                | State Interactions                                                                                                       | Composio SDK Usage                                                              |
+| -------------------- | ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------- |
+| **CoordinatorAgent** | All                          | Stage orchestration, safeguards enforcement, telemetry fan-out, mission context initialization                                          | Writes `mission_id`, `tenant_id`, `current_stage`; reads all downstream state                                            | None direct; coordinates other agents                                           |
+| **IntakeAgent**      | Stage 1 (Define)             | Chip generation (objective, audience, KPI, safeguards), confidence scoring, rationale hints                                             | Writes `mission_brief`, `safeguards`, `confidence_scores`                                                                | None                                                                            |
+| **InspectorAgent**   | Stage 2 (Prepare)            | Toolkit discovery, anticipated scope previews, OAuth initiation via Connect Links after approval, connection establishment              | Writes `anticipated_connections`, `granted_scopes`, `coverage_estimate`, `readiness_status`; reads `mission_brief`       | `client.tools.search()`, `client.toolkits.authorize()`, `wait_for_connection()` |
+| **PlannerAgent**     | Stage 3 (Plan)               | Play generation emphasizing tool usage patterns + data investigation insights, hybrid ranking (retrieval + rules), safeguard attachment | Reads `granted_scopes`, `mission_brief`, `coverage_estimate`; writes `ranked_plays`, `undo_plans`, `tool_usage_patterns` | None direct; uses Inspector's approved connections                              |
+| **ValidatorAgent**   | Stages 2, 3, 4, 5            | Scope verification, safeguard preflight/postflight checks, success heuristics, undo planning                                            | Reads `safeguards`, `granted_scopes`, `current_action`; writes `validation_results`, `auto_fix_attempts`                 | `client.connected_accounts.status()` for scope validation                       |
+| **ExecutorAgent**    | Stage 5 (Execute)            | Governed tool execution via **ADK backend calling Composio SDK**, state tracking, heartbeat updates                                                        | Reads `ranked_plays`, `granted_scopes`; writes `execution_results`, `heartbeat_timestamp`                                | ADK agent calls `client.tools.execute()` for execution                     |
+| **EvidenceAgent**    | Stages 5, 6 (Execute, Reflect) | Artifact packaging, hash generation, library updates, mission retrospective                                                             | Reads `execution_results`, `undo_plans`; writes `evidence_bundles`, `library_contributions`                              | `client.audit.list_events()` for undo hints                                     |
 
 ### State Flow Across Mission Lifecycle
 
@@ -174,7 +178,7 @@ sequenceDiagram
     InspectorAgent->>Composio: client.toolkits.authorize() → Connect Links
     Composio-->>InspectorAgent: wait_for_connection() → granted scopes
     InspectorAgent->>SessionState: Write granted_scopes, readiness_status
-    CoordinatorAgent->>SessionState: Update current_stage=PLAN_APPROVE
+    CoordinatorAgent->>SessionState: Update current_stage=PLAN
 
     CoordinatorAgent->>PlannerAgent: Assemble mission plays
     PlannerAgent->>SessionState: Read granted_scopes, mission_brief
@@ -182,9 +186,12 @@ sequenceDiagram
     ValidatorAgent->>Composio: client.connected_accounts.status()
     ValidatorAgent->>SessionState: Write validation_results
     PlannerAgent->>SessionState: Write ranked_plays, undo_plans, tool_usage_patterns
-    PlannerAgent-->>User: Display ranked plays for approval
+    PlannerAgent-->>User: Display ranked plays for review
+    User->>CoordinatorAgent: Select play
+    CoordinatorAgent->>SessionState: Update current_stage=APPROVE
+    CoordinatorAgent-->>User: Present approval checkpoint
     User->>CoordinatorAgent: Approve play
-    CoordinatorAgent->>SessionState: Update current_stage=EXECUTE_OBSERVE
+    CoordinatorAgent->>SessionState: Update current_stage=EXECUTE
 
     CoordinatorAgent->>ExecutorAgent: Execute approved play
     ExecutorAgent->>SessionState: Read ranked_plays, granted_scopes
@@ -198,7 +205,7 @@ sequenceDiagram
         ExecutorAgent->>EvidenceAgent: Package artifact
         EvidenceAgent->>SessionState: Write evidence_bundles
     end
-    CoordinatorAgent->>SessionState: Update current_stage=REFLECT_IMPROVE
+    CoordinatorAgent->>SessionState: Update current_stage=REFLECT
 
     CoordinatorAgent->>EvidenceAgent: Generate retrospective
     EvidenceAgent->>SessionState: Read execution_results, undo_plans
@@ -217,7 +224,7 @@ The `ctx.session.state` dictionary follows a consistent schema across all agents
     "mission_id": str,
     "tenant_id": str,
     "user_id": str,
-    "current_stage": "DEFINE" | "PREPARE" | "PLAN_APPROVE" | "EXECUTE_OBSERVE" | "REFLECT_IMPROVE",
+    "current_stage": "HOME" | "DEFINE" | "PREPARE" | "PLAN" | "APPROVE" | "EXECUTE" | "REFLECT",
 
     # Define stage (IntakeAgent)
     "mission_brief": {
@@ -235,18 +242,32 @@ The `ctx.session.state` dictionary follows a consistent schema across all agents
     "coverage_estimate": float,              # Readiness percentage
     "readiness_status": "ready" | "warning" | "blocked",
 
-    # Plan & Approve stage (PlannerAgent + ValidatorAgent)
+    # Plan stage (PlannerAgent + ValidatorAgent)
     "ranked_plays": list[dict],              # Mission playbooks
     "undo_plans": dict[str, dict],           # Per-action rollback plans
     "tool_usage_patterns": dict,             # Emphasizes data investigation insights
     "validation_results": dict,              # Validator scope checks
 
-    # Execute & Observe stage (ExecutorAgent + EvidenceAgent)
+    # Approve stage (Coordinator + Approver)
+    "approval_request": {
+        "approver_role": str,
+        "due_at": datetime | None,
+        "approval_type": str,
+        "play_id": str
+    },
+    "approval_decision": {
+        "status": "pending" | "approved" | "rejected",
+        "decided_by": str | None,
+        "decided_at": datetime | None,
+        "rationale": str | None
+    },
+
+    # Execute stage (ExecutorAgent + EvidenceAgent)
     "execution_results": list[dict],         # Tool call outcomes
     "heartbeat_timestamp": datetime,         # Session liveness
     "evidence_bundles": list[dict],          # Artifact packages
 
-    # Reflect & Improve stage (EvidenceAgent)
+    # Reflect stage (EvidenceAgent)
     "library_contributions": list[dict]      # Reusable assets
 }
 ```
@@ -397,15 +418,17 @@ await self.telemetry.emit("error_recovery_triggered",
 
 ---
 
-## Five-Stage Mission Journey
+## Seven-Stage Mission Journey
 
-| Stage                 | Primary Outcomes                                                  | Governance Checkpoints                       |
-| --------------------- | ----------------------------------------------------------------- | -------------------------------------------- |
-| **Define**            | Mission intent captured, safeguards aligned, brief locked         | Intent review, safeguard acceptance          |
-| **Prepare**           | Toolkits authorized, data coverage validated, readiness confirmed | Toolkit approval, data coverage attestation  |
-| **Plan & Approve**    | Ranked plays reviewed, undo plans validated, approvals granted    | Play approval, risk sign-off                 |
-| **Execute & Observe** | Governed actions run, validator monitoring, artifacts generated   | Live execution oversight, evidence packaging |
-| **Reflect & Improve** | Feedback captured, library reuse identified, next steps logged    | Feedback routing, library curation           |
+| Stage               | Primary Outcomes                                                  | Governance Checkpoints                       |
+| ------------------- | ----------------------------------------------------------------- | -------------------------------------------- |
+| **Stage 0 — Home**  | Mission context, pending approvals, recent outcomes visible       | Multi-mission visibility, approval routing   |
+| **Stage 1 — Define**            | Mission intent captured, safeguards aligned, brief locked         | Intent review, safeguard acceptance          |
+| **Stage 2 — Prepare**           | Toolkits authorized, data coverage validated, readiness confirmed | Toolkit approval, data coverage attestation  |
+| **Stage 3 — Plan**    | Ranked plays generated, undo plans created, plays ready for review    | Play review, risk assessment                 |
+| **Stage 4 — Approve**    | Stakeholder approval granted, audit trail captured    | Formal approval, authorization sign-off                 |
+| **Stage 5 — Execute** | Governed actions run, validator monitoring, artifacts generated   | Live execution oversight, evidence packaging |
+| **Stage 6 — Reflect** | Feedback captured, library reuse identified, next steps logged    | Feedback routing, library curation           |
 
 **Chat orchestration:** CopilotKit maintains a single conversational spine across all stages, broadcasting telemetry, approvals, and evidence updates without route changes. Refer to `docs/03a_chat_experience.md` for UI specifics.
 
@@ -428,19 +451,27 @@ await self.telemetry.emit("error_recovery_triggered",
 - Telemetry rollup: `toolkit_recommended`, `toolkit_selected`, `data_preview_generated`, `safeguard_reviewed`, `composio_discovery`, `composio_auth_flow`
 - Chat narrative: Inspector cards summarize readiness gaps, present Connect Link approval modals, log granted scopes, and confirm readiness before planning.
 
-### Stage 3 — Plan & Approve
+### Stage 3 — Plan
 
 - Planner agent receives established connections from Inspector with validated scopes
 - Planner ranks plays (mission playbooks) using library embeddings (`library_entries`, `library_embeddings`), tool usage patterns, and data investigation insights
 - Each play is annotated with sequencing, resource requirements, and undo affordances before ranking so reviewers understand operational impact
 - Plays emphasize mission strategy, sequencing, and safeguard alignment rather than credential discovery
 - Undo plans generated per mutating step; stored in `mission_undo_plans`
-- Validator verifies scopes via `client.connected_accounts.status()` against Inspector's approved connections before play approval
-- Approvals captured in `mission_approvals` with role-based gating
-- Telemetry rollup: `planner_candidate_generated`, `plan_ranked`, `plan_approved`
+- Validator verifies scopes via `client.connected_accounts.status()` against Inspector's approved connections
+- Telemetry rollup: `planner_candidate_generated`, `plan_ranked`, `plan_selected`
 - Chat narrative: Planner streams ranked plays with rationale, embeds undo plan callouts, highlights tool usage patterns, and confirms scope alignment from Inspector.
 
-### Stage 4 — Execute & Observe
+### Stage 4 — Approve
+
+- Dedicated approval checkpoint presenting selected play for stakeholder review
+- Approval summary shows objectives, affected records, safeguards, and undo plans
+- Approvals captured in `mission_approvals` with role-based gating and full audit trail
+- Support for self-approval or delegation to governance officers
+- Telemetry rollup: `approval_requested`, `approval_granted`, `approval_rejected`
+- Chat narrative: Approval modal displays mission context, rationale, and allows inline review comments.
+
+### Stage 5 — Execute
 
 - Executor agent runs provider adapters (`provider.session(...)` + `session.handle_tool_call(...)`) for governed tool execution; validator enforces safeguards pre/post call
 - Evidence agent streams outputs, attaches to artifact gallery (`mission_artifacts`)
@@ -448,7 +479,7 @@ await self.telemetry.emit("error_recovery_triggered",
 - Telemetry rollup: `execution_started`, `execution_step_completed`, `validator_alert_raised`, `evidence_bundle_generated`, `composio_tool_call`, `composio_tool_call_error`, `session_heartbeat`
 - Chat narrative: Executor streams tool calls, validator flags safeguards, evidence agent delivers hash cards and undo countdowns.
 
-### Stage 5 — Reflect & Improve
+### Stage 6 — Reflect
 
 - Feedback modal captures qualitative + quantitative signals
 - Library curator suggests reusable assets; contributions stored in `library_entries`
@@ -461,57 +492,64 @@ await self.telemetry.emit("error_recovery_triggered",
 
 ## Telemetry & Analytics Continuity
 
-Events emitted by the UI, Gemini ADK agents, CopilotKit workspace, and Composio SDK all land in `telemetry_events` with a shared schema (`event_type`, `stage`, `status`, `context`). Dashboards group them by the five-stage labels using the mapping tables below.
+Events emitted by the UI, Gemini ADK agents, CopilotKit workspace, and Composio SDK all land in `telemetry_events` with a shared schema (`event_type`, `stage`, `status`, `context`). Dashboards group them by the seven-stage labels using the mapping tables below.
 
 **Stage-Centric Events**
 
-| Telemetry Event                | Stage             | Notes                                                                                     |
-| ------------------------------ | ----------------- | ----------------------------------------------------------------------------------------- |
-| `intent_submitted`             | Define            | Entry point for mission text                                                              |
-| `brief_generated`              | Define            | Generative chips produced                                                                 |
-| `brief_item_modified`          | Define            | User edits for audit trail                                                                |
-| `composio_discovery`           | Prepare           | Catalog lookup, includes result count & latency                                           |
-| `safeguard_reviewed`           | Prepare           | Emitted when safeguards are explicitly reviewed                                           |
-| `toolkit_recommended`          | Prepare           | Ranked toolkit suggestions                                                                |
-| `toolkit_selected`             | Prepare           | User selection captured                                                                   |
-| `data_preview_generated`       | Prepare           | Read-only inspection outputs                                                              |
-| `composio_auth_flow`           | Prepare           | Connect Link lifecycle (`initiated/approved/expired`); Inspector-initiated after approval |
-| `planner_candidate_generated`  | Plan & Approve    | Each play candidate (mission playbooks)                                                   |
-| `plan_ranked`                  | Plan & Approve    | Final ordering emitted with tool usage patterns                                           |
-| `plan_approved`                | Plan & Approve    | Approval modal confirmed                                                                  |
-| `execution_started`            | Execute & Observe | First governed action                                                                     |
-| `execution_step_completed`     | Execute & Observe | Step-by-step tracing                                                                      |
-| `validator_alert_raised`       | Execute & Observe | Safeguard hit, auto-fix                                                                   |
-| `composio_tool_call`           | Execute & Observe | Provider adapter outcome + latency                                                        |
-| `composio_tool_call_error`     | Execute & Observe | Normalized failure envelope (`rate_limit`, etc.)                                          |
-| `evidence_bundle_generated`    | Execute & Observe | Final artifact package                                                                    |
-| `feedback_submitted`           | Reflect & Improve | Primary feedback form                                                                     |
-| `mission_retrospective_logged` | Reflect & Improve | Post-mission summary                                                                      |
-| `library_contribution`         | Reflect & Improve | Library entry or update                                                                   |
+| Telemetry Event                | Stage           | Notes                                                                                     |
+| ------------------------------ | --------------- | ----------------------------------------------------------------------------------------- |
+| `mission_viewed`               | Home (Stage 0)  | User views mission list or dashboard                                                       |
+| `approval_opened`              | Home (Stage 0)  | User opens pending approval from home                                                      |
+| `intent_submitted`             | Define (Stage 1)            | Entry point for mission text                                                              |
+| `brief_generated`              | Define (Stage 1)            | Generative chips produced                                                                 |
+| `brief_item_modified`          | Define (Stage 1)            | User edits for audit trail                                                                |
+| `composio_discovery`           | Prepare (Stage 2)           | Catalog lookup, includes result count & latency                                           |
+| `safeguard_reviewed`           | Prepare (Stage 2)           | Emitted when safeguards are explicitly reviewed                                           |
+| `toolkit_recommended`          | Prepare (Stage 2)           | Ranked toolkit suggestions                                                                |
+| `toolkit_selected`             | Prepare (Stage 2)           | User selection captured                                                                   |
+| `data_preview_generated`       | Prepare (Stage 2)           | Read-only inspection outputs                                                              |
+| `composio_auth_flow`           | Prepare (Stage 2)           | Connect Link lifecycle (`initiated/approved/expired`); Inspector-initiated after approval |
+| `planner_candidate_generated`  | Plan (Stage 3)    | Each play candidate (mission playbooks)                                                   |
+| `plan_ranked`                  | Plan (Stage 3)    | Final ordering emitted with tool usage patterns                                           |
+| `plan_selected`                | Plan (Stage 3)    | User selects a play for approval                                                                  |
+| `approval_requested`           | Approve (Stage 4)    | Approval checkpoint presented                                                                  |
+| `approval_granted`             | Approve (Stage 4)    | Approval modal confirmed                                                                  |
+| `approval_rejected`            | Approve (Stage 4)    | Approval declined with reason                                                                  |
+| `execution_started`            | Execute (Stage 5) | First governed action                                                                     |
+| `execution_step_completed`     | Execute (Stage 5) | Step-by-step tracing                                                                      |
+| `validator_alert_raised`       | Execute (Stage 5) | Safeguard hit, auto-fix                                                                   |
+| `composio_tool_call`           | Execute (Stage 5) | Provider adapter outcome + latency                                                        |
+| `composio_tool_call_error`     | Execute (Stage 5) | Normalized failure envelope (`rate_limit`, etc.)                                          |
+| `evidence_bundle_generated`    | Execute (Stage 5) | Final artifact package                                                                    |
+| `feedback_submitted`           | Reflect (Stage 6) | Primary feedback form                                                                     |
+| `mission_retrospective_logged` | Reflect (Stage 6) | Post-mission summary                                                                      |
+| `library_contribution`         | Reflect (Stage 6) | Library entry or update                                                                   |
 
 **Cross-Cutting Workspace & Session Events**
 
 | Telemetry Event         | Stage Scope       | Notes                                                     |
 | ----------------------- | ----------------- | --------------------------------------------------------- |
 | `inspection_viewed`     | Prepare → Execute | CopilotKit panel viewed; fuels session heatmaps           |
-| `approval_granted`      | Plan & Approve    | Stakeholder action from workspace modal                   |
-| `rollback_triggered`    | Execute & Observe | Live undo request surfaced in UI                          |
-| `workspace_stream_open` | Execute & Observe | SSE channel opened; includes `telemetryDisabled` sampling |
+| `approval_granted`      | Approve (Stage 4)    | Stakeholder action from workspace modal                   |
+| `rollback_triggered`    | Execute (Stage 5) | Live undo request surfaced in UI                          |
+| `workspace_stream_open` | Execute (Stage 5) | SSE channel opened; includes `telemetryDisabled` sampling |
 | `session_heartbeat`     | All stages        | Gemini ADK per-agent heartbeat (lag + token usage)        |
 
-Update dashboard grouping clauses (`supabase/functions/dashboard_views.sql`) to include the new event families; no schema migrations are required because payload shape already matches `telemetry_events`.
+Update dashboard grouping clauses (`supabase/functions/dashboard_views.sql`) to include the seven-stage event families; no schema migrations are required because payload shape already matches `telemetry_events`.
 
 ---
 
 ## Governance Alignment
 
-- **Define:** Safeguard chips require dual acknowledgement (mission owner + governance delegate). Validator enforces accepted constraints downstream.
-- **Prepare:** Inspector previews anticipated scopes and presents Connect Link approval requests to stakeholders via chat. OAuth approvals logged with scope diff view; all granted scopes stored in `mission_connections` table. Coverage meter must reach ≥85% before progressing to planning.
-- **Plan & Approve:** Planner receives validated connections from Inspector. Risk matrix (impact × reversibility) reviewed alongside undo plan before granting play approvals. Focus shifts to mission strategy, tool usage patterns, and data investigation insights rather than credential management.
-- **Execute & Observe:** Validator monitors each tool call; auto-fix attempts logged; manual stop available via live control strip.
-- **Reflect & Improve:** Feedback routed to governance queue when safeguards were overridden or validator escalated auto-fix failures; follow-up actions are linked into the Beads tracker so operations and governance can audit resolution.
+- **Stage 0 — Home:** Multi-mission visibility allows governance officers to track approval queues and outstanding missions across the organization.
+- **Stage 1 — Define:** Safeguard chips require dual acknowledgement (mission owner + governance delegate). Validator enforces accepted constraints downstream.
+- **Stage 2 — Prepare:** Inspector previews anticipated scopes and presents Connect Link approval requests to stakeholders via chat. OAuth approvals logged with scope diff view; all granted scopes stored in `mission_connections` table. Coverage meter must reach ≥85% before progressing to planning.
+- **Stage 3 — Plan:** Planner receives validated connections from Inspector. Risk matrix (impact × reversibility) reviewed alongside undo plan as part of play generation. Focus shifts to mission strategy, tool usage patterns, and data investigation insights rather than credential management.
+- **Stage 4 — Approve:** Dedicated approval checkpoint where stakeholders formally approve or reject the selected play with full audit trail and rationale capture.
+- **Stage 5 — Execute:** Validator monitors each tool call; auto-fix attempts logged; manual stop available via live control strip.
+- **Stage 6 — Reflect:** Feedback routed to governance queue when safeguards were overridden or validator escalated auto-fix failures; follow-up actions are linked into the Beads tracker so operations and governance can audit resolution.
 
-Governance checkpoints are callable via `mise run governance-check`, which now references five-stage labels in its output.
+Governance checkpoints are callable via `mise run governance-check`, which now references seven-stage labels in its output.
 
 ---
 
@@ -529,19 +567,25 @@ Governance checkpoints are callable via `mise run governance-check`, which now r
 - `agent/tools/composio_client.py` orchestrates discovery and authorization
 - Inspection API limits data sampling to redactable fields using `src/lib/telemetry/redaction.ts`
 
-### Planning & Approval (Plan & Approve)
+### Planning (Stage 3 — Plan)
 
 - `agent/planner/plan_agent.py` ranks plays with pgvector similarity
 - `src/components/PlanReviewModal.tsx` collects approvals and exposes undo plan details
 - `supabase/functions/apply_approval_policy.sql` enforces role gating
 
-### Execution & Evidence (Execute & Observe)
+### Approval (Stage 4 — Approve)
+
+- `src/components/ApprovalModal.tsx` presents the selected play for stakeholder review
+- `src/app/(control-plane)/mission/approve/page.tsx` hosts the approval checkpoint
+- `supabase/functions/apply_approval_policy.sql` enforces role gating and captures audit trail
+
+### Execution & Evidence (Stage 5 — Execute)
 
 - `agent/executor/sequential_executor.py` coordinates provider sessions (`provider.session(...)` + `handle_tool_call`)
 - `src/components/ExecutionTimeline.tsx` streams SSE updates
 - Evidence bundler writes to `supabase/storage/evidence/${missionId}` with SHA-256 verification
 
-### Feedback & Library (Reflect & Improve)
+### Feedback & Library (Stage 6 — Reflect)
 
 - `src/app/(control-plane)/mission/reflect/page.tsx`
 - `agent/tools/library_client.py` manages contribution suggestions

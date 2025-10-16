@@ -8,24 +8,32 @@
 - The repo uses a **single consolidated migration** (`supabase/migrations/0001_init.sql`). When schema or policy updates are required, edit that file (and related sections within it) directly instead of generating new migrations.
 - **Documentation:** Navigate all docs via `docs/00_README.md` — includes role-based reading paths and quick reference guides.
 
+## Issue tracker
+
+We track work in Beads instead of Markdown. Run `bd quickstart` and use `bd` for all planning/execution
+
 ## Trust Model & Composio SDK Quick Reference
 
 **Native SDK Architecture:**
+
 - **Single Workspace:** All toolkit execution flows through a shared Composio workspace powered by the standard SDK (`ComposioClient`).
 - **Backend-Only Execution:** The Gemini ADK backend is the **only** layer that calls Composio tools. No LangChain, CrewAI, or alternate provider adapters are in scope for this control plane.
 - **Sessions:** Scope each mission by passing `user_id` + `tenantId` into `ComposioClient` calls; use Connect Links generated via `client.connected_accounts.initiate()` to gate OAuth.
 - **Telemetry:** Emit `composio_discovery`, `composio_auth_flow`, and `composio_tool_call` events so downstream analytics distinguish the three progressive trust stages.
 
 **No-Auth Inspection:**
+
 - Inspector agents call `ComposioClient.tools.search()` and `ComposioClient.toolkits.get()` to assemble read-only capability summaries.
 - Returns toolkit metadata, action schemas, and guardrail requirements without touching customer data.
 - Great for demos, proof-of-value artifacts, and coverage validation.
 
 **Plan & Approve:**
+
 - Planner agents request OAuth scopes via `client.connected_accounts.initiate()` and surface the Connect Link URL to stakeholders.
 - After approval, use `client.connected_accounts.status()` to confirm credentials before committing the mission plan.
 
 **Governed Execution:**
+
 - Executor agents call `client.tools.execute()` or delegate to provider adapters for streaming tool calls.
 - Safeguard validation happens pre-flight (scope checks, dry-run), and retries/backoffs are handled by the SDK.
 - Undo plans reference Composio's audit log (`client.audit.list_events(...)`).
@@ -102,6 +110,7 @@ Keep this guide current—agents treat AGENTS.md as the single source of truth f
 ## Documentation Quick Links
 
 For comprehensive guides beyond quick setup:
+
 - **[Documentation Guide](docs/00_README.md)** — Navigate all documentation with role-based reading paths
 - **[Getting Started](docs/08_getting_started.md)** — Detailed setup walkthrough and first mission
 - **[Capability Roadmap](docs/05_capability_roadmap.md)** — Milestone-based development plan

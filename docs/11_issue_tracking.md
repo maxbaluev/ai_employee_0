@@ -101,7 +101,7 @@ unblocked before execution.
       trustworthy for agents.
 - [ ] Review `bd dep tree` during release readiness checks alongside
       `docs/09_release_readiness.md`.
-- [ ] Archive or close stale issues during the "Reflect & Improve" stage to
+- [ ] Archive or close stale issues during Stage 6 (Reflect) to
       keep velocity reports accurate.
 
 ---

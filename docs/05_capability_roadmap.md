@@ -8,13 +8,13 @@
 
 ## 1. Purpose
 
-The Control Plane now operates as a single continuous system aligned with the five-stage mission journey. Instead of rigid gate silos, we track five capability pillars that mature together and map to stages as follows:
+The Control Plane now operates as a single continuous system aligned with the seven-stage mission journey. Instead of rigid gate silos, we track five capability pillars that mature together and map to stages as follows:
 
-1. **Generative Intake & Briefing** *(Define)* — Objective-first onboarding with editable chips
-2. **Capability Orchestration** *(Prepare)* — Toolkit discovery, stakeholder-reviewed Connect Link OAuth, and readiness validation before planning
-3. **Evidence & Undo Confidence** *(Execute & Observe)* — Dry-run artifacts, undo plans, audit trails
-4. **Learning & Intelligence** *(Plan & Approve → Reflect & Improve)* — Telemetry loops, library reuse, adaptive safeguards
-5. **Operational Excellence** *(All Stages)* — Monitoring, compliance, and incident readiness
+1. **Generative Intake & Briefing** *(Stage 1 — Define)* — Objective-first onboarding with editable chips
+2. **Capability Orchestration** *(Stage 2 — Prepare)* — Toolkit discovery, stakeholder-reviewed Connect Link OAuth, and readiness validation before planning
+3. **Evidence & Undo Confidence** *(Stage 5 — Execute)* — Dry-run artifacts, undo plans, audit trails
+4. **Learning & Intelligence** *(Stages 3, 4, 6 — Plan, Approve, Reflect)* — Telemetry loops, library reuse, adaptive safeguards
+5. **Operational Excellence** *(All Stages, including Stage 0 — Home)* — Monitoring, compliance, and incident readiness
 
 This roadmap articulates milestones across pillars, their interdependencies, and the evidence required to ship with confidence.
 
@@ -38,7 +38,7 @@ Each milestone adheres to this template:
 
 ## 3. Capability Milestones
 
-### A. Generative Intake & Briefing (Define)
+### A. Generative Intake & Briefing (Stage 1 — Define)
 
 1. **Mission Intake 2.0** (Status: ❌)
    - Objective: One-prompt mission creation
@@ -56,7 +56,7 @@ Each milestone adheres to this template:
    - Risks: Stage context mismatch (owner: Frontend Platform)
    - Dependencies: Planner diff resilience work
 
-### B. Capability Orchestration (Prepare)
+### B. Capability Orchestration (Stage 2 — Prepare)
 
 1. **Toolkit Recommendations** (Status: ❌)
    - Objective: Recommend top 3 toolkits with rationale and success metrics
@@ -74,7 +74,7 @@ Each milestone adheres to this template:
    - Risks: Vendor rate limits (owner: Integrations)
    - Dependencies: Composio scope metadata
 
-### C. Evidence & Undo Confidence (Execute & Observe)
+### C. Evidence & Undo Confidence (Stage 5 — Execute)
 
 1. **Inspection Streaming V2** (Status: ❌)
    - Objective: Reliable streaming with <5s heartbeat and retry resilience
@@ -92,7 +92,7 @@ Each milestone adheres to this template:
    - Risks: Insufficient rollback coverage (owner: Trust Engineering)
    - Dependencies: Supabase function `verify_undo`
 
-### D. Learning & Intelligence (Plan & Approve → Reflect & Improve)
+### D. Learning & Intelligence (Stages 3, 4, 6 — Plan, Approve, Reflect)
 
 1. **Library Reuse Signals** (Status: ❌)
    - Objective: Recommend proven plays based on mission context

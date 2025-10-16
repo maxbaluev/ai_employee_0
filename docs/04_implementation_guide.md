@@ -40,7 +40,7 @@ Optional:
 ### Architecture Highlights
 
 - **App Router:** `src/app/(control-plane)/layout.tsx` hosts `MissionWorkspaceLayout`
-- **State:** `MissionStageProvider` orchestrates five-stage flow with shared context (`DEFINE`, `PREPARE`, `PLAN_APPROVE`, `EXECUTE_OBSERVE`, `REFLECT_IMPROVE`)
+- **State:** `MissionStageProvider` orchestrates seven-stage flow with shared context (`HOME`, `DEFINE`, `PREPARE`, `PLAN`, `APPROVE`, `EXECUTE`, `REFLECT`)
 - **CopilotKit Hooks:**
   - `useCopilotReadable` exposes mission brief, toolkits, safeguards
   - `useCopilotAction` handles chip acceptance, play selection, undo decisions
@@ -54,16 +54,17 @@ Optional:
 - `MissionBriefCard` — Persistent mission truth with edit locking
 - `RecommendedToolStrip` — Toolkit recommendations, OAuth badges
 - `CoverageMeter` — Prepare stage readiness radial with segment analytics
-- `PlannerRail` — Plan & Approve stage streaming plays with rationale and safeguard tags
-- `ExecutionPanel` — Execute & Observe stage streaming timeline with pause/cancel
-- `EvidenceGallery` — Execute & Observe stage artifact cards, hash badges, export menu
-- `UndoBar` — Execute & Observe stage countdown + impact summary + confirm
-- `FeedbackDrawer` — Reflect & Improve stage timeline of feedback events with quick reactions
+- `PlannerRail` — Stage 3 (Plan) streaming plays with rationale, safeguard tags, and undo callouts
+- `ApprovalModal` — Stage 4 (Approve) decision surface with audit trail and delegation controls
+- `ExecutionPanel` — Stage 5 (Execute) streaming timeline with pause/cancel
+- `EvidenceGallery` — Stage 5 (Execute) artifact cards, hash badges, export menu
+- `UndoBar` — Stage 5 (Execute) countdown + impact summary + confirm
+- `FeedbackDrawer` — Stage 6 (Reflect) timeline of feedback events with quick reactions
 
 ### Implementation Guidelines
 
 - **Streaming:** Server-sent events via `/api/stream/*`; ensure SSE reconnect handlers manage `429` backoffs.
-- **State Persistence:** Use `MissionWorkspaceStore` (Zustand) backed by `sessionStorage` to maintain context across reloads; persist current five-stage state for telemetry alignment.
+- **State Persistence:** Use `MissionWorkspaceStore` (Zustand) backed by `sessionStorage` to maintain context across reloads; persist current seven-stage state for telemetry alignment.
 - **Accessibility:** Wrap streaming sections in `aria-live="polite"`; provide keyboard shortcuts for primary actions.
 - **Error Handling:** Display inline callouts with retry affordances; log telemetry (`error_surface_viewed`).
 - **Storybook:** Add stories under `stories/mission-workspace/*.stories.tsx` with controls and accessibility notes.
@@ -187,7 +188,7 @@ class InspectorAgent(BaseAgent):
 **Evaluation Pillars:**
 
 - **Smoke:** Core agent capabilities (discovery, OAuth, execution, evidence packaging) on every commit.
-- **Mission Journeys:** End-to-end five-stage scenarios covering undo plans, telemetry assertions, and Supabase persistence.
+- **Mission Journeys:** End-to-end seven-stage scenarios covering undo plans, telemetry assertions, and Supabase persistence.
 - **Ranking Quality:** Planner ordering scored against golden missions to catch regressions in tool sequencing or safeguard coverage.
 - **Coordination:** Shared-state handoffs, checkpoints, and rollback behavior under load or concurrent updates.
 - **Recovery:** Rate limits, auth expiry, and Supabase disconnects validating graceful degradation and restart logic.
@@ -201,7 +202,7 @@ agent/evals/
 ├── ranking_quality.evalset.json        # Planner scoring + undo plans
 ├── execution_safety.evalset.json       # Executor + Validator safeguards
 ├── error_recovery.evalset.json         # Rate limits, auth expiry, Supabase outage cases
-└── mission_end_to_end.evalset.json     # Five-stage scenario with telemetry assertions
+└── mission_end_to_end.evalset.json     # Seven-stage scenario with telemetry assertions
 ```
 
 **Running Evaluations:**
@@ -260,10 +261,13 @@ adk eval --verbose agent/agents/planner.py agent/evals/ranking_quality.evalset.j
 
 **Progressive Trust Flow:**
 
-- **Define Stage:** Coordinator writes mission context; optional catalog warm-up via `client.tools.search()` seeds predicted coverage.
-- **Prepare Stage:** Inspector discovers toolkits via `client.tools.search()`, previews anticipated scopes without initiating OAuth, presents Connect Link approval requests to stakeholders via chat, initiates OAuth via `client.toolkits.authorize()` after approval, awaits `wait_for_connection()` handshake, and logs all granted scopes in Supabase. Output stored in Supabase readiness tables and `mission_connections`.
-- **Plan & Approve Stage:** Planner receives established connections from Inspector with validated scopes. Planner assembles mission plays (playbooks) emphasizing tool usage patterns, data investigation insights, and precedent missions, tagging sequencing, resource requirements, and undo affordances before ranking. Validator confirms scope alignment against Inspector's approved connections. Focus shifts to play ranking and safeguard attachment rather than credential management.
-- **Execute & Observe Stage:** Executor runs approved actions via provider adapters/SDK using established connections, streams results to CopilotKit, logs audit trails, and triggers evidence packaging.
+- **Stage 0 — Home:** Mission dashboard provides context for operators before mission creation.
+- **Stage 1 — Define:** Coordinator writes mission context; optional catalog warm-up via `client.tools.search()` seeds predicted coverage.
+- **Stage 2 — Prepare:** Inspector discovers toolkits via `client.tools.search()`, previews anticipated scopes without initiating OAuth, presents Connect Link approval requests to stakeholders via chat, initiates OAuth via `client.toolkits.authorize()` after approval, awaits `wait_for_connection()` handshake, and logs all granted scopes in Supabase. Output stored in Supabase readiness tables and `mission_connections`.
+- **Stage 3 — Plan:** Planner receives established connections from Inspector with validated scopes. Planner assembles mission plays (playbooks) emphasizing tool usage patterns, data investigation insights, and precedent missions, tagging sequencing, resource requirements, and undo affordances before ranking. Validator confirms scope alignment against Inspector's approved connections. Focus shifts to play ranking and safeguard attachment rather than credential management.
+- **Stage 4 — Approve:** Dedicated approval checkpoint where stakeholders review and formally approve the selected play with full audit trail.
+- **Stage 5 — Execute:** Executor runs approved actions via provider adapters/SDK using established connections, streams results to CopilotKit, logs audit trails, and triggers evidence packaging.
+- **Stage 6 — Reflect:** Feedback collection, library contribution, and mission retrospective.
 
 ### 5.2 Implementation Patterns
 
