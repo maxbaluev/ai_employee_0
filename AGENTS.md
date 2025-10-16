@@ -12,7 +12,7 @@
 
 **Native SDK Architecture:**
 - **Single Workspace:** All toolkit execution flows through a shared Composio workspace powered by the standard SDK (`ComposioClient`).
-- **Providers:** Choose the provider adapter that matches the LLM runtime (Anthropic, Gemini, OpenAI, LangChain, CrewAI, etc.); adapters translate JSON schemas into the model's native tool-call format.
+- **Backend-Only Execution:** The Gemini ADK backend is the **only** layer that calls Composio tools. No LangChain, CrewAI, or alternate provider adapters are in scope for this control plane.
 - **Sessions:** Scope each mission by passing `user_id` + `tenantId` into `ComposioClient` calls; use Connect Links generated via `client.connected_accounts.initiate()` to gate OAuth.
 - **Telemetry:** Emit `composio_discovery`, `composio_auth_flow`, and `composio_tool_call` events so downstream analytics distinguish the three progressive trust stages.
 

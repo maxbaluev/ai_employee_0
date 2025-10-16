@@ -8,7 +8,7 @@ This repository delivers the Gate G-B control plane for the AI Employee program.
 
 - **Frontend:** `src/app/(control-plane)` renders the mission intake, artifact gallery, and Copilot chat rail (see `docs/03a_chat_experience.md` for UX narrative).
 - **Backend:** `agent/` exposes a FastAPI app with a Gemini ADK agent (`agent/agents/control_plane.py`) that calls native Composio SDK clients for discovery, authentication, and governed tool execution.
-- **Composio SDK Integration:** Inspector, Planner, and Executor agents share a single Composio workspace. They discover toolkits, broker OAuth, and execute governed actions through the standard SDK (`ComposioClient`) and provider adapters, without any intermediary router layer.
+- **Composio SDK Integration:** Inspector, Planner, and Executor agents share a single Composio workspace. They discover toolkits, broker OAuth, and execute governed actions through the standard SDK (`ComposioClient`) using the **Gemini ADK backend** for orchestration, without any intermediary router layer.
 - **Data Plane:** `supabase/migrations/0001_init.sql` provisions tenants, objectives, plays, approvals, tool telemetry, pgvector embeddings, and RLS policies.
 - Reference product docs live in `docs/` (architecture, execution tracker, guardrails, readiness schemas).
 
@@ -88,12 +88,12 @@ before running QA.
 
 **The AI Employee Control Plane standardizes on the native Composio SDK for catalog discovery, OAuth, and governed execution.**
 
-**Core SDK surfaces:**
-- `ComposioClient.tools.search()` — semantic toolkit discovery and capability assessment used by the Inspector stage
-- `ComposioClient.connected_accounts.initiate()` / `.status()` — mission-scoped Connect Link flows that Planner agents present for approvals
-- Provider adapters (OpenAI, Anthropic, Gemini, LangChain, CrewAI, etc.) — translate mission plans into executable tool invocations
-- `ComposioClient.tools.execute()` and streaming helpers — governed execution with automatic retry, throttling, and response shaping
-- Triggers & workflows (`client.triggers.create` and `client.workflows.run`) — async orchestration for long-running actions managed by the Executor stage
+**Core SDK surfaces orchestrated by Gemini ADK agents:**
+- `ComposioClient.tools.search()` — semantic toolkit discovery and capability assessment used by the Inspector ADK agent
+- `ComposioClient.connected_accounts.initiate()` / `.status()` — mission-scoped Connect Link flows that the Planner ADK agent presents for approvals
+- **Gemini ADK backend** — the exclusive orchestrator calling Composio tools through ADK agent patterns (`InspectorAgent`, `PlannerAgent`, `ExecutorAgent`)
+- `ComposioClient.tools.execute()` and streaming helpers — governed execution with automatic retry, throttling, and response shaping called by Executor ADK agent
+- Triggers & workflows (`client.triggers.create` and `client.workflows.run`) — async orchestration for long-running actions managed by the Executor ADK agent
 
 **Sessions & trust:** mission sessions key off a shared `user_id` + `tenantId` tuple. Inspectors operate in read-only mode using discovery APIs, Planners gate OAuth scopes through Connect Links, and Executors run approved operations while emitting structured telemetry. No MCP-presigned URLs are required.
 

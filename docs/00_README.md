@@ -10,7 +10,7 @@
 
 ## How to Use This Documentation
 
-This documentation is organized as a **sequential knowledge base** that enables understanding and building the AI Employee Control Plane from scratch. Documents are numbered for suggested reading order, but you can jump to specific topics based on your role.
+This documentation is organized as a **sequential knowledge base** that enables understanding and building the AI Employee Control Plane from scratch. **The platform is built on a Gemini ADK-driven agent architecture tightly coupled with Composio state management**, delivering progressive trust through Inspector/Planner/Executor agents across a five-stage mission lifecycle. Documents are numbered for suggested reading order, but you can jump to specific topics based on your role.
 
 ---
 
@@ -19,21 +19,21 @@ This documentation is organized as a **sequential knowledge base** that enables 
 ### Core Documentation (Read in Order)
 
 1. **[Product Vision](./01_product_vision.md)** — Strategic direction, value proposition, personas, use cases
-2. **[System Overview](./02_system_overview.md)** — Architecture, data flows, technical specifications
-3. **[User Experience Blueprint](./03_user_experience.md)** — Five-stage journey, interaction patterns, accessibility
-4. **[Chat Experience Guide](./03a_chat_experience.md)** — CopilotKit rail behaviour, message types, telemetry hooks
-5. **[Implementation Guide](./04_implementation_guide.md)** — Development setup, component catalog, integration patterns, library docs cross-references
+2. **[System Overview](./02_system_overview.md)** — **ADK agent architecture**, data flows, Composio integration, technical specifications
+3. **[User Experience Blueprint](./03_user_experience.md)** — Five-stage journey, agent-driven interaction patterns, accessibility
+4. **[Chat Experience Guide](./03a_chat_experience.md)** — CopilotKit rail behaviour, agent narration, message types, telemetry hooks
+5. **[Implementation Guide](./04_implementation_guide.md)** — **Gemini ADK agent development**, Composio SDK patterns, component catalog, library docs cross-references
 6. **[Capability Roadmap](./05_capability_roadmap.md)** — Milestone-based roadmap with evidence requirements
-7. **[Data Intelligence](./06_data_intelligence.md)** — Telemetry, analytics, learning loops
-8. **[Operations Playbook](./07_operations_playbook.md)** — Deployment, monitoring, incident response, runbooks
-9. **[Getting Started](./08_getting_started.md)** — Environment setup, running the stack, first mission walkthrough
+7. **[Data Intelligence](./06_data_intelligence.md)** — Telemetry, analytics, learning loops, agent performance metrics
+8. **[Operations Playbook](./07_operations_playbook.md)** — Deployment, monitoring, agent orchestration, incident response, runbooks
+9. **[Getting Started](./08_getting_started.md)** — Environment setup, running the ADK agent stack, first mission walkthrough
 10. **[Release Readiness](./09_release_readiness.md)** — Cross-functional checklists, evidence artifacts, sign-off process
 
 ### Special Purpose Documents
 
 - **[AI Agent Guide (AGENTS.md)](../AGENTS.md)** — Quick reference for AI agents working with this codebase
 - **[Todo List (todo.md)](./todo.md)** — Actionable next steps referencing the unified documentation
-- **[Trust Model Clarification](./10_composio.md)** — Progressive trust + Composio SDK alignment with chat touchpoints
+- **[Trust Model & Composio Integration](./10_composio.md)** — **Progressive trust staging with ADK agents**, Composio SDK alignment, OAuth flows, and chat touchpoints
 
 ---
 
@@ -67,20 +67,22 @@ This documentation is organized as a **sequential knowledge base** that enables 
 
 **Recommended Path:**
 
-1. [Getting Started](./08_getting_started.md) — Setup environment and run first mission
-2. [System Overview](./02_system_overview.md) — Architecture, layers, data flows
-3. [Chat Experience Guide](./03a_chat_experience.md) — Chat APIs, interrupts, telemetry hooks
-4. [Implementation Guide](./04_implementation_guide.md) — Component catalog, patterns, testing
-5. [AGENTS.md](../AGENTS.md) — Quick setup, toolchain, workflows
-6. [Capability Roadmap](./05_capability_roadmap.md) — Technical milestones and dependencies
-7. [Operations Playbook](./07_operations_playbook.md) — Deployment, monitoring, runbooks
+1. [Getting Started](./08_getting_started.md) — Setup environment and run ADK agent stack
+2. [System Overview](./02_system_overview.md) — **Gemini ADK agent architecture**, Composio integration, data flows
+3. [Implementation Guide](./04_implementation_guide.md) — **ADK agent development**, Composio SDK patterns, component catalog, testing
+4. [Trust Model & Composio Integration](./10_composio.md) — Progressive trust flows, agent responsibilities, OAuth handling
+5. [Chat Experience Guide](./03a_chat_experience.md) — Chat APIs, agent narration, interrupts, telemetry hooks
+6. [AGENTS.md](../AGENTS.md) — Quick setup, ADK toolchain, agent workflows
+7. [Capability Roadmap](./05_capability_roadmap.md) — Technical milestones and dependencies
+8. [Operations Playbook](./07_operations_playbook.md) — Deployment, agent orchestration, monitoring, runbooks
 
 **Key Questions Answered:**
 
-- How do I set up my development environment?
-- What's the system architecture and how do components interact?
-- Where do I add new features and what patterns should I follow?
-- How do I test, deploy, and monitor changes?
+- How do I set up my development environment with ADK agents?
+- What's the ADK agent architecture and how do agents coordinate with Composio?
+- Where do I add new agent capabilities and what patterns should I follow?
+- How do agents manage state across the mission lifecycle?
+- How do I test, deploy, and monitor agent behaviors?
 
 ---
 
@@ -208,9 +210,11 @@ To maintain consistency across all documentation, use these preferred terms:
 - **Governed Execution:** OAuth-authenticated mission execution with user approvals and safeguard enforcement. Required for all write actions, sensitive data access, and production workflows. (Preferred over "governed activation")
 - **Progressive Trust:** The model of proving value through no-auth inspection artifacts before requesting OAuth credentials—earning access rather than assuming it
 
-**Agents:**
+**Agents (Gemini ADK):**
 
-- **Coordinator, Intake, Planner, Inspector, Executor, Validator, Evidence** — Capitalize when referring to specific agent roles
+- **Coordinator, Intake, Planner, Inspector, Executor, Validator, Evidence** — Capitalize when referring to specific ADK agent roles
+- **Agent State Management** — Shared session state via `ctx.session.state` enables stateful coordination across agents
+- **Agent Coordination** — Multi-agent orchestration through ADK's `BaseAgent`, `LlmAgent`, and custom agent patterns
 
 **Integrations:**
 

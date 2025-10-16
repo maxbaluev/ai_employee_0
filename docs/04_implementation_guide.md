@@ -74,37 +74,149 @@ Optional:
 
 ### Service Layout
 
-- `agent/agent.py` — FastAPI bootstrap, load `.env`, route definitions
-- `agent/agents/` — Coordinator, Planner, Executor, Validator, Evidence agents
-- `agent/services/` — Mission service, Composio client, Supabase client, telemetry
-- `agent/tools/` — Tool abstractions, undo plans, scoring utilities
-- `agent/evals/` — Evaluation configs (`smoke_foundation.json`, `dry_run_ranking.json`)
+- `agent/agent.py` — FastAPI bootstrap, load `.env`, route definitions, ADK Runner initialization
+- `agent/agents/` — Coordinator, Intake, Planner, Inspector, Executor, Validator, Evidence agents (all inherit from ADK `BaseAgent` or `LlmAgent`)
+- `agent/services/` — Mission service, Composio client, Supabase client, telemetry, session state management
+- `agent/tools/` — Tool abstractions, undo plans, scoring utilities, Composio provider adapters
+- `agent/evals/` — ADK evaluation configs (`smoke_foundation.json`, `dry_run_ranking.json`, `agent_coordination.json`)
 
 ### Development Workflow
 
 ```bash
-mise run agent      # hot reload FastAPI server
-mise run test-agent # adk eval smoke + execution ranking
+mise run agent      # hot reload FastAPI server with ADK Runner
+mise run test-agent # adk eval smoke + execution ranking + agent coordination
 uv run --with-requirements agent/requirements.txt pytest agent/tests
 ```
 
-### Agent Responsibilities
+### ADK Agent Architecture
 
-- **CoordinatorAgent** — Stage orchestration, safeguards enforcement, telemetry fan-out
-- **IntakeAgent** — Chip generation, confidence scoring, rationale hints
-- **InspectorAgent** — Data coverage validation, toolkit discovery, anticipated scope previews, OAuth Connect Link initiation after approval, connection establishment during Prepare stage
-- **PlannerAgent** — Play (mission playbook) generation with hybrid ranking (retrieval + rule-based filters), emphasizing tool usage patterns and data investigation insights from established connections
-- **ExecutorAgent** — Composio tool execution using established connections, state tracking, heartbeat updates
-- **ValidatorAgent** — Safeguard verification, success heuristics, undo planning
-- **EvidenceAgent** — Artifact packaging, hash generation, library updates
+**All Control Plane agents inherit from Gemini ADK's `BaseAgent` or `LlmAgent`**, enabling:
 
-### Patterns & Practices
+- **Shared Session State:** All agents access `ctx.session.state` dictionary for cross-agent data flow
+- **Event-Driven Coordination:** Agents yield `Event` objects via `async for event in agent.run_async(ctx)`
+- **Composability:** Agents can be sub-agents of other agents (e.g., ValidatorAgent used by both Planner and Executor)
+- **Testability:** ADK's `adk eval` framework validates agent behavior with mission-specific eval sets
 
-- **Session State:** Persist mission context in Supabase `mission_state` table; agents read/write via transactional API.
-- **Telemetry:** Use `TelemetryClient.track(event, payload)` with correlation ids; follow schema in `scripts/audit_telemetry_events.py`.
-- **Safeguards:** Generate default hints, allow overrides, mirror edits back to Supabase.
-- **Undo Plans:** Required for every mutating action; store in `undo_events` with rollback script reference.
-- **Retries:** Exponential backoff for Composio calls; surface failure reason to planner for adaptation.
+**Base Agent Pattern:**
+
+```python
+from google.adk.agents import BaseAgent, LlmAgent
+from google.adk.agents.invocation_context import InvocationContext
+from google.adk.events import Event
+from typing import AsyncGenerator
+
+class InspectorAgent(BaseAgent):
+    """ADK agent for toolkit discovery and OAuth initiation"""
+
+    def __init__(self, name: str, composio_client: ComposioClient, supabase_client: SupabaseClient):
+        self.composio_client = composio_client
+        self.supabase_client = supabase_client
+        super().__init__(name=name, sub_agents=[])  # No sub-agents for Inspector
+
+    async def _run_async_impl(self, ctx: InvocationContext) -> AsyncGenerator[Event, None]:
+        """Core inspector logic with ADK event streaming"""
+        # Read mission context from session state
+        mission_brief = ctx.session.state.get("mission_brief")
+
+        # Discover toolkits via Composio
+        search = await self.composio_client.tools.search(query=mission_brief["objective"])
+
+        # Write to session state for downstream agents
+        ctx.session.state["anticipated_connections"] = [tk.dict() for tk in search.toolkits]
+        ctx.session.state["coverage_estimate"] = self._compute_coverage(search.toolkits)
+
+        # Yield event for CopilotKit to display
+        yield Event(
+            event_type="inspector_discovery_complete",
+            content=f"Discovered {len(search.toolkits)} toolkits with {ctx.session.state['coverage_estimate']}% coverage",
+            metadata={"mission_id": ctx.session.state["mission_id"]}
+        )
+```
+
+### Agent Responsibilities & State Interactions
+
+| Agent | Reads from `ctx.session.state` | Writes to `ctx.session.state` | Composio SDK Calls | Sub-Agents |
+|-------|-------------------------------|------------------------------|-------------------|------------|
+| **CoordinatorAgent** | All keys (monitors full state) | `mission_id`, `tenant_id`, `user_id`, `current_stage` | None | IntakeAgent, InspectorAgent, PlannerAgent, ExecutorAgent, EvidenceAgent |
+| **IntakeAgent** | None | `mission_brief`, `safeguards`, `confidence_scores` | None | None |
+| **InspectorAgent** | `mission_brief` | `anticipated_connections`, `granted_scopes`, `coverage_estimate`, `readiness_status` | `client.tools.search()`, `client.toolkits.authorize()`, `wait_for_connection()` | None |
+| **PlannerAgent** | `granted_scopes`, `mission_brief`, `coverage_estimate` | `ranked_plays`, `undo_plans`, `tool_usage_patterns` | None | ValidatorAgent (for scope validation) |
+| **ValidatorAgent** | `safeguards`, `granted_scopes`, `current_action` | `validation_results`, `auto_fix_attempts` | `client.connected_accounts.status()` | None |
+| **ExecutorAgent** | `ranked_plays`, `granted_scopes` | `execution_results`, `heartbeat_timestamp` | `provider.session(...).handle_tool_call(...)` | ValidatorAgent (for preflight/postflight), EvidenceAgent (for artifact packaging) |
+| **EvidenceAgent** | `execution_results`, `undo_plans` | `evidence_bundles`, `library_contributions` | `client.audit.list_events()` | None |
+
+### ADK Patterns & Practices
+
+- **Session State Management:**
+  - All agents share `ctx.session.state` dictionary (backed by ADK's `InMemorySessionService` or Supabase)
+  - State schema enforced by the agent services module with Pydantic validation (see shared patterns in `libs_docs/adk/llms-full.txt`)
+  - Use `ctx.session.state.get(key, default)` for safe reads, direct assignment for writes
+
+- **Event Streaming:**
+  - Yield `Event` objects with `event_type`, `content`, `metadata` for CopilotKit display
+  - Use `async for event in sub_agent.run_async(ctx)` to propagate sub-agent events
+  - Events automatically logged to telemetry via ADK Runner
+
+- **Multi-Agent Coordination:**
+  - Parent agents pass `ctx` unchanged to sub-agents for state continuity
+  - Use `SequentialAgent` for linear workflows, `ParallelAgent` for concurrent tasks
+  - Custom agents inherit from `BaseAgent` and implement `_run_async_impl`
+
+- **Composio Integration:**
+  - Store `ComposioClient` as instance attribute: `self.composio_client = composio_client`
+  - Pass `user_id`, `tenant_id` from session state to Composio SDK calls
+  - Emit telemetry events after Composio operations: `composio_discovery`, `composio_auth_flow`, `composio_tool_call`
+
+- **Telemetry:**
+  - ADK Runner auto-emits `session_heartbeat` events with agent name, lag, token usage
+  - Agents emit custom events via `yield Event(...)` for mission-specific tracking
+  - Use `TelemetryClient.track(event, payload)` for Supabase persistence
+
+- **Error Handling:**
+  - Wrap Composio calls in try/except to handle `RateLimitError`, `AuthExpiredError`, `ToolkitNotFoundError`
+  - Update session state with error details for coordinator retry logic
+  - Yield error events for chat display: `Event(event_type="error", content="Auth expired", metadata={...})`
+
+### ADK Evaluation Framework
+
+**Purpose:** Ensure planner rankings, OAuth handoffs, executor safeguards, and evidence packaging remain reliable as the platform evolves.
+
+**Evaluation Pillars:**
+
+- **Smoke:** Core agent capabilities (discovery, OAuth, execution, evidence packaging) on every commit.
+- **Mission Journeys:** End-to-end five-stage scenarios covering undo plans, telemetry assertions, and Supabase persistence.
+- **Ranking Quality:** Planner ordering scored against golden missions to catch regressions in tool sequencing or safeguard coverage.
+- **Coordination:** Shared-state handoffs, checkpoints, and rollback behavior under load or concurrent updates.
+- **Recovery:** Rate limits, auth expiry, and Supabase disconnects validating graceful degradation and restart logic.
+
+**Eval Suite Layout (recommended):**
+
+```
+agent/evals/
+├── smoke_foundation.evalset.json       # Core agent smoke
+├── discovery_coverage.evalset.json     # Inspector toolkit breadth & coverage math
+├── ranking_quality.evalset.json        # Planner scoring + undo plans
+├── execution_safety.evalset.json       # Executor + Validator safeguards
+├── error_recovery.evalset.json         # Rate limits, auth expiry, Supabase outage cases
+└── mission_end_to_end.evalset.json     # Five-stage scenario with telemetry assertions
+```
+
+**Running Evaluations:**
+
+```bash
+# Run the full ADK eval battery (wrapped in mise)
+mise run test-agent
+
+# Target a single agent + evalset
+adk eval agent/agents/inspector.py agent/evals/discovery_coverage.evalset.json
+
+# Debug mode with verbose traces
+adk eval --verbose agent/agents/planner.py agent/evals/ranking_quality.evalset.json
+```
+
+**Evidence & Readiness:** Export eval reports (JSON + HTML) to `docs/readiness/agent-evals/` for release checkpoints. `docs/09_release_readiness.md` lists the minimum passing sets required before a production launch.
+
+**Reference:** See `libs_docs/adk/llms-full.txt` for ADK patterns, `docs/02_system_overview.md` §ADK Agent Coordination for state flow diagrams, and `docs/09_release_readiness.md` for evaluation evidence requirements.
 
 ---
 
@@ -134,12 +246,12 @@ uv run --with-requirements agent/requirements.txt pytest agent/tests
 
 **The AI Employee Control Plane standardizes on the native Composio SDK for toolkit execution.** The SDK exposes discovery, authentication, execution, triggers, and telemetry under a single identity context (`user_id` + `tenantId`). No additional router layer or MCP bridge is required.
 
-**Core SDK Surfaces:**
+**Core SDK Surfaces (ADK backend only):**
 
 - **Discovery:** `ComposioClient.tools.search()` and `ComposioClient.toolkits.get()` provide semantic catalog access for no-auth inspection.
 - **Authentication:** `ComposioClient.toolkits.authorize()` is the managed fast path for issuing mission-scoped Connect Links (`await req.wait_for_connection()`). Fall back to `ComposioClient.connected_accounts.link()` / `.status()` for custom auth configs, and `.revoke()` for disconnects.
-- **Sessions:** TypeScript clients isolate tenant context via `composio.createSession({ headers: { "x-tenant-id": tenantId } })`; Python adapters expose `provider.session(...)` context managers for the same boundary.
-- **Execution:** Provider adapters (Anthropic, Gemini, OpenAI, LangChain, CrewAI, Vercel AI SDK, etc.) translate Composio schemas into framework-native tool calls; `client.provider.handle_tool_calls(...)` manages chat completion callbacks. Direct `client.tools.execute()` calls cover bespoke automation.
+- **Sessions:** ADK agents wrap `ComposioClient` calls inside Python `provider.session(user_id=..., tenant_id=...)` context managers; we do not expose TypeScript or alternate framework adapters.
+- **Execution:** `client.tools.execute()` (and ADK's `provider.session().handle_tool_call`) power governed execution—there is no LangChain, CrewAI, or other framework integration in this control plane.
 - **Automation:** `client.triggers.create()` + `client.workflows.run()` orchestrate async jobs, batching, or multi-step escalations.
 - **Telemetry:** Audit APIs (`client.audit.list_events`) and event hooks emit `composio_discovery`, `composio_auth_flow`, and `composio_tool_call` to our Supabase telemetry tables.
 

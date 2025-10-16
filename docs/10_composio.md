@@ -1,57 +1,96 @@
-# Composio SDK: Unified Toolkit Execution Interface
+# Composio SDK Integration: Progressive Trust with ADK Agents
 
-**Date:** 2025-10-15 (Native SDK Clarification)
-**Audience:** Platform Engineering, Agent Orchestration, Trust & Governance, UX Documentation
-**Objective:** Document how the AI Employee Control Plane standardizes on the native Composio SDK for discovery, authentication, governed execution, and telemetry across the progressive trust model, and clarify how those touchpoints surface inside the CopilotKit chat experience.
+**Date:** 2025-10-15 (ADK-Composio Integration Clarification)
+**Audience:** Platform Engineering, ADK Agent Developers, Trust & Governance, UX Documentation
+**Objective:** Document how the AI Employee Control Plane integrates Gemini ADK agents with the Composio SDK for discovery, authentication, governed execution, and telemetry across the progressive trust model, and clarify how ADK agents orchestrate Composio touchpoints surfaced in the CopilotKit chat experience.
 
 ---
 
 ## Executive Summary
 
-The control plane now relies exclusively on the **Composio SDK**. Inspector, Planner, Executor, Validator, and Evidence agents all share a single Composio workspace that exposes catalog discovery, Connect Link–based authentication, provider adapters, triggers, and audit telemetry. The native SDK removes the legacy router layer, shortens execution paths, and gives us first-class observability via structured events. Every SDK interaction is mirrored in the CopilotKit chat so stakeholders can inspect intent, approvals, execution, and undo plans without leaving the workspace.
+The Control Plane is built on a **Gemini ADK-driven agent architecture tightly coupled with Composio state management**. ADK agents (Inspector, Planner, Executor, Validator, Evidence) orchestrate Composio SDK interactions through shared session state (`ctx.session.state`), delivering progressive trust across the five-stage mission lifecycle. Each agent reads from and writes to the session state, enabling stateful handoffs while Composio provides toolkit discovery, OAuth management, provider adapters, and audit telemetry. The native SDK removes the legacy router layer, and ADK's event-driven coordination ensures every SDK interaction is mirrored in the CopilotKit chat for stakeholder visibility.
 
 Key outcomes:
 
-- **Progressive Trust Alignment:** No-auth inspection discovers toolkits in Prepare stage, OAuth happens during Prepare via Inspector-initiated Connect Links after stakeholder approval, and governed execution in Execute & Observe streams through provider adapters while validator safeguards run pre/post checks – all narrated in chat.
-- **Governed Auth:** Scopes are previewed during Prepare, formally authorized after approval via Connect Links initiated by Inspector, persisted in Supabase, reconciled against validator requirements before execution, and summarized for reviewers directly in the chat rail.
-- **Unified Telemetry:** Every discovery, auth, and tool call emits `composio_discovery`, `composio_auth_flow`, `composio_tool_call`, and `composio_tool_call_error` events tagged with mission, tenant, toolkit, and action metadata, with chat callouts ensuring humans know what fired and why.
-- **Operational Simplicity:** Runbooks, dashboards, and quotas now focus on three canonical flows instead of six meta-tools. The SDK exposes consistent error codes (`RATE_LIMIT`, `AUTH_EXPIRED`, `TOOLKIT_NOT_FOUND`) with actionable context and the chat surfaces the resolution checklist to keep operators in-the-loop.
+- **ADK-Driven Progressive Trust:** Inspector agent discovers toolkits (Prepare), Planner agent assembles plays from established connections (Plan & Approve), Executor agent runs governed actions (Execute & Observe) – all coordinated via ADK session state and narrated in chat
+- **Stateful Agent Coordination:** All ADK agents share `ctx.session.state` dictionary for mission context, granted scopes, ranked plays, execution results, and evidence bundles – enabling smooth handoffs across stages
+- **Governed Auth:** Inspector previews scopes, initiates Connect Links after approval, awaits `wait_for_connection()`, and logs granted scopes to session state; Planner validates scope alignment; Executor never requests new OAuth
+- **Unified Telemetry:** Every discovery, auth, and tool call emits `composio_discovery`, `composio_auth_flow`, `composio_tool_call`, and `composio_tool_call_error` events tagged with mission, tenant, toolkit, and action metadata, with ADK events yielded to CopilotKit for chat visibility
+- **Operational Simplicity:** ADK's event-driven patterns simplify runbooks, dashboards, and quotas. The SDK exposes consistent error codes (`RATE_LIMIT`, `AUTH_EXPIRED`, `TOOLKIT_NOT_FOUND`) with actionable context, and ADK agents surface resolution checklists to keep operators in-the-loop
 
 ---
 
-## Why the Native SDK?
+## Why ADK + Composio SDK?
 
-### 1. Simplified Agent Architecture
+### 1. Stateful Multi-Agent Architecture
 
 ```
 User Request
   ↓
-Inspector → ComposioClient.tools.search() (discovery)
+CoordinatorAgent (ADK) → Initialize mission context in ctx.session.state
   ↓
-Inspector → Preview anticipated scopes + data coverage
+IntakeAgent (ADK) → Generate brief chips → Write to session state
   ↓
-Inspector → toolkits.authorize() → Connect Link (after stakeholder approval)
+InspectorAgent (ADK) → ComposioClient.tools.search() (discovery)
+                     → Preview scopes → Write to session state
+                     → Await stakeholder approval via chat
+                     → toolkits.authorize() → Connect Link
+                     → wait_for_connection() → Write granted_scopes to session state
   ↓
-Stakeholder Approval (chat modal during Prepare)
+PlannerAgent (ADK) → Read granted_scopes from session state
+                   → Assemble mission plays emphasizing tool patterns
+                   → Write ranked_plays, undo_plans to session state
   ↓
-Planner → Assemble mission plays from approved toolkits
+ValidatorAgent (ADK) → Read safeguards, granted_scopes from session state
+                     → Preflight/postflight checks
+                     → Write validation_results to session state
   ↓
-Executor → provider.handle_tool_calls(...) (using established connections)
+ExecutorAgent (ADK) → Read ranked_plays, granted_scopes from session state
+                    → provider.handle_tool_calls(...) via Composio
+                    → Write execution_results to session state
   ↓
-Validator & Evidence → audit + triggers (chat evidence cards)
+EvidenceAgent (ADK) → Read execution_results from session state
+                    → Package artifacts → Write evidence_bundles to session state
+                    → audit + triggers (chat evidence cards)
 ```
 
-- **Single decision path:** Agents no longer branch between meta-tools and per-tool servers.
-- **Shared context:** `user_id` + `tenantId` propagate through every call via `composio.createSession({ headers: { "x-tenant-id": tenantId } })` (TS) or `provider.session(user_id=..., tenant_id=...)` (Py); we log these fields for audits and announce them when scopes are granted.
-- **Provider abstraction:** Anthropic, Gemini, OpenAI, LangChain, CrewAI, and Vercel adapters consume identical payloads produced from mission plans. CopilotKit streams the resulting tool events to the chat so reviewers can inspect raw inputs/outputs without opening a separate console.
+- **Stateful handoffs:** ADK agents share `ctx.session.state` for mission context, eliminating redundant API calls and enabling each agent to build on previous work
+- **Event-driven coordination:** Each ADK agent yields `Event` objects via `async for event in agent.run_async(ctx)`, propagating to CopilotKit for real-time chat updates
+- **Shared context:** `mission_id` + `tenant_id` + `user_id` persist in session state and flow into every Composio call issued by the Gemini ADK backend
+- **Backend-only execution:** The control plane does not host LangChain, CrewAI, or alternate providers—ADK is the sole orchestrator streaming results to CopilotKit
+- **Testability:** ADK's `adk eval` framework validates agent behavior and ranking quality before production deployment
 
-### 2. Governed Authentication
+### 2. Governed Authentication via ADK Agents
 
-- **Connect Links:** Generated with `client.toolkits.authorize()` during the Prepare stage by Inspector; include mission/tenant metadata, expiry windows, and an async `wait_for_connection()` handshake before proceeding to planning. Chat messages display the link summary, requested scopes, and countdown timers while validation is pending.
-- **Custom Auth Configs:** For bespoke scopes, call `client.connected_accounts.link()` / `.status()` against specific auth configs while preserving mission metadata; the chat highlights any deviations from recommended scopes.
-- **Approval evidence:** Stored in Supabase (`mission_connections` table) with granted scopes, timestamps, and validator sign-off; chat pins the approval receipt so auditors can replay the timeline.
-- **Revocation:** Managed through `client.connected_accounts.revoke()` during mission closeout or tenant offboarding; chat drops a notice and links to the undo plan when revocation happens mid-mission.
-- **Principle:** Executors never initiate new OAuth—Prepare (Inspector) is the only stage allowed to request scopes via Connect Links. Planner focuses on assembling plays from established connections, and chat interrupts execution if an executor attempts to escalate scopes directly.
+- **InspectorAgent (Prepare Stage):**
+  - Discovers toolkits via `client.tools.search()` and writes `anticipated_connections` to `ctx.session.state`
+  - Previews scopes without initiating OAuth, awaits stakeholder approval via chat
+  - Calls `client.toolkits.authorize()` after approval to generate Connect Links
+  - Awaits `wait_for_connection()` handshake and writes `granted_scopes` to session state
+  - All scopes, timestamps, and metadata persisted to Supabase (`mission_connections` table)
+  - Chat displays Connect Link summary, requested scopes, countdown timers during validation
+
+- **PlannerAgent (Plan & Approve Stage):**
+  - Reads `granted_scopes` from session state (established by Inspector)
+  - Assembles mission plays from approved connections without initiating new OAuth
+  - Focuses on tool usage patterns, data investigation insights, and precedent missions
+  - Writes `ranked_plays`, `undo_plans`, `tool_usage_patterns` to session state
+
+- **ValidatorAgent (Cross-Stage):**
+  - Reads `safeguards` and `granted_scopes` from session state
+  - Validates scope alignment via `client.connected_accounts.status()` before play approval
+  - Performs preflight/postflight checks during execution
+  - Writes `validation_results` to session state; chat surfaces validator alerts inline
+
+- **ExecutorAgent (Execute & Observe Stage):**
+  - Reads `ranked_plays` and `granted_scopes` from session state
+  - Executes approved actions via `provider.session(...).handle_tool_call(...)` using established connections
+  - Never initiates new OAuth; if auth expires, surfaces error and reroutes to Inspector for re-authorization
+  - Writes `execution_results` to session state; chat streams tool calls with validator flags
+
+- **Custom Auth Configs:** For bespoke scopes, Inspector calls `client.connected_accounts.link()` / `.status()` while preserving mission metadata in session state; chat highlights deviations from recommended scopes
+- **Revocation:** Managed through `client.connected_accounts.revoke()` during mission closeout; InspectorAgent handles revocation and updates session state; chat displays notice with undo plan link
+- **Principle:** Only Inspector initiates OAuth (Prepare stage). Planner and Executor use established connections from session state. Chat interrupts execution if scope escalation is attempted outside Inspector.
 
 ### 3. Observability & Telemetry
 
@@ -73,45 +112,101 @@ Validator & Evidence → audit + triggers (chat evidence cards)
 
 ---
 
-## Progressive Trust Alignment
+## Progressive Trust with ADK Agents & Composio SDK
 
-| Trust Stage            | Composio SDK Interaction                          | Chat Experience                                      | Mission Artifacts Generated                                   |
-| ---------------------- | ------------------------------------------------- | ---------------------------------------------------- | -------------------------------------------------------------- |
-| **Prepare (Inspector)** | `client.tools.search()` + schema previews + `toolkits.authorize()` after approval | Inspector posts discovery cards with coverage score, then Connect Link modal upon approval  | Coverage reports, anticipated scopes, approved scopes, Connect Link URL, risk notes               |
-| **Plan & Approve (Planner)** | Assemble mission plays from established connections + validator checks | Planner shares ranked plays based on tool usage patterns, safeguard recap, undo plans | Mission plays, safeguard matrix, undo plan details, data investigation insights |
-| **Governed Execution** | Provider adapters / `client.tools.execute()`      | Executor streams action logs, validator alerts, undo | Tool outputs, undo hints, telemetry traces, evidence bundles   |
-| **Reflect & Improve**  | `client.audit.list_events()` + triggers workflows | Evidence agent posts retrospective bundles + follow-up prompts | Post-mission analytics, play updates, Supabase readiness logs  |
+| Trust Stage | ADK Agent | Composio SDK Interaction | Session State Artifacts | Chat Experience |
+|-------------|-----------|-------------------------|------------------------|-----------------|
+| **Define** | IntakeAgent | None | `mission_brief`, `safeguards`, `confidence_scores` | Coordinator narrates chip generation, requests edits |
+| **Prepare (Inspector)** | InspectorAgent | `client.tools.search()` → `toolkits.authorize()` → `wait_for_connection()` | `anticipated_connections`, `granted_scopes`, `coverage_estimate`, `readiness_status` | Inspector posts discovery cards with coverage score, Connect Link modal, granted scope confirmations |
+| **Plan & Approve (Planner + Validator)** | PlannerAgent, ValidatorAgent | Validator: `client.connected_accounts.status()` | `ranked_plays`, `undo_plans`, `tool_usage_patterns`, `validation_results` | Planner shares ranked plays with tool patterns, safeguard recap, undo plans; Validator confirms scope alignment |
+| **Execute & Observe (Executor + Validator)** | ExecutorAgent, ValidatorAgent | `provider.session(...).handle_tool_call(...)` | `execution_results`, `heartbeat_timestamp` | Executor streams action logs, validator alerts, undo timers |
+| **Reflect & Improve (Evidence)** | EvidenceAgent | `client.audit.list_events()` + triggers | `evidence_bundles`, `library_contributions` | Evidence agent posts retrospective bundles, feedback form, follow-up checklist |
 
-> **See also:** `docs/03a_chat_experience.md` for a narrative walkthrough of each chat touchpoint.
+> **See also:** `docs/03a_chat_experience.md` for narrative walkthrough of each chat touchpoint and `docs/02_system_overview.md` §ADK Agent Coordination for state flow diagrams.
 
-**Inspector Responsibilities (Prepare Stage):**
-- Run discovery queries and compute coverage percentage.
-- Preview anticipated scopes and connection requirements without initiating OAuth.
-- Present Connect Link approval requests to stakeholders via chat after coverage validation.
-- Call `client.toolkits.authorize()` for each approved toolkit, share `redirect_url` with stakeholders, and await `.wait_for_connection()` before proceeding to planning.
-- Log all granted scopes and connection metadata for validator reconciliation.
-- Emit `composio_discovery` and `composio_auth_flow` events for dashboarding and summarize gaps in chat.
+### ADK Agent Responsibilities by Stage
 
-**Planner Responsibilities (Plan & Approve Stage):**
-- Receive established connections from Inspector with validated scopes.
-- Assemble mission plays (playbooks) based on tool usage patterns, data investigation output, library precedent, and sequencing/resource annotations inherited from mission context.
-- Focus on play ranking, safeguard attachment, and undo plan validation—not OAuth flows.
-- Confirm validator-specified scopes are satisfied against Inspector's approved connections and log confirmations via chat checklist items.
-- Stream ranked plays to chat with confidence scores, rationale, and safeguard summaries.
+**InspectorAgent (Prepare Stage):**
+- Reads `mission_brief` from session state
+- Runs `client.tools.search(mission.objective)` and writes `anticipated_connections` to session state
+- Computes coverage percentage and writes `coverage_estimate` to session state
+- Previews anticipated scopes without OAuth; awaits stakeholder approval via chat
+- Calls `client.toolkits.authorize()` after approval, generates Connect Links, shares `redirect_url` via chat
+- Awaits `.wait_for_connection()` handshake before proceeding
+- Writes `granted_scopes`, `readiness_status` to session state
+- Persists connection metadata to Supabase (`mission_connections` table)
+- Emits `composio_discovery`, `composio_auth_flow` telemetry events
+- Chat: Discovery cards, coverage deltas, Connect Link approval requests, granted scope confirmations
 
-**Executor Responsibilities:**
-- Use provider adapters (preferred) or `client.tools.execute()` for bespoke actions, passing trimmed toolsets from `client.tools.get(..., limit=6)`.
-- Stream results to CopilotKit, collect undo hints, and append to evidence store; chat emits evidence cards as each step finalizes.
-- Emit `composio_tool_call` (and `composio_tool_call_error` on failures) telemetry for every execution with status + latency; the chat thread links directly to the relevant telemetry entry.
+**PlannerAgent (Plan & Approve Stage):**
+- Reads `granted_scopes`, `mission_brief`, `coverage_estimate` from session state (established by Inspector)
+- Assembles mission plays (playbooks) emphasizing tool usage patterns, data investigation insights, library precedent
+- Tags each play with sequencing, resource requirements, undo affordances
+- Writes `ranked_plays`, `undo_plans`, `tool_usage_patterns` to session state
+- Coordinates with ValidatorAgent for scope validation
+- Focuses on play ranking and safeguard attachment—never initiates OAuth
+- Chat: Streams ranked plays with confidence scores, rationale, tool pattern highlights, undo plan previews
 
-**Validator Responsibilities:**
-- Preflight each action against safeguard constraints; chat surfaces blocking issues with suggested fixes.
-- Auto-fix parameter issues when possible; otherwise block and return feedback with inline annotations.
-- Post-check outputs for compliance (PII, brand tone, budgets) and drop verdict badges inside the chat timeline.
+**ValidatorAgent (Cross-Stage):**
+- Reads `safeguards`, `granted_scopes`, `current_action` from session state
+- Validates scope alignment via `client.connected_accounts.status()` against Inspector's approved connections
+- Performs preflight checks before execution, postflight checks after execution
+- Auto-fixes parameter issues when possible; blocks and returns feedback otherwise
+- Writes `validation_results`, `auto_fix_attempts` to session state
+- Chat: Surfaces validator alerts inline with suggested fixes, compliance verdict badges
 
-**Evidence Responsibilities:**
-- Snapshot approval trail, tool responses (redacted), safeguards, undo steps.
-- Hash artifacts (SHA-256) and store under `docs/readiness` per mission; chat adds the artifact hash + download link for context.
+**ExecutorAgent (Execute & Observe Stage):**
+- Reads `ranked_plays`, `granted_scopes` from session state
+- Uses provider adapters via `provider.session(user_id, tenant_id).handle_tool_call(action)`
+- Coordinates with ValidatorAgent for preflight/postflight checks
+- Never initiates new OAuth; if auth expires, surfaces error and reroutes to Inspector
+- Writes `execution_results`, `heartbeat_timestamp` to session state
+- Emits `composio_tool_call`, `composio_tool_call_error`, `session_heartbeat` telemetry events
+- Coordinates with EvidenceAgent for artifact packaging
+- Chat: Streams tool calls, validator flags, evidence cards as steps complete
+
+**EvidenceAgent (Execute & Observe, Reflect & Improve):**
+- Reads `execution_results`, `undo_plans` from session state
+- Calls `client.audit.list_events()` for undo hints and audit trails
+- Packages artifacts with SHA-256 hashes
+- Writes `evidence_bundles`, `library_contributions` to session state
+- Persists to Supabase Storage (`supabase/storage/evidence/${missionId}`)
+- Chat: Posts artifact cards with hashes and download links, mission summary, feedback form
+
+---
+
+## Composio SDK Session Management & Provider Patterns
+
+### Provider-Specific Session Handling
+
+Composio sessions run exclusively inside the Gemini ADK service. Each agent call is wrapped in a Python context manager that stamps `user_id` + `tenantId` so tool executions inherit mission identity and audit context.
+
+**Python Pattern:**
+
+```python
+from composio import ComposioClient
+
+client = ComposioClient(api_key=settings.COMPOSIO_API_KEY)
+
+async def run_governed_actions(mission: Mission, actions: list[dict]):
+    async with client.provider.session(
+        user_id=mission.user_id,
+        tenant_id=mission.tenant_id,
+        metadata={"mission_id": mission.id}
+    ) as session:
+        for action in actions:
+            result = await session.handle_tool_call(action)
+            yield result
+```
+
+### Session Lifecycle Management
+
+- **Initialization (Prepare / Inspector):** Inspector seeds `ctx.session.state` with `mission_id`, `user_id`, `tenant_id`, and constructs the first Composio session. Connect Link approvals attach the same identity metadata for audit trails.
+- **Propagation (Plan & Execute):** Planner, Validator, and Executor reuse session metadata from `ctx.session.state`, ensuring scope checks and tool calls always carry mission context without re-authorizing.
+- **Freshness Checks (Execute):** Executor verifies session freshness before each tool call; if stale, it pauses execution and routes back to Inspector for re-auth without creating a new session silently.
+- **Cleanup (Reflect / Evidence):** Evidence agent marks sessions complete, archives audit metadata, and triggers retention timers. Supabase cron purges session state per retention policy.
+
+**Reference:** See `docs/02_system_overview.md` §Session State Persistence for Supabase-backed synchronization and `docs/04_implementation_guide.md` §ADK Patterns for implementation examples.
 
 ---
 
