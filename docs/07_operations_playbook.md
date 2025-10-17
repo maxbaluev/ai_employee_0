@@ -150,7 +150,7 @@ supabase db lint
 
 ### 4. Telemetry Sanity
 
-- Run `pnpm ts-node scripts/audit_telemetry_events.py --mode check`.
+- Run `pnpm run audit:telemetry`.
 - Spot check dashboards: System Health, Mission Lifecycle, Integration Health (see below).
 - Confirm `composio_discovery` vs `composio_tool_call` ratios follow the baseline.
 
@@ -191,7 +191,7 @@ Document validations on the bd issue before promoting builds.
    bd comment "$DEPLOY_ISSUE" "Fly deploy $(date -Is)"
    ```
 6. **Post-Deploy Verification**
-   - `pnpm ts-node scripts/audit_telemetry_events.py --mode spot`
+   - `pnpm ts-node --esm scripts/audit_telemetry_events.ts --mode report`
    - Manual mission smoke test (Create → Plan → Execute → Reflect)
    - Post metrics to `#releases` including bd issue link and snapshot `bd ready --tag ops` output.
 7. Close the deployment issue once verification completes.

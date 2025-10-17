@@ -475,11 +475,11 @@ flowchart LR
 
 ## 7. Telemetry & Analytics
 
-- **Event Catalog:** 37 canonical events (frontend + backend). Maintain schema in `scripts/audit_telemetry_events.py`.
+- **Event Catalog:** 37 canonical events (frontend + backend). Maintain schema in `scripts/audit_telemetry_events.ts`.
 - **Collection:** `telemetry_client.ts` (frontend) → `/api/telemetry` → Supabase `telemetry_events`
 - **Dashboards:** Supabase SQL + Metabase (if connected) for executive, governance, operations views.
 - **Redaction:** Use `src/lib/telemetry/redaction.ts` helpers to scrub PII.
-- **Audits:** Run `pnpm ts-node scripts/audit_telemetry_events.py --mode check` before releases.
+- **Audits:** Run `pnpm run audit:telemetry` before releases.
 
 ---
 

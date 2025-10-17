@@ -103,7 +103,7 @@ This guide explains what users see, how the chat reacts to system events, and wh
 - **Unit:** Vitest stories cover message rendering, quick action state, and ARIA attributes.
 - **Integration:** Playwright flows validate approval modals, undo flows, and reconnect behaviour after refresh.
 - **Accessibility:** Run `pnpm run test:a11y` plus manual VoiceOver/NVDA sweeps on chat cards.
-- **Telemetry:** Execute `scripts/audit_telemetry_events.py` to confirm mission-stage + chat events remain in sync.
+- **Telemetry:** Execute `scripts/audit_telemetry_events.ts` to confirm mission-stage + chat events remain in sync.
 
 ---
 

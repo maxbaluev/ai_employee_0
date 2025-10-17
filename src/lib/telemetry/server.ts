@@ -2,7 +2,10 @@ export type ServerTelemetryEventName =
   | "approval_requested"
   | "approval_granted"
   | "approval_rejected"
-  | "audit_event_recorded";
+  | "audit_event_recorded"
+  | "intent_submitted"
+  | "brief_generated"
+  | "brief_item_modified";
 
 export type ServerTelemetryPayload = Record<string, unknown>;
 

@@ -8,7 +8,12 @@ export type TelemetryEventName =
   | "approval_granted"
   | "approval_rejected"
   | "approval_exported"
-  | "audit_event_recorded";
+  | "audit_event_recorded"
+  | "intent_submitted"
+  | "brief_generated"
+  | "brief_item_modified"
+  | "mission_brief_locked"
+  | "safeguard_added";
 
 export type TelemetryPayload = Record<string, unknown>;
 

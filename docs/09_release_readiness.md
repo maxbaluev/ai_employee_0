@@ -183,7 +183,7 @@ bd close BD-MILESTONE-XXX --reason "Tier 3 major release: phased rollout complet
 - Database query performance validated (no N+1 queries)
 - Frontend bundle size within budget (≤ 500KB gzipped)
 - Memory leak testing completed
-- **Telemetry hygiene validated:** `pnpm ts-node scripts/audit_telemetry_events.py --mode check` passes
+- **Telemetry hygiene validated:** `pnpm run audit:telemetry` passes
 
 #### Architecture
 - Component integration validated
@@ -286,7 +286,7 @@ bd close BD-MILESTONE-XXX --reason "Tier 3 major release: phased rollout complet
 ### Data & Analytics Readiness
 
 - Telemetry events defined and documented (see `docs/06_data_intelligence.md` § Event Catalog)
-- Event schema validated (`scripts/audit_telemetry_events.py` passes)
+- Event schema validated (`scripts/audit_telemetry_events.ts` passes)
 - PII redaction verified (redaction helpers applied)
 - Analytics views created or updated
 - Dashboards refreshed and tested
@@ -364,7 +364,7 @@ docs/readiness/
 │   └── <feature_name>/
 │       ├── telemetry_schema.json
 │       ├── event_validation_report.md
-│       ├── telemetry_audit_output.txt         # NEW: audit_telemetry_events.py results
+│       ├── telemetry_audit_output.txt         # NEW: audit_telemetry_events.ts results
 │       └── dashboard_preview.png
 ├── governance/
 │   └── <feature_name>/
@@ -493,7 +493,7 @@ All PRs must pass automated gates before merge:
 4. **Security Scan:** Snyk dependency audit, SAST
 5. **Accessibility:** `pnpm run test:a11y` (axe-core)
 6. **Performance:** Lighthouse checks for critical pages
-7. **Telemetry Validation:** `pnpm ts-node scripts/audit_telemetry_events.py --mode check`
+7. **Telemetry Validation:** `pnpm run audit:telemetry`
 8. **ADK Agent Evals:** `mise run test-agent` (smoke + ranking + coordination suites)
 9. **Supabase Migration Check:** `supabase db diff` (no unexpected drift)
 10. **bd Dependency Check:** `bd dep cycles` (no circular dependencies)
@@ -549,7 +549,7 @@ All PRs must pass automated gates before merge:
 | **Post-Deployment Incidents** | <1 per 10 releases | Incident dashboard | Link bd deployments to incidents |
 | **Security Vulnerabilities** | 0 critical, <3 medium | Snyk, SAST | Block with bd security issue |
 | **Accessibility Compliance** | 100% WCAG 2.1 AA | axe audits | Track in bd UX checklist |
-| **Telemetry Hygiene** | 100% audit pass | audit_telemetry_events.py | CI gate blocks on failure |
+| **Telemetry Hygiene** | 100% audit pass | audit_telemetry_events.ts | CI gate blocks on failure |
 | **bd Dependency Resolution** | 100% for releases | bd ready queue | Block deployment if blockers exist |
 
 ---
@@ -676,7 +676,7 @@ All PRs must pass automated gates before merge:
 - Verify staging deployment
 - Alert on-call team
 - Run bd dependency check: `bd ready --json`
-- Verify telemetry audit: `pnpm ts-node scripts/audit_telemetry_events.py --mode check`
+- Verify telemetry audit: `pnpm run audit:telemetry`
 - Review Supabase migration: `supabase db diff`
 - ...
 

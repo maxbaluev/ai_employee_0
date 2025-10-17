@@ -161,7 +161,7 @@ CREATE INDEX idx_telemetry_stage ON telemetry_events (stage, event_type);
 CREATE INDEX idx_telemetry_correlation ON telemetry_events (correlation_id);
 ```
 
-Use `scripts/audit_telemetry_events.py` (see §7) to keep the event catalog in sync with this schema.
+Use `scripts/audit_telemetry_events.ts` (see §7) to keep the event catalog in sync with this schema.
 
 ---
 
@@ -398,7 +398,7 @@ Even before scripts ship, track the placeholders so automation lands in the righ
 
 ### 7.1 Telemetry Audits (CI Gate)
 
-- **Command:** `pnpm ts-node scripts/audit_telemetry_events.py --mode check`
+- **Command:** `pnpm run audit:telemetry`
 - **Purpose:** Ensure all catalogued events exist in the codebase, stages align, and required context fields are present.
 - **Report Mode:** `--mode report --output docs/readiness/telemetry_coverage.md`
 - **CI Integration:** Required on PRs touching telemetry, UI workflows, or ADK agents (`docs/09_release_readiness.md`).

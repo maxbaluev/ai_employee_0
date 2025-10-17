@@ -114,7 +114,7 @@ Based on documentation analysis, the Control Plane has these strategic objective
 **Gaps:**
 - Library embeddings (pgvector) for play ranking
 - Feedback loops for prompt tuning (Intake, Planner, Validator)
-- Telemetry audit automation (`scripts/audit_telemetry_events.py`)
+- Telemetry audit automation (`scripts/audit_telemetry_events.ts`)
 - Dashboard implementations (Executive, Governance, Operations, Adoption, Agent Performance)
 - Automated evidence generation for releases
 
@@ -1151,10 +1151,10 @@ pnpm test:api
 **Tags:** `#data`, `#analytics`, `#telemetry`, `#ci`
 
 **Description:**
-Implement `scripts/audit_telemetry_events.py` to validate event catalog completeness, ensure all documented events exist in codebase, verify context fields, and generate coverage reports.
+Implement `scripts/audit_telemetry_events.ts` to validate event catalog completeness, ensure all documented events exist in codebase, verify context fields, and generate coverage reports.
 
 **Acceptance Criteria:**
-- [ ] Script at `scripts/audit_telemetry_events.py`
+- [ ] Script at `scripts/audit_telemetry_events.ts`
 - [ ] Modes:
   - [ ] `--mode check`: CI gate (exit 0 if valid, exit 1 if issues)
   - [ ] `--mode report`: generate coverage report to `docs/readiness/telemetry_coverage.md`
@@ -1179,8 +1179,8 @@ Implement `scripts/audit_telemetry_events.py` to validate event catalog complete
 
 **Validation:**
 ```bash
-pnpm ts-node scripts/audit_telemetry_events.py --mode check
-pnpm ts-node scripts/audit_telemetry_events.py --mode report --output docs/readiness/telemetry_coverage.md
+pnpm run audit:telemetry
+pnpm ts-node --esm scripts/audit_telemetry_events.ts --mode report --output docs/readiness/telemetry_coverage.md
 ```
 
 **Notes:**
