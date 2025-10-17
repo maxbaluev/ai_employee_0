@@ -3,6 +3,8 @@
 **Version:** 3.0 (October 16, 2025)
 **Audience:** Data Engineering, Analytics, Product Operations, Governance, Agent Platform Engineering
 **Status:** Authoritative reference for telemetry, analytics, and learning loops
+
+> **Foundation Stage Note (October 2025):** Telemetry flows involving Gemini ADK agents and Composio SDK are **design specifications**. The current backend is scaffolded with TODO markers, and no production event streams exist yet. Use this playbook to plan instrumentation once agents, Composio calls, and evals are wired up.
 **Lifecycle Alignment:** Home → Define → Prepare → Plan → Approve → Execute → Reflect
 
 ---

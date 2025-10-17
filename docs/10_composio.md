@@ -4,19 +4,21 @@
 **Audience:** Platform Engineering, ADK Agent Developers, Trust & Governance, UX Documentation
 **Objective:** Document how the AI Employee Control Plane integrates Gemini ADK agents with the Composio SDK for discovery, authentication, governed execution, and telemetry across the progressive trust model, and clarify how ADK agents orchestrate Composio touchpoints surfaced in the CopilotKit chat experience.
 
+> **Foundation Stage Note (October 2025):** The Gemini ADK backend is **scaffolded with TODO markers**. Real ADK prompts, Composio requests, and evaluation suites are **not yet implemented**. This document captures the planned integration model to guide Core/Scale milestones. Use it alongside `docs/backlog.md` Theme 1 for implementation sequencing.
+
 ---
 
 ## Executive Summary
 
-The Control Plane is built on a **Gemini ADK-driven agent architecture tightly coupled with Composio state management**. ADK agents (Inspector, Planner, Executor, Validator, Evidence) orchestrate Composio SDK interactions through shared session state (`ctx.session.state`), delivering progressive trust across the seven-stage mission lifecycle. Each agent reads from and writes to the session state, enabling stateful handoffs while Composio provides toolkit discovery, OAuth management, provider adapters, and audit telemetry. The native SDK removes the legacy router layer, and ADK's event-driven coordination ensures every SDK interaction is mirrored in the CopilotKit chat for stakeholder visibility.
+The Control Plane architecture will rely on a **Gemini ADK-driven agent backend tightly coupled with Composio state management** (Foundation stage: design documented, implementation pending). Planned ADK agents (Inspector, Planner, Executor, Validator, Evidence) will orchestrate Composio SDK interactions through shared session state (`ctx.session.state`), delivering progressive trust across the seven-stage mission lifecycle. Each agent will read from and write to the session state, enabling stateful handoffs while Composio provides toolkit discovery, OAuth management, provider adapters, and audit telemetry. The native SDK removes the legacy router layer, and ADK's event-driven coordination will ensure every SDK interaction is mirrored in the CopilotKit chat for stakeholder visibility once the integration is built.
 
 Key outcomes:
 
-- **ADK-Driven Progressive Trust:** Inspector agent discovers toolkits (Stage 2 — Prepare), Planner agent assembles plays from established connections (Stage 3 — Plan), approval checkpoint (Stage 4 — Approve), Executor agent runs governed actions (Stage 5 — Execute) – all coordinated via ADK session state and narrated in chat
-- **Stateful Agent Coordination:** All ADK agents share `ctx.session.state` dictionary for mission context, granted scopes, ranked plays, execution results, and evidence bundles – enabling smooth handoffs across stages
-- **Governed Auth:** Inspector previews scopes, initiates Connect Links after approval, awaits `wait_for_connection()`, and logs granted scopes to session state; Planner validates scope alignment; Executor never requests new OAuth
-- **Unified Telemetry:** Every discovery, auth, and tool call emits `composio_discovery`, `composio_auth_flow`, `composio_tool_call`, and `composio_tool_call_error` events tagged with mission, tenant, toolkit, and action metadata, with ADK events yielded to CopilotKit for chat visibility
-- **Operational Simplicity:** ADK's event-driven patterns simplify runbooks, dashboards, and quotas. The SDK exposes consistent error codes (`RATE_LIMIT`, `AUTH_EXPIRED`, `TOOLKIT_NOT_FOUND`) with actionable context, and ADK agents surface resolution checklists to keep operators in-the-loop
+- **Planned ADK-Driven Progressive Trust:** Inspector agent discovers toolkits (Stage 2 — Prepare), Planner agent assembles plays from established connections (Stage 3 — Plan), approval checkpoint (Stage 4 — Approve), Executor agent runs governed actions (Stage 5 — Execute) – all coordinated via ADK session state and narrated in chat once implemented
+- **Planned Stateful Agent Coordination:** All ADK agents will share `ctx.session.state` dictionary for mission context, granted scopes, ranked plays, execution results, and evidence bundles – enabling smooth handoffs across stages
+- **Planned Governed Auth:** Inspector will preview scopes, initiate Connect Links after approval, await `wait_for_connection()`, and log granted scopes to session state; Planner will validate scope alignment; Executor will avoid requesting new OAuth
+- **Planned Unified Telemetry:** Every discovery, auth, and tool call will emit `composio_discovery`, `composio_auth_flow`, `composio_tool_call`, and `composio_tool_call_error` events tagged with mission, tenant, toolkit, and action metadata, with ADK events yielded to CopilotKit for chat visibility
+- **Operational Simplicity (Target):** ADK's event-driven patterns are designed to simplify runbooks, dashboards, and quotas. The SDK exposes consistent error codes (`RATE_LIMIT`, `AUTH_EXPIRED`, `TOOLKIT_NOT_FOUND`) with actionable context, and ADK agents will surface resolution checklists to keep operators in-the-loop
 
 ---
 

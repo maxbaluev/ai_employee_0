@@ -75,27 +75,35 @@ Optional:
 
 ---
 
-## 3. Backend Agents (Gemini ADK)
+## 3. Backend Agents (Gemini ADK — Foundation Stage: Scaffolded)
 
-### Service Layout
+> **⚠️ Foundation Stage Status (October 2025):** The Gemini ADK backend is currently **scaffolded with TODO markers** in `agent/agent.py`. Real ADK agent implementations, Google GenAI API calls, and evaluation configs are **not yet wired up**. The sections below document the **planned architecture** to guide future implementation in Core/Scale milestones. See `docs/backlog.md` Theme 1 (TASK-ADK-*) for implementation roadmap. Current backend returns placeholder responses only.
 
-- `agent/agent.py` — FastAPI bootstrap, load `.env`, route definitions, ADK Runner initialization
-- `agent/agents/` — Coordinator, Intake, Planner, Inspector, Executor, Validator, Evidence agents (all inherit from ADK `BaseAgent` or `LlmAgent`)
-- `agent/services/` — Mission service, Composio client, Supabase client, telemetry, session state management
-- `agent/tools/` — Tool abstractions, undo plans, scoring utilities, Composio provider adapters
-- `agent/evals/` — ADK evaluation configs (`smoke_foundation.json`, `dry_run_ranking.json`, `agent_coordination.json`)
+### Planned Service Layout
 
-### Development Workflow
+- `agent/agent.py` — FastAPI bootstrap, load `.env`, route definitions, **ADK Runner initialization (TODO marker only)**
+- `agent/agents/` — **Planned:** Coordinator, Intake, Planner, Inspector, Executor, Validator, Evidence agents (will inherit from ADK `BaseAgent` or `LlmAgent`) — **Currently: placeholder files only**
+- `agent/services/` — Service layer scaffolding (`composio.py`, `supabase.py`, `telemetry.py`, `session.py`) — see `docs/12_service_architecture.md`
+- `agent/tools/` — **Planned:** Tool abstractions, undo plans, scoring utilities, Composio provider adapters — **Currently: not implemented**
+- `agent/evals/` — **Planned:** ADK evaluation configs (`smoke_foundation.json`, `dry_run_ranking.json`, `agent_coordination.json`) — **Currently: placeholder files, no real eval sets**
+
+### Development Workflow (Current vs. Planned)
 
 ```bash
-mise run agent      # hot reload FastAPI server with ADK Runner
-mise run test-agent # adk eval smoke + execution ranking + agent coordination
-uv run --with-requirements agent/requirements.txt pytest agent/tests
+# Current (Foundation Stage):
+mise run agent      # Starts FastAPI server with /health endpoint only (no ADK Runner)
+
+# Planned (Core/Scale Milestones):
+mise run agent      # Will hot-reload FastAPI server with ADK Runner
+mise run test-agent # Will run adk eval smoke + execution ranking + agent coordination
+uv run --with-requirements agent/requirements.txt pytest agent/tests  # Will run agent unit tests
 ```
 
-### ADK Agent Architecture
+**Current State:** `mise run agent` starts a minimal FastAPI server with `/health` endpoint. Agent routes return placeholder responses or 404s. No ADK Runner is initialized.
 
-**All Control Plane agents inherit from Gemini ADK's `BaseAgent` or `LlmAgent`**, enabling:
+### ADK Agent Architecture (Design Specification)
+
+**All planned Control Plane agents will inherit from Gemini ADK's `BaseAgent` or `LlmAgent`**, enabling:
 
 - **Shared Session State:** All agents access `ctx.session.state` dictionary for cross-agent data flow
 - **Event-Driven Coordination:** Agents yield `Event` objects via `async for event in agent.run_async(ctx)`
@@ -185,17 +193,19 @@ class InspectorAgent(BaseAgent):
   - Update session state with error details for coordinator retry logic
   - Yield error events for chat display: `Event(event_type="error", content="Auth expired", metadata={...})`
 
-### ADK Evaluation Framework
+### ADK Evaluation Framework (Planned Infrastructure)
 
-**Purpose:** Ensure planner rankings, OAuth handoffs, executor safeguards, and evidence packaging remain reliable as the platform evolves.
+> **Foundation Stage:** No real ADK evaluation configs exist yet. `agent/evals/` contains placeholder files only. The framework described below documents the planned testing infrastructure for Core/Scale milestones.
 
-**Evaluation Pillars:**
+**Planned Purpose:** Ensure planner rankings, OAuth handoffs, executor safeguards, and evidence packaging remain reliable as the platform evolves.
 
-- **Smoke:** Core agent capabilities (discovery, OAuth, execution, evidence packaging) on every commit.
-- **Mission Journeys:** End-to-end seven-stage scenarios covering undo plans, telemetry assertions, and Supabase persistence.
-- **Ranking Quality:** Planner ordering scored against golden missions to catch regressions in tool sequencing or safeguard coverage.
-- **Coordination:** Shared-state handoffs, checkpoints, and rollback behavior under load or concurrent updates.
-- **Recovery:** Rate limits, auth expiry, and Supabase disconnects validating graceful degradation and restart logic.
+**Planned Evaluation Pillars:**
+
+- **Smoke:** Core agent capabilities (discovery, OAuth, execution, evidence packaging) on every commit (not yet implemented).
+- **Mission Journeys:** End-to-end seven-stage scenarios covering undo plans, telemetry assertions, and Supabase persistence (not yet implemented).
+- **Ranking Quality:** Planner ordering scored against golden missions to catch regressions in tool sequencing or safeguard coverage (not yet implemented).
+- **Coordination:** Shared-state handoffs, checkpoints, and rollback behavior under load or concurrent updates (not yet implemented).
+- **Recovery:** Rate limits, auth expiry, and Supabase disconnects validating graceful degradation and restart logic (not yet implemented).
 
 **Eval Suite Layout (recommended):**
 
@@ -209,20 +219,22 @@ agent/evals/
 └── mission_end_to_end.evalset.json     # Seven-stage scenario with telemetry assertions
 ```
 
-**Running Evaluations:**
+**Planned Evaluation Commands:**
 
 ```bash
-# Run the full ADK eval battery (wrapped in mise)
-mise run test-agent
+# Planned (Core/Scale Milestones):
+mise run test-agent  # Will run the full ADK eval battery
 
-# Target a single agent + evalset
+# Planned: Target a single agent + evalset
 adk eval agent/agents/inspector.py agent/evals/discovery_coverage.evalset.json
 
-# Debug mode with verbose traces
+# Planned: Debug mode with verbose traces
 adk eval --verbose agent/agents/planner.py agent/evals/ranking_quality.evalset.json
 ```
 
-**Evidence & Readiness:** Export eval reports (JSON + HTML) to `docs/readiness/agent-evals/` for release checkpoints. `docs/09_release_readiness.md` lists the minimum passing sets required before a production launch.
+**Current State (Foundation):** `mise run test-agent` is defined but has no real eval sets to execute. Eval configs in `agent/evals/` are placeholders.
+
+**Planned Evidence & Readiness:** Export eval reports (JSON + HTML) to `docs/readiness/agent-evals/` for release checkpoints. `docs/09_release_readiness.md` lists the minimum passing sets required before a production launch (deferred to Core/Scale milestones).
 
 **Reference:** See `libs_docs/adk/llms-full.txt` for ADK patterns, `docs/02_system_overview.md` §ADK Agent Coordination for state flow diagrams, and `docs/09_release_readiness.md` for evaluation evidence requirements.
 

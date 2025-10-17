@@ -11,6 +11,8 @@
 
 This backlog consolidates work items derived from the AI Employee Control Plane documentation suite, schema analysis, and architectural review. It provides **clear, actionable tasks** organized by theme with priorities, dependencies, acceptance criteria, and documentation references. Tasks are scoped for autonomous agent execution or coordinated team implementation.
 
+> **Foundation Stage Status (October 2025):** The Gemini ADK backend in `agent/agent.py` is currently **scaffolded with placeholder TODO comments**. Real ADK agent implementations (Coordinator, Intake, Inspector, Planner, Validator, Executor, Evidence), Google GenAI API integrations, and ADK evaluation configurations are **not yet wired up**. Theme 1 (ADK Agent Implementation) tasks below represent **future work** to be completed in Core and Scale milestones. The documentation describes the target architecture to guide implementation.
+
 **Documentation Foundation:**
 - Product Vision: `docs/01_product_vision.md`
 - System Overview: `docs/02_system_overview.md` (Gemini ADK architecture)
@@ -73,14 +75,21 @@ Based on documentation analysis, the Control Plane has these strategic objective
 ### 1. Foundation Layer (Core Infrastructure)
 **Goal:** Establish reliable seven-stage mission execution with ADK agents, Supabase persistence, and Composio SDK integration
 
-**Status:** Partially complete (schema exists, agents scaffolded per `docs/04_implementation_guide.md`)
+**Status:** Foundation stage — architectural design complete, implementation scaffolded with TODOs
 
-**Gaps:**
-- ADK agent implementations incomplete (Inspector, Planner, Executor, Validator, Evidence)
-- Session state persistence (InMemorySessionService → SupabaseSessionService)
-- Composio SDK OAuth flow (Inspector → Connect Links → Planner handoff)
-- Frontend UI components for seven-stage workflow
-- Telemetry instrumentation per `docs/06_data_intelligence.md` event catalog
+**Current State (October 2025):**
+- ✓ Supabase schema migrated (`supabase/migrations/0001_init.sql`)
+- ✓ FastAPI backend scaffolded (`agent/agent.py` with TODO markers)
+- ✓ Frontend UI architecture defined (Next.js + CopilotKit patterns documented)
+- ✓ Documentation suite comprehensive (design-ready for implementation)
+- ✗ **ADK agent implementations** — Coordinator, Intake, Inspector, Planner, Validator, Executor, Evidence agents are **placeholders only** (no Google GenAI calls, no real agent logic)
+- ✗ **ADK evaluation configs** — `agent/evals/` directory contains placeholder files, no real `.evalset.json` test suites
+- ✗ **Composio SDK integration** — OAuth flows, toolkit discovery, and execution calls are documented but **not wired up**
+- ✗ **Session state persistence** — `SupabaseSessionService` not implemented (InMemorySessionService placeholder only)
+- ✗ **Frontend UI components** — Seven-stage workflow UIs designed but not built
+- ✗ **Telemetry instrumentation** — Event catalog documented, emission logic deferred
+
+**Implementation Deferred To:** Core and Scale milestones (see Theme 1 tasks below)
 
 ### 2. Trust & Progressive Authorization
 **Goal:** Implement progressive trust model where Inspector presents anticipated scopes, stakeholders approve via chat, OAuth initiated post-approval, and Planner receives established connections
@@ -136,7 +145,9 @@ Based on documentation analysis, the Control Plane has these strategic objective
 
 ### Theme 1: ADK Agent Implementation
 
-**Context:** Gemini ADK provides multi-agent orchestration with shared session state. All agents inherit from `BaseAgent` or `LlmAgent` and coordinate via `ctx.session.state` dictionary. Implementation patterns in `docs/04_implementation_guide.md` §3.
+> **⚠️ Foundation Stage — Implementation Deferred:** All tasks in this theme represent **future work**. As of October 2025, the Gemini ADK backend (`agent/agent.py`) is scaffolded with TODO comments only. No real agent logic, Google GenAI API calls, or ADK evaluation configs are wired up. These tasks document the planned implementation for Core and Scale milestones.
+
+**Context:** Gemini ADK will provide multi-agent orchestration with shared session state. All agents will inherit from `BaseAgent` or `LlmAgent` and coordinate via `ctx.session.state` dictionary. Implementation patterns documented in `docs/04_implementation_guide.md` §3. Service layer scaffolding lives in `agent/services/{composio,supabase,telemetry}.py` with follow-up tasks `ai_eployee_0-1`, `ai_eployee_0-2`, and `ai_eployee_0-3` (see `docs/12_service_architecture.md`).
 
 ---
 

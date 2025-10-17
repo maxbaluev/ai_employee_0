@@ -10,7 +10,9 @@
 
 ## How to Use This Documentation
 
-This documentation is organized as a **sequential knowledge base** that enables understanding and building the AI Employee Control Plane from scratch. **The platform is built on a Gemini ADK-driven agent architecture tightly coupled with Composio state management**, delivering progressive trust through Inspector/Planner/Executor agents across a seven-stage mission lifecycle. Documents are numbered for suggested reading order, but you can jump to specific topics based on your role.
+This documentation is organized as a **sequential knowledge base** that enables understanding and building the AI Employee Control Plane from scratch. **The platform architecture calls for a Gemini ADK-driven agent backend tightly coupled with Composio state management** (Foundation stage: scaffolded with TODOs; full ADK agent implementation deferred to Core/Scale milestones). Documents are numbered for suggested reading order, but you can jump to specific topics based on your role.
+
+> **Foundation Stage Note (October 2025):** The Gemini ADK backend (`agent/agent.py`) is currently scaffolded with placeholder TODO comments. Real ADK agent implementations (Coordinator, Intake, Inspector, Planner, Validator, Executor, Evidence), Google GenAI API calls, and evaluation configs are not yet wired up. Documentation describes the target architecture to guide future implementation. See `docs/backlog.md` Theme 1 (TASK-ADK-*) for implementation roadmap.
 
 ---
 
@@ -19,16 +21,17 @@ This documentation is organized as a **sequential knowledge base** that enables 
 ### Core Documentation (Read in Order)
 
 1. **[Product Vision](./01_product_vision.md)** — Strategic direction, value proposition, personas, use cases
-2. **[System Overview](./02_system_overview.md)** — **ADK agent architecture**, data flows, Composio integration, technical specifications
+2. **[System Overview](./02_system_overview.md)** — **Planned ADK agent architecture** (scaffolded), data flows, Composio integration, technical specifications
 3. **[User Experience Playbook](./03_user_experience.md)** — Seven-stage journey, agent-driven interaction patterns, accessibility
 4. **[Chat Experience Guide](./03a_chat_experience.md)** — CopilotKit rail behaviour, agent narration, message types, telemetry hooks
-5. **[Implementation Guide](./04_implementation_guide.md)** — **Gemini ADK agent development**, Composio SDK patterns, component catalog, library docs cross-references
+5. **[Implementation Guide](./04_implementation_guide.md)** — **Planned Gemini ADK agent development** (scaffolded), Composio SDK patterns, component catalog, library docs cross-references
 6. **[Capability Roadmap](./05_capability_roadmap.md)** — Milestone-based roadmap with evidence requirements
 7. **[Data Intelligence](./06_data_intelligence.md)** — Telemetry, analytics, learning loops, agent performance metrics
 8. **[Operations Playbook](./07_operations_playbook.md)** — Deployment, monitoring, agent orchestration, incident response, runbooks
 9. **[Getting Started](./08_getting_started.md)** — Environment setup, running the ADK agent stack, first mission walkthrough
 10. **[Release Readiness](./09_release_readiness.md)** — Cross-functional checklists, evidence artifacts, sign-off process
 11. **[Issue Tracking & Dependency Graph](./11_issue_tracking.md)** — `bd` workflow, dependency hygiene, automation safeguards
+12. **[Service Architecture Foundation](./12_service_architecture.md)** — Service module contracts for Composio, Supabase, telemetry, and session state
 
 ### Special Purpose Documents
 
@@ -36,6 +39,7 @@ This documentation is organized as a **sequential knowledge base** that enables 
 - **[Todo List (todo.md)](./todo.md)** — Actionable next steps referencing the unified documentation
 - **[Trust Model & Composio Integration](./10_composio.md)** — **Progressive trust staging with ADK agents**, Composio SDK alignment, OAuth flows, and chat touchpoints
 - **[Issue Tracking & Dependency Graph](./11_issue_tracking.md)** — External `bd` issue tracker quickstart for human/agent operators
+- **[Service Architecture Foundation](./12_service_architecture.md)** — Detailed guide to `agent/services/*` modules and follow-up tasks
 
 ---
 
@@ -69,22 +73,23 @@ This documentation is organized as a **sequential knowledge base** that enables 
 
 **Recommended Path:**
 
-1. [Getting Started](./08_getting_started.md) — Setup environment and run ADK agent stack
-2. [System Overview](./02_system_overview.md) — **Gemini ADK agent architecture**, Composio integration, data flows
-3. [Implementation Guide](./04_implementation_guide.md) — **ADK agent development**, Composio SDK patterns, component catalog, testing
-4. [Trust Model & Composio Integration](./10_composio.md) — Progressive trust flows, agent responsibilities, OAuth handling
+1. [Getting Started](./08_getting_started.md) — Setup environment and review scaffolded ADK agent stack
+2. [System Overview](./02_system_overview.md) — **Planned Gemini ADK agent architecture** (Foundation stage: scaffolded with TODOs)
+3. [Implementation Guide](./04_implementation_guide.md) — **Planned ADK agent development patterns** (scaffolded), Composio SDK patterns, component catalog
+4. [Trust Model & Composio Integration](./10_composio.md) — Progressive trust flows (planned), agent responsibilities, OAuth handling
 5. [Chat Experience Guide](./03a_chat_experience.md) — Chat APIs, agent narration, interrupts, telemetry hooks
-6. [AGENTS.md](../AGENTS.md) — Quick setup, ADK toolchain, agent workflows
+6. [AGENTS.md](../AGENTS.md) — Quick setup, ADK toolchain, agent scaffolding notes
 7. [Capability Roadmap](./05_capability_roadmap.md) — Technical milestones and dependencies
 8. [Operations Playbook](./07_operations_playbook.md) — Deployment, agent orchestration, monitoring, runbooks
+9. [Backlog](./backlog.md) — Theme 1: ADK Agent Implementation roadmap (TASK-ADK-001 through TASK-ADK-008)
 
 **Key Questions Answered:**
 
-- How do I set up my development environment with ADK agents?
-- What's the ADK agent architecture and how do agents coordinate with Composio?
-- Where do I add new agent capabilities and what patterns should I follow?
-- How do agents manage state across the mission lifecycle?
-- How do I test, deploy, and monitor agent behaviors?
+- How do I set up my development environment with scaffolded ADK backend?
+- What's the planned ADK agent architecture and how will agents coordinate with Composio? (Foundation: design documented, implementation pending)
+- Where will agent capabilities be implemented and what patterns should be followed? (See `docs/backlog.md` Theme 1)
+- How will agents manage state across the mission lifecycle? (Design complete, implementation deferred)
+- What are the next implementation steps? (See `docs/backlog.md` for ADK agent tasks)
 
 ---
 

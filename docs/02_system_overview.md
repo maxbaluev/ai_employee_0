@@ -33,17 +33,19 @@ The system preserves schema and telemetry naming. Existing Supabase tables, Copi
 3. **Execution Layer** — Composio toolkits, provider adapters, OAuth token vault, undo handlers
 4. **Data Layer** — Supabase (Postgres + Storage + Functions) for mission metadata, telemetry, evidence bundles, library embeddings
 
-### ADK Agent Architecture
+### ADK Agent Architecture (Foundation Stage: Scaffolded)
 
-**The Control Plane is built on Google's Gemini ADK (Agent Development Kit)**, providing code-first, modular multi-agent orchestration with:
+> **Foundation Stage Note (October 2025):** The Gemini ADK backend architecture described below is **scaffolded with TODO markers** in `agent/agent.py`. Real ADK agent implementations, Google GenAI API calls, and evaluation configs are **not yet wired up**. This section documents the target architecture to guide future implementation in Core/Scale milestones. See `docs/backlog.md` Theme 1 (TASK-ADK-*) for implementation roadmap.
 
-- **Stateful Session Management:** All agents share `ctx.session.state` dictionary for cross-agent data flow
-- **Event-Driven Coordination:** Agents yield `Event` objects via `AsyncGenerator` patterns (Python)
-- **Flexible Composition:** Mix `LlmAgent`, `SequentialAgent`, `LoopAgent`, `ParallelAgent`, and custom `BaseAgent` subclasses
-- **Composio Tool Orchestration:** **Gemini ADK backend is the exclusive orchestrator** calling Composio SDK methods through ADK agents (`InspectorAgent`, `PlannerAgent`, `ExecutorAgent`)
-- **Evaluation Framework:** Built-in `adk eval` for testing agent behavior and ranking quality
+**The Control Plane architecture calls for Google's Gemini ADK (Agent Development Kit)**, which will provide code-first, modular multi-agent orchestration with:
 
-**Reference:** See `libs_docs/adk/llms-full.txt` for comprehensive ADK patterns and `docs/04_implementation_guide.md` §3 for Control Plane-specific agent implementations.
+- **Stateful Session Management:** All agents will share `ctx.session.state` dictionary for cross-agent data flow (design complete, implementation deferred)
+- **Event-Driven Coordination:** Agents will yield `Event` objects via `AsyncGenerator` patterns (Python) (design complete, implementation deferred)
+- **Flexible Composition:** Will mix `LlmAgent`, `SequentialAgent`, `LoopAgent`, `ParallelAgent`, and custom `BaseAgent` subclasses (design complete, implementation deferred)
+- **Composio Tool Orchestration:** **Gemini ADK backend will be the exclusive orchestrator** calling Composio SDK methods through ADK agents (`InspectorAgent`, `PlannerAgent`, `ExecutorAgent`) (design complete, SDK calls not yet wired)
+- **Evaluation Framework:** Will use built-in `adk eval` for testing agent behavior and ranking quality (eval configs placeholder only)
+
+**Reference:** See `libs_docs/adk/llms-full.txt` for comprehensive ADK patterns and `docs/04_implementation_guide.md` §3 for planned Control Plane-specific agent implementations.
 
 ### High-Level Component Graph
 
@@ -130,9 +132,11 @@ graph TB
 
 ---
 
-## ADK Agent Coordination & State Flow
+## ADK Agent Coordination & State Flow (Planned Architecture)
 
-The Control Plane agents form a **stateful multi-agent system** where each agent reads from and writes to a shared session state (`ctx.session.state`), enabling smooth handoffs across the seven-stage mission lifecycle.
+> **Foundation Stage:** The multi-agent system described below is **design-complete but not yet implemented**. `agent/agent.py` contains TODO markers where these agents and state flows will be built. This section serves as the implementation blueprint for Core/Scale milestones.
+
+The planned Control Plane agents will form a **stateful multi-agent system** where each agent reads from and writes to a shared session state (`ctx.session.state`), enabling smooth handoffs across the seven-stage mission lifecycle.
 
 ### Agent Roles & Responsibilities
 
@@ -214,9 +218,11 @@ sequenceDiagram
     EvidenceAgent-->>User: Display mission summary and feedback form
 ```
 
-### ADK Session State Schema
+### ADK Session State Schema (Design Specification)
 
-The `ctx.session.state` dictionary follows a consistent schema across all agents:
+> **Foundation Stage:** This schema is documented for future implementation. Current scaffolded backend does not yet implement session state persistence or agent coordination.
+
+The planned `ctx.session.state` dictionary will follow a consistent schema across all agents:
 
 ```python
 {
@@ -276,13 +282,15 @@ The `ctx.session.state` dictionary follows a consistent schema across all agents
 
 **Reference:** See the session state schema guidance in `docs/04_implementation_guide.md` and the patterns captured in `libs_docs/adk/llms-full.txt`; the agent services module provides typed helpers that enforce this contract.
 
-### Session State Persistence & Supabase Integration
+### Session State Persistence & Supabase Integration (Planned Implementation)
 
-ADK's `ctx.session.state` dictionary integrates with Supabase for durable mission state across agent invocations:
+> **Foundation Stage:** The `SupabaseSessionService` described below is **not yet implemented**. Current scaffolding uses placeholder logic only. This section documents the planned production persistence strategy.
 
-**Persistence Strategy:**
-- **In-Memory (Development/Eval):** ADK's `InMemorySessionService` for fast iteration and testing (`adk eval` mode)
-- **Supabase-Backed (Production):** Custom `SupabaseSessionService` persists state to `mission_sessions` table with:
+The planned ADK `ctx.session.state` dictionary will integrate with Supabase for durable mission state across agent invocations:
+
+**Planned Persistence Strategy:**
+- **In-Memory (Development/Eval):** ADK's `InMemorySessionService` for fast iteration and testing (`adk eval` mode) (not yet wired)
+- **Supabase-Backed (Production):** Custom `SupabaseSessionService` will persist state to `mission_sessions` table with:
   - `session_id` (primary key, maps to mission_id)
   - `state_snapshot` (JSONB, full `ctx.session.state` dict)
   - `last_updated` (timestamp for staleness detection)
@@ -325,11 +333,13 @@ class SupabaseSessionService(SessionService):
 
 **Reference:** See `docs/04_implementation_guide.md` §3 (Session State Management) for a sample Supabase-backed session service and additional configuration notes.
 
-### Error Handling & State Recovery
+### Error Handling & State Recovery (Design Specification)
 
-**Agent-Level Error Handling:**
+> **Foundation Stage:** Error handling patterns described below are design specifications for future implementation. Current scaffolded agents do not implement these recovery strategies.
 
-Each ADK agent implements graceful degradation and state rollback on errors:
+**Planned Agent-Level Error Handling:**
+
+Each ADK agent will implement graceful degradation and state rollback on errors:
 
 ```python
 async def _run_async_impl(self, ctx: InvocationContext) -> AsyncGenerator[Event, None]:
