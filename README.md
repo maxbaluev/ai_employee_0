@@ -89,6 +89,7 @@ before running QA.
 **The AI Employee Control Plane standardizes on the native Composio SDK for catalog discovery, OAuth, and governed execution.**
 
 **Core SDK surfaces orchestrated by Gemini ADK agents:**
+
 - `ComposioClient.tools.search()` — semantic toolkit discovery and capability assessment used by the Inspector ADK agent
 - `ComposioClient.connected_accounts.initiate()` / `.status()` — mission-scoped Connect Link flows that the Planner ADK agent presents for approvals
 - **Gemini ADK backend** — the exclusive orchestrator calling Composio tools through ADK agent patterns (`InspectorAgent`, `PlannerAgent`, `ExecutorAgent`)
@@ -134,10 +135,10 @@ See `libs_docs/composio/llms.txt` for a curated index of native Composio guides 
 - [Composio resources](https://composio.dev/)
 - [Supabase docs](https://supabase.com/docs)
 
-## Gate G-B Notes
+## Notes
 
 - Regeneration limiter state persists via Supabase tables defined in `supabase/migrations/0001_init.sql`
-- After Supabase schema edits run `supabase gen types typescript --linked --schema public,storage,graphql_public > supabase/types.ts` and follow up with `pnpm tsc --noEmit` to confirm generated bindings compile cleanly (regenerate once new columns are in place to drop casts).
+- After Supabase schema edits run `supabase gen types typescript --linked --schema public,storage,graphql_public > src/database-generated.types.ts` and follow up with `pnpm tsc --noEmit` to confirm generated bindings compile cleanly (regenerate once new columns are in place to drop casts).
 
 ## License
 

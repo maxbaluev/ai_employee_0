@@ -31,7 +31,7 @@
 - Live checklist previews SLA clock, helping her reserve time before breaches occur.
 
 ### Define — Intent & Safeguards
-- Conversational intake with persona tips (Support, Compliance) ensures Sam includes empathy and SLA targets.
+- Conversational intake surfaces relevant examples (Support, Compliance) so Sam includes empathy and SLA targets without selecting a persona.
 - Safeguard checklist defaults to “Use verified KB” and “No jargon”; Sam keeps both.
 
 ### Prepare — Tools & Data
@@ -71,4 +71,3 @@
 - Readiness + alert rail let Sam act before SLA breaks.
 - Best-plan-first limited cognitive load in the busiest window of the week.
 - Live checklist + undo banner provided oversight without inviting log fatigue.
-

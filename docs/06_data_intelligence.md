@@ -11,12 +11,12 @@
 
 ## 1. Intelligence Philosophy
 
-Data intelligence in the Control Plane turns every mission into evidence for the next one. The documentation suite builds a consistent story across `docs/00_README.md` (lifecycle), `docs/02_system_overview.md` (architecture), `docs/03_user_experience.md` (UX guardrails), and `docs/examples/*` (persona playbooks). This playbook codifies the analytics layer that powers trust and iteration.
+Data intelligence in the Control Plane turns every mission into evidence for the next one. The documentation suite builds a consistent story across `docs/00_README.md` (lifecycle), `docs/02_system_overview.md` (architecture), `docs/03_user_experience.md` (UX guardrails), and `docs/examples/*` (illustrative mission stories). This playbook codifies the analytics layer that powers trust and iteration.
 
 - **Lifecycle telemetry as product surface.** Instrument each stage so operators, approvers, and governance see status in real time. Mission readiness badges, alert rails, and undo windows all rely on structured events.
 - **Closed-loop learning.** Planner, Validator, and Library agents adapt prompts and retrieval based on telemetry and feedback. Loops in §5 tie to the Capability Roadmap (`docs/05_capability_roadmap.md`).
 - **Privacy by design.** Redact before persistence (`src/lib/telemetry/redaction.ts`), apply sensible retention policies, and keep audit trails accessible for governance (`docs/07_operations_playbook.md`).
-- **Role clarity.** Dashboards and metrics map to the audiences called out in `docs/examples/*` (RevOps, Support, Governance, Engineering) so each team sees the signals that matter most.
+- **Role clarity.** Dashboards and metrics map to the audiences showcased in `docs/examples/*` so any operator—regardless of title—sees the signals that matter most.
 - **Telemetry is contract, not afterthought.** Every UI wireframe and API TODO references events in this document (see comments in `src/app/api/**` and `agent/agent.py`).
 
 ---

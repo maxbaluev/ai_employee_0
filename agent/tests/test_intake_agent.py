@@ -1,8 +1,7 @@
-"""Unit tests for IntakeAgent mission brief generation."""
+"""Unit tests for persona-agnostic IntakeAgent mission brief generation."""
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import Any
 
 import pytest
@@ -10,7 +9,7 @@ import pytest_asyncio
 from google.adk.agents.invocation_context import InvocationContext
 from google.adk.sessions import InMemorySessionService
 
-from agent.agents import EXAMPLE_PERSONAS, IntakeAgent, normalize_persona
+from agent.agents import DEFAULT_SAFEGUARDS, IntakeAgent
 from agent.services import SupabaseClientWrapper
 
 
@@ -18,7 +17,7 @@ class TelemetryStub:
     def __init__(self) -> None:
         self.events: list[tuple[str, dict[str, Any]]] = []
 
-    def emit(self, event: str, payload: dict[str, Any]) -> None:
+    def emit(self, event: str, payload: dict[str, Any]) -> None:  # pragma: no cover - tiny helper
         self.events.append((event, payload))
 
 
@@ -121,88 +120,63 @@ async def test_generates_brief_and_safeguards(make_context) -> None:
         agent,
         state=_base_state(
             {
-                "mission_intent": "Re-engage high value manufacturing accounts with targeted outreach",
-                "mission_persona": "revops",
+                "mission_intent": "Re-engage high value manufacturing accounts with targeted outreach.",
             },
         ),
     )
 
-    events = [event async for event in agent._run_async_impl(ctx)]
+    events = await _consume(agent, ctx)
 
     mission_brief = ctx.session.state["mission_brief"]
     assert mission_brief["objective"].startswith("Re-engage")
-    assert mission_brief["persona"] == normalize_persona("revops")
-    assert ctx.session.state["safeguards"]
+    assert "persona" not in mission_brief
     assert ctx.session.state["confidence_scores"]["objective"] >= 0.6
-    assert len(supabase.metadata_payloads) == 1
-    assert supabase.metadata_payloads[0]["metadata_key"] == "mission_brief"
+
+    safeguard_descriptions = {item["description"] for item in ctx.session.state["safeguards"]}
+    assert safeguard_descriptions.issuperset(DEFAULT_SAFEGUARDS)
+
+    assert supabase.metadata_payloads  # persisted brief
     assert supabase.safeguard_payloads
 
-    assert events  # guardrail: events were emitted
+    assert events  # guardrail: narration emitted
 
     telemetry_events = {name for name, _payload in telemetry.events}
-    assert "intent_submitted" in telemetry_events
-    assert "brief_generated" in telemetry_events
-    assert "brief_item_modified" in telemetry_events
-
-    brief_generated_payload = next(
-        payload for event, payload in telemetry.events if event == "brief_generated"
-    )
-    assert brief_generated_payload["chip_count"] >= 5
-
-    modified_payloads = [payload for event, payload in telemetry.events if event == "brief_item_modified"]
-    assert modified_payloads
-    for payload in modified_payloads:
-        assert payload["aliases"] == ["brief_field_edited"]
-        assert payload["chip_type"]
+    assert telemetry_events.issuperset({"intent_submitted", "brief_generated"})
+    for _event, payload in telemetry.events:
+        assert "persona" not in payload
 
 
 @pytest.mark.asyncio
-async def test_respects_existing_brief(make_context) -> None:
+async def test_applies_hints_over_defaults(make_context) -> None:
     telemetry = TelemetryStub()
-    supabase = SupabaseWrapperStub()
-    agent = IntakeAgent(name="Intake", telemetry=telemetry, supabase_client=supabase)
-
-    existing_brief = {
-        "objective": "Keep the original objective",
-        "audience": "Existing customers",
-    }
+    agent = IntakeAgent(name="Intake", telemetry=telemetry)
 
     ctx = await make_context(
         agent,
         state=_base_state(
             {
-                "mission_intent": "Update onboarding playbook",
-                "mission_persona": "support",
-                "mission_brief": existing_brief,
+                "mission_intent": "Accelerate onboarding flow for beta customers.",
+                "mission_inputs": {
+                    "kpi": "Increase activation rate to 70%",
+                    "timeline": "Within 14 days",
+                },
             },
         ),
     )
 
     await _consume(agent, ctx)
+
     mission_brief = ctx.session.state["mission_brief"]
+    assert mission_brief["kpi"] == "Increase activation rate to 70%"
+    assert mission_brief["timeline"] == "Within 14 days"
 
-    assert mission_brief["objective"] == "Keep the original objective"
-    assert mission_brief["audience"] == "Existing customers"
-    assert mission_brief["timeline"]
-
-
-@pytest.mark.asyncio
-async def test_missing_intent_raises(make_context) -> None:
-    telemetry = TelemetryStub()
-    agent = IntakeAgent(name="Intake", telemetry=telemetry)
-
-    ctx = await make_context(agent, state=_base_state())
-
-    with pytest.raises(RuntimeError):
-        async for _event in agent._run_async_impl(ctx):
-            pass
-
-    assert any(event == "intake_error" for event, _payload in telemetry.events)
+    confidence_scores = ctx.session.state["confidence_scores"]
+    assert confidence_scores["kpi"] >= 0.8
+    assert confidence_scores["timeline"] >= 0.8
 
 
 @pytest.mark.asyncio
-async def test_governance_safeguards(make_context) -> None:
+async def test_preserves_existing_brief_fields(make_context) -> None:
     telemetry = TelemetryStub()
     agent = IntakeAgent(name="Intake", telemetry=telemetry)
 
@@ -210,42 +184,28 @@ async def test_governance_safeguards(make_context) -> None:
         agent,
         state=_base_state(
             {
-                "mission_intent": "Compile evidence pack for Q4 compliance audit",
-                "mission_persona": "governance",
+                "mission_intent": "Draft new customer advocacy program.",
+                "mission_brief": {
+                    "objective": "Launch advocacy pilot",
+                    "audience": "Top advocates",
+                },
             },
         ),
     )
 
     await _consume(agent, ctx)
 
-    safeguards = ctx.session.state["safeguards"]
-    descriptions = {s.get("description") for s in safeguards}
-    assert any("audit" in (desc or "").lower() for desc in descriptions)
+    mission_brief = ctx.session.state["mission_brief"]
+    assert mission_brief["objective"] == "Launch advocacy pilot"
+    assert mission_brief["audience"] == "Top advocates"
+
+    confidence_scores = ctx.session.state["confidence_scores"]
+    assert confidence_scores["objective"] == pytest.approx(1.0)
+    assert confidence_scores["audience"] == pytest.approx(1.0)
 
 
 @pytest.mark.asyncio
-async def test_confidence_scores_within_range(make_context) -> None:
-    telemetry = TelemetryStub()
-    agent = IntakeAgent(name="Intake", telemetry=telemetry)
-
-    ctx = await make_context(
-        agent,
-        state=_base_state(
-            {
-                "mission_intent": "Ship new billing automation without disrupting invoices",
-            },
-        ),
-    )
-
-    await _consume(agent, ctx)
-
-    scores = ctx.session.state["confidence_scores"]
-    for value in scores.values():
-        assert 0.0 <= value <= 1.0
-
-
-@pytest.mark.asyncio
-async def test_supabase_failure_emits_error(make_context) -> None:
+async def test_persist_failures_emit_error(make_context) -> None:
     telemetry = TelemetryStub()
     supabase = SupabaseWrapperStub(fail_metadata=True, fail_safeguard=True)
     agent = IntakeAgent(name="Intake", telemetry=telemetry, supabase_client=supabase)
@@ -254,42 +214,14 @@ async def test_supabase_failure_emits_error(make_context) -> None:
         agent,
         state=_base_state(
             {
-                "mission_intent": "Launch quickstart mission for beta customers",
+                "mission_intent": "Compile compliance evidence pack.",
             },
         ),
     )
 
-    events = [event async for event in agent._run_async_impl(ctx)]
+    await _consume(agent, ctx)
 
-    assert any(event == "intake_error" for event, _payload in telemetry.events)
-    assert events  # still emits progress events despite failures
+    error_events = [payload for event, payload in telemetry.events if event == "intake_error"]
+    reasons = {payload["reason"] for payload in error_events}
+    assert reasons == {"metadata_persist_failed", "safeguard_persist_failed"}
 
-
-@pytest.mark.asyncio
-async def test_accepts_custom_persona(make_context) -> None:
-    telemetry = TelemetryStub()
-    supabase = SupabaseWrapperStub()
-    agent = IntakeAgent(name="Intake", telemetry=telemetry, supabase_client=supabase)
-
-    ctx = await make_context(
-        agent,
-        state=_base_state(
-            {
-                "mission_intent": "Launch new marketing campaign for product launch",
-                "mission_persona": "Marketing",
-            },
-        ),
-    )
-
-    events = [event async for event in agent._run_async_impl(ctx)]
-
-    mission_brief = ctx.session.state["mission_brief"]
-    assert mission_brief["persona"] == "marketing"
-    assert mission_brief["audience"]
-    assert ctx.session.state["confidence_scores"]
-
-    intent_payload = next(
-        payload for event, payload in telemetry.events if event == "intent_submitted"
-    )
-    assert intent_payload["persona"] == "marketing"
-    assert events

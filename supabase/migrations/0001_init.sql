@@ -593,7 +593,7 @@ SELECT
   date_trunc('week', m.created_at) AS week,
   count(*) FILTER (WHERE m.status = 'completed') AS completed_missions,
   count(*) FILTER (WHERE m.status IN ('in_progress','ready')) AS active_missions,
-  avg(EXTRACT(EPOCH FROM (m.completed_at - m.created_at)) / 3600.0) FILTER (WHERE m.completed_at IS NOT NULL) AS avg_time_to_complete_hours,
+  avg(EXTRACT(EPOCH FROM (m.completed_at - m.created_at)) / 3600.0) FILTER (WHERE m.completed_at IS NOT NULL) AS avg_time_to_complete_hours
 FROM missions m
 GROUP BY 1, 2;
 

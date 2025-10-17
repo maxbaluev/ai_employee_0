@@ -20,9 +20,9 @@ This documentation is organized as a **sequential knowledge base** that enables 
 
 ### Core Documentation (Read in Order)
 
-1. **[Product Vision](./01_product_vision.md)** — Strategic direction, value proposition, personas, use cases
+1. **[Product Vision](./01_product_vision.md)** — Strategic direction, value proposition, example missions, use cases
 2. **[System Overview](./02_system_overview.md)** — **Planned ADK agent architecture** (scaffolded), data flows, Composio integration, technical specifications
-3. **[User Experience Playbook](./03_user_experience.md)** — Seven-stage journey, agent-driven interaction patterns, accessibility
+3. **[User Experience Playbook](./03_user_experience.md)** — Seven-stage journey, agent-driven interaction patterns, illustrative operators, accessibility
 4. **[Chat Experience Guide](./03a_chat_experience.md)** — CopilotKit rail behaviour, agent narration, message types, telemetry hooks
 5. **[Implementation Guide](./04_implementation_guide.md)** — **Planned Gemini ADK agent development** (scaffolded), Composio SDK patterns, component catalog, library docs cross-references
 6. **[Capability Roadmap](./05_capability_roadmap.md)** — Milestone-based roadmap with evidence requirements
@@ -52,7 +52,7 @@ This documentation is organized as a **sequential knowledge base** that enables 
 **Recommended Path:**
 
 1. [Product Vision](./01_product_vision.md) — Market context, value prop, GTM strategy
-2. [User Experience Playbook](./03_user_experience.md) — Seven-stage journey, personas
+2. [User Experience Playbook](./03_user_experience.md) — Seven-stage journey, illustrative operators, accessibility guardrails
 3. [Chat Experience Guide](./03a_chat_experience.md) — How the CopilotKit rail keeps missions collaborative
 4. [Capability Roadmap](./05_capability_roadmap.md) — Milestone plan with dependencies
 5. [Release Readiness](./09_release_readiness.md) — Launch criteria and sign-off process

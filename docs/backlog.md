@@ -197,7 +197,7 @@ pytest agent/tests/test_coordinator.py -v
 **Tags:** `#agent`, `#adk`, `#backend`, `#define-stage`
 
 **Description:**
-Implement IntakeAgent for Stage 1 (Define) to parse mission intent and generate editable chips (objective, audience, KPI, safeguards, timeline). Agent should score confidence, provide rationale, and support persona-specific defaults.
+Implement IntakeAgent for Stage 1 (Define) to parse mission intent and generate editable chips (objective, audience, KPI, safeguards, timeline). Agent should score confidence, provide rationale, and support sensible defaults without relying on fixed personas.
 
 **Acceptance Criteria:**
 - [ ] IntakeAgent class inherits from `LlmAgent` with Gemini model configuration
@@ -216,7 +216,7 @@ Implement IntakeAgent for Stage 1 (Define) to parse mission intent and generate 
 - `docs/03_user_experience.md` §Stage 1 — Define
 - `docs/04_implementation_guide.md` §3 Backend Agents
 - `docs/06_data_intelligence.md` §3.2 Stage 1: Define
-- `docs/examples/revops.md`, `docs/examples/coder.md` (persona examples)
+- `docs/examples/revops.md`, `docs/examples/coder.md` (illustrative mission stories)
 
 **Validation:**
 ```bash
@@ -521,7 +521,7 @@ Implement Stage 0 (Home) dashboard showing active missions, pending approvals, r
 - [ ] Mission list with columns: title, stage, owner, readiness badge, next action
 - [ ] Readiness badge states: ready, needs-auth, needs-data, blocked
 - [ ] Approvals card with direct routing to Stage 4 (Approve) workspace
-- [ ] Mission Library panel with persona-filtered templates (RevOps, Support, Engineering, Governance)
+- [ ] Mission Library panel with curated templates surfaced by impact and readiness signals
 - [ ] Recent Outcomes cards with impact metrics and time saved
 - [ ] Alert rail for pending validator reminders and blockers
 - [ ] "New mission" button routing to Stage 1 (Define)
@@ -561,7 +561,7 @@ Implement Stage 1 (Define) with freeform intent field, generative chip display (
 
 **Acceptance Criteria:**
 - [ ] Page at `src/app/(control-plane)/workspace/define/page.tsx`
-- [ ] Large intent input field with persona-specific examples
+- [ ] Large intent input field with optional example prompts (no persona lock-in)
 - [ ] "Generate brief" action calling `/api/intake/generate`
 - [ ] Chip display for: objective, audience, KPI, safeguards, timeline
 - [ ] Inline editing for each chip with confidence badges
@@ -874,7 +874,7 @@ Implement `/api/intake/generate` endpoint to receive mission intent, invoke Inta
 
 **Acceptance Criteria:**
 - [ ] POST endpoint at `src/app/api/intake/generate/route.ts`
-- [ ] Input validation: `intent` (string, required), `persona` (optional), `template_id` (optional)
+- [ ] Input validation: `intent` (string, required), `template_id` (optional)
 - [ ] Invoke IntakeAgent via ADK Runner
 - [ ] Return JSON: `{ chips: [...], confidence_scores: {...}, generation_latency_ms: number }`
 - [ ] Error handling: validation errors (400), IntakeAgent failures (500)
@@ -1171,7 +1171,7 @@ Implement `scripts/audit_telemetry_events.ts` to validate event catalog complete
   - [ ] `--mode report`: generate coverage report to `docs/readiness/telemetry_coverage.md`
 - [ ] Validations:
   - [ ] All events in `docs/06_data_intelligence.md` §3 exist in codebase
-  - [ ] Required context fields present (`mission_id`, `tenantId`, `stage`, `persona`)
+  - [ ] Required context fields present (`mission_id`, `tenantId`, `stage`)
   - [ ] Stage alignment (event stage matches documented stage)
   - [ ] Alias documentation (e.g., `brief_field_edited` → `brief_item_modified`)
 - [ ] Report includes:
@@ -1299,7 +1299,7 @@ supabase functions invoke refresh_analytics_views
 **Tags:** `#data`, `#analytics`, `#frontend`, `#dashboards`
 
 **Description:**
-Implement Executive Dashboard frontend consuming `executive_summary` view with weekly approved missions, conversion funnel, automation coverage, and persona-specific metrics.
+Implement Executive Dashboard frontend consuming `executive_summary` view with weekly approved missions, conversion funnel, automation coverage, and role-agnostic metrics.
 
 **Acceptance Criteria:**
 - [ ] Page at `src/app/(control-plane)/analytics/executive/page.tsx`
@@ -1309,7 +1309,7 @@ Implement Executive Dashboard frontend consuming `executive_summary` view with w
   - [ ] Conversion funnel (intent → execution)
   - [ ] Automation coverage bar chart (% missions with ≥3 toolkits)
   - [ ] Persona-specific outcome tiles (pipeline impact, time saved)
-- [ ] Filters: date range, persona, mission type
+- [ ] Filters: date range, mission type, readiness
 - [ ] Refresh indicator (last updated timestamp)
 - [ ] Export to PDF/CSV actions
 - [ ] Accessibility: ARIA labels, keyboard navigation, screen reader support
@@ -1331,7 +1331,7 @@ pnpm run test:a11y
 
 **Notes:**
 - Nightly refresh ensures data freshness per `docs/06_data_intelligence.md` §4.1
-- Reference persona outcomes from `docs/examples/revops.md`
+- Reference example outcomes from `docs/examples/revops.md`
 
 ---
 
@@ -1673,7 +1673,7 @@ Implement `scripts/export_evidence_bundle.py` to package mission metadata, telem
 - [ ] Script at `scripts/export_evidence_bundle.py`
 - [ ] Input: `--mission-id <uuid>`, `--output <file>` (PDF or JSON)
 - [ ] Bundle contents:
-  - [ ] Mission metadata (brief, stage status, personas)
+  - [ ] Mission metadata (brief, stage status, stakeholders)
   - [ ] Telemetry events (filtered by mission_id)
   - [ ] Validator notes and safeguard compliance
   - [ ] Artifacts (redacted tool outputs, evidence bundles)

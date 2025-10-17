@@ -91,7 +91,7 @@ Mission-specific hints (tone guidance, quiet windows, budget caps, escalation co
 
 **8. Compounding Intelligence**
 
-Successful missions become library assets. Play recommendations improve with precedent. The system learns which approaches work for specific personas, building organizational memory that scales expertise.
+Successful missions become library assets. Play recommendations improve with precedent. The system learns which approaches work for different operator contexts, building organizational memory that scales expertise.
 
 ---
 
@@ -212,7 +212,7 @@ Every mission generates a complete evidence bundle: brief, tool outputs (redacte
 ### 5. Compounding Play Library
 
 **The Innovation:**
-Successful missions become reusable plays with embeddings, success scores, and persona tags. Planner combines library precedent with live Composio discovery to rank recommendations.
+Successful missions become reusable plays with embeddings, success scores, and mission metadata. Planner combines library precedent with live Composio discovery to rank recommendations.
 
 **Business Impact:**
 - Play reuse rate (3 per tenant/month) drives efficiency gains
@@ -603,7 +603,7 @@ Measures sustained value delivery and trust maturation
 ### Risk: Tool Discovery Overwhelm
 
 **Mitigation:**
-- Curate recommended toolkits per persona
+- Curate recommended toolkits per mission archetype
 - Leverage cookbook recipes
 - Surface relevant success stories in-product
 - Provide "quick start" templates
@@ -651,7 +651,7 @@ By combining **generative scaffolding**, **user-curated tool orchestration**, **
 
 **Next Steps:**
 
-1. Validate vision with anchor customers (Revenue, Support, Governance personas)
+1. Validate vision with anchor customers (Revenue, Support, Governance operators)
 2. Finalize partnership agreements (Composio, CopilotKit, ADK, Supabase)
 3. Complete Foundation milestone implementation (inspection excellence, evidence integrity)
 4. Prepare Limited GA launch assets (play bundles, case studies, pricing)

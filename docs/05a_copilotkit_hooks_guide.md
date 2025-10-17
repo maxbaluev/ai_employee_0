@@ -20,7 +20,7 @@
 | Hook                               | What it exposes                                         | Control Plane usage                                                       |
 | ---------------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------- |
 | `useCopilotReadable`               | Declarative read-only context objects                   | Mission brief, readiness signals, artifact metadata                       |
-| `useCopilotAdditionalInstructions` | Prompt augmentation & guardrails                        | Stage-specific tone, compliance reminders, fallback persona rules         |
+| `useCopilotAdditionalInstructions` | Prompt augmentation & guardrails                        | Stage-specific tone, compliance reminders, fallback guide rails (no persona lock) |
 | `useCopilotAction`                 | Executable functions & optional generative UI renderers | Intent chip edits, Connect Link launchers, undo flows                     |
 | `useCopilotChat`                   | Programmatic chat APIs (append, replace, reset)         | Streaming rationale, ADK event mirroring, mission timeline banners        |
 | `useCopilotChatHeadless`           | Headless chat driver for custom UI                      | Side panel recaps, runway cards in `MissionWorkspaceLayout`               |

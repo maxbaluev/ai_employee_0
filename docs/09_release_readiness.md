@@ -13,6 +13,7 @@ This document defines the cross-functional readiness criteria, evidence requirem
 > `bd` references in this guide point to the external Beads CLI issue tracker used by operators (see `docs/11_issue_tracking.md`). It is separate from the runtime features delivered to end users.
 
 **Key Principles:**
+
 - **Evidence-driven:** Every release backed by objective proof (test results, benchmarks, audits)
 - **Cross-functional alignment:** Product, Engineering, Trust, Operations, and UX collaborate on readiness
 - **Continuous validation:** Automated checks run on every build; manual reviews for major releases
@@ -24,9 +25,11 @@ This document defines the cross-functional readiness criteria, evidence requirem
 ## Release Tiers
 
 ### Tier 1: Minor Updates
+
 **Scope:** Bug fixes, copy changes, telemetry additions, non-breaking enhancements
 
 **Requirements:**
+
 - ✓ Automated tests passing (unit, integration, e2e)
 - ✓ Linting and type checking clean
 - ✓ No security vulnerabilities introduced (Snyk/SAST)
@@ -40,6 +43,7 @@ This document defines the cross-functional readiness criteria, evidence requirem
 **Deployment:** Automated via CI/CD to staging → production
 
 **bd Integration:**
+
 ```bash
 # Verify no blocking dependencies
 bd ready --json | jq '.[] | select(.tag | contains("release"))'
@@ -51,9 +55,11 @@ bd close BD-XXX --reason "Tier 1 release: automated checks passed"
 ---
 
 ### Tier 2: Feature Releases
+
 **Scope:** New UI components, agent capabilities, toolkit integrations, dashboard updates
 
 **Requirements:**
+
 - All Tier 1 requirements, plus:
 - ✓ Feature flag configured for progressive rollout
 - ✓ Telemetry instrumented and validated (see `docs/06_data_intelligence.md`)
@@ -66,6 +72,7 @@ bd close BD-XXX --reason "Tier 1 release: automated checks passed"
 - ✓ **Composio SDK trust stage validated:** Inspector/Planner handoff tested, OAuth flows complete
 
 **Evidence:**
+
 - Test coverage report (≥85%)
 - Accessibility audit results
 - Performance benchmark comparison
@@ -79,6 +86,7 @@ bd close BD-XXX --reason "Tier 1 release: automated checks passed"
 **Deployment:** Canary rollout (10% → 50% → 100%) with monitoring
 
 **bd Integration:**
+
 ```bash
 # Verify dependency resolution
 bd dep tree BD-XXX
@@ -96,9 +104,11 @@ bd close BD-XXX --reason "Tier 2 feature deployed: 100% rollout complete"
 ---
 
 ### Tier 3: Major Releases
+
 **Scope:** Multi-stage changes, architectural shifts, new mission types, breaking changes
 
 **Requirements:**
+
 - All Tier 1 & 2 requirements, plus:
 - ✓ Security audit completed (penetration testing, threat modeling)
 - ✓ Data migration tested with rollback plan
@@ -113,6 +123,7 @@ bd close BD-XXX --reason "Tier 2 feature deployed: 100% rollout complete"
 - ✓ **Composio SDK trust stages:** All seven-stage handoffs tested end-to-end
 
 **Evidence:**
+
 - Security audit report (signed by Trust Lead)
 - Migration validation logs (Supabase migration history)
 - Runbook approval (ops review complete)
@@ -129,6 +140,7 @@ bd close BD-XXX --reason "Tier 2 feature deployed: 100% rollout complete"
 **Deployment:** Phased rollout with stakeholder communication, 24/7 on-call coverage
 
 **bd Integration:**
+
 ```bash
 # Review full dependency graph for milestone
 bd dep tree BD-MILESTONE-XXX
@@ -168,6 +180,7 @@ bd close BD-MILESTONE-XXX --reason "Tier 3 major release: phased rollout complet
 ### Engineering Readiness
 
 #### Code Quality
+
 - All automated tests passing (unit, integration, e2e, agent evals)
 - Test coverage ≥85% for new code
 - Linting and formatting clean
@@ -178,6 +191,7 @@ bd close BD-MILESTONE-XXX --reason "Tier 3 major release: phased rollout complet
 - **bd code quality issues resolved** before merge
 
 #### Performance
+
 - Latency targets met (p95 ≤ 200ms for API calls, ≤ 150ms for stage transitions)
 - SSE streaming heartbeat ≤ 5s
 - Database query performance validated (no N+1 queries)
@@ -186,6 +200,7 @@ bd close BD-MILESTONE-XXX --reason "Tier 3 major release: phased rollout complet
 - **Telemetry hygiene validated:** `pnpm run audit:telemetry` passes
 
 #### Architecture
+
 - Component integration validated
 - API contracts documented and versioned
 - Database migrations tested (up and down) via Supabase single-migration workflow
@@ -229,6 +244,7 @@ bd close BD-MILESTONE-XXX --reason "Tier 3 major release: phased rollout complet
 ### Operations Readiness
 
 #### Deployment
+
 - Deployment runbook created and reviewed (linked from `docs/07_operations_playbook.md`)
 - Rollback procedure tested
 - Database migration strategy validated (Supabase single-migration workflow)
@@ -239,6 +255,7 @@ bd close BD-MILESTONE-XXX --reason "Tier 3 major release: phased rollout complet
 - **bd deployment issue created** with rollback dependencies mapped
 
 #### Monitoring & Observability
+
 - Key metrics instrumented (success rate, latency, error rate)
 - Dashboards created (operational, executive, governance views)
 - Alerts configured with appropriate thresholds
@@ -250,6 +267,7 @@ bd close BD-MILESTONE-XXX --reason "Tier 3 major release: phased rollout complet
 - **ADK agent telemetry validated:** `session_heartbeat` events with lag and token usage
 
 #### Reliability
+
 - Load testing completed (expected traffic + 2x headroom)
 - Failure mode testing (database outage, API rate limits, network issues)
 - Data backup and restore tested (Supabase backup/restore verified)
@@ -329,6 +347,7 @@ bd close BD-MILESTONE-XXX --reason "Tier 3 major release: phased rollout complet
 All readiness evidence must be stored in structured locations and referenced in release PRs and bd issues:
 
 ### Artifact Structure
+
 ```
 docs/readiness/
 ├── product/
@@ -378,6 +397,7 @@ docs/readiness/
 ```
 
 ### Artifact Requirements
+
 - **Format:** Markdown for text, HTML for reports, JSON for data, PDF for formal audits
 - **Naming:** `<feature_name>_<artifact_type>_<YYYYMMDD>.ext`
 - **Versioning:** Git-tracked with timestamps
@@ -390,6 +410,7 @@ docs/readiness/
 ## Sign-Off Process
 
 ### Tier 1 (Minor Updates)
+
 1. Developer creates PR with description and automated checks passing
 2. **Verify bd ready queue:** `bd ready --json | jq '.[] | select(.priority <= 1)'`
 3. Peer reviewer approves code
@@ -402,6 +423,7 @@ docs/readiness/
 ---
 
 ### Tier 2 (Feature Releases)
+
 1. Developer creates PR with evidence artifacts linked
 2. **Verify bd dependencies resolved:** `bd dep tree BD-XXX`
 3. Automated checks pass (tests, linting, security scan, a11y audit, telemetry audit)
@@ -420,6 +442,7 @@ docs/readiness/
 ---
 
 ### Tier 3 (Major Releases)
+
 1. Developer creates PR with comprehensive evidence bundle
 2. **Verify bd milestone dependencies:** All child issues closed, dependency graph clean
 3. All Tier 2 checks completed
@@ -441,6 +464,7 @@ docs/readiness/
 ## Rollback & Incident Response
 
 ### Rollback Triggers
+
 - Critical bugs affecting ≥5% of users
 - Security vulnerabilities (CVSS ≥7.0)
 - Performance degradation (p95 latency >2x baseline)
@@ -452,6 +476,7 @@ docs/readiness/
 ### Rollback Procedures
 
 **Immediate Actions (0-15 minutes):**
+
 1. Disable feature flag (instant rollback for new features)
 2. **Create bd rollback issue:** `bd create "ROLLBACK: <feature>" -p 0 -t rollback`
 3. Alert on-call engineer and stakeholders
@@ -459,6 +484,7 @@ docs/readiness/
 5. Switch traffic to previous deployment (Vercel rollback, or equivalent)
 
 **Short-Term Actions (15-60 minutes):**
+
 1. Validate rollback success (metrics return to baseline)
 2. Preserve evidence (logs, telemetry, error traces)
 3. Notify affected users (if external impact)
@@ -466,6 +492,7 @@ docs/readiness/
 5. Begin root cause analysis
 
 **Follow-Up Actions (1-24 hours):**
+
 1. Root cause identified and documented
 2. Fix implemented and tested
 3. Readiness re-validation completed (all checklists re-run)
@@ -507,6 +534,7 @@ All PRs must pass automated gates before merge:
 ### Continuous Monitoring (Post-Deployment)
 
 **Real-Time Alerts:**
+
 - Error rate spike (>2% for >5 minutes)
 - Latency degradation (p95 >200ms sustained)
 - Failed authentication attempts spike
@@ -518,6 +546,7 @@ All PRs must pass automated gates before merge:
 - **Auto-create bd incident** on critical alerts
 
 **Daily Health Checks:**
+
 - Telemetry ingestion rate (should match user activity)
 - Test suite health (all passing on main branch)
 - Evidence artifact freshness (no artifacts >30 days stale)
@@ -526,6 +555,7 @@ All PRs must pass automated gates before merge:
 - **bd ready queue health:** Verify no stale blockers
 
 **Weekly Reviews:**
+
 - Incident frequency and MTTR trends
 - Release velocity and rollback rate
 - Test coverage trends
@@ -540,41 +570,41 @@ All PRs must pass automated gates before merge:
 
 ### Release Quality Metrics
 
-| Metric | Target | Measurement | bd Integration |
-|--------|--------|-------------|----------------|
-| **Automated Test Pass Rate** | 100% on main | CI/CD dashboard | Block merge if failing |
-| **Test Coverage** | ≥85% for new code | Coverage reports | Track in bd issue metadata |
-| **Mean Time to Merge (MTTM)** | <3 days for Tier 2 | GitHub metrics | Alert on bd age >3 days |
-| **Rollback Rate** | <5% of releases | Incident tracking | Tag bd rollback issues |
-| **Post-Deployment Incidents** | <1 per 10 releases | Incident dashboard | Link bd deployments to incidents |
-| **Security Vulnerabilities** | 0 critical, <3 medium | Snyk, SAST | Block with bd security issue |
-| **Accessibility Compliance** | 100% WCAG 2.1 AA | axe audits | Track in bd UX checklist |
-| **Telemetry Hygiene** | 100% audit pass | audit_telemetry_events.ts | CI gate blocks on failure |
-| **bd Dependency Resolution** | 100% for releases | bd ready queue | Block deployment if blockers exist |
+| Metric                        | Target                | Measurement               | bd Integration                     |
+| ----------------------------- | --------------------- | ------------------------- | ---------------------------------- |
+| **Automated Test Pass Rate**  | 100% on main          | CI/CD dashboard           | Block merge if failing             |
+| **Test Coverage**             | ≥85% for new code     | Coverage reports          | Track in bd issue metadata         |
+| **Mean Time to Merge (MTTM)** | <3 days for Tier 2    | GitHub metrics            | Alert on bd age >3 days            |
+| **Rollback Rate**             | <5% of releases       | Incident tracking         | Tag bd rollback issues             |
+| **Post-Deployment Incidents** | <1 per 10 releases    | Incident dashboard        | Link bd deployments to incidents   |
+| **Security Vulnerabilities**  | 0 critical, <3 medium | Snyk, SAST                | Block with bd security issue       |
+| **Accessibility Compliance**  | 100% WCAG 2.1 AA      | axe audits                | Track in bd UX checklist           |
+| **Telemetry Hygiene**         | 100% audit pass       | audit_telemetry_events.ts | CI gate blocks on failure          |
+| **bd Dependency Resolution**  | 100% for releases     | bd ready queue            | Block deployment if blockers exist |
 
 ---
 
 ### Release Velocity Metrics
 
-| Metric | Target | Measurement | bd Integration |
-|--------|--------|-------------|----------------|
-| **Release Frequency** | 2-3 deploys/week | Deployment logs | Count bd deployment issues closed |
-| **Mean Time to Production (MTTP)** | <5 days (Tier 2) | PR lifecycle | Measure bd issue age |
-| **Evidence Generation Time** | <15 min per milestone | Automation tracking | Track artifact timestamps in bd |
-| **Sign-Off Cycle Time** | <24 hours (Tier 2) | Approval timestamps | Monitor bd issue update frequency |
-| **Dependency Resolution Time** | <2 days | bd dep tree age | Alert on stale blockers |
+| Metric                             | Target                | Measurement         | bd Integration                    |
+| ---------------------------------- | --------------------- | ------------------- | --------------------------------- |
+| **Release Frequency**              | 2-3 deploys/week      | Deployment logs     | Count bd deployment issues closed |
+| **Mean Time to Production (MTTP)** | <5 days (Tier 2)      | PR lifecycle        | Measure bd issue age              |
+| **Evidence Generation Time**       | <15 min per milestone | Automation tracking | Track artifact timestamps in bd   |
+| **Sign-Off Cycle Time**            | <24 hours (Tier 2)    | Approval timestamps | Monitor bd issue update frequency |
+| **Dependency Resolution Time**     | <2 days               | bd dep tree age     | Alert on stale blockers           |
 
 ---
 
 ### Operational Health Metrics
 
-| Metric | Target | Measurement | bd Integration |
-|--------|--------|-------------|----------------|
-| **Uptime** | ≥99.9% | Monitoring dashboard | Create bd incident on downtime |
-| **Mean Time to Detect (MTTD)** | <5 minutes | Alert timestamps | Log in bd incident creation time |
-| **Mean Time to Resolve (MTTR)** | <30 minutes | Incident logs | Track bd incident close duration |
-| **Rollback Success Rate** | ≥95% | Rollback tracking | Tag bd rollback issues with outcome |
-| **On-Call Response Time** | <10 minutes | PagerDuty logs | Validate bd incident acknowledgment |
+| Metric                          | Target      | Measurement          | bd Integration                      |
+| ------------------------------- | ----------- | -------------------- | ----------------------------------- |
+| **Uptime**                      | ≥99.9%      | Monitoring dashboard | Create bd incident on downtime      |
+| **Mean Time to Detect (MTTD)**  | <5 minutes  | Alert timestamps     | Log in bd incident creation time    |
+| **Mean Time to Resolve (MTTR)** | <30 minutes | Incident logs        | Track bd incident close duration    |
+| **Rollback Success Rate**       | ≥95%        | Rollback tracking    | Tag bd rollback issues with outcome |
+| **On-Call Response Time**       | <10 minutes | PagerDuty logs       | Validate bd incident acknowledgment |
 
 ---
 
@@ -583,18 +613,21 @@ All PRs must pass automated gates before merge:
 ### Internal Communication
 
 **Stakeholder Updates:**
+
 - **Daily:** Automated Slack digest of releases and incidents (with bd issue links)
 - **Weekly:** Engineering all-hands (demos, metrics, retrospectives)
 - **Monthly:** Executive dashboard review (velocity, quality, impact)
 - **Quarterly:** Roadmap alignment session (Product, Engineering, Trust, Ops) with bd milestone review
 
 **Channels:**
+
 - Slack: `#releases`, `#incidents`, `#ai-control-plane`
 - Email: Weekly release notes to stakeholders
 - Wiki: Release history and runbook updates
 - **bd:** Central source of truth for work tracking and evidence linking
 
 **Automation:**
+
 - Slack bot posts bd issue updates to relevant channels
 - bd dependency graph visualized in weekly reports
 - Auto-tag stakeholders in bd based on component ownership
@@ -604,16 +637,19 @@ All PRs must pass automated gates before merge:
 ### External Communication (Customer-Facing Releases)
 
 **Pre-Release:**
+
 - Feature preview announcements (2 weeks before)
 - Beta testing invitations (1 week before)
 - Documentation updates published
 
 **Release Day:**
+
 - Release notes published (changelog, new features, fixes)
 - Email to active users (for major releases)
 - In-app notifications (for UI changes)
 
 **Post-Release:**
+
 - Support team briefing (known issues, FAQs)
 - Office hours for customer questions (for major releases)
 - Feedback collection (NPS, feature surveys)
@@ -641,37 +677,46 @@ All PRs must pass automated gates before merge:
 ## Appendix B: Evidence Artifact Templates
 
 ### Template: Acceptance Criteria Document
+
 ```markdown
 # Feature Name: <name>
+
 **Owner:** <Product Manager>
 **Date:** <YYYY-MM-DD>
 **bd Issue:** BD-XXX
 
 ## User Stories
+
 - As a <persona>, I want <capability> so that <outcome>
 - ...
 
 ## Acceptance Criteria
+
 - Criterion 1 (measurable, testable)
 - Criterion 2
 - ...
 
 ## Success Metrics
+
 - Metric 1: <definition> (target: <value>)
 - Metric 2: ...
 
 ## Out of Scope
+
 - <explicitly excluded functionality>
 ```
 
 ### Template: Deployment Runbook
+
 ```markdown
 # Deployment Runbook: <feature_name>
+
 **Owner:** <Operations Engineer>
 **Date:** <YYYY-MM-DD>
 **bd Issue:** BD-XXX
 
 ## Pre-Deployment Checklist
+
 - Backup database
 - Verify staging deployment
 - Alert on-call team
@@ -681,42 +726,50 @@ All PRs must pass automated gates before merge:
 - ...
 
 ## Deployment Steps
+
 1. Step 1 (command, expected output)
 2. Step 2
-...
+   ...
 
 ## Validation Steps
+
 1. Check 1 (pass/fail criteria)
 2. Check 2
-...
+   ...
 
 ## Rollback Procedure
+
 1. Rollback step 1 (command, expected output)
 2. Create bd rollback issue: `bd create "ROLLBACK: <feature>" -p 0 -t rollback`
-...
+   ...
 
 ## Contacts
+
 - On-Call: <name, contact>
 - Escalation: <name, contact>
 ```
 
 ### Template: Risk Assessment
+
 ```markdown
 # Risk Assessment: <feature_name>
+
 **Owner:** <Governance Lead>
 **Date:** <YYYY-MM-DD>
 **bd Issue:** BD-XXX
 
 ## Risk Matrix
-| Dimension | Score (1-5) | Notes |
-|-----------|-------------|-------|
-| **Complexity** | X | <rationale> |
-| **Impact** | X | <affected users, systems> |
-| **Reversibility** | X | <rollback plan quality> |
-| **Test Coverage** | X | <confidence in testing> |
-| **Dependency Health** | X | <bd graph complexity> |
+
+| Dimension             | Score (1-5) | Notes                     |
+| --------------------- | ----------- | ------------------------- |
+| **Complexity**        | X           | <rationale>               |
+| **Impact**            | X           | <affected users, systems> |
+| **Reversibility**     | X           | <rollback plan quality>   |
+| **Test Coverage**     | X           | <confidence in testing>   |
+| **Dependency Health** | X           | <bd graph complexity>     |
 
 ## Identified Risks
+
 1. **Risk 1:** <description>
    - **Likelihood:** Low/Medium/High
    - **Impact:** Low/Medium/High
@@ -725,11 +778,13 @@ All PRs must pass automated gates before merge:
    - **bd Tracking:** BD-YYY
 
 ## Approval
+
 - Risks reviewed and mitigations acceptable
 - Sign-Off: <name, date>
 ```
 
 ### Template: bd Dependency Graph Export (NEW)
+
 ```bash
 # Export dependency graph for milestone
 bd ready --json > docs/readiness/bd-evidence/milestone-XXX.json
@@ -748,6 +803,7 @@ bd dep cycles
 Use this checklist for Tier 2+ releases involving Composio SDK integration:
 
 ### Inspector Stage (Prepare)
+
 - Discovery runs without OAuth: `client.tools.search()` completes
 - Anticipated connections identified and logged
 - Coverage estimates calculated and displayed
@@ -758,6 +814,7 @@ Use this checklist for Tier 2+ releases involving Composio SDK integration:
 - Telemetry events logged: `composio_discovery`, `composio_auth_flow`
 
 ### Planner Stage (Plan)
+
 - Planner receives established connections from Inspector
 - Validator confirms scopes match mission requirements
 - Play assembly uses validated connections only (no new OAuth requests)
@@ -767,6 +824,7 @@ Use this checklist for Tier 2+ releases involving Composio SDK integration:
 - No scope escalation during planning
 
 ### Approval Stage (Approve)
+
 - Approval modal summarises objectives, safeguards, undo plan, and scope usage
 - Required approver role assigned (or self-approval recorded with rationale)
 - Decision recorded in `mission_approvals` with timestamps and approver identity
@@ -774,6 +832,7 @@ Use this checklist for Tier 2+ releases involving Composio SDK integration:
 - Audit export verified (PDF/Slack) for governance handoff
 
 ### Executor Stage (Execute)
+
 - Execution uses established connections with session context
 - Provider adapters correctly scope calls with `user_id` + `tenantId`
 - Validator preflight checks run before each tool call
@@ -783,6 +842,7 @@ Use this checklist for Tier 2+ releases involving Composio SDK integration:
 - Auth expiry handling tested (graceful degradation)
 
 ### Evidence & Audit
+
 - Connect Link completion logs archived
 - Scope approval timestamps captured
 - Execution audit trail complete (including undo hints)

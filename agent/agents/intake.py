@@ -1,27 +1,8 @@
-"""IntakeAgent builds structured mission briefs for Stage 1 (Define).
-
-The agent converts free-form mission intent into structured chips (objective,
-audience, KPI, timeline, safeguards) and persists them to session state so the
-Coordinator can advance to Stage 2 (Prepare). Persona defaults and safeguard
-templates come from the product documentation (docs/03_user_experience.md and
-docs/examples/).
-
-Key responsibilities:
-- Read mission intent/persona context from the shared session state
-- Generate structured brief data with per-field confidence scores
-- Persist mission brief and safeguards to Supabase for auditing
-- Emit telemetry events (`intent_submitted`, `brief_generated`, `safeguard_added`)
-- Yield ADK events so CopilotKit can present progress in chat
-
-The current implementation relies on lightweight heuristics and persona
-templates; future iterations can replace the heuristic step with Gemini prompts
-without changing the public surface area.
-"""
+"""Persona-agnostic IntakeAgent for Stage 1 mission briefs."""
 
 from __future__ import annotations
 
-import math
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, AsyncGenerator, Dict, Iterable, List, Tuple
 
@@ -32,50 +13,21 @@ from google.genai.types import Content, Part
 
 from agent.services import SupabaseClientWrapper, TelemetryClient
 
-
-# Supported example personas (not exhaustive).
-DEFAULT_PERSONA = "general"
-
-EXAMPLE_PERSONAS: Dict[str, str] = {
-    "revops": "revops",
-    "support": "support",
-    "engineering": "engineering",
-    "governance": "governance",
-    DEFAULT_PERSONA: DEFAULT_PERSONA,
-}
-
-_PERSONA_SYNONYMS: Dict[str, str] = {
-    "rev ops": "revops",
-    "revenue": "revops",
-    "customer support": "support",
-    "success": "support",
-    "dev": "engineering",
-    "compliance": "governance",
-}
-
-
-def normalize_persona(raw: str | None) -> str:
-    """Normalize persona labels to a lowercase slug."""
-
-    if not raw:
-        return DEFAULT_PERSONA
-
-    normalized = raw.strip().lower()
-    if not normalized:
-        return DEFAULT_PERSONA
-
-    return _PERSONA_SYNONYMS.get(normalized, normalized)
+DEFAULT_SAFEGUARDS: List[str] = [
+    "Document key decisions and blockers",
+    "Protect customer data according to policy",
+    "Confirm rollback or mitigation steps before execution",
+]
 
 
 @dataclass(slots=True)
-class PersonaDefaults:
-    """Default brief values for a persona."""
+class BriefDefaults:
+    """Fallback values for mission brief fields."""
 
-    audience: str
-    kpi: str
-    timeline: str
-    safeguards: List[str]
-    summary_hint: str
+    audience: str = "Primary stakeholders impacted by the mission"
+    kpi: str = "Deliver measurable outcomes with clear guardrails"
+    timeline: str = "Within the current sprint"
+    summary_hint: str = "Clarify the intent, audience, and expected outcomes"
 
 
 @dataclass(slots=True)
@@ -87,7 +39,6 @@ class MissionBrief:
     kpi: str
     timeline: str
     summary: str
-    persona: str
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -96,7 +47,6 @@ class MissionBrief:
             "kpi": self.kpi,
             "timeline": self.timeline,
             "summary": self.summary,
-            "persona": self.persona,
         }
 
 
@@ -118,65 +68,6 @@ class ChipConfidence:
             "timeline": self.timeline,
             "safeguards": self.safeguards,
         }
-
-
-PERSONA_LIBRARY: Dict[str, PersonaDefaults] = {
-    "revops": PersonaDefaults(
-        audience="Dormant revenue accounts with open renewal opportunity",
-        kpi="≥3% reply rate and $500K qualified pipeline",
-        timeline="3 business days",
-        safeguards=[
-            "Respect opt-out preferences and DNC lists",
-            "Coordinate outreach with account ownership to prevent overlap",
-            "Enrich contact data before messaging",
-        ],
-        summary_hint="Consultative win-back sprint for high-potential accounts",
-    ),
-    "support": PersonaDefaults(
-        audience="Tier-1 support tickets with ageing SLA risk",
-        kpi="Reduce backlog by 20% while maintaining CSAT ≥4.6",
-        timeline="48 hours",
-        safeguards=[
-            "Do not expose customer PII in summaries",
-            "Escalate security-related incidents to governance inbox",
-            "Follow regional data retention rules",
-        ],
-        summary_hint="Stabilise queue health and protect SLA commitments",
-    ),
-    "engineering": PersonaDefaults(
-        audience="Production rollout for latest service release",
-        kpi="Zero sev-1 regressions; rollout completed in two windows",
-        timeline="7 days",
-        safeguards=[
-            "Include rollback plan with success criteria",
-            "Notify incident commander before deploy",
-            "Log changes to deployment journal for audit",
-        ],
-        summary_hint="Controlled deployment with explicit safety rails",
-    ),
-    "governance": PersonaDefaults(
-        audience="Cross-functional compliance steering group",
-        kpi="Complete audit evidence package with zero gaps",
-        timeline="10 business days",
-        safeguards=[
-            "Track approvals and decisions in immutable audit log",
-            "Mask sensitive identifiers in shared artifacts",
-            "Review actions against regulatory checklist",
-        ],
-        summary_hint="Prepare compliant evidence with clear audit trail",
-    ),
-    DEFAULT_PERSONA: PersonaDefaults(
-        audience="Primary stakeholders impacted by the mission",
-        kpi="Deliver agreed outcomes with measurable customer impact",
-        timeline="Within the current sprint",
-        safeguards=[
-            "Document key decisions and blockers",
-            "Protect customer data according to policy",
-            "Confirm rollback or mitigation plan before execution",
-        ],
-        summary_hint="Clarify mission intent and align success signals",
-    ),
-}
 
 
 def _now_iso() -> str:
@@ -203,6 +94,7 @@ class IntakeAgent(LlmAgent):
         )
         object.__setattr__(self, "_supabase", supabase_client)
         object.__setattr__(self, "_telemetry", telemetry)
+        object.__setattr__(self, "_defaults", BriefDefaults())
 
     # ------------------------------------------------------------------
     # Properties
@@ -214,6 +106,10 @@ class IntakeAgent(LlmAgent):
     @property
     def telemetry(self) -> TelemetryClient | None:
         return getattr(self, "_telemetry", None)
+
+    @property
+    def defaults(self) -> BriefDefaults:
+        return getattr(self, "_defaults")
 
     # ------------------------------------------------------------------
     # Core execution
@@ -231,24 +127,21 @@ class IntakeAgent(LlmAgent):
             await self._emit_error(ctx, "missing_mission_intent")
             raise RuntimeError("Missing mission_intent in session state")
 
-        persona_raw = ctx.session.state.get("mission_persona")
-        persona_slug = normalize_persona(persona_raw)
-        persona_defaults = PERSONA_LIBRARY.get(persona_slug, PERSONA_LIBRARY[DEFAULT_PERSONA])
-
         existing_brief = self._normalise_brief(ctx.session.state.get("mission_brief") or {})
         incoming_hints = self._normalise_brief(ctx.session.state.get("mission_inputs") or {})
+        existing_safeguards = ctx.session.state.get("safeguards")
 
         await self._emit_telemetry(
             "intent_submitted",
             ctx,
             {
-                "persona": persona_slug,
                 "intent_length": len(mission_intent),
-                "hints_provided": list(incoming_hints.keys()),
+                "hints_provided": sorted(incoming_hints.keys()),
+                "template_id": ctx.session.state.get("mission_template_id"),
             },
         )
 
-        yield self._info_event(ctx, "Parsing mission intent and persona defaults...")
+        yield self._info_event(ctx, "Parsing mission intent and drafting brief…")
 
         (
             mission_brief,
@@ -258,11 +151,10 @@ class IntakeAgent(LlmAgent):
             field_sources,
         ) = self._build_brief(
             mission_intent=mission_intent,
-            persona=persona_slug,
-            defaults=persona_defaults,
+            defaults=self.defaults,
             existing=existing_brief,
             hints=incoming_hints,
-            existing_safeguards=ctx.session.state.get("safeguards"),
+            existing_safeguards=existing_safeguards,
         )
 
         ctx.session.state["mission_brief"] = mission_brief.to_dict()
@@ -276,12 +168,12 @@ class IntakeAgent(LlmAgent):
             "brief_generated",
             ctx,
             {
-                "persona": persona_slug,
                 "chip_count": len(mission_brief.to_dict()),
                 "objective": mission_brief.objective,
                 "timeline": mission_brief.timeline,
                 "confidence_scores": confidences.to_dict(),
                 "updated_fields": sorted(updated_fields),
+                "template_id": ctx.session.state.get("mission_template_id"),
             },
         )
 
@@ -310,11 +202,10 @@ class IntakeAgent(LlmAgent):
 
         yield self._info_event(
             ctx,
-            f"Mission brief ready for {persona_slug} persona (objective: {mission_brief.objective}).",
+            "Mission brief ready. Review chips and safeguards before locking.",
             metadata={
                 "phase": "DEFINE",
                 "updated_fields": sorted(updated_fields),
-                "persona": persona_slug,
             },
         )
 
@@ -337,8 +228,7 @@ class IntakeAgent(LlmAgent):
         self,
         *,
         mission_intent: str,
-        persona: str,
-        defaults: PersonaDefaults,
+        defaults: BriefDefaults,
         existing: Dict[str, str],
         hints: Dict[str, str],
         existing_safeguards: Iterable[Dict[str, Any]] | None,
@@ -355,7 +245,7 @@ class IntakeAgent(LlmAgent):
             "audience",
             existing,
             hints,
-            fallback=defaults.audience,
+            fallback=self._derive_audience(intent_summary, defaults.audience),
         )
         kpi, kpi_source = self._resolve_chip(
             "kpi",
@@ -372,7 +262,7 @@ class IntakeAgent(LlmAgent):
 
         summary = existing.get(
             "summary",
-            hints.get("summary", f"{defaults.summary_hint}. {objective}")
+            hints.get("summary", f"{defaults.summary_hint}. {objective}"),
         ).strip()
 
         field_sources: Dict[str, str] = {
@@ -384,22 +274,22 @@ class IntakeAgent(LlmAgent):
 
         safeguards_existing = list(existing_safeguards or [])
         safeguard_descriptions_existing = {
-            s.get("description", "").strip().lower()
+            (s.get("description") or "").strip().lower()
             for s in safeguards_existing
             if isinstance(s, dict)
         }
 
         generated_safeguards: List[Dict[str, Any]] = []
-        for description in defaults.safeguards:
+        for description in DEFAULT_SAFEGUARDS:
             key = description.strip().lower()
             if not key or key in safeguard_descriptions_existing:
                 continue
             generated_safeguards.append(
                 {
-                    "category": persona,
+                    "category": "mission_intake",
                     "description": description,
                     "severity": "medium",
-                    "metadata": {"source": "persona_default"},
+                    "metadata": {"source": "intake_default"},
                     "_new": True,
                 },
             )
@@ -430,7 +320,6 @@ class IntakeAgent(LlmAgent):
             kpi=kpi,
             timeline=timeline,
             summary=summary,
-            persona=persona,
         )
 
         updated_fields = self._detect_updates(existing, mission_brief)
@@ -455,6 +344,15 @@ class IntakeAgent(LlmAgent):
             return hints[key].strip(), "hint"
         return fallback.strip(), "fallback"
 
+    def _derive_audience(self, intent_summary: str, fallback: str) -> str:
+        lowered = intent_summary.lower()
+        for marker in ("for ", "toward ", "to "):
+            if marker in lowered:
+                segment = intent_summary[lowered.index(marker) + len(marker) :].strip()
+                if segment:
+                    return segment.rstrip(".,")
+        return fallback
+
     def _confidence_from_source(self, source: str) -> float:
         return {
             "existing": 1.0,
@@ -473,8 +371,6 @@ class IntakeAgent(LlmAgent):
     def _detect_updates(self, existing: Dict[str, str], brief: MissionBrief) -> List[str]:
         updates: List[str] = []
         for field_name, value in brief.to_dict().items():
-            if field_name in ("summary", "persona"):
-                continue
             previous = existing.get(field_name)
             if previous is None:
                 updates.append(field_name)
@@ -523,7 +419,7 @@ class IntakeAgent(LlmAgent):
             try:
                 await supabase.insert_mission_safeguard(
                     mission_id=ctx.session.state["mission_id"],
-                    category=safeguard.get("category", "general"),
+                    category=safeguard.get("category", "mission_intake"),
                     description=safeguard["description"],
                     severity=safeguard.get("severity", "medium"),
                     metadata=safeguard.get("metadata", {}),
@@ -547,7 +443,7 @@ class IntakeAgent(LlmAgent):
             "tenant_id": ctx.session.state.get("tenant_id"),
             "user_id": ctx.session.state.get("user_id"),
             "stage": "Define",
-            **context,
+            **{k: v for k, v in context.items() if v is not None},
         }
         self.telemetry.emit(event_name, payload)
 
@@ -598,7 +494,5 @@ __all__ = [
     "IntakeAgent",
     "MissionBrief",
     "ChipConfidence",
-    "normalize_persona",
-    "EXAMPLE_PERSONAS",
-    "PERSONA_LIBRARY",
+    "DEFAULT_SAFEGUARDS",
 ]

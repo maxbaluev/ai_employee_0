@@ -22,17 +22,19 @@
 | Dense simultaneous panels and jargon-heavy copy        | Business users stalled before discovering value | One-surface-at-a-time layout, plain language, contextual help baked into every stage      |
 | Precision UI (gauges, chip stacks) without explanation | False confidence, slow approvals                | Binary readiness badges, short checklists, inline rationale, progressive disclosure       |
 | Approvals assumed same-user flow                       | Broke enterprise review chains                  | Request/assign approval workflow with read-only snapshot and reminders                    |
-| Execution logs overwhelmed non-technical users         | Adoption risks for support & exec personas      | Live checklist as default, rich logs tucked in optional drawer, alerts summarised clearly |
+| Execution logs overwhelmed non-technical users         | Adoption risks for support & exec teams         | Live checklist as default, rich logs tucked in optional drawer, alerts summarised clearly |
 
 ---
 
-## Primary Personas at a Glance
+## Example Personas (Illustrative Only)
 
-- **Riley Chen — Revenue Expansion Lead** (docs/examples/revops.md): needs reactivation missions live in <15 minutes, cares about coverage and outreach tone.
-- **Sam Martinez — Support Operations Lead** (docs/examples/support_leader.md): wants triage relief inside SLA windows, prioritises duplicate control and escalation clarity.
-- **Gabriela Torres — Governance Officer** (docs/examples/compliance_audit.md): ensures safeguards are honoured, approvals auditable, and undo plans bulletproof.
+The Control Plane does **not** require or enforce persona selection. Operators describe their mission goal in plain language and the system responds with a structured brief, regardless of role. The following examples simply help teams visualise common launch scenarios:
 
-Executives and platform admins consume mission summaries and evidence but rarely drive the flow. The experience must respect their need for clarity without overwhelming the primary operators.
+- **Riley Chen — Revenue Expansion Lead** (docs/examples/revops.md): demonstrates a go-to-market operator reviving dormant accounts.
+- **Sam Martinez — Support Operations Lead** (docs/examples/support_leader.md): shows an operations lead easing ticket backlog pressure under tight SLAs.
+- **Gabriela Torres — Governance Officer** (docs/examples/compliance_audit.md): illustrates a governance steward validating safeguards and approvals.
+
+Use them as story anchors when communicating value, not as configuration toggles. Any mission owner can run the Define stage with free-form intent; templates and safeguards adapt automatically.
 
 ---
 
@@ -64,7 +66,7 @@ The workspace follows the CopilotKit stage-aware pattern from `libs_docs/copilot
 
 | Stage                 | Copilot Surface      | What the Surface Delivers                                                                           | Primary Hooks                                                                                                                   |
 | --------------------- | -------------------- | --------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| **Define**            | Mission Intake Panel | Capture intent, personas, and KPIs; stream ADK rationale chips without forcing premature locks.     | `useCopilotReadable`, `useCopilotAction`, `useCopilotAdditionalInstructions`                                                    |
+| **Define**            | Mission Intake Panel | Capture free-form intent and KPIs; stream ADK rationale chips without forcing premature locks.       | `useCopilotReadable`, `useCopilotAction`, `useCopilotAdditionalInstructions`                                                    |
 | **Prepare**           | Inspection Drawer    | Show no-auth discovery, anticipated scopes, and Connect Link approvals once stakeholders consent.   | `useCopilotReadable`, `useCopilotAction`, `useCopilotChat`, `useCopilotChatSuggestions`                                         |
 | **Plan & Approve**    | Approval Timeline    | Stream planner-ranked plays, highlight safeguards, and collect approvals without new OAuth prompts. | `useCopilotAction`, `useCopilotChat`, `useCopilotChatSuggestions`, `useCopilotAdditionalInstructions`, `useCopilotChatHeadless` |
 | **Execute & Observe** | Live Runboard        | Mirror Composio SDK tool calls, surface intervention modals, and display undo countdowns.           | `useCopilotChat`, `useCopilotChatHeadless`, `useCopilotAction`, `useCoAgent`, `useCoAgentStateRender`                           |
@@ -393,7 +395,7 @@ Events align with naming in `docs/06_data_intelligence.md` so analytics stays co
 
 - Mirror these layouts in the Next.js app under `src/app/(control-plane)`; reuse existing stage machines and telemetry helpers.
 - Ensure Composio tool calls follow the progressive trust model: `tools.search()` for inspection, `connected_accounts.initiate()` for auth, `tools.execute()` post-approval.
-- Regenerate Supabase types after schema updates (`supabase gen types` > `supabase/types.ts`).
+- Regenerate Supabase types after schema updates (`supabase gen types typescript --linked --schema public,storage,graphql_public >| src/database-generated.types.ts`).
 - Validate UI with `pnpm run test:ui` and agent flows with `mise run test-agent`; both must stay green before shipping.
 - Visual QA: leverage the browser tooling to confirm wireframe intent translates to accessible, polished UI.
 

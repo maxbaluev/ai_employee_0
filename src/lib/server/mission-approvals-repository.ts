@@ -1,4 +1,4 @@
-import type { Database } from "@supabase/types";
+import type { Database } from "../../1database-generated.types";
 
 import type {
   ApprovalComment,
@@ -136,7 +136,11 @@ export async function updateMissionApproval(
 export function parseMissionApprovalMetadata(
   row: MissionApprovalRow,
 ): MissionApprovalMetadata {
-  if (!row.metadata || typeof row.metadata !== "object" || Array.isArray(row.metadata)) {
+  if (
+    !row.metadata ||
+    typeof row.metadata !== "object" ||
+    Array.isArray(row.metadata)
+  ) {
     return { ...EMPTY_METADATA };
   }
 
@@ -264,7 +268,9 @@ export async function appendApprovalHistory(
   }
 }
 
-function mergeMetadata(raw: MissionApprovalInsert["metadata"]): MissionApprovalMetadata {
+function mergeMetadata(
+  raw: MissionApprovalInsert["metadata"],
+): MissionApprovalMetadata {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
     return { ...EMPTY_METADATA };
   }

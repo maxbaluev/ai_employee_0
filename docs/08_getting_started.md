@@ -203,6 +203,7 @@ bd list --status open
 ```
 
 **What this does:**
+
 - Creates `.beads/` directory with local SQLite database
 - Enables work capture and dependency tracking
 - Required for deployment automation and incident workflows
@@ -556,7 +557,7 @@ Before proceeding to development, verify:
 - Dependencies installed (`node_modules/` and `agent/.venv/` exist)
 - `.env` configured with required keys
 - Supabase running and migrations applied
-- TypeScript types generated (`supabase/types.ts` exists)
+- TypeScript types generated (`src/database-generated.types.ts` exists)
 - **Beads tracker initialized** (`.beads/` exists, `bd list` works)
 - Frontend accessible at `http://localhost:3000`
 - Agent accessible at `http://localhost:8000/docs`
@@ -587,7 +588,7 @@ supabase status        # Check status
 supabase db reset      # Reset and seed
 
 # Generate types
-supabase gen types typescript --linked > supabase/types.ts
+`supabase gen types typescript --linked --schema public,storage,graphql_public >| src/database-generated.types.ts`
 
 # View logs
 tail -f .next/server/*.log  # Next.js logs (if available)

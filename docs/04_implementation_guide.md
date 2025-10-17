@@ -77,7 +77,7 @@ Optional:
 
 ## 3. Backend Agents (Gemini ADK — Foundation Stage: Scaffolded)
 
-> **⚠️ Foundation Stage Status (October 2025):** The Gemini ADK backend is currently **scaffolded with TODO markers** in `agent/agent.py`. Real ADK agent implementations, Google GenAI API calls, and evaluation configs are **not yet wired up**. The sections below document the **planned architecture** to guide future implementation in Core/Scale milestones. See `docs/backlog.md` Theme 1 (TASK-ADK-*) for implementation roadmap. Current backend returns placeholder responses only.
+> **⚠️ Foundation Stage Status (October 2025):** The Gemini ADK backend is currently **scaffolded with TODO markers** in `agent/agent.py`. Real ADK agent implementations, Google GenAI API calls, and evaluation configs are **not yet wired up**. The sections below document the **planned architecture** to guide future implementation in Core/Scale milestones. See `docs/backlog.md` Theme 1 (TASK-ADK-\*) for implementation roadmap. Current backend returns placeholder responses only.
 
 ### Planned Service Layout
 
@@ -474,12 +474,12 @@ flowchart LR
 - **Schema:** Single migration `supabase/migrations/0001_init.sql`
   - Key tables: `missions`, `mission_metadata`, `toolkits`, `mission_toolkits`, `undo_events`, `artifacts`, `mission_feedback`
   - Views: `mission_activity_feed`, `mission_performance_dashboard`, `governance_incidents`
-- **Policies:** RLS ensures persona-specific access (operators vs. governance vs. admins)
+- **Policies:** RLS ensures role-based access (operators, governance, admins) without enforcing persona templates
 - **Edge Functions:** `verify_undo`, `export_evidence`, `trigger_analytics`
 - **Cron:** Nightly library embedding refresh, weekly telemetry rollups
 - **Types:** Regenerate after schema changes:
   ```bash
-  supabase gen types typescript --linked --schema public,storage,graphql_public > supabase/types.ts
+  supabase gen types typescript --linked --schema public,storage,graphql_public >| src/database-generated.types.ts
   pnpm tsc --noEmit
   ```
 
