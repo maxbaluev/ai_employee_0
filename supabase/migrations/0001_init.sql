@@ -406,10 +406,13 @@ CREATE TABLE IF NOT EXISTS mission_approvals (
 
 CREATE TABLE IF NOT EXISTS mission_sessions (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  session_key text UNIQUE NOT NULL,
   mission_id uuid NOT NULL REFERENCES missions(id) ON DELETE CASCADE,
   agent_name text NOT NULL,
-  session_key text,
-  state jsonb NOT NULL DEFAULT '{}'::jsonb,
+  app_name text NOT NULL,
+  user_id text,
+  state_snapshot jsonb NOT NULL DEFAULT '{}'::jsonb,
+  version integer NOT NULL DEFAULT 1,
   lag_ms integer,
   token_usage integer,
   state_size_bytes integer,

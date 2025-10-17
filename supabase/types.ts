@@ -958,45 +958,54 @@ export type Database = {
       mission_sessions: {
         Row: {
           agent_name: string
+          app_name: string
           created_at: string
           id: string
           lag_ms: number | null
           last_heartbeat_at: string
           mission_id: string
-          session_key: string | null
-          state: Json
+          session_key: string
           state_size_bytes: number | null
+          state_snapshot: Json
           status: Database["public"]["Enums"]["session_state"]
           token_usage: number | null
           updated_at: string
+          user_id: string | null
+          version: number
         }
         Insert: {
           agent_name: string
+          app_name: string
           created_at?: string
           id?: string
           lag_ms?: number | null
           last_heartbeat_at?: string
           mission_id: string
-          session_key?: string | null
-          state?: Json
+          session_key: string
           state_size_bytes?: number | null
+          state_snapshot?: Json
           status?: Database["public"]["Enums"]["session_state"]
           token_usage?: number | null
           updated_at?: string
+          user_id?: string | null
+          version?: number
         }
         Update: {
           agent_name?: string
+          app_name?: string
           created_at?: string
           id?: string
           lag_ms?: number | null
           last_heartbeat_at?: string
           mission_id?: string
-          session_key?: string | null
-          state?: Json
+          session_key?: string
           state_size_bytes?: number | null
+          state_snapshot?: Json
           status?: Database["public"]["Enums"]["session_state"]
           token_usage?: number | null
           updated_at?: string
+          user_id?: string | null
+          version?: number
         }
         Relationships: [
           {

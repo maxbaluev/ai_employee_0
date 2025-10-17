@@ -8,6 +8,9 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from inspect import isawaitable
 from typing import Any
+from uuid import uuid4
+
+from .session import SupabaseSessionService, create_session_service
 
 
 @dataclass(slots=True)
@@ -151,6 +154,83 @@ class ComposioClientWrapper:
             result = await result
 
         return result if isinstance(result, dict) else {"status": "connected"}
+
+    async def audit_list_events(
+        self,
+        *,
+        mission_id: str,
+        tenant_id: str | None = None,
+        limit: int | None = None,
+    ) -> list[dict[str, Any]]:
+        """Fetch audit events for a mission from Composio."""
+
+        if self.client is None:
+            raise RuntimeError("Composio client not configured")
+
+        audit_api = getattr(self.client, "audit", None)
+        if audit_api is None:
+            raise AttributeError("Composio client missing audit API")
+
+        list_method = getattr(audit_api, "list_events", None)
+        if list_method is None:
+            raise AttributeError("Composio audit API missing list_events method")
+
+        kwargs: dict[str, Any] = {"mission_id": mission_id}
+        if tenant_id is not None:
+            kwargs["tenant_id"] = tenant_id
+        if limit is not None:
+            kwargs["limit"] = limit
+
+        result = list_method(**kwargs)
+        if isawaitable(result):
+            result = await result
+
+        if result is None:
+            return []
+        if isinstance(result, dict):
+            return [result]
+        return list(result)
+
+    async def execute_tool_call(
+        self,
+        *,
+        action: dict[str, Any],
+        user_id: str,
+        tenant_id: str | None = None,
+    ) -> dict[str, Any]:
+        """Execute a tool call using the configured provider or tools API."""
+
+        if self.client is None:
+            raise RuntimeError("Composio client not configured")
+
+        provider = getattr(self.client, "provider", None)
+        if provider is not None:
+            session_method = getattr(provider, "session", None)
+            if session_method is not None:
+                session = session_method(user_id=user_id, tenant_id=tenant_id)
+                if isawaitable(session):
+                    session = await session
+                handler = getattr(session, "handle_tool_call", None)
+                if handler is not None:
+                    response = handler(action)
+                    if isawaitable(response):
+                        response = await response
+                    if response is None:
+                        return {}
+                    return dict(response) if isinstance(response, dict) else {"result": response}
+
+        tools_api = getattr(self.client, "tools", None)
+        if tools_api is not None:
+            execute_method = getattr(tools_api, "execute", None)
+            if execute_method is not None:
+                response = execute_method(action)
+                if isawaitable(response):
+                    response = await response
+                if response is None:
+                    return {}
+                return dict(response) if isinstance(response, dict) else {"result": response}
+
+        raise AttributeError("Composio client missing provider.session or tools.execute for execution")
 
 
 @dataclass(slots=True)
@@ -558,6 +638,149 @@ class SupabaseClientWrapper:
             return data[0]
         return payload
 
+    async def store_artifact(
+        self,
+        *,
+        payload: dict[str, Any],
+        raw_content: Any | None = None,
+    ) -> dict[str, Any]:
+        """Insert artifact metadata into mission_artifacts table."""
+
+        if self.client is None:
+            raise RuntimeError("Supabase client not configured")
+
+        table = getattr(self.client, "table", None)
+        if table is None:
+            raise AttributeError("Supabase client missing table method")
+
+        artifacts_table = table("mission_artifacts")
+        insert_method = getattr(artifacts_table, "insert", None)
+        if insert_method is None:
+            raise AttributeError("Supabase table missing insert method")
+
+        payload = dict(payload)
+        payload.setdefault("id", str(uuid4()))
+        metadata = payload.setdefault("metadata", {})
+        if raw_content is not None and isinstance(metadata, dict):
+            metadata.setdefault("preview_available", True)
+
+        result = insert_method(payload)
+        execute_method = getattr(result, "execute", None)
+        if execute_method is not None:
+            result = execute_method()
+        if isawaitable(result):
+            result = await result
+
+        data = getattr(result, "data", result) if hasattr(result, "data") else result
+        if isinstance(data, list) and data:
+            return data[0]
+        return payload
+
+    async def store_evidence(self, *, bundle: dict[str, Any]) -> dict[str, Any]:
+        """Insert evidence bundle metadata into mission_evidence table."""
+
+        if self.client is None:
+            raise RuntimeError("Supabase client not configured")
+
+        table = getattr(self.client, "table", None)
+        if table is None:
+            raise AttributeError("Supabase client missing table method")
+
+        evidence_table = table("mission_evidence")
+        insert_method = getattr(evidence_table, "insert", None)
+        if insert_method is None:
+            raise AttributeError("Supabase table missing insert method")
+
+        payload = dict(bundle)
+        payload.setdefault("id", str(uuid4()))
+        payload.setdefault("source_stage", payload.get("source_stage", "EXECUTE"))
+
+        result = insert_method(payload)
+        execute_method = getattr(result, "execute", None)
+        if execute_method is not None:
+            result = execute_method()
+        if isawaitable(result):
+            result = await result
+
+        data = getattr(result, "data", result) if hasattr(result, "data") else result
+        if isinstance(data, list) and data:
+            return data[0]
+        return payload
+
+    async def fetch_feedback_rating(self, *, mission_id: str) -> float | None:
+        """Return latest feedback rating for a mission."""
+
+        if self.client is None:
+            raise RuntimeError("Supabase client not configured")
+
+        table = getattr(self.client, "table", None)
+        if table is None:
+            raise AttributeError("Supabase client missing table method")
+
+        feedback_table = table("mission_feedback")
+        select_method = getattr(feedback_table, "select", None)
+        if select_method is None:
+            raise AttributeError("Supabase table missing select method")
+
+        query = select_method("rating")
+        eq_method = getattr(query, "eq", None)
+        if eq_method is not None:
+            query = eq_method("mission_id", mission_id)
+        order_method = getattr(query, "order", None)
+        if order_method is not None:
+            query = order_method("submitted_at", desc=True)
+        limit_method = getattr(query, "limit", None)
+        if limit_method is not None:
+            query = limit_method(1)
+
+        execute_method = getattr(query, "execute", None)
+        result = execute_method() if execute_method else query
+        if isawaitable(result):
+            result = await result
+
+        data = getattr(result, "data", result) if hasattr(result, "data") else result
+        if isinstance(data, list) and data:
+            rating = data[0].get("rating")
+            return float(rating) if rating is not None else None
+        return None
+
+    async def store_library_contribution(
+        self,
+        *,
+        mission_id: str,
+        contribution: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Insert contribution suggestion into library_entries table."""
+
+        if self.client is None:
+            raise RuntimeError("Supabase client not configured")
+
+        table = getattr(self.client, "table", None)
+        if table is None:
+            raise AttributeError("Supabase client missing table method")
+
+        library_table = table("library_entries")
+        insert_method = getattr(library_table, "insert", None)
+        if insert_method is None:
+            raise AttributeError("Supabase table missing insert method")
+
+        payload = dict(contribution)
+        payload.setdefault("id", str(uuid4()))
+        payload.setdefault("mission_id", mission_id)
+        payload.setdefault("created_at", datetime.now(timezone.utc).isoformat())
+
+        result = insert_method(payload)
+        execute_method = getattr(result, "execute", None)
+        if execute_method is not None:
+            result = execute_method()
+        if isawaitable(result):
+            result = await result
+
+        data = getattr(result, "data", result) if hasattr(result, "data") else result
+        if isinstance(data, list) and data:
+            return data[0]
+        return payload
+
 
 @dataclass(slots=True)
 class TelemetryClient:
@@ -573,4 +796,6 @@ __all__ = [
     "ComposioClientWrapper",
     "SupabaseClientWrapper",
     "TelemetryClient",
+    "SupabaseSessionService",
+    "create_session_service",
 ]

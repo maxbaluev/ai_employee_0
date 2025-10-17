@@ -13,10 +13,11 @@ Implemented Agents:
 - InspectorAgent: Stage 2 (Prepare) toolkit discovery and OAuth (TASK-ADK-003)
 - PlannerAgent: Stage 3 (Plan) play ranking and library retrieval (TASK-ADK-004)
 - ValidatorAgent: Safeguard enforcement across stages (TASK-ADK-005)
+- ExecutorAgent: Stage 5 governed execution via Composio (TASK-ADK-006)
+- EvidenceAgent: Stages 5-6 artifact packaging (TASK-ADK-007)
 
 Planned Agents (stubs):
-- ExecutorAgent: Stage 5 (Execute) governed tool execution
-- EvidenceAgent: Stages 5-6 artifact packaging
+-
 """
 
 from agent.agents.coordinator import CoordinatorAgent, MissionStage
@@ -32,6 +33,22 @@ from agent.agents.intake import (
     IntakeAgent,
     MissionBrief,
     PersonaType,
+)
+from agent.agents.evidence import (
+    ArtifactMetadata,
+    EvidenceAgent,
+    EvidenceBundle,
+    LibraryContribution,
+)
+from agent.agents.executor import (
+    AuthExpiredError,
+    ExecutionAction,
+    ExecutionResult,
+    ExecutionSummary,
+    ExecutorAgent,
+    ExecutorError,
+    RateLimitError,
+    ToolExecutionError,
 )
 from agent.agents.planner import (
     LibraryPrecedent,
@@ -73,7 +90,17 @@ __all__ = [
     "ScopeValidationResult",
     "Safeguard",
     "ExecutorAgent",
+    "ExecutionAction",
+    "ExecutionResult",
+    "ExecutionSummary",
+    "ExecutorError",
+    "RateLimitError",
+    "AuthExpiredError",
+    "ToolExecutionError",
     "EvidenceAgent",
+    "EvidenceBundle",
+    "ArtifactMetadata",
+    "LibraryContribution",
 ]
 
 
@@ -85,5 +112,3 @@ class _NotImplementedStub:
 
 
 # Stubs for not-yet-implemented agents
-ExecutorAgent = _NotImplementedStub
-EvidenceAgent = _NotImplementedStub
