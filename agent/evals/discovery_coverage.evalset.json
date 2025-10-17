@@ -1,0 +1,128 @@
+{
+  "name": "discovery_coverage",
+  "version": "2025-10-17",
+  "description": "InspectorAgent evaluation set covering discovery caching, readiness thresholds, and OAuth initiation workflows.",
+  "scenarios": [
+    {
+      "id": "crm_simple",
+      "title": "Simple CRM discovery",
+      "mission_brief": {
+        "objective": "Sync HubSpot contacts to Salesforce"
+      },
+      "expectations": {
+        "min_toolkits": 2,
+        "requires_oauth": true,
+        "coverage_threshold": 0.85,
+        "telemetry_events": ["composio_discovery", "toolkit_recommended"]
+      }
+    },
+    {
+      "id": "multi_toolkit_broad",
+      "title": "Discovery across multiple categories",
+      "mission_brief": {
+        "objective": "Automate marketing drip campaign and sync analytics"
+      },
+      "expectations": {
+        "min_toolkits": 4,
+        "requires_oauth": true,
+        "coverage_threshold": 0.75,
+        "telemetry_events": ["composio_discovery", "data_preview_generated"]
+      }
+    },
+    {
+      "id": "cache_hit",
+      "title": "Cache re-use within TTL",
+      "mission_brief": {
+        "objective": "Sync HubSpot contacts to Salesforce"
+      },
+      "expectations": {
+        "cache_should_hit": true,
+        "telemetry_events": ["composio_discovery"],
+        "discovery_cached": true
+      }
+    },
+    {
+      "id": "coverage_threshold_exact",
+      "title": "Coverage matches readiness threshold",
+      "mission_brief": {
+        "objective": "Roll up Zendesk tickets into executive report"
+      },
+      "expectations": {
+        "coverage_threshold": 0.85,
+        "readiness_status": "ready"
+      }
+    },
+    {
+      "id": "oauth_not_required",
+      "title": "All toolkits are no-auth",
+      "mission_brief": {
+        "objective": "Compile public web research summaries"
+      },
+      "expectations": {
+        "requires_oauth": false,
+        "authorization_status": "not_required",
+        "telemetry_events": ["composio_discovery"]
+      }
+    },
+    {
+      "id": "oauth_full_approval",
+      "title": "Happy path OAuth approval",
+      "mission_brief": {
+        "objective": "Execute omni-channel outreach campaign"
+      },
+      "expectations": {
+        "requires_oauth": true,
+        "connect_links": 3,
+        "granted_scopes_min": 5,
+        "telemetry_events": ["composio_auth_flow"],
+        "authorization_status": "granted"
+      }
+    },
+    {
+      "id": "oauth_pending",
+      "title": "Await stakeholder approval",
+      "mission_brief": {
+        "objective": "Update Salesforce pipeline stages after stakeholder review"
+      },
+      "expectations": {
+        "requires_oauth": true,
+        "connect_link_decision": "pending",
+        "authorization_status": "pending"
+      }
+    },
+    {
+      "id": "missing_brief",
+      "title": "Missing mission_brief error",
+      "mission_brief": {},
+      "expectations": {
+        "should_raise": "missing_mission_brief",
+        "telemetry_events": ["inspector_error"]
+      }
+    },
+    {
+      "id": "data_preview_logging",
+      "title": "Ensure data inspection previews are logged",
+      "mission_brief": {
+        "objective": "Audit Zendesk ticket metadata"
+      },
+      "expectations": {
+        "requires_oauth": true,
+        "inspection_previews_min": 1,
+        "telemetry_events": ["data_preview_generated"],
+        "supabase_calls": ["log_data_inspection_check"]
+      }
+    },
+    {
+      "id": "coverage_accuracy",
+      "title": "Coverage heuristic sanity check",
+      "mission_brief": {
+        "objective": "Coordinate post-incident follow-up across Slack, Linear, and Notion"
+      },
+      "expectations": {
+        "min_toolkits": 3,
+        "coverage_threshold": 0.8,
+        "readiness_status": "ready"
+      }
+    }
+  ]
+}

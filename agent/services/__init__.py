@@ -88,6 +88,7 @@ class ComposioClientWrapper:
         user_id: str,
         tenant_id: str,
         redirect_url: str | None = None,
+        scopes: list[str] | None = None,
         metadata: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Generate Connect Link for OAuth authorization.
@@ -106,13 +107,17 @@ class ComposioClientWrapper:
         if authorize_method is None:
             raise AttributeError("Composio client missing toolkits.authorize method")
 
-        result = authorize_method(
-            toolkit=toolkit_slug,
-            user_id=user_id,
-            tenant_id=tenant_id,
-            redirect_url=redirect_url,
-            metadata=metadata or {},
-        )
+        kwargs: dict[str, Any] = {
+            "toolkit": toolkit_slug,
+            "user_id": user_id,
+            "tenant_id": tenant_id,
+            "redirect_url": redirect_url,
+            "metadata": metadata or {},
+        }
+        if scopes is not None:
+            kwargs["scopes"] = scopes
+
+        result = authorize_method(**kwargs)
         if isawaitable(result):
             result = await result
 

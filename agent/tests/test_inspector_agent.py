@@ -226,6 +226,44 @@ async def test_oauth_waits_for_approval(make_context, composio_mock, supabase_mo
 
 
 @pytest.mark.asyncio
+async def test_denied_connect_link_updates_stage(make_context, composio_mock, supabase_mock, telemetry_mock):
+    inspector = InspectorAgent(
+        name="Inspector",
+        composio_client=composio_mock,
+        supabase_client=supabase_mock,
+        telemetry=telemetry_mock,
+    )
+
+    ctx = await make_context(
+        inspector,
+        state={
+            "mission_id": "mission-1",
+            "tenant_id": "tenant-42",
+            "user_id": "user-99",
+            "mission_brief": {"objective": "Sync contacts"},
+            "anticipated_connections": [
+                {
+                    "toolkit_slug": "hubspot",
+                    "anticipated_scopes": ["crm.read"],
+                    "connection_required": True,
+                }
+            ],
+            "connect_link_decision": {"status": "denied"},
+        },
+    )
+
+    await _consume(inspector, ctx)
+
+    supabase_mock.update_mission_stage_status.assert_any_call(
+        mission_id="mission-1",
+        stage="Prepare",
+        status="blocked",
+        readiness_state="insufficient_coverage",
+        blocking_reason="connect_link_denied",
+    )
+
+
+@pytest.mark.asyncio
 async def test_oauth_initiates_after_approval(make_context, composio_mock, supabase_mock, telemetry_mock):
     inspector = InspectorAgent(
         name="Inspector",
@@ -255,8 +293,15 @@ async def test_oauth_initiates_after_approval(make_context, composio_mock, supab
     await _consume(inspector, ctx)
 
     composio_mock.toolkits_authorize.assert_called_once()
+    kwargs = composio_mock.toolkits_authorize.await_args.kwargs
+    assert kwargs.get("scopes") == ["crm.read"]
     supabase_mock.log_mission_connection.assert_called_once()
     assert ctx.session.state["granted_scopes"]
+    connect_links = ctx.session.state.get("connect_links", [])
+    assert connect_links
+    assert connect_links[0]["toolkit_slug"] == "hubspot"
+    assert connect_links[0]["status"] == "connected"
+    assert "redirect_url" in connect_links[0]
 
 
 @pytest.mark.asyncio
@@ -466,7 +511,7 @@ async def test_oauth_telemetry_lifecycle(make_context, composio_mock, supabase_m
 
     auth_events = [payload for name, payload in telemetry_mock.calls if name == "composio_auth_flow"]
     statuses = {event["status"] for event in auth_events}
-    assert {"initiated", "approved"}.issubset(statuses)
+    assert {"initiated", "link_ready", "approved"}.issubset(statuses)
 
 
 @pytest.mark.asyncio

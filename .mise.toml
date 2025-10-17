@@ -39,3 +39,7 @@ run = "./scripts/run-agent.sh"
 [tasks.lint]
 description = "Lint and type-check the Next.js workspace"
 run = "pnpm run lint"
+
+[tasks.test-agent]
+description = "Run Gemini ADK agent test suite"
+run = "cd agent && python -m pytest tests/ -v"

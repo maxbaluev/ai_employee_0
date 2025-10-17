@@ -243,7 +243,13 @@ class IntakeAgent(LlmAgent):
 
         yield self._info_event(ctx, "Parsing mission intent and persona defaults...")
 
-        mission_brief, confidences, safeguards, updated_fields = self._build_brief(
+        (
+            mission_brief,
+            confidences,
+            safeguards,
+            updated_fields,
+            field_sources,
+        ) = self._build_brief(
             mission_intent=mission_intent,
             persona=persona_type,
             defaults=persona_defaults,
@@ -264,12 +270,25 @@ class IntakeAgent(LlmAgent):
             ctx,
             {
                 "persona": persona_type.value,
+                "chip_count": len(mission_brief.to_dict()),
                 "objective": mission_brief.objective,
                 "timeline": mission_brief.timeline,
                 "confidence_scores": confidences.to_dict(),
                 "updated_fields": sorted(updated_fields),
             },
         )
+
+        for field_name in sorted(updated_fields):
+            await self._emit_telemetry(
+                "brief_item_modified",
+                ctx,
+                {
+                    "chip_type": field_name,
+                    "edit_type": self._edit_type_from_source(field_sources.get(field_name)),
+                    "token_diff": self._token_diff(existing_brief.get(field_name), mission_brief.to_dict()[field_name]),
+                    "aliases": ["brief_field_edited"],
+                },
+            )
 
         for safeguard in safeguards:
             if safeguard.get("_new"):
@@ -316,7 +335,7 @@ class IntakeAgent(LlmAgent):
         existing: Dict[str, str],
         hints: Dict[str, str],
         existing_safeguards: Iterable[Dict[str, Any]] | None,
-    ) -> Tuple[MissionBrief, ChipConfidence, List[Dict[str, Any]], List[str]]:
+    ) -> Tuple[MissionBrief, ChipConfidence, List[Dict[str, Any]], List[str], Dict[str, str]]:
         intent_summary = self._summarise_intent(mission_intent)
 
         objective, objective_source = self._resolve_chip(
@@ -348,6 +367,13 @@ class IntakeAgent(LlmAgent):
             "summary",
             hints.get("summary", f"{defaults.summary_hint}. {objective}")
         ).strip()
+
+        field_sources: Dict[str, str] = {
+            "objective": objective_source,
+            "audience": audience_source,
+            "kpi": kpi_source,
+            "timeline": timeline_source,
+        }
 
         safeguards_existing = list(existing_safeguards or [])
         safeguard_descriptions_existing = {
@@ -407,7 +433,7 @@ class IntakeAgent(LlmAgent):
 
         all_safeguards = safeguards_existing + generated_safeguards
 
-        return mission_brief, confidences, all_safeguards, updated_fields
+        return mission_brief, confidences, all_safeguards, updated_fields, field_sources
 
     def _resolve_chip(
         self,
@@ -428,6 +454,14 @@ class IntakeAgent(LlmAgent):
             "hint": 0.85,
             "fallback": 0.65,
         }.get(source, 0.6)
+
+    def _edit_type_from_source(self, source: str | None) -> str:
+        mapping = {
+            "existing": "unchanged",
+            "hint": "hint_applied",
+            "fallback": "auto_fill",
+        }
+        return mapping.get(source or "", "auto_fill")
 
     def _detect_updates(self, existing: Dict[str, str], brief: MissionBrief) -> List[str]:
         updates: List[str] = []
@@ -450,6 +484,11 @@ class IntakeAgent(LlmAgent):
                 cleaned = cleaned.split(delimiter)[0]
                 break
         return cleaned[:140].strip()
+
+    def _token_diff(self, previous: str | None, current: str) -> int:
+        prev_tokens = (previous or "").split()
+        curr_tokens = current.split()
+        return len(curr_tokens) - len(prev_tokens)
 
     async def _persist_to_supabase(
         self,

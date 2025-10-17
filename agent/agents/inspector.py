@@ -339,8 +339,45 @@ class InspectorAgent(BaseAgent):
                 message="Awaiting Connect Link approval before OAuth initiation",
                 metadata={"phase": "pending_approval", "stage": "PREPARE"},
             )
+            if self.supabase_client and mission_id:
+                try:
+                    await self.supabase_client.update_mission_stage_status(
+                        mission_id=mission_id,
+                        stage="Prepare",
+                        status="in_progress",
+                        readiness_state=ctx.session.state.get("readiness_status", "needs_authorization"),
+                        blocking_reason="awaiting_stakeholder_approval",
+                    )
+                except Exception as exc:  # noqa: BLE001
+                    await self._emit_telemetry(
+                        "inspector_error",
+                        ctx,
+                        {
+                            "error": "stage_status_update_failed",
+                            "detail": str(exc),
+                        },
+                    )
         else:
             ctx.session.state["authorization_status"] = connect_link_decision.get("status", "pending")
+            decision_status = ctx.session.state["authorization_status"]
+            if decision_status not in {"approved", "granted"} and self.supabase_client and mission_id:
+                try:
+                    await self.supabase_client.update_mission_stage_status(
+                        mission_id=mission_id,
+                        stage="Prepare",
+                        status="blocked" if decision_status == "denied" else "in_progress",
+                        readiness_state="insufficient_coverage",
+                        blocking_reason=f"connect_link_{decision_status}",
+                    )
+                except Exception as exc:  # noqa: BLE001
+                    await self._emit_telemetry(
+                        "inspector_error",
+                        ctx,
+                        {
+                            "error": "stage_status_update_failed",
+                            "detail": str(exc),
+                        },
+                    )
 
     async def _discover_toolkits(
         self,
@@ -446,8 +483,13 @@ class InspectorAgent(BaseAgent):
         ]
         total_required = len(required_connections)
 
+        if total_required:
+            ctx.session.state["authorization_status"] = "initiated"
+
         connections: List[ConnectionResult] = []
         failures: List[Dict[str, Any]] = []
+
+        connect_links_state: List[Dict[str, Any]] = list(ctx.session.state.get("connect_links", []))
 
         for anticipated in required_connections:
             toolkit_slug = anticipated["toolkit_slug"]
@@ -468,10 +510,41 @@ class InspectorAgent(BaseAgent):
                     toolkit_slug=toolkit_slug,
                     user_id=user_id,
                     tenant_id=tenant_id,
+                    scopes=anticipated.get("anticipated_scopes"),
                     metadata={"mission_id": mission_id},
                 )
 
                 connect_link_id = connect_link.get("connect_link_id", "")
+                redirect_url = connect_link.get("redirect_url")
+                expires_at = connect_link.get("expires_at")
+
+                link_state = {
+                    "toolkit_slug": toolkit_slug,
+                    "connect_link_id": connect_link_id,
+                    "redirect_url": redirect_url,
+                    "expires_at": expires_at,
+                    "status": "pending",
+                }
+                connect_links_state = [
+                    link
+                    for link in connect_links_state
+                    if link.get("toolkit_slug") != toolkit_slug
+                    or link.get("connect_link_id") == connect_link_id
+                ]
+                connect_links_state.append(link_state)
+                ctx.session.state["connect_links"] = connect_links_state
+                ctx.session.state["authorization_status"] = "awaiting_connection"
+
+                await self._emit_telemetry(
+                    "composio_auth_flow",
+                    ctx,
+                    {
+                        "toolkit": toolkit_slug,
+                        "status": "link_ready",
+                        "connect_link_id": connect_link_id,
+                        "redirect_url": redirect_url,
+                    },
+                )
 
                 connection = await self.composio_client.wait_for_connection(
                     connect_link_id=connect_link_id,
@@ -479,6 +552,14 @@ class InspectorAgent(BaseAgent):
                 )
 
                 granted_scopes = connection.get("granted_scopes", [])
+
+                link_state.update(
+                    {
+                        "status": connection.get("status", "connected"),
+                        "granted_scopes": granted_scopes,
+                    },
+                )
+                ctx.session.state["connect_links"] = connect_links_state
 
                 await self.supabase_client.log_mission_connection(
                     mission_id=mission_id,
@@ -523,6 +604,11 @@ class InspectorAgent(BaseAgent):
                         "error": str(exc),
                     },
                 )
+                for link in connect_links_state:
+                    if link["toolkit_slug"] == toolkit_slug and link.get("status") == "pending":
+                        link["status"] = "error"
+                        link["error"] = str(exc)
+                ctx.session.state["connect_links"] = connect_links_state
 
         return connections, failures, total_required
 

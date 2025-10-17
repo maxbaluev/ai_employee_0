@@ -143,6 +143,18 @@ async def test_generates_brief_and_safeguards(make_context) -> None:
     telemetry_events = {name for name, _payload in telemetry.events}
     assert "intent_submitted" in telemetry_events
     assert "brief_generated" in telemetry_events
+    assert "brief_item_modified" in telemetry_events
+
+    brief_generated_payload = next(
+        payload for event, payload in telemetry.events if event == "brief_generated"
+    )
+    assert brief_generated_payload["chip_count"] >= 5
+
+    modified_payloads = [payload for event, payload in telemetry.events if event == "brief_item_modified"]
+    assert modified_payloads
+    for payload in modified_payloads:
+        assert payload["aliases"] == ["brief_field_edited"]
+        assert payload["chip_type"]
 
 
 @pytest.mark.asyncio
