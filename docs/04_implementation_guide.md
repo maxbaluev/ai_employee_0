@@ -16,6 +16,7 @@
   - `supabase/` — Single migration (`migrations/0001_init.sql`), seed data, edge functions
   - `docs/readiness/` — Evidence artifacts for major capabilities
 - **Toolchain Managed by `mise`:** Node 22.20.0, pnpm 10.18.0, Python 3.13.7, uv 0.9.2
+- **Protocol Reference:** `docs/04a_copilot_protocol.md` describes the AG-UI bridge that all CopilotKit ↔ ADK integrations must follow.
 
 ### Setup Checklist
 
@@ -41,7 +42,7 @@ Optional:
 
 - **App Router:** `src/app/(control-plane)/layout.tsx` hosts `MissionWorkspaceLayout`
 - **State:** `MissionStageProvider` orchestrates seven-stage flow with shared context (`HOME`, `DEFINE`, `PREPARE`, `PLAN`, `APPROVE`, `EXECUTE`, `REFLECT`)
-- **CopilotKit Hooks (stage-aware):** (see `docs/05a_copilotkit_hooks_guide.md` for deep dive)
+- **CopilotKit Hooks (stage-aware):** (see `docs/04a_copilot_protocol.md` §§6–8 for the consolidated hook playbook and §§2–5 for the transport contract)
   - **Mission Intake Panel (Define):** `useCopilotReadable`, `useCopilotAction`, `useCopilotAdditionalInstructions` keep intent chips editable while enforcing tone guardrails.
   - **Inspection Drawer (Prepare):** `useCopilotReadable`, `useCopilotAction`, `useCopilotChat`, `useCopilotChatSuggestions` stream discovery, launch Connect Links, and offer “Explain scope” quick replies.
   - **Approval Timeline (Plan & Approve):** `useCopilotAction`, `useCopilotChat`, `useCopilotChatSuggestions`, `useCopilotAdditionalInstructions`, `useCopilotChatHeadless` stream ranked plays, capture approvals, and summarise risk deltas without new OAuth prompts.
@@ -71,7 +72,7 @@ Optional:
 - **Progressive Trust Guardrails:** Connect Links launch only from Prepare after stakeholder approval, planner/approver flows reuse validated credentials, and Execute never re-prompts—just freshness-checks before tool calls while anchoring undo plans to Composio audit events.
 - **Error Handling:** Display inline callouts with retry affordances; log telemetry (`error_surface_viewed`).
 - **Storybook:** Add stories under `stories/mission-workspace/*.stories.tsx` with controls and accessibility notes.
-- **CopilotKit hook hygiene:** Keep Readable payloads <10 KB, scope Additional Instructions per stage, and reuse CoAgent names registered in Gemini ADK; see `docs/05a_copilotkit_hooks_guide.md` for patterns and troubleshooting.
+- **CopilotKit hook hygiene:** Keep Readable payloads <10 KB, scope Additional Instructions per stage, and reuse CoAgent names registered in Gemini ADK; see `docs/04a_copilot_protocol.md` §§6–12 for patterns and troubleshooting.
 
 ---
 

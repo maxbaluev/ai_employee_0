@@ -1,59 +1,52 @@
 # AI Employee Control Plane — Active Work Queue
 
-**Last Updated:** October 17, 2025
+**Last Updated:** October 17, 2025 (post AG-UI protocol refresh)
 
 This file spotlights the highest-leverage tasks for the current iteration. It is a thin veneer over the canonical backlog (`docs/backlog.md`) and the Beads tracker—update all three when priorities change.
 
 ---
 
-## 🔴 Now — Keep Moving (P0 in flight)
+## 🔴 Now — Keep Moving (P1 in flight)
 
-- `TASK-ADK-003` / `code-claude-goal--populate-beads-3`
-  - Ship the InspectorAgent discovery → OAuth hand-off.
-  - Dependencies: CoordinatorAgent, chat rail, `/api/toolkits/*` endpoints.
-  - Acceptance criteria: dual-phase flow, telemetry hooks, Supabase persistence.
-- `TASK-UI-006` / `code-claude-goal--populate-beads-14`
-  - Finish the Approve stage UI, wired to `/api/approvals`.
-  - Ensure undo plan preview + scope validation callouts render correctly.
-- `TASK-DATA-001` / `code-claude-goal--populate-beads-24`
-  - Close out the telemetry audit automation; unblock readiness evidence.
+- `ai_eployee_0-5` — Implement AG-UI → ADK translator test suite
+  - Add pytest coverage for every event type listed in `docs/04a_copilot_protocol.md` §4/§8.
+  - Blocked on: confirming fixture schemas from `@ag-ui/core` exports.
+- `ai_eployee_0-6` — Persist AG-UI event logs to Supabase
+  - Extend `agent/services/telemetry.py` with structured inserts + redaction parity.
+  - Requires Supabase migration + retention policy alignment with `docs/06_data_intelligence.md`.
+- `ai_eployee_0-8` — Instrument AG-UI heartbeat telemetry
+  - Emit `workspace_stream_open/closed` and correlate `tool_execution_id` to Composio events.
+  - Wire dashboards per `docs/04a_copilot_protocol.md` §7.
+- `ai_eployee_0-9` — Wire CopilotKit ACK responses for AG-UI custom events
+  - Ensure Connect Link and undo countdown cards send acknowledgements back through `useCopilotAction`.
+  - Coordinate with frontend owners of Prepare/Execute surfaces.
 
-**Daily rhythm:** stand up on these three items, run `bd ready --limit 5` for opportunistic pickups, and keep `docs/backlog.md` acceptance criteria in view while implementing.
-
----
-
-## 🟠 Next — Ready to Start (unblocked P0)
-
-- `TASK-ADK-004` / `code-claude-goal--populate-beads-4`: PlannerAgent core logic + hybrid ranking.
-- `TASK-API-002` / `code-claude-goal--populate-beads-18`: Inspector toolkit discovery endpoint.
-- `TASK-API-003` / `code-claude-goal--populate-beads-19`: OAuth initiation endpoint.
-- `TASK-API-004` / `code-claude-goal--populate-beads-20`: Planner streaming API.
-- `TASK-API-006` / `code-claude-goal--populate-beads-22`: Executor orchestration API.
-- `TASK-UI-003` / `code-claude-goal--populate-beads-11`: Prepare stage UI with readiness meter.
-- `TASK-UI-004` / `code-claude-goal--populate-beads-12`: CopilotKit chat rail + approval modal.
-- `TASK-UI-005` / `code-claude-goal--populate-beads-13`: Plan stage UI with undo preview.
-- `TASK-UI-007` / `code-claude-goal--populate-beads-15`: Execute stage UI with live checklist.
-- `TASK-TEST-001` / `code-claude-goal--populate-beads-29`: ADK evaluation suites to cover Planner/Executor flows.
-
-Pick from this pool once the “Now” column is cleared. Each item already has acceptance criteria and validation steps in `docs/backlog.md`.
+**Daily rhythm:** start with translator tests + telemetry persistence; pair on ACK wiring before instrumenting dashboards.
 
 ---
 
-## 🟡 Later — Prep & Enablement (P1–P3)
+## 🟠 Next — Ready to Start (unblocked P2)
 
-- `TASK-ADK-004` blockers: `TASK-DATA-002` / `code-claude-goal--populate-beads-25` (library embeddings) should start soon to support Planner ranking.
-- Observability cluster: `TASK-OPS-001`..`003` (`code-claude-goal--populate-beads-32`..`34`) plus dashboards (`TASK-DATA-003`..`005`).
-- Documentation hygiene: `TASK-DOC-001` / `code-claude-goal--populate-beads-35` and `TASK-DOC-002` / `code-claude-goal--populate-beads-36`.
+- `ai_eployee_0-7` — Add optional AG-UI protobuf transport
+  - Negotiate `AGUI_MEDIA_TYPE` in `/api/copilotkit` with feature flag + fallback.
+  - Confirm payload compression ≥50% before enabling by default.
 
-Schedule these once the P0 stack is green and the primary mission loop is demoable end-to-end.
+Open question: scope a follow-on task for Supabase retention automation once `ai_eployee_0-6` lands.
+
+---
+
+## 🟡 Later — Prep & Enablement
+
+- Scope Supabase retention/backfill once event logging is live.
+- Draft Playwright mission replay once translator tests define fixtures.
+- Revisit documentation checklist quarterly (next review January 2026).
 
 ---
 
 ## Validation Checklist Before Push
 
-1. `bd list --status in_progress` — confirm the items above are accurate.
+1. `bd list --status open` — confirm AG-UI backlog remains accurate.
 2. `./scripts/validate_backlog_alignment.sh` — ensure docs ↔ tracker alignment.
 3. `mise run lint` (dry-run) and targeted tests for any file you touched.
 
 Keep this file concise—aim for a single screen of work so agents can claim tasks quickly.
-

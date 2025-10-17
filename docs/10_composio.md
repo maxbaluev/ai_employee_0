@@ -4,6 +4,8 @@
 **Audience:** Platform Engineering, ADK Agent Developers, Trust & Governance, UX Documentation
 **Objective:** Document how the AI Employee Control Plane integrates Gemini ADK agents with the Composio SDK for discovery, authentication, governed execution, and telemetry across the progressive trust model, and clarify how ADK agents orchestrate Composio touchpoints surfaced in the CopilotKit chat experience.
 
+Pair this guide with `docs/04a_copilot_protocol.md` to keep Composio-driven events aligned with the AG-UI streaming contract.
+
 > **Foundation Stage Note (October 2025):** The Gemini ADK backend is **scaffolded with TODO markers**. Real ADK prompts, Composio requests, and evaluation suites are **not yet implemented**. This document captures the planned integration model to guide Core/Scale milestones. Use it alongside `docs/backlog.md` Theme 1 for implementation sequencing.
 
 ---

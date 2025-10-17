@@ -94,7 +94,7 @@ This guide explains what users see, how the chat reacts to system events, and wh
 - In Reflect, publish evidence bundles through `useCopilotReadable` + `useCopilotChat`, surface leadership recaps with `useCopilotChatHeadless`, and allow reuse prompts via `useCopilotAction` tied to Supabase artifacts.
 - For long-running executions, maintain heartbeats with incremental `copilotkit_emit_message` payloads every 20 seconds.
 - Interrupt flows rely on `copilotkit_interrupt` – ensure each interrupt message acknowledges the prior action and states whether work is paused or cancelled.
-- Reference `docs/05a_copilotkit_hooks_guide.md` for stage-specific hook payload examples and troubleshooting tips.
+- Reference `docs/04a_copilot_protocol.md` §§6–12 for stage-specific hook payload examples, troubleshooting tips, and telemetry expectations.
 
 ---
 
@@ -119,4 +119,5 @@ This guide explains what users see, how the chat reacts to system events, and wh
 
 - `docs/03_user_experience.md` — Workspace blueprint with chat annotations.
 - `docs/02_system_overview.md` — Architecture overview including chat message flow.
+- `docs/04a_copilot_protocol.md` — AG-UI transport contract, hook integration patterns, and streaming guidance.
 - `docs/10_composio.md` — Progressive trust alignment with chat touchpoints.

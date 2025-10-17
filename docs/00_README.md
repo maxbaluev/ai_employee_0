@@ -1,6 +1,6 @@
 # AI Employee Control Plane: Documentation Guide
 
-**Version:** 3.2 (October 2025)
+**Version:** 3.3 (October 2025)
 **Purpose:** Navigate the AI Employee Control Plane documentation suite
 **Audience:** All stakeholders — Product, Engineering, Operations, Governance, Partners
 
@@ -24,14 +24,15 @@ This documentation is organized as a **sequential knowledge base** that enables 
 2. **[System Overview](./02_system_overview.md)** — **Planned ADK agent architecture** (scaffolded), data flows, Composio integration, technical specifications
 3. **[User Experience Playbook](./03_user_experience.md)** — Seven-stage journey, agent-driven interaction patterns, illustrative operators, accessibility
 4. **[Chat Experience Guide](./03a_chat_experience.md)** — CopilotKit rail behaviour, agent narration, message types, telemetry hooks
-5. **[Implementation Guide](./04_implementation_guide.md)** — **Planned Gemini ADK agent development** (scaffolded), Composio SDK patterns, component catalog, library docs cross-references
-6. **[Capability Roadmap](./05_capability_roadmap.md)** — Milestone-based roadmap with evidence requirements
-7. **[Data Intelligence](./06_data_intelligence.md)** — Telemetry, analytics, learning loops, agent performance metrics
-8. **[Operations Playbook](./07_operations_playbook.md)** — Deployment, monitoring, agent orchestration, incident response, runbooks
-9. **[Getting Started](./08_getting_started.md)** — Environment setup, running the ADK agent stack, first mission walkthrough
-10. **[Release Readiness](./09_release_readiness.md)** — Cross-functional checklists, evidence artifacts, sign-off process
-11. **[Issue Tracking & Dependency Graph](./11_issue_tracking.md)** — `bd` workflow, dependency hygiene, automation safeguards
-12. **[Service Architecture Foundation](./12_service_architecture.md)** — Service module contracts for Composio, Supabase, telemetry, and session state
+5. **[Copilot Communication Protocol (AG-UI)](./04a_copilot_protocol.md)** — Mission streaming contract and CopilotKit hook integration patterns spanning CopilotKit, AG-UI, Gemini ADK, and Composio
+6. **[Implementation Guide](./04_implementation_guide.md)** — **Planned Gemini ADK agent development** (scaffolded), Composio SDK patterns, component catalog, library docs cross-references
+7. **[Capability Roadmap](./05_capability_roadmap.md)** — Milestone-based roadmap with evidence requirements
+8. **[Data Intelligence](./06_data_intelligence.md)** — Telemetry, analytics, learning loops, agent performance metrics
+9. **[Operations Playbook](./07_operations_playbook.md)** — Deployment, monitoring, agent orchestration, incident response, runbooks
+10. **[Getting Started](./08_getting_started.md)** — Environment setup, running the ADK agent stack, first mission walkthrough
+11. **[Release Readiness](./09_release_readiness.md)** — Cross-functional checklists, evidence artifacts, sign-off process
+12. **[Issue Tracking & Dependency Graph](./11_issue_tracking.md)** — `bd` workflow, dependency hygiene, automation safeguards
+13. **[Service Architecture Foundation](./12_service_architecture.md)** — Service module contracts for Composio, Supabase, telemetry, and session state
 
 ### Special Purpose Documents
 
@@ -54,9 +55,10 @@ This documentation is organized as a **sequential knowledge base** that enables 
 1. [Product Vision](./01_product_vision.md) — Market context, value prop, GTM strategy
 2. [User Experience Playbook](./03_user_experience.md) — Seven-stage journey, illustrative operators, accessibility guardrails
 3. [Chat Experience Guide](./03a_chat_experience.md) — How the CopilotKit rail keeps missions collaborative
-4. [Capability Roadmap](./05_capability_roadmap.md) — Milestone plan with dependencies
-5. [Release Readiness](./09_release_readiness.md) — Launch criteria and sign-off process
-6. [Data Intelligence](./06_data_intelligence.md) — Analytics dashboards and success metrics
+4. [Copilot Communication Protocol (AG-UI)](./04a_copilot_protocol.md) — Streaming and hook integration contract between chat surfaces and the Gemini ADK backend
+5. [Capability Roadmap](./05_capability_roadmap.md) — Milestone plan with dependencies
+6. [Release Readiness](./09_release_readiness.md) — Launch criteria and sign-off process
+7. [Data Intelligence](./06_data_intelligence.md) — Analytics dashboards and success metrics
 
 **Key Questions Answered:**
 
@@ -76,12 +78,13 @@ This documentation is organized as a **sequential knowledge base** that enables 
 1. [Getting Started](./08_getting_started.md) — Setup environment and review scaffolded ADK agent stack
 2. [System Overview](./02_system_overview.md) — **Planned Gemini ADK agent architecture** (Foundation stage: scaffolded with TODOs)
 3. [Implementation Guide](./04_implementation_guide.md) — **Planned ADK agent development patterns** (scaffolded), Composio SDK patterns, component catalog
-4. [Trust Model & Composio Integration](./10_composio.md) — Progressive trust flows (planned), agent responsibilities, OAuth handling
-5. [Chat Experience Guide](./03a_chat_experience.md) — Chat APIs, agent narration, interrupts, telemetry hooks
-6. [AGENTS.md](../AGENTS.md) — Quick setup, ADK toolchain, agent scaffolding notes
-7. [Capability Roadmap](./05_capability_roadmap.md) — Technical milestones and dependencies
-8. [Operations Playbook](./07_operations_playbook.md) — Deployment, agent orchestration, monitoring, runbooks
-9. [Backlog](./backlog.md) — Theme 1: ADK Agent Implementation roadmap (TASK-ADK-001 through TASK-ADK-008)
+4. [Copilot Communication Protocol (AG-UI)](./04a_copilot_protocol.md) — Transport and hook integration contract between CopilotKit, AG-UI, Gemini ADK, and Composio
+5. [Trust Model & Composio Integration](./10_composio.md) — Progressive trust flows (planned), agent responsibilities, OAuth handling
+6. [Chat Experience Guide](./03a_chat_experience.md) — Chat APIs, agent narration, interrupts, telemetry hooks
+7. [AGENTS.md](../AGENTS.md) — Quick setup, ADK toolchain, agent scaffolding notes
+8. [Capability Roadmap](./05_capability_roadmap.md) — Technical milestones and dependencies
+9. [Operations Playbook](./07_operations_playbook.md) — Deployment, agent orchestration, monitoring, runbooks
+10. [Backlog](./backlog.md) — Theme 1: ADK Agent Implementation roadmap (TASK-ADK-001 through TASK-ADK-008)
 
 **Key Questions Answered:**
 
@@ -168,9 +171,10 @@ This documentation is organized as a **sequential knowledge base** that enables 
 1. [User Experience Playbook](./03_user_experience.md) — Seven-stage flow, patterns, accessibility
 2. [Chat Experience Guide](./03a_chat_experience.md) — Message design, interrupts, accessibility copy
 3. [Product Vision](./01_product_vision.md) — Personas, use cases, value proposition
-4. [Implementation Guide](./04_implementation_guide.md) — Component catalog, Storybook
-5. [System Overview](./02_system_overview.md) — CopilotKit integration patterns
-6. [Data Intelligence](./06_data_intelligence.md) — Telemetry for UX insights
+4. [Copilot Communication Protocol (AG-UI)](./04a_copilot_protocol.md) — How AG-UI events and CopilotKit hooks drive mission surfaces
+5. [Implementation Guide](./04_implementation_guide.md) — Component catalog, Storybook
+6. [System Overview](./02_system_overview.md) — CopilotKit integration patterns
+7. [Data Intelligence](./06_data_intelligence.md) — Telemetry for UX insights
 
 **Key Questions Answered:**
 
@@ -334,6 +338,7 @@ Located in `docs/readiness/`:
 
 | Date     | Version | Changes                                                                                                                                                                                                                                                        | Author                        |
 | -------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------- |
+| Oct 2025 | 3.3     | Added Copilot Communication Protocol (04a) and updated navigation & role reading paths to reflect AG-UI transport contract                                                                                                                                | Documentation Team            |
 | Oct 2025 | 3.2     | Added Chat Experience Guide (03a); wove chat narrative into System Overview, User Experience, and Trust Model docs; updated navigation paths and changelog                                                                                                     | Documentation Team            |
 | Oct 2025 | 3.1     | Documentation audit: Added Operations Playbook (07) and Release Readiness (09); renumbered Getting Started to 08; fixed examples directory references; added Inspector agent documentation; enhanced library docs cross-references; improved AGENTS.md clarity | AI Agent + Documentation Team |
 | Oct 2025 | 3.0     | Seven-stage mission journey migration — consolidated docs, updated diagrams, created narrative examples                                                                                                                                                         | Product & Engineering         |

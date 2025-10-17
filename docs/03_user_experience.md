@@ -72,7 +72,7 @@ The workspace follows the CopilotKit stage-aware pattern from `libs_docs/copilot
 | **Execute & Observe** | Live Runboard        | Mirror Composio SDK tool calls, surface intervention modals, and display undo countdowns.           | `useCopilotChat`, `useCopilotChatHeadless`, `useCopilotAction`, `useCoAgent`, `useCoAgentStateRender`                           |
 | **Reflect & Improve** | Artifact Gallery     | Package evidence bundles, suggest library reuse, and gather structured feedback.                    | `useCopilotReadable`, `useCopilotAction`, `useCopilotChat`, `useCopilotChatHeadless`, `useCopilotAdditionalInstructions`        |
 
-For hook-specific implementation notes, reference `docs/05a_copilotkit_hooks_guide.md`.
+For hook-specific implementation notes, reference `docs/04a_copilot_protocol.md` §§6–8. That same doc also covers transport and streaming details for CopilotKit ↔ AG-UI.
 
 **Progressive trust guardrails:**
 

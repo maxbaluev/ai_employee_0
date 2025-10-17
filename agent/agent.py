@@ -47,16 +47,14 @@ def create_app() -> FastAPI:
 def register_adk_routes(app: FastAPI) -> None:
     """Attach Gemini ADK endpoints once agents are available.
 
-    The actual Runner configuration lives in ``agent/runtime`` (to be created).
-    This helper exists so we can keep FastAPI initialization light while leaving
-    clear TODO markers for future implementation.
+    The actual Runner configuration lives in ``agent/runtime/executor.py``.
+    This helper wires ExecutorAgent's /execution/run endpoint into FastAPI
+    per docs/04_implementation_guide.md §3-4 and docs/backlog.md TASK-API-006.
     """
 
-    # TODO: instantiate google.adk Runner with mission agents and plug it into
-    # the FastAPI app via ag_ui_adk.add_adk_fastapi_endpoint. Reference
-    # docs/04_implementation_guide.md (sections 3 & 4) and
-    # docs/10_composio.md for Composio client wiring details.
-    _ = app  # placeholder until Runner wiring lands
+    from agent.routes.execution import execution_run_post
+
+    app.post("/execution/run", tags=["execution"])(execution_run_post)
 
 
 app = create_app()
@@ -68,13 +66,13 @@ def get_app() -> FastAPI:
     return app
 
 
-# TODO: once Runtime/Runner factories exist, expose helper to fetch them so
-# background tasks (telemetry, audit log sync) can reuse the same instances.
 def get_runner() -> Optional[object]:
     """Return the configured Gemini ADK Runner.
 
-    Currently returns ``None`` to avoid raising errors during scaffolding.
-    Replace with the actual Runner object once agents are implemented.
+    Exposes the ExecutorAgent runner for background tasks (telemetry, audit
+    log sync) to reuse the same instance.
     """
 
-    return None
+    from agent.runtime.executor import get_cached_executor_runner
+
+    return get_cached_executor_runner()
