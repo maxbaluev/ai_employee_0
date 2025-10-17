@@ -15,7 +15,7 @@ from __future__ import annotations
 import hashlib
 import time
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime, timezone
 from typing import Any, AsyncGenerator, Dict, List
 
 from google.adk.agents import BaseAgent
@@ -46,6 +46,7 @@ class DiscoveryResult:
     readiness_status: str
     cached_at: datetime
     cache_key: str
+    inspection_previews: Dict[str, Any]
 
 
 @dataclass(slots=True)
@@ -56,6 +57,17 @@ class ConnectionResult:
     connect_link_id: str
     granted_scopes: List[str]
     status: str
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(slots=True)
+class InspectionPreview:
+    """No-auth inspection preview metadata for a toolkit."""
+
+    toolkit_slug: str
+    sample_records: List[Dict[str, Any]]
+    sample_count: int
+    pii_flags: Dict[str, bool]
     metadata: Dict[str, Any] = field(default_factory=dict)
 
 
@@ -127,6 +139,8 @@ class InspectorAgent(BaseAgent):
             )
             raise RuntimeError("Missing mission_brief in session state")
 
+        mission_id = ctx.session.state.get("mission_id")
+
         # Phase 1: Discovery (if not already done)
         if "anticipated_connections" not in ctx.session.state:
             yield self._make_event(
@@ -134,6 +148,24 @@ class InspectorAgent(BaseAgent):
                 message="Starting toolkit discovery phase...",
                 metadata={"phase": "discovery", "stage": "PREPARE"},
             )
+
+            if self.supabase_client and mission_id:
+                try:
+                    await self.supabase_client.update_mission_stage_status(
+                        mission_id=mission_id,
+                        stage="Prepare",
+                        status="in_progress",
+                        readiness_state="unknown",
+                    )
+                except Exception as exc:  # noqa: BLE001
+                    await self._emit_telemetry(
+                        "inspector_error",
+                        ctx,
+                        {
+                            "error": "stage_status_update_failed",
+                            "detail": str(exc),
+                        },
+                    )
 
             discovery = await self._discover_toolkits(ctx, mission_brief)
 
@@ -148,6 +180,52 @@ class InspectorAgent(BaseAgent):
             ]
             ctx.session.state["coverage_estimate"] = discovery.coverage_estimate
             ctx.session.state["readiness_status"] = discovery.readiness_status
+            ctx.session.state["inspection_previews"] = discovery.inspection_previews
+            ctx.session.state["inspector_last_discovery_at"] = discovery.cached_at.isoformat()
+
+            for index, toolkit in enumerate(discovery.toolkits, start=1):
+                await self._emit_telemetry(
+                    "toolkit_recommended",
+                    ctx,
+                    {
+                        "toolkit_slug": toolkit.toolkit_slug,
+                        "rank": index,
+                        "auth_required": toolkit.connection_required,
+                    },
+                )
+
+            await self._emit_telemetry(
+                "readiness_status_changed",
+                ctx,
+                {
+                    "status": discovery.readiness_status,
+                    "coverage_percent": discovery.coverage_estimate,
+                    "blocking_items": []
+                    if discovery.readiness_status == "ready"
+                    else ["insufficient_coverage"],
+                },
+            )
+
+            if self.supabase_client and mission_id:
+                try:
+                    await self.supabase_client.update_mission_stage_status(
+                        mission_id=mission_id,
+                        stage="Prepare",
+                        status="ready"
+                        if discovery.readiness_status == "ready"
+                        else "in_progress",
+                        readiness_state=discovery.readiness_status,
+                        coverage_percent=discovery.coverage_estimate * 100,
+                    )
+                except Exception as exc:  # noqa: BLE001
+                    await self._emit_telemetry(
+                        "inspector_error",
+                        ctx,
+                        {
+                            "error": "stage_status_update_failed",
+                            "detail": str(exc),
+                        },
+                    )
 
             yield self._make_event(
                 ctx,
@@ -157,35 +235,62 @@ class InspectorAgent(BaseAgent):
                     "toolkit_count": len(discovery.toolkits),
                     "coverage": discovery.coverage_estimate,
                     "readiness": discovery.readiness_status,
+                    "inspection_preview_count": len(discovery.inspection_previews),
                 },
             )
+
+        anticipated_connections = ctx.session.state.get("anticipated_connections", [])
+        requires_oauth = any(
+            connection.get("connection_required", True) for connection in anticipated_connections
+        )
+
+        if not requires_oauth:
+            ctx.session.state.setdefault("granted_scopes", [])
+            ctx.session.state["authorization_status"] = "not_required"
+            yield self._make_event(
+                ctx,
+                message="No OAuth required for recommended toolkits.",
+                metadata={"phase": "oauth", "stage": "PREPARE", "authorization": "not_required"},
+            )
+            return
 
         # Phase 2: OAuth (if approval granted)
         connect_link_decision = ctx.session.state.get("connect_link_decision", {})
         if connect_link_decision.get("status") == "approved":
-            if "granted_scopes" not in ctx.session.state:
+            if "granted_scopes" not in ctx.session.state or not ctx.session.state["granted_scopes"]:
                 yield self._make_event(
                     ctx,
                     message="Starting OAuth authorization phase...",
                     metadata={"phase": "oauth", "stage": "PREPARE"},
                 )
 
-                connections = await self._initiate_oauth(ctx)
+                connections, failures, total_required = await self._initiate_oauth(
+                    ctx,
+                    anticipated_connections,
+                )
 
                 all_scopes: List[str] = []
                 for conn in connections:
                     all_scopes.extend(conn.granted_scopes)
 
                 ctx.session.state["granted_scopes"] = list(dict.fromkeys(all_scopes))
+                if failures:
+                    ctx.session.state["authorization_errors"] = failures
 
-                # Update readiness based on granted scopes
-                coverage = len(all_scopes) / max(
-                    len(ctx.session.state.get("anticipated_connections", [])), 1
-                )
+                if total_required and len(connections) == total_required:
+                    ctx.session.state["authorization_status"] = "granted"
+                elif connections:
+                    ctx.session.state["authorization_status"] = "partial"
+                else:
+                    ctx.session.state["authorization_status"] = "error"
+
+                status = ctx.session.state.get("authorization_status")
+
+                anticipated_count = len(anticipated_connections)
+                coverage = len(connections) / max(anticipated_count, 1)
                 ctx.session.state["coverage_estimate"] = coverage
-                ctx.session.state["readiness_status"] = (
-                    "ready" if coverage >= self.readiness_threshold else "insufficient_coverage"
-                )
+                readiness = "ready" if coverage >= self.readiness_threshold else "insufficient_coverage"
+                ctx.session.state["readiness_status"] = readiness
 
                 yield self._make_event(
                     ctx,
@@ -194,15 +299,48 @@ class InspectorAgent(BaseAgent):
                         "phase": "oauth",
                         "connection_count": len(connections),
                         "scope_count": len(all_scopes),
-                        "readiness": ctx.session.state["readiness_status"],
+                        "authorization_status": status,
                     },
                 )
+                await self._emit_telemetry(
+                    "readiness_status_changed",
+                    ctx,
+                    {
+                        "status": readiness,
+                        "coverage_percent": coverage,
+                        "blocking_items": [] if readiness == "ready" else ["insufficient_coverage"],
+                    },
+                )
+
+                if self.supabase_client and mission_id:
+                    try:
+                        await self.supabase_client.update_mission_stage_status(
+                            mission_id=mission_id,
+                            stage="Prepare",
+                            status="completed" if readiness == "ready" else "ready",
+                            readiness_state=readiness,
+                            coverage_percent=coverage * 100,
+                        )
+                    except Exception as exc:  # noqa: BLE001
+                        await self._emit_telemetry(
+                            "inspector_error",
+                            ctx,
+                            {
+                                "error": "stage_status_update_failed",
+                                "detail": str(exc),
+                            },
+                        )
+            else:
+                ctx.session.state.setdefault("authorization_status", "granted")
         elif not connect_link_decision:
+            ctx.session.state["authorization_status"] = "pending"
             yield self._make_event(
                 ctx,
                 message="Awaiting Connect Link approval before OAuth initiation",
                 metadata={"phase": "pending_approval", "stage": "PREPARE"},
             )
+        else:
+            ctx.session.state["authorization_status"] = connect_link_decision.get("status", "pending")
 
     async def _discover_toolkits(
         self,
@@ -225,6 +363,8 @@ class InspectorAgent(BaseAgent):
                     "result_count": len(cached.toolkits),
                     "cached": True,
                     "coverage_estimate": cached.coverage_estimate,
+                    "readiness_status": cached.readiness_status,
+                    "inspection_preview_count": len(cached.inspection_previews),
                 },
             )
             return cached
@@ -237,19 +377,32 @@ class InspectorAgent(BaseAgent):
         toolkit_metadata = await self.composio_client.tools_search(
             query=objective,
             limit=20,
+            tenant_id=ctx.session.state.get("tenant_id"),
+            user_id=ctx.session.state.get("user_id"),
         )
         latency_ms = int((time.time() - start_time) * 1000)
 
         toolkits = self._parse_toolkit_metadata(toolkit_metadata)
         coverage = self._compute_coverage(toolkits, mission_brief)
         readiness = "ready" if coverage >= self.readiness_threshold else "insufficient_coverage"
+        previews_list = await self._generate_inspection_previews(ctx, toolkits)
+        inspection_previews = {
+            preview.toolkit_slug: {
+                "sample_records": preview.sample_records,
+                "sample_count": preview.sample_count,
+                "pii_flags": preview.pii_flags,
+                "metadata": preview.metadata,
+            }
+            for preview in previews_list
+        }
 
         result = DiscoveryResult(
             toolkits=toolkits,
             coverage_estimate=coverage,
             readiness_status=readiness,
-            cached_at=datetime.utcnow(),
+            cached_at=datetime.now(timezone.utc),
             cache_key=cache_key,
+            inspection_previews=inspection_previews,
         )
 
         # Cache result
@@ -265,6 +418,7 @@ class InspectorAgent(BaseAgent):
                 "cached": False,
                 "coverage_estimate": coverage,
                 "readiness_status": readiness,
+                "inspection_preview_count": len(inspection_previews),
             },
         )
 
@@ -273,7 +427,8 @@ class InspectorAgent(BaseAgent):
     async def _initiate_oauth(
         self,
         ctx: InvocationContext,
-    ) -> List[ConnectionResult]:
+        anticipated_connections: List[Dict[str, Any]],
+    ) -> tuple[List[ConnectionResult], List[Dict[str, Any]], int]:
         """Phase 2: Initiate OAuth via toolkits.authorize() after approval."""
 
         if not self.composio_client or not self.supabase_client:
@@ -286,16 +441,17 @@ class InspectorAgent(BaseAgent):
         if not user_id or not tenant_id or not mission_id:
             raise RuntimeError("Missing user_id, tenant_id, or mission_id in session state")
 
-        anticipated_connections = ctx.session.state.get("anticipated_connections", [])
+        required_connections = [
+            conn for conn in anticipated_connections if conn.get("connection_required", True)
+        ]
+        total_required = len(required_connections)
+
         connections: List[ConnectionResult] = []
+        failures: List[Dict[str, Any]] = []
 
-        for anticipated in anticipated_connections:
-            if not anticipated.get("connection_required"):
-                continue
-
+        for anticipated in required_connections:
             toolkit_slug = anticipated["toolkit_slug"]
 
-            # Emit authorization initiated telemetry
             await self._emit_telemetry(
                 "composio_auth_flow",
                 ctx,
@@ -308,7 +464,6 @@ class InspectorAgent(BaseAgent):
             )
 
             try:
-                # Generate Connect Link
                 connect_link = await self.composio_client.toolkits_authorize(
                     toolkit_slug=toolkit_slug,
                     user_id=user_id,
@@ -318,7 +473,6 @@ class InspectorAgent(BaseAgent):
 
                 connect_link_id = connect_link.get("connect_link_id", "")
 
-                # Wait for connection
                 connection = await self.composio_client.wait_for_connection(
                     connect_link_id=connect_link_id,
                     timeout_seconds=900,
@@ -326,7 +480,6 @@ class InspectorAgent(BaseAgent):
 
                 granted_scopes = connection.get("granted_scopes", [])
 
-                # Log to Supabase
                 await self.supabase_client.log_mission_connection(
                     mission_id=mission_id,
                     toolkit_slug=toolkit_slug,
@@ -344,7 +497,7 @@ class InspectorAgent(BaseAgent):
                         granted_scopes=granted_scopes,
                         status="approved",
                         metadata=connection,
-                    )
+                    ),
                 )
 
                 await self._emit_telemetry(
@@ -359,6 +512,8 @@ class InspectorAgent(BaseAgent):
                 )
 
             except Exception as exc:  # noqa: BLE001 - log and continue
+                failure_payload = {"toolkit_slug": toolkit_slug, "error": str(exc)}
+                failures.append(failure_payload)
                 await self._emit_telemetry(
                     "composio_auth_flow",
                     ctx,
@@ -369,7 +524,7 @@ class InspectorAgent(BaseAgent):
                     },
                 )
 
-        return connections
+        return connections, failures, total_required
 
     def _parse_toolkit_metadata(
         self,
@@ -391,6 +546,74 @@ class InspectorAgent(BaseAgent):
             )
 
         return toolkits
+
+    async def _generate_inspection_previews(
+        self,
+        ctx: InvocationContext,
+        toolkits: List[ToolkitRecommendation],
+    ) -> List[InspectionPreview]:
+        """Generate no-auth inspection previews for recommended toolkits."""
+
+        mission_id = ctx.session.state.get("mission_id")
+        previews: List[InspectionPreview] = []
+
+        for toolkit in toolkits[:5]:
+            sample_records = [
+                {
+                    "preview": f"Sample data for {toolkit.toolkit_slug}",
+                    "fields": ["field1", "field2"],
+                },
+            ]
+            sample_count = len(sample_records)
+            pii_flags = {
+                "contains_email": False,
+                "contains_phone": False,
+                "contains_account_id": False,
+            }
+            metadata = {"generated_at": datetime.now(timezone.utc).isoformat()}
+
+            preview = InspectionPreview(
+                toolkit_slug=toolkit.toolkit_slug,
+                sample_records=sample_records,
+                sample_count=sample_count,
+                pii_flags=pii_flags,
+                metadata=metadata,
+            )
+            previews.append(preview)
+
+            await self._emit_telemetry(
+                "data_preview_generated",
+                ctx,
+                {
+                    "toolkit": toolkit.toolkit_slug,
+                    "sample_count": sample_count,
+                    "pii_flags": pii_flags,
+                },
+            )
+
+            if self.supabase_client and mission_id:
+                try:
+                    await self.supabase_client.log_data_inspection_check(
+                        mission_id=mission_id,
+                        toolkit_slug=toolkit.toolkit_slug,
+                        coverage_percent=None,
+                        sample_count=sample_count,
+                        pii_flags=pii_flags,
+                        outcome="pass",
+                        details={"sample_records": sample_records},
+                    )
+                except Exception as exc:  # noqa: BLE001
+                    await self._emit_telemetry(
+                        "inspector_error",
+                        ctx,
+                        {
+                            "error": "inspection_preview_failed",
+                            "toolkit": toolkit.toolkit_slug,
+                            "detail": str(exc),
+                        },
+                    )
+
+        return previews
 
     def _compute_coverage(
         self,
@@ -415,7 +638,7 @@ class InspectorAgent(BaseAgent):
     def _is_cache_valid(self, cached: DiscoveryResult) -> bool:
         """Check if cached result is still valid."""
 
-        age = (datetime.utcnow() - cached.cached_at).total_seconds()
+        age = (datetime.now(timezone.utc) - cached.cached_at).total_seconds()
         return age < self.discovery_cache_ttl_seconds
 
     async def _emit_telemetry(
@@ -461,4 +684,5 @@ __all__ = [
     "ToolkitRecommendation",
     "DiscoveryResult",
     "ConnectionResult",
+    "InspectionPreview",
 ]

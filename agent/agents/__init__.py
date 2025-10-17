@@ -9,12 +9,12 @@ architecture described in:
 
 Implemented Agents:
 - CoordinatorAgent: Orchestrates seven-stage mission lifecycle (TASK-ADK-001)
+- IntakeAgent: Stage 1 (Define) brief generation (TASK-ADK-002)
+- InspectorAgent: Stage 2 (Prepare) toolkit discovery and OAuth (TASK-ADK-003)
+- PlannerAgent: Stage 3 (Plan) play ranking and library retrieval (TASK-ADK-004)
+- ValidatorAgent: Safeguard enforcement across stages (TASK-ADK-005)
 
 Planned Agents (stubs):
-- IntakeAgent: Stage 1 (Define) brief generation
-- InspectorAgent: Stage 2 (Prepare) toolkit discovery and OAuth
-- PlannerAgent: Stage 3 (Plan) play ranking
-- ValidatorAgent: Safeguard enforcement across stages
 - ExecutorAgent: Stage 5 (Execute) governed tool execution
 - EvidenceAgent: Stages 5-6 artifact packaging
 """
@@ -23,8 +23,22 @@ from agent.agents.coordinator import CoordinatorAgent, MissionStage
 from agent.agents.inspector import (
     ConnectionResult,
     DiscoveryResult,
+    InspectionPreview,
     InspectorAgent,
     ToolkitRecommendation,
+)
+from agent.agents.intake import (
+    ChipConfidence,
+    IntakeAgent,
+    MissionBrief,
+    PersonaType,
+)
+from agent.agents.planner import (
+    LibraryPrecedent,
+    MissionPlay,
+    PlannerAgent,
+    PlannerSummary,
+    UndoPlan,
 )
 from agent.agents.validator import (
     ScopeValidationResult,
@@ -39,11 +53,19 @@ __all__ = [
     "CoordinatorAgent",
     "MissionStage",
     "IntakeAgent",
+    "PersonaType",
+    "MissionBrief",
+    "ChipConfidence",
     "InspectorAgent",
     "ToolkitRecommendation",
     "DiscoveryResult",
     "ConnectionResult",
+    "InspectionPreview",
     "PlannerAgent",
+    "MissionPlay",
+    "UndoPlan",
+    "LibraryPrecedent",
+    "PlannerSummary",
     "ValidatorAgent",
     "ValidationResult",
     "ValidationSeverity",
@@ -63,7 +85,5 @@ class _NotImplementedStub:
 
 
 # Stubs for not-yet-implemented agents
-IntakeAgent = _NotImplementedStub
-PlannerAgent = _NotImplementedStub
 ExecutorAgent = _NotImplementedStub
 EvidenceAgent = _NotImplementedStub
