@@ -10,7 +10,7 @@ import pytest_asyncio
 from google.adk.agents.invocation_context import InvocationContext
 from google.adk.sessions import InMemorySessionService
 
-from agent.agents import IntakeAgent, PersonaType
+from agent.agents import EXAMPLE_PERSONAS, IntakeAgent, normalize_persona
 from agent.services import SupabaseClientWrapper
 
 
@@ -131,7 +131,7 @@ async def test_generates_brief_and_safeguards(make_context) -> None:
 
     mission_brief = ctx.session.state["mission_brief"]
     assert mission_brief["objective"].startswith("Re-engage")
-    assert mission_brief["persona"] == PersonaType.REVOPS.value
+    assert mission_brief["persona"] == normalize_persona("revops")
     assert ctx.session.state["safeguards"]
     assert ctx.session.state["confidence_scores"]["objective"] >= 0.6
     assert len(supabase.metadata_payloads) == 1
@@ -263,3 +263,33 @@ async def test_supabase_failure_emits_error(make_context) -> None:
 
     assert any(event == "intake_error" for event, _payload in telemetry.events)
     assert events  # still emits progress events despite failures
+
+
+@pytest.mark.asyncio
+async def test_accepts_custom_persona(make_context) -> None:
+    telemetry = TelemetryStub()
+    supabase = SupabaseWrapperStub()
+    agent = IntakeAgent(name="Intake", telemetry=telemetry, supabase_client=supabase)
+
+    ctx = await make_context(
+        agent,
+        state=_base_state(
+            {
+                "mission_intent": "Launch new marketing campaign for product launch",
+                "mission_persona": "Marketing",
+            },
+        ),
+    )
+
+    events = [event async for event in agent._run_async_impl(ctx)]
+
+    mission_brief = ctx.session.state["mission_brief"]
+    assert mission_brief["persona"] == "marketing"
+    assert mission_brief["audience"]
+    assert ctx.session.state["confidence_scores"]
+
+    intent_payload = next(
+        payload for event, payload in telemetry.events if event == "intent_submitted"
+    )
+    assert intent_payload["persona"] == "marketing"
+    assert events

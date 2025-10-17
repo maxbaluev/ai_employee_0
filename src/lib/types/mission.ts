@@ -6,7 +6,8 @@ export type MissionStage =
   | "execute"
   | "reflect";
 
-export type Persona = "RevOps" | "Support" | "Engineering" | "Governance";
+// Persona labels are now flexible; analytics should treat them as free-form strings.
+export type Persona = string;
 
 export type ReadinessState = "ready" | "needs-auth" | "needs-data" | "blocked";
 

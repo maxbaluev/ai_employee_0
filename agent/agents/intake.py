@@ -23,7 +23,6 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from enum import Enum
 from typing import Any, AsyncGenerator, Dict, Iterable, List, Tuple
 
 from google.adk.agents import LlmAgent
@@ -34,31 +33,38 @@ from google.genai.types import Content, Part
 from agent.services import SupabaseClientWrapper, TelemetryClient
 
 
-class PersonaType(str, Enum):
-    """Supported mission personas for Stage 1 intake."""
+# Supported example personas (not exhaustive).
+DEFAULT_PERSONA = "general"
 
-    REVOPS = "revops"
-    SUPPORT = "support"
-    ENGINEERING = "engineering"
-    GOVERNANCE = "governance"
-    GENERAL = "general"
+EXAMPLE_PERSONAS: Dict[str, str] = {
+    "revops": "revops",
+    "support": "support",
+    "engineering": "engineering",
+    "governance": "governance",
+    DEFAULT_PERSONA: DEFAULT_PERSONA,
+}
 
-    @classmethod
-    def from_value(cls, raw: str | None) -> "PersonaType":
-        if not raw:
-            return cls.GENERAL
-        value = raw.lower().strip()
-        mapping = {
-            "rev ops": cls.REVOPS,
-            "revenue": cls.REVOPS,
-            "support": cls.SUPPORT,
-            "success": cls.SUPPORT,
-            "engineering": cls.ENGINEERING,
-            "dev": cls.ENGINEERING,
-            "governance": cls.GOVERNANCE,
-            "compliance": cls.GOVERNANCE,
-        }
-        return mapping.get(value, cls.__members__.get(value.upper(), cls.GENERAL))
+_PERSONA_SYNONYMS: Dict[str, str] = {
+    "rev ops": "revops",
+    "revenue": "revops",
+    "customer support": "support",
+    "success": "support",
+    "dev": "engineering",
+    "compliance": "governance",
+}
+
+
+def normalize_persona(raw: str | None) -> str:
+    """Normalize persona labels to a lowercase slug."""
+
+    if not raw:
+        return DEFAULT_PERSONA
+
+    normalized = raw.strip().lower()
+    if not normalized:
+        return DEFAULT_PERSONA
+
+    return _PERSONA_SYNONYMS.get(normalized, normalized)
 
 
 @dataclass(slots=True)
@@ -81,7 +87,7 @@ class MissionBrief:
     kpi: str
     timeline: str
     summary: str
-    persona: PersonaType
+    persona: str
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -90,7 +96,7 @@ class MissionBrief:
             "kpi": self.kpi,
             "timeline": self.timeline,
             "summary": self.summary,
-            "persona": self.persona.value,
+            "persona": self.persona,
         }
 
 
@@ -114,8 +120,8 @@ class ChipConfidence:
         }
 
 
-PERSONA_LIBRARY: Dict[PersonaType, PersonaDefaults] = {
-    PersonaType.REVOPS: PersonaDefaults(
+PERSONA_LIBRARY: Dict[str, PersonaDefaults] = {
+    "revops": PersonaDefaults(
         audience="Dormant revenue accounts with open renewal opportunity",
         kpi="≥3% reply rate and $500K qualified pipeline",
         timeline="3 business days",
@@ -126,7 +132,7 @@ PERSONA_LIBRARY: Dict[PersonaType, PersonaDefaults] = {
         ],
         summary_hint="Consultative win-back sprint for high-potential accounts",
     ),
-    PersonaType.SUPPORT: PersonaDefaults(
+    "support": PersonaDefaults(
         audience="Tier-1 support tickets with ageing SLA risk",
         kpi="Reduce backlog by 20% while maintaining CSAT ≥4.6",
         timeline="48 hours",
@@ -137,7 +143,7 @@ PERSONA_LIBRARY: Dict[PersonaType, PersonaDefaults] = {
         ],
         summary_hint="Stabilise queue health and protect SLA commitments",
     ),
-    PersonaType.ENGINEERING: PersonaDefaults(
+    "engineering": PersonaDefaults(
         audience="Production rollout for latest service release",
         kpi="Zero sev-1 regressions; rollout completed in two windows",
         timeline="7 days",
@@ -148,7 +154,7 @@ PERSONA_LIBRARY: Dict[PersonaType, PersonaDefaults] = {
         ],
         summary_hint="Controlled deployment with explicit safety rails",
     ),
-    PersonaType.GOVERNANCE: PersonaDefaults(
+    "governance": PersonaDefaults(
         audience="Cross-functional compliance steering group",
         kpi="Complete audit evidence package with zero gaps",
         timeline="10 business days",
@@ -159,7 +165,7 @@ PERSONA_LIBRARY: Dict[PersonaType, PersonaDefaults] = {
         ],
         summary_hint="Prepare compliant evidence with clear audit trail",
     ),
-    PersonaType.GENERAL: PersonaDefaults(
+    DEFAULT_PERSONA: PersonaDefaults(
         audience="Primary stakeholders impacted by the mission",
         kpi="Deliver agreed outcomes with measurable customer impact",
         timeline="Within the current sprint",
@@ -225,8 +231,9 @@ class IntakeAgent(LlmAgent):
             await self._emit_error(ctx, "missing_mission_intent")
             raise RuntimeError("Missing mission_intent in session state")
 
-        persona_type = PersonaType.from_value(ctx.session.state.get("mission_persona"))
-        persona_defaults = PERSONA_LIBRARY.get(persona_type, PERSONA_LIBRARY[PersonaType.GENERAL])
+        persona_raw = ctx.session.state.get("mission_persona")
+        persona_slug = normalize_persona(persona_raw)
+        persona_defaults = PERSONA_LIBRARY.get(persona_slug, PERSONA_LIBRARY[DEFAULT_PERSONA])
 
         existing_brief = self._normalise_brief(ctx.session.state.get("mission_brief") or {})
         incoming_hints = self._normalise_brief(ctx.session.state.get("mission_inputs") or {})
@@ -235,7 +242,7 @@ class IntakeAgent(LlmAgent):
             "intent_submitted",
             ctx,
             {
-                "persona": persona_type.value,
+                "persona": persona_slug,
                 "intent_length": len(mission_intent),
                 "hints_provided": list(incoming_hints.keys()),
             },
@@ -251,7 +258,7 @@ class IntakeAgent(LlmAgent):
             field_sources,
         ) = self._build_brief(
             mission_intent=mission_intent,
-            persona=persona_type,
+            persona=persona_slug,
             defaults=persona_defaults,
             existing=existing_brief,
             hints=incoming_hints,
@@ -269,7 +276,7 @@ class IntakeAgent(LlmAgent):
             "brief_generated",
             ctx,
             {
-                "persona": persona_type.value,
+                "persona": persona_slug,
                 "chip_count": len(mission_brief.to_dict()),
                 "objective": mission_brief.objective,
                 "timeline": mission_brief.timeline,
@@ -303,11 +310,11 @@ class IntakeAgent(LlmAgent):
 
         yield self._info_event(
             ctx,
-            f"Mission brief ready for {persona_type.value} persona (objective: {mission_brief.objective}).",
+            f"Mission brief ready for {persona_slug} persona (objective: {mission_brief.objective}).",
             metadata={
                 "phase": "DEFINE",
                 "updated_fields": sorted(updated_fields),
-                "persona": persona_type.value,
+                "persona": persona_slug,
             },
         )
 
@@ -330,7 +337,7 @@ class IntakeAgent(LlmAgent):
         self,
         *,
         mission_intent: str,
-        persona: PersonaType,
+        persona: str,
         defaults: PersonaDefaults,
         existing: Dict[str, str],
         hints: Dict[str, str],
@@ -389,7 +396,7 @@ class IntakeAgent(LlmAgent):
                 continue
             generated_safeguards.append(
                 {
-                    "category": persona.value,
+                    "category": persona,
                     "description": description,
                     "severity": "medium",
                     "metadata": {"source": "persona_default"},
@@ -589,7 +596,9 @@ class IntakeAgent(LlmAgent):
 
 __all__ = [
     "IntakeAgent",
-    "PersonaType",
     "MissionBrief",
     "ChipConfidence",
+    "normalize_persona",
+    "EXAMPLE_PERSONAS",
+    "PERSONA_LIBRARY",
 ]

@@ -211,7 +211,6 @@ export type Database = {
           created_by: string | null
           description: string | null
           id: string
-          persona: string | null
           playbook: Json
           reuse_count: number
           source_artifact_id: string | null
@@ -228,7 +227,6 @@ export type Database = {
           created_by?: string | null
           description?: string | null
           id?: string
-          persona?: string | null
           playbook?: Json
           reuse_count?: number
           source_artifact_id?: string | null
@@ -245,7 +243,6 @@ export type Database = {
           created_by?: string | null
           description?: string | null
           id?: string
-          persona?: string | null
           playbook?: Json
           reuse_count?: number
           source_artifact_id?: string | null
@@ -580,7 +577,6 @@ export type Database = {
           id: string
           metadata: Json
           mission_id: string
-          persona: string | null
           qualitative_notes: string | null
           rating: number | null
           submitted_at: string
@@ -592,7 +588,6 @@ export type Database = {
           id?: string
           metadata?: Json
           mission_id: string
-          persona?: string | null
           qualitative_notes?: string | null
           rating?: number | null
           submitted_at?: string
@@ -604,7 +599,6 @@ export type Database = {
           id?: string
           metadata?: Json
           mission_id?: string
-          persona?: string | null
           qualitative_notes?: string | null
           rating?: number | null
           submitted_at?: string
@@ -1166,7 +1160,6 @@ export type Database = {
           intent: Json
           owner_id: string | null
           owner_role: string | null
-          persona_id: string | null
           priority: string | null
           readiness: Database["public"]["Enums"]["readiness_state"]
           ready_at: string | null
@@ -1187,7 +1180,6 @@ export type Database = {
           intent?: Json
           owner_id?: string | null
           owner_role?: string | null
-          persona_id?: string | null
           priority?: string | null
           readiness?: Database["public"]["Enums"]["readiness_state"]
           ready_at?: string | null
@@ -1208,7 +1200,6 @@ export type Database = {
           intent?: Json
           owner_id?: string | null
           owner_role?: string | null
-          persona_id?: string | null
           priority?: string | null
           readiness?: Database["public"]["Enums"]["readiness_state"]
           ready_at?: string | null
@@ -1219,13 +1210,6 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "missions_persona_id_fkey"
-            columns: ["persona_id"]
-            isOneToOne: false
-            referencedRelation: "personas"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "missions_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
@@ -1233,27 +1217,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      personas: {
-        Row: {
-          created_at: string
-          description: string | null
-          id: string
-          name: string
-        }
-        Insert: {
-          created_at?: string
-          description?: string | null
-          id?: string
-          name: string
-        }
-        Update: {
-          created_at?: string
-          description?: string | null
-          id?: string
-          name?: string
-        }
-        Relationships: []
       }
       telemetry_events: {
         Row: {
@@ -1681,7 +1644,6 @@ export type Database = {
           active_missions: number | null
           avg_time_to_complete_hours: number | null
           completed_missions: number | null
-          persona_count: number | null
           tenant_id: string | null
           week: string | null
         }
@@ -1700,7 +1662,6 @@ export type Database = {
           active_missions: number | null
           avg_time_to_complete_hours: number | null
           completed_missions: number | null
-          persona_count: number | null
           tenant_id: string | null
           week: string | null
         }

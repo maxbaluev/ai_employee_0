@@ -1,5 +1,14 @@
+import { useState } from "react";
+
 import type { IntakeStatus, PersonaKey } from "@/hooks/useMissionIntake";
-import { PERSONA_TEMPLATES } from "@/hooks/useMissionIntake";
+import {
+  DEFAULT_PERSONA,
+  PERSONA_SUGGESTIONS,
+  getPersonaLabel,
+  getPersonaTemplate,
+  isExamplePersona,
+  normalizePersona,
+} from "@/lib/personas";
 
 const STATUS_COPY: Record<IntakeStatus, string> = {
   idle: "Waiting for mission intent.",
@@ -21,14 +30,6 @@ type MissionIntakeFormProps = {
   onDismissError: () => void;
 };
 
-const PERSONA_LABELS: Record<PersonaKey, string> = {
-  revops: "RevOps",
-  support: "Support",
-  engineering: "Engineering",
-  governance: "Governance",
-  general: "General",
-};
-
 export function MissionIntakeForm({
   intent,
   persona,
@@ -41,6 +42,28 @@ export function MissionIntakeForm({
   onSubmit,
   onDismissError,
 }: MissionIntakeFormProps) {
+  const [customPersona, setCustomPersona] = useState("");
+  const [showCustomInput, setShowCustomInput] = useState(false);
+
+  const normalizedPersona = normalizePersona(persona);
+  const personaLabel = getPersonaLabel(persona);
+  const personaTemplate = getPersonaTemplate(persona);
+
+  const handleExampleClick = (value: PersonaKey) => {
+    onPersonaChange(value);
+    setShowCustomInput(false);
+  };
+
+  const handleCustomPersonaSubmit = () => {
+    const trimmed = customPersona.trim();
+    if (!trimmed) {
+      return;
+    }
+    onPersonaChange(trimmed);
+    setCustomPersona("");
+    setShowCustomInput(false);
+  };
+
   return (
     <section
       aria-labelledby="mission-intake-heading"
@@ -63,29 +86,68 @@ export function MissionIntakeForm({
         }}
       >
         <div className="space-y-3">
-          <p className="text-sm font-medium text-slate-200">Persona focus</p>
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-medium text-slate-200">Persona focus (examples)</p>
+            <button
+              type="button"
+              onClick={() => setShowCustomInput((value) => !value)}
+              className="text-xs font-semibold uppercase tracking-wide text-cyan-400 transition hover:text-cyan-300 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2 focus:ring-offset-slate-900"
+            >
+              {showCustomInput ? "Hide custom" : "+ Custom persona"}
+            </button>
+          </div>
           <div className="flex flex-wrap gap-2">
-            {(Object.keys(PERSONA_LABELS) as PersonaKey[]).map((key) => (
+            {PERSONA_SUGGESTIONS.map((suggestion) => (
               <button
-                key={key}
+                key={suggestion.key}
                 type="button"
-                onClick={() => onPersonaChange(key)}
+                onClick={() => handleExampleClick(suggestion.key)}
                 className={`rounded-full border px-3 py-1 text-sm transition focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2 focus:ring-offset-slate-900 ${
-                  persona === key
+                  normalizedPersona === suggestion.key
                     ? "border-cyan-400 bg-cyan-500/20 text-cyan-100"
                     : "border-slate-700 bg-slate-900/60 text-slate-300 hover:border-cyan-500/60 hover:text-cyan-200"
                 }`}
-                aria-pressed={persona === key}
+                aria-pressed={normalizedPersona === suggestion.key}
               >
-                {PERSONA_LABELS[key]}
+                {suggestion.label}
               </button>
             ))}
+            {!isExamplePersona(persona) && persona.trim().length > 0 && (
+              <span className="rounded-full border border-cyan-400 bg-cyan-500/20 px-3 py-1 text-sm text-cyan-100">
+                {persona}
+              </span>
+            )}
           </div>
 
-          {persona !== "general" && (
+          {showCustomInput && (
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={customPersona}
+                onChange={(event) => setCustomPersona(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    handleCustomPersonaSubmit();
+                  }
+                }}
+                placeholder="Enter custom persona (e.g., Marketing, Sales, Legal)"
+                className="flex-1 rounded-lg border border-slate-700 bg-slate-950/70 px-3 py-2 text-sm text-slate-100 placeholder-slate-500 transition focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/40"
+              />
+              <button
+                type="button"
+                onClick={handleCustomPersonaSubmit}
+                className="rounded-lg bg-cyan-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2 focus:ring-offset-slate-900"
+              >
+                Set
+              </button>
+            </div>
+          )}
+
+          {normalizedPersona !== DEFAULT_PERSONA && personaTemplate && (
             <div className="rounded-lg border border-cyan-500/40 bg-cyan-500/10 p-3 text-sm text-cyan-50">
               <div className="mb-2 flex items-center justify-between gap-4">
-                <span className="font-medium">Suggested intent</span>
+                <span className="font-medium">Suggested intent for {personaLabel}</span>
                 <button
                   type="button"
                   className="rounded-md bg-cyan-600 px-2.5 py-1 text-xs font-semibold uppercase tracking-wide text-white transition hover:bg-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2 focus:ring-offset-slate-900"
@@ -94,7 +156,7 @@ export function MissionIntakeForm({
                   Use template
                 </button>
               </div>
-              <p className="text-cyan-100/90">{PERSONA_TEMPLATES[persona as Exclude<PersonaKey, "general">]}</p>
+              <p className="text-cyan-100/90">{personaTemplate}</p>
             </div>
           )}
         </div>

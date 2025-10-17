@@ -8,8 +8,6 @@ const FALLBACK_MISSION_ID = "00000000-0000-4000-8000-000000000000";
 const FALLBACK_TENANT_ID = "tenant-demo";
 const FALLBACK_USER_ID = "operator-demo";
 
-export type PersonaKey = "revops" | "support" | "engineering" | "governance" | "general";
-
 export type IntakeStatus = "idle" | "loading" | "ready" | "error";
 
 export type MissionBrief = {
@@ -44,8 +42,6 @@ export type IntakeMessage = {
 
 export type MissionIntakeState = {
   intent: string;
-  persona: PersonaKey;
-  templateId: string | null;
   status: IntakeStatus;
   error: string | null;
   brief: MissionBrief;
@@ -60,17 +56,6 @@ export type UseMissionIntakeOptions = {
   missionId?: string;
   tenantId?: string;
   userId?: string;
-};
-
-export const PERSONA_TEMPLATES: Record<Exclude<PersonaKey, "general">, string> = {
-  revops:
-    "Re-engage dormant manufacturing accounts with personalised outreach that highlights ROI wins.",
-  support:
-    "Stabilise the tier-1 support queue by triaging overdue tickets and flagging security issues.",
-  engineering:
-    "Coordinate a staggered production rollout with rollback steps and incident guardrails.",
-  governance:
-    "Assemble the Q4 compliance evidence pack with audit-ready artefacts and approval logs.",
 };
 
 const EMPTY_BRIEF: MissionBrief = {
@@ -152,8 +137,6 @@ export function useMissionIntake(options?: UseMissionIntakeOptions) {
   const userIdRef = useRef(options?.userId ?? FALLBACK_USER_ID);
 
   const [intent, setIntent] = useState("");
-  const [persona, setPersona] = useState<PersonaKey>("general");
-  const [templateId, setTemplateId] = useState<string | null>(null);
   const [status, setStatus] = useState<IntakeStatus>("idle");
   const [error, setError] = useState<string | null>(null);
   const [brief, setBrief] = useState<MissionBrief>(EMPTY_BRIEF);
@@ -286,14 +269,16 @@ export function useMissionIntake(options?: UseMissionIntakeOptions) {
   }, [appendMessage, brief.objective, hasBrief, missionId, tenantId, userId, safeguards.length]);
 
   const selectPersonaTemplate = useCallback((nextPersona: PersonaKey) => {
-    setPersona(nextPersona);
-    if (nextPersona === "general") {
+    const normalized = normalizePersona(nextPersona);
+    setPersona(normalized);
+
+    const template = getPersonaTemplate(normalized);
+    if (!template || normalized === DEFAULT_PERSONA) {
       setTemplateId(null);
       return;
     }
 
-    setTemplateId(`template-${nextPersona}`);
-    const template = PERSONA_TEMPLATES[nextPersona];
+    setTemplateId(`template-${normalized}`);
     setIntent(template);
   }, []);
 
@@ -307,11 +292,13 @@ export function useMissionIntake(options?: UseMissionIntakeOptions) {
     setError(null);
     appendMessage({ role: "assistant", text: "Parsing intent and assembling mission brief…" });
 
+    const normalizedPersona = normalizePersona(persona || DEFAULT_PERSONA);
+
     emitTelemetry("intent_submitted", {
       mission_id: missionId,
       tenant_id: tenantId,
       user_id: userId,
-      persona,
+      persona: normalizedPersona,
       intent_length: intent.trim().length,
       template_id: templateId,
     });
@@ -331,7 +318,7 @@ export function useMissionIntake(options?: UseMissionIntakeOptions) {
         headers,
         body: JSON.stringify({
           missionId,
-          persona,
+          persona: normalizedPersona,
           intent: intent.trim(),
           templateId,
           hints: brief,
@@ -387,7 +374,7 @@ export function useMissionIntake(options?: UseMissionIntakeOptions) {
         mission_id: missionId,
         tenant_id: tenantId,
         user_id: userId,
-        persona,
+        persona: normalizedPersona,
         chip_count: Object.values(nextBrief).filter((value) => value.trim()).length,
         confidence_scores: payload.confidence_scores,
         generation_latency_ms: latency,

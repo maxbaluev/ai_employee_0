@@ -30,9 +30,11 @@ from agent.agents.inspector import (
 )
 from agent.agents.intake import (
     ChipConfidence,
+    EXAMPLE_PERSONAS,
     IntakeAgent,
     MissionBrief,
-    PersonaType,
+    PERSONA_LIBRARY,
+    normalize_persona,
 )
 from agent.agents.evidence import (
     ArtifactMetadata,
@@ -70,9 +72,11 @@ __all__ = [
     "CoordinatorAgent",
     "MissionStage",
     "IntakeAgent",
-    "PersonaType",
     "MissionBrief",
     "ChipConfidence",
+    "normalize_persona",
+    "EXAMPLE_PERSONAS",
+    "PERSONA_LIBRARY",
     "InspectorAgent",
     "ToolkitRecommendation",
     "DiscoveryResult",

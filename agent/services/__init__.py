@@ -1,14 +1,39 @@
-"""Service layer placeholders for the AI Employee Control Plane.
+"""Service layer integrations for the AI Employee Control Plane.
 
-Add typed wrappers for Composio, Supabase, and telemetry clients here. Follow
-patterns described in docs/04_implementation_guide.md (sections 3.4–3.7).
+This module wires the Gemini ADK backend to first-party SDKs:
+
+* `composio.ComposioClient` — toolkit discovery, OAuth, governed execution
+* `supabase.Client` — mission state, telemetry, and evidence persistence
+
+Factories exposed here honour environment configuration so agents, API routes,
+and tests share a single entry-point. See docs/04_implementation_guide.md for
+integration details.
 """
 
+from __future__ import annotations
+
+import os
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from inspect import isawaitable
-from typing import Any
+from typing import Any, TYPE_CHECKING, Literal
 from uuid import uuid4
+
+try:  # Lazy import to keep unit tests lightweight when SDKs are absent.
+    from composio import ComposioClient
+except Exception:  # pragma: no cover - handled downstream with guard rails
+    ComposioClient = None  # type: ignore[assignment]
+
+try:
+    from supabase import Client as SupabaseClient
+    from supabase import create_client as create_supabase_sdk_client
+except Exception:  # pragma: no cover - handled downstream with guard rails
+    SupabaseClient = None  # type: ignore[assignment]
+    create_supabase_sdk_client = None  # type: ignore[assignment]
+
+if TYPE_CHECKING:  # pragma: no cover - typing aides only
+    from composio import ComposioClient as _TypedComposioClient
+    from supabase import Client as _TypedSupabaseClient
 
 from .session import SupabaseSessionService, create_session_service
 

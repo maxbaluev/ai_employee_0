@@ -5,7 +5,12 @@ export type ServerTelemetryEventName =
   | "audit_event_recorded"
   | "intent_submitted"
   | "brief_generated"
-  | "brief_item_modified";
+  | "brief_item_modified"
+  | "execution_started"
+  | "execution_step_completed"
+  | "composio_tool_call"
+  | "validator_alert_raised"
+  | "session_heartbeat";
 
 export type ServerTelemetryPayload = Record<string, unknown>;
 

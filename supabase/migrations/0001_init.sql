@@ -242,13 +242,6 @@ CREATE TABLE IF NOT EXISTS tenants (
   updated_at timestamptz NOT NULL DEFAULT now()
 );
 
-CREATE TABLE IF NOT EXISTS personas (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  name text NOT NULL UNIQUE,
-  description text,
-  created_at timestamptz NOT NULL DEFAULT now()
-);
-
 -- ---------------------------------------------------------------------------
 -- Mission Lifecycle Tables
 -- ---------------------------------------------------------------------------
@@ -258,7 +251,6 @@ CREATE TABLE IF NOT EXISTS missions (
   external_ref text,
   title text NOT NULL CHECK (title <> ''),
   description text,
-  persona_id uuid REFERENCES personas(id),
   owner_id uuid,
   owner_role text,
   status mission_status NOT NULL DEFAULT 'draft',
@@ -454,7 +446,6 @@ CREATE TABLE IF NOT EXISTS mission_feedback (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   mission_id uuid NOT NULL REFERENCES missions(id) ON DELETE CASCADE,
   user_id uuid,
-  persona text,
   rating integer CHECK (rating BETWEEN 1 AND 5),
   effort_saved_hours numeric(6,2),
   blockers text,
@@ -573,7 +564,6 @@ CREATE TABLE IF NOT EXISTS library_entries (
   title text NOT NULL CHECK (title <> ''),
   description text,
   category text,
-  persona text,
   tags text[] DEFAULT ARRAY[]::text[],
   playbook jsonb NOT NULL DEFAULT '{}'::jsonb,
   source_mission_id uuid REFERENCES missions(id) ON DELETE SET NULL,
@@ -604,7 +594,6 @@ SELECT
   count(*) FILTER (WHERE m.status = 'completed') AS completed_missions,
   count(*) FILTER (WHERE m.status IN ('in_progress','ready')) AS active_missions,
   avg(EXTRACT(EPOCH FROM (m.completed_at - m.created_at)) / 3600.0) FILTER (WHERE m.completed_at IS NOT NULL) AS avg_time_to_complete_hours,
-  count(DISTINCT m.persona_id) AS persona_count
 FROM missions m
 GROUP BY 1, 2;
 
@@ -1234,16 +1223,6 @@ COMMENT ON VIEW mission_readiness IS 'Provides the latest readiness badge snapsh
 COMMENT ON VIEW mission_stage_progress IS 'Flattens mission stage progression for analytics and evaluation workflows.';
 
 -- ---------------------------------------------------------------------------
--- Seed Personas (optional baseline personas for roadmap references)
--- ---------------------------------------------------------------------------
-INSERT INTO personas (id, name, description)
-VALUES
-  (gen_random_uuid(), 'RevOps', 'Revenue operations persona coordinating sales workflows.'),
-  (gen_random_uuid(), 'Support', 'Support leader managing customer experience missions.'),
-  (gen_random_uuid(), 'Engineering', 'Engineering lead monitoring deployment and incident workflows.'),
-  (gen_random_uuid(), 'Governance', 'Governance and compliance partner overseeing trust stages.')
-ON CONFLICT (name) DO NOTHING;
-
 -- ---------------------------------------------------------------------------
 -- Default Tenant Placeholder (ensures local development works out-of-the-box)
 -- ---------------------------------------------------------------------------
