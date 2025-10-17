@@ -30,6 +30,70 @@ export interface MissionApproval {
   summary: string;
 }
 
+export type ApprovalStatus = "requested" | "delegated" | "approved" | "rejected" | "expired";
+
+export interface ApprovalSummary {
+  whatWillHappen: string;
+  whoIsAffected: {
+    recordCount: number;
+    segments: string[];
+    dataSources: string[];
+  };
+  safeguards: {
+    id: string;
+    category: string;
+    description: string;
+    severity: "low" | "medium" | "high" | "critical";
+  }[];
+  undoPlan: {
+    id: string;
+    label: string;
+    impactSummary: string;
+    windowMinutes: number;
+    steps: string[];
+  };
+  requiredPermissions: {
+    toolkit: string;
+    scopes: string[];
+  }[];
+}
+
+export interface ApprovalHistoryEntry {
+  id: string;
+  timestamp: string;
+  actor: string;
+  actorRole: string;
+  action: "requested" | "delegated" | "approved" | "rejected" | "commented";
+  note?: string;
+}
+
+export interface ApprovalComment {
+  id: string;
+  author: string;
+  authorRole: string;
+  content: string;
+  timestamp: string;
+}
+
+export interface ApprovalWorkspaceData {
+  approval: {
+    id: string;
+    missionId: string;
+    missionTitle: string;
+    playId: string | null;
+    status: ApprovalStatus;
+    approverRole: string;
+    approverId: string | null;
+    rationale: string | null;
+    dueAt: string | null;
+    createdAt: string;
+    decisionAt: string | null;
+  };
+  summary: ApprovalSummary;
+  history: ApprovalHistoryEntry[];
+  comments: ApprovalComment[];
+}
+
 export interface MissionTemplate {
   id: string;
   persona: Persona;

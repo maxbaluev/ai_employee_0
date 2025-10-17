@@ -20,14 +20,36 @@ Planned Agents (stubs):
 """
 
 from agent.agents.coordinator import CoordinatorAgent, MissionStage
+from agent.agents.inspector import (
+    ConnectionResult,
+    DiscoveryResult,
+    InspectorAgent,
+    ToolkitRecommendation,
+)
+from agent.agents.validator import (
+    ScopeValidationResult,
+    Safeguard,
+    ValidationResult,
+    ValidationSeverity,
+    ValidationStatus,
+    ValidatorAgent,
+)
 
 __all__ = [
     "CoordinatorAgent",
     "MissionStage",
     "IntakeAgent",
     "InspectorAgent",
+    "ToolkitRecommendation",
+    "DiscoveryResult",
+    "ConnectionResult",
     "PlannerAgent",
     "ValidatorAgent",
+    "ValidationResult",
+    "ValidationSeverity",
+    "ValidationStatus",
+    "ScopeValidationResult",
+    "Safeguard",
     "ExecutorAgent",
     "EvidenceAgent",
 ]
@@ -42,8 +64,6 @@ class _NotImplementedStub:
 
 # Stubs for not-yet-implemented agents
 IntakeAgent = _NotImplementedStub
-InspectorAgent = _NotImplementedStub
 PlannerAgent = _NotImplementedStub
-ValidatorAgent = _NotImplementedStub
 ExecutorAgent = _NotImplementedStub
 EvidenceAgent = _NotImplementedStub

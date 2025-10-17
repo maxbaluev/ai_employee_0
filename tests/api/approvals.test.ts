@@ -4,6 +4,10 @@ vi.mock("@/lib/server/mission-approvals-repository", () => ({
   createMissionApproval: vi.fn(),
   findMissionApprovalById: vi.fn(),
   updateMissionApproval: vi.fn(),
+  delegateMissionApproval: vi.fn(),
+  addMissionApprovalComment: vi.fn(),
+  appendApprovalHistory: vi.fn(),
+  parseMissionApprovalMetadata: vi.fn(() => ({ history: [], comments: [] })),
 }));
 
 vi.mock("@/lib/telemetry/server", () => ({
@@ -23,6 +27,12 @@ const findMissionApprovalByIdMock = vi.mocked(
 );
 const updateMissionApprovalMock = vi.mocked(
   missionApprovals.updateMissionApproval,
+);
+const appendApprovalHistoryMock = vi.mocked(
+  missionApprovals.appendApprovalHistory,
+);
+const parseMissionApprovalMetadataMock = vi.mocked(
+  missionApprovals.parseMissionApprovalMetadata,
 );
 const emitServerTelemetryMock = vi.mocked(emitServerTelemetry);
 
@@ -44,6 +54,8 @@ const baseApproval: MissionApprovalRow = {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  parseMissionApprovalMetadataMock.mockReturnValue({ history: [], comments: [] });
+  appendApprovalHistoryMock.mockResolvedValue();
 });
 
 describe("POST /api/approvals", () => {

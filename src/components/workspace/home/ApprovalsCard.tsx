@@ -4,7 +4,7 @@ import Link from "next/link";
 
 import { MissionApproval } from "@/lib/types/mission";
 
-const APPROVE_ROUTE = "/workspace/plan"; // Stage 4 placeholder until approve workspace ships.
+const APPROVE_ROUTE = "/workspace/approve";
 
 type ApprovalsCardProps = {
   approvals: MissionApproval[];
@@ -64,7 +64,7 @@ export function ApprovalsCard({ approvals, onApprovalNavigate }: ApprovalsCardPr
             <p className="mt-3 text-sm text-slate-300">{approval.summary}</p>
             <div className="mt-4 flex justify-end">
               <Link
-                href={`${APPROVE_ROUTE}?mission=${approval.missionId}`}
+                href={`${APPROVE_ROUTE}?approval=${approval.id}`}
                 className="rounded-full border border-slate-800 px-3 py-1 text-xs font-medium text-slate-200 transition hover:border-cyan-300 hover:bg-cyan-400/10 hover:text-cyan-100"
                 onClick={() => onApprovalNavigate?.(approval)}
               >

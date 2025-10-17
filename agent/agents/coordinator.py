@@ -117,6 +117,7 @@ class CoordinatorAgent(BaseAgent):
         intake_agent: BaseAgent | None = None,
         inspector_agent: BaseAgent | None = None,
         planner_agent: BaseAgent | None = None,
+        validator_agent: BaseAgent | None = None,
         executor_agent: BaseAgent | None = None,
         evidence_agent: BaseAgent | None = None,
         **kwargs: Any,
@@ -127,6 +128,7 @@ class CoordinatorAgent(BaseAgent):
                 intake_agent,
                 inspector_agent,
                 planner_agent,
+                validator_agent,
                 executor_agent,
                 evidence_agent,
             )
@@ -144,6 +146,7 @@ class CoordinatorAgent(BaseAgent):
                 "intake_agent": intake_agent,
                 "inspector_agent": inspector_agent,
                 "planner_agent": planner_agent,
+                "validator_agent": validator_agent,
                 "executor_agent": executor_agent,
                 "evidence_agent": evidence_agent,
             },
@@ -155,6 +158,10 @@ class CoordinatorAgent(BaseAgent):
     @property
     def telemetry(self) -> TelemetryClient | None:
         return getattr(self, "_telemetry", None)
+
+    @property
+    def validator_agent(self) -> BaseAgent | None:
+        return self._agents.get("validator_agent")
 
     # ------------------------------------------------------------------
     # Core execution

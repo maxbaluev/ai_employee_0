@@ -2,7 +2,7 @@ import { CopilotKit } from "@copilotkit/react-core";
 import Link from "next/link";
 import { ReactNode } from "react";
 
-const STAGE_ORDER = ["define", "prepare", "plan", "execute", "reflect"] as const;
+const STAGE_ORDER = ["define", "prepare", "plan", "approve", "execute", "reflect"] as const;
 
 export default function ControlPlaneLayout({
   children,

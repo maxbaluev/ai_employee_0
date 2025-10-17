@@ -41,12 +41,12 @@ Optional:
 
 - **App Router:** `src/app/(control-plane)/layout.tsx` hosts `MissionWorkspaceLayout`
 - **State:** `MissionStageProvider` orchestrates seven-stage flow with shared context (`HOME`, `DEFINE`, `PREPARE`, `PLAN`, `APPROVE`, `EXECUTE`, `REFLECT`)
-- **CopilotKit Hooks (stage-aware):**
-  - **Mission Intake Panel (Define):** `useCopilotReadable`, `useCopilotAction` keep intent chips editable while streaming rationale summaries.
-  - **Inspection Drawer (Prepare):** `useCopilotReadable`, `useCopilotAction`, `useCopilotChat` surface discovery results, preview scopes, and trigger Connect Link modals once stakeholders consent.
-  - **Approval Timeline (Plan & Approve):** `useCopilotAction`, `useCopilotChat`, `useCopilotChatSuggestions` stream ranked plays, capture approvals, and persist safeguard acknowledgements without prompting for new OAuth scopes.
-  - **Runboard (Execute & Observe):** `useCopilotChat`, `useCopilotAction` mirror Composio SDK tool calls, validator interrupts, and undo countdowns.
-  - **Artifact Gallery (Reflect):** `useCopilotReadable`, `useCopilotAction`, `useCopilotChat` package evidence bundles, reuse prompts, and gather structured feedback.
+- **CopilotKit Hooks (stage-aware):** (see `docs/05a_copilotkit_hooks_guide.md` for deep dive)
+  - **Mission Intake Panel (Define):** `useCopilotReadable`, `useCopilotAction`, `useCopilotAdditionalInstructions` keep intent chips editable while enforcing tone guardrails.
+  - **Inspection Drawer (Prepare):** `useCopilotReadable`, `useCopilotAction`, `useCopilotChat`, `useCopilotChatSuggestions` stream discovery, launch Connect Links, and offer “Explain scope” quick replies.
+  - **Approval Timeline (Plan & Approve):** `useCopilotAction`, `useCopilotChat`, `useCopilotChatSuggestions`, `useCopilotAdditionalInstructions`, `useCopilotChatHeadless` stream ranked plays, capture approvals, and summarise risk deltas without new OAuth prompts.
+  - **Runboard (Execute & Observe):** `useCopilotChat`, `useCopilotChatHeadless`, `useCopilotAction`, `useCoAgent`, `useCoAgentStateRender` mirror Composio SDK tool calls, validator interrupts, and undo countdowns.
+  - **Artifact Gallery (Reflect):** `useCopilotReadable`, `useCopilotAction`, `useCopilotChat`, `useCopilotChatHeadless` package evidence bundles, reuse prompts, and gather structured feedback for exec recaps.
 - **Styling:** Tailwind v4 + custom tokens (see `src/styles/tokens.ts`)
 - **Testing:** Vitest + Testing Library (`pnpm test:ui`), Playwright for e2e
 
@@ -71,6 +71,7 @@ Optional:
 - **Progressive Trust Guardrails:** Connect Links launch only from Prepare after stakeholder approval, planner/approver flows reuse validated credentials, and Execute never re-prompts—just freshness-checks before tool calls while anchoring undo plans to Composio audit events.
 - **Error Handling:** Display inline callouts with retry affordances; log telemetry (`error_surface_viewed`).
 - **Storybook:** Add stories under `stories/mission-workspace/*.stories.tsx` with controls and accessibility notes.
+- **CopilotKit hook hygiene:** Keep Readable payloads <10 KB, scope Additional Instructions per stage, and reuse CoAgent names registered in Gemini ADK; see `docs/05a_copilotkit_hooks_guide.md` for patterns and troubleshooting.
 
 ---
 
@@ -142,15 +143,15 @@ class InspectorAgent(BaseAgent):
 > For the stage-by-stage diagram and session schema, reference
 > `docs/02_system_overview.md` § **ADK Agent Coordination & State Flow**.
 
-| Agent | Reads from `ctx.session.state` | Writes to `ctx.session.state` | Composio SDK Calls | Sub-Agents |
-|-------|-------------------------------|------------------------------|-------------------|------------|
-| **CoordinatorAgent** | All keys (monitors full state) | `mission_id`, `tenant_id`, `user_id`, `current_stage` | None | IntakeAgent, InspectorAgent, PlannerAgent, ExecutorAgent, EvidenceAgent |
-| **IntakeAgent** | None | `mission_brief`, `safeguards`, `confidence_scores` | None | None |
-| **InspectorAgent** | `mission_brief` | `anticipated_connections`, `granted_scopes`, `coverage_estimate`, `readiness_status` | `client.tools.search()`, `client.toolkits.authorize()`, `wait_for_connection()` | None |
-| **PlannerAgent** | `granted_scopes`, `mission_brief`, `coverage_estimate` | `ranked_plays`, `undo_plans`, `tool_usage_patterns` | None | ValidatorAgent (for scope validation) |
-| **ValidatorAgent** | `safeguards`, `granted_scopes`, `current_action` | `validation_results`, `auto_fix_attempts` | `client.connected_accounts.status()` | None |
-| **ExecutorAgent** | `ranked_plays`, `granted_scopes` | `execution_results`, `heartbeat_timestamp` | `provider.session(...).handle_tool_call(...)` | ValidatorAgent (for preflight/postflight), EvidenceAgent (for artifact packaging) |
-| **EvidenceAgent** | `execution_results`, `undo_plans` | `evidence_bundles`, `library_contributions` | `client.audit.list_events()` | None |
+| Agent                | Reads from `ctx.session.state`                         | Writes to `ctx.session.state`                                                        | Composio SDK Calls                                                              | Sub-Agents                                                                        |
+| -------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| **CoordinatorAgent** | All keys (monitors full state)                         | `mission_id`, `tenant_id`, `user_id`, `current_stage`                                | None                                                                            | IntakeAgent, InspectorAgent, PlannerAgent, ExecutorAgent, EvidenceAgent           |
+| **IntakeAgent**      | None                                                   | `mission_brief`, `safeguards`, `confidence_scores`                                   | None                                                                            | None                                                                              |
+| **InspectorAgent**   | `mission_brief`                                        | `anticipated_connections`, `granted_scopes`, `coverage_estimate`, `readiness_status` | `client.tools.search()`, `client.toolkits.authorize()`, `wait_for_connection()` | None                                                                              |
+| **PlannerAgent**     | `granted_scopes`, `mission_brief`, `coverage_estimate` | `ranked_plays`, `undo_plans`, `tool_usage_patterns`                                  | None                                                                            | ValidatorAgent (for scope validation)                                             |
+| **ValidatorAgent**   | `safeguards`, `granted_scopes`, `current_action`       | `validation_results`, `auto_fix_attempts`                                            | `client.connected_accounts.status()`                                            | None                                                                              |
+| **ExecutorAgent**    | `ranked_plays`, `granted_scopes`                       | `execution_results`, `heartbeat_timestamp`                                           | `provider.session(...).handle_tool_call(...)`                                   | ValidatorAgent (for preflight/postflight), EvidenceAgent (for artifact packaging) |
+| **EvidenceAgent**    | `execution_results`, `undo_plans`                      | `evidence_bundles`, `library_contributions`                                          | `client.audit.list_events()`                                                    | None                                                                              |
 
 ### ADK Patterns & Practices
 

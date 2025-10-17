@@ -2,7 +2,13 @@ export type TelemetryEventName =
   | "home_tile_opened"
   | "readiness_badge_rendered"
   | "alert_rail_viewed"
-  | "mission_list_action_taken";
+  | "mission_list_action_taken"
+  | "approval_requested"
+  | "approval_delegated"
+  | "approval_granted"
+  | "approval_rejected"
+  | "approval_exported"
+  | "audit_event_recorded";
 
 export type TelemetryPayload = Record<string, unknown>;
 

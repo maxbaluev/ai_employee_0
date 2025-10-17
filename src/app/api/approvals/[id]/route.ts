@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import {
+  appendApprovalHistory,
   findMissionApprovalById,
   updateMissionApproval,
 } from "@/lib/server/mission-approvals-repository";
@@ -187,6 +188,22 @@ export async function PATCH(
     approver_role: updatedApproval.approver_role,
     export_format: "mission_approvals_record",
   });
+
+  try {
+    await appendApprovalHistory(idResult.data, {
+      id: `decision-${Date.now()}`,
+      action: payload.status,
+      actor: request.headers.get("x-actor-name") ?? updatedApproval.approver_role,
+      actorRole: updatedApproval.approver_role,
+      note: updatedApproval.rationale ?? undefined,
+      timestamp: decisionTimestamp,
+    });
+  } catch (error) {
+    if (process.env.NODE_ENV !== "production") {
+      // eslint-disable-next-line no-console
+      console.warn("[approvals] failed to append history", error);
+    }
+  }
 
   return NextResponse.json(toApprovalResponse(updatedApproval));
 }
