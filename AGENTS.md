@@ -10,7 +10,7 @@
 
 ## Issue tracker
 
-We track work in Beads instead of Markdown. Run `bd quickstart` and use `bd` for all planning/execution
+We track work in Beads instead of Markdown. Run `bd quickstart` and use `bd` for all planning/execution.
 
 ## Trust Model & Composio SDK Quick Reference
 
@@ -117,7 +117,7 @@ For comprehensive guides beyond quick setup:
 - **[Capability Roadmap](docs/05_capability_roadmap.md)** — Milestone-based development plan
 - **[Implementation Guide](docs/04_implementation_guide.md)** — Component catalog and integration patterns
 - **[Issue Tracking & Dependency Graph](docs/11_issue_tracking.md)** — `bd` commands, dependency best practices, automation notes
-- **[Actionable Next Steps](docs/todo.md)** — Current priorities and tasks
+- **[Actionable Next Steps](docs/todo.md)** — Current sprint priorities tied to the tracker
 
 **For AI agents:** Reference these docs when implementing features or troubleshooting complex issues beyond this quick reference.
 

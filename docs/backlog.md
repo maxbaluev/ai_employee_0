@@ -153,6 +153,8 @@ Based on documentation analysis, the Control Plane has these strategic objective
 
 #### TASK-ADK-001: Implement CoordinatorAgent with Session State Management
 
+**bd Issue:** code-claude-goal--populate-beads-1
+
 **Priority:** P0
 **Complexity:** L
 **Tags:** `#agent`, `#adk`, `#backend`, `#foundation`
@@ -191,6 +193,8 @@ pytest agent/tests/test_coordinator.py -v
 ---
 
 #### TASK-ADK-002: Implement IntakeAgent for Generative Brief Creation
+
+**bd Issue:** code-claude-goal--populate-beads-2
 
 **Priority:** P0
 **Complexity:** M
@@ -231,6 +235,8 @@ pytest agent/tests/test_intake.py
 ---
 
 #### TASK-ADK-003: Implement InspectorAgent for No-Auth Discovery & OAuth Initiation
+
+**bd Issue:** code-claude-goal--populate-beads-3
 
 **Priority:** P0
 **Complexity:** XL
@@ -282,6 +288,8 @@ pytest agent/tests/test_inspector.py -k test_oauth_flow
 
 #### TASK-ADK-004: Implement PlannerAgent with Library Retrieval & Ranking
 
+**bd Issue:** code-claude-goal--populate-beads-4
+
 **Priority:** P0
 **Complexity:** XL
 **Tags:** `#agent`, `#adk`, `#backend`, `#plan-stage`, `#library`
@@ -328,6 +336,8 @@ pytest agent/tests/test_planner.py -k test_library_retrieval
 
 #### TASK-ADK-005: Implement ValidatorAgent for Safeguard Enforcement
 
+**bd Issue:** code-claude-goal--populate-beads-5
+
 **Priority:** P0
 **Complexity:** L
 **Tags:** `#agent`, `#adk`, `#backend`, `#safeguards`, `#governance`
@@ -369,6 +379,8 @@ pytest agent/tests/test_validator.py
 ---
 
 #### TASK-ADK-006: Implement ExecutorAgent for Governed Tool Execution
+
+**bd Issue:** code-claude-goal--populate-beads-6
 
 **Priority:** P0
 **Complexity:** XL
@@ -415,6 +427,8 @@ pytest agent/tests/test_executor.py -k test_rate_limit_recovery
 ---
 
 #### TASK-ADK-007: Implement EvidenceAgent for Artifact Packaging & Library Curation
+
+**bd Issue:** code-claude-goal--populate-beads-7
 
 **Priority:** P1
 **Complexity:** M
@@ -463,6 +477,8 @@ pytest agent/tests/test_evidence.py
 
 #### TASK-ADK-008: Implement SupabaseSessionService for Production State Persistence
 
+**bd Issue:** code-claude-goal--populate-beads-8
+
 **Priority:** P1
 **Complexity:** M
 **Tags:** `#agent`, `#adk`, `#backend`, `#supabase`, `#infrastructure`
@@ -509,6 +525,8 @@ EVAL_MODE=false mise run test-agent  # Test with real Supabase
 
 #### TASK-UI-001: Implement Home Dashboard with Multi-Mission Overview
 
+**bd Issue:** code-claude-goal--populate-beads-9
+
 **Priority:** P0
 **Complexity:** L
 **Tags:** `#frontend`, `#ui`, `#home-stage`, `#nextjs`
@@ -551,6 +569,8 @@ pnpm run test:a11y  # Accessibility audit
 ---
 
 #### TASK-UI-002: Implement Define Stage with Generative Intake & Chip Editing
+
+**bd Issue:** code-claude-goal--populate-beads-10
 
 **Priority:** P0
 **Complexity:** M
@@ -595,6 +615,8 @@ pnpm run test:a11y
 
 #### TASK-UI-003: Implement Prepare Stage with Toolkit Panel & Readiness Meter
 
+**bd Issue:** code-claude-goal--populate-beads-11
+
 **Priority:** P0
 **Complexity:** L
 **Tags:** `#frontend`, `#ui`, `#prepare-stage`, `#nextjs`, `#composio`
@@ -634,6 +656,8 @@ pnpm run test:a11y
 ---
 
 #### TASK-UI-004: Implement CopilotKit Chat Rail with Connect Link Approval Modal
+
+**bd Issue:** code-claude-goal--populate-beads-12
 
 **Priority:** P0
 **Complexity:** M
@@ -676,6 +700,8 @@ pnpm run test:a11y
 ---
 
 #### TASK-UI-005: Implement Plan Stage with Ranked Plays & Undo Plan Preview
+
+**bd Issue:** code-claude-goal--populate-beads-13
 
 **Priority:** P0
 **Complexity:** L
@@ -720,6 +746,8 @@ pnpm run test:a11y
 ---
 
 #### TASK-UI-006: Implement Approve Stage with Dedicated Approval Checkpoint
+
+**bd Issue:** code-claude-goal--populate-beads-14
 
 **Priority:** P0
 **Complexity:** M
@@ -767,6 +795,8 @@ pnpm run test:a11y
 
 #### TASK-UI-007: Implement Execute Stage with Live Checklist & Undo Banner
 
+**bd Issue:** code-claude-goal--populate-beads-15
+
 **Priority:** P0
 **Complexity:** L
 **Tags:** `#frontend`, `#ui`, `#execute-stage`, `#nextjs`, `#copilotkit`
@@ -807,6 +837,8 @@ pnpm run test:a11y
 ---
 
 #### TASK-UI-008: Implement Reflect Stage with Outcomes & Feedback Drawer
+
+**bd Issue:** code-claude-goal--populate-beads-16
 
 **Priority:** P1
 **Complexity:** M
@@ -865,6 +897,8 @@ pnpm run test:a11y
 
 #### TASK-API-001: Implement `/api/intake/generate` for Brief Generation
 
+**bd Issue:** code-claude-goal--populate-beads-17
+
 **Priority:** P0
 **Complexity:** S
 **Tags:** `#api`, `#backend`, `#nextjs`, `#define-stage`
@@ -903,6 +937,8 @@ pnpm test:api
 
 #### TASK-API-002: Implement `/api/toolkits/recommend` for Inspector Discovery
 
+**bd Issue:** code-claude-goal--populate-beads-18
+
 **Priority:** P0
 **Complexity:** M
 **Tags:** `#api`, `#backend`, `#nextjs`, `#prepare-stage`, `#composio`
@@ -940,6 +976,8 @@ pnpm test:api
 ---
 
 #### TASK-API-003: Implement `/api/toolkits/authorize` for OAuth Initiation
+
+**bd Issue:** code-claude-goal--populate-beads-19
 
 **Priority:** P0
 **Complexity:** M
@@ -982,6 +1020,8 @@ pnpm test:api
 
 #### TASK-API-004: Implement `/api/plans/rank` for Planner Streaming
 
+**bd Issue:** code-claude-goal--populate-beads-20
+
 **Priority:** P0
 **Complexity:** M
 **Tags:** `#api`, `#backend`, `#nextjs`, `#plan-stage`
@@ -1020,6 +1060,8 @@ pnpm test:api
 ---
 
 #### TASK-API-005: Implement `/api/approvals` for Approval Workflow
+
+**bd Issue:** code-claude-goal--populate-beads-21
 
 **Priority:** P0
 **Complexity:** S
@@ -1066,6 +1108,8 @@ pnpm test:api
 
 #### TASK-API-006: Implement `/api/execution/run` for Executor Orchestration
 
+**bd Issue:** code-claude-goal--populate-beads-22
+
 **Priority:** P0
 **Complexity:** M
 **Tags:** `#api`, `#backend`, `#nextjs`, `#execute-stage`
@@ -1107,6 +1151,8 @@ pnpm test:api
 ---
 
 #### TASK-API-007: Implement `/api/feedback/*` for Reflect Stage
+
+**bd Issue:** code-claude-goal--populate-beads-23
 
 **Priority:** P1
 **Complexity:** S
@@ -1157,6 +1203,8 @@ pnpm test:api
 
 #### TASK-DATA-001: Implement Telemetry Audit Script
 
+**bd Issue:** code-claude-goal--populate-beads-24
+
 **Priority:** P1
 **Complexity:** M
 **Tags:** `#data`, `#analytics`, `#telemetry`, `#ci`
@@ -1201,6 +1249,8 @@ pnpm ts-node --esm scripts/audit_telemetry_events.ts --mode report --output docs
 ---
 
 #### TASK-DATA-002: Implement Library Embeddings with pgvector
+
+**bd Issue:** code-claude-goal--populate-beads-25
 
 **Priority:** P1
 **Complexity:** M
@@ -1251,6 +1301,8 @@ supabase functions invoke refresh_library_embeddings
 
 #### TASK-DATA-003: Implement Analytics Dashboard Materialized View Refresh
 
+**bd Issue:** code-claude-goal--populate-beads-26
+
 **Priority:** P1
 **Complexity:** S
 **Tags:** `#data`, `#analytics`, `#supabase`, `#dashboards`
@@ -1294,6 +1346,8 @@ supabase functions invoke refresh_analytics_views
 
 #### TASK-DATA-004: Implement Executive Dashboard Frontend
 
+**bd Issue:** code-claude-goal--populate-beads-27
+
 **Priority:** P2
 **Complexity:** M
 **Tags:** `#data`, `#analytics`, `#frontend`, `#dashboards`
@@ -1336,6 +1390,8 @@ pnpm run test:a11y
 ---
 
 #### TASK-DATA-005: Implement Governance Dashboard Frontend
+
+**bd Issue:** code-claude-goal--populate-beads-28
 
 **Priority:** P2
 **Complexity:** M
@@ -1391,6 +1447,8 @@ pnpm run test:a11y
 
 #### TASK-TEST-001: Implement ADK Evaluation Suites
 
+**bd Issue:** code-claude-goal--populate-beads-29
+
 **Priority:** P0
 **Complexity:** L
 **Tags:** `#testing`, `#agent`, `#adk`, `#backend`
@@ -1433,6 +1491,8 @@ adk eval --verbose agent/agents/planner.py agent/evals/ranking_quality.evalset.j
 
 #### TASK-TEST-002: Implement Frontend Accessibility Testing
 
+**bd Issue:** code-claude-goal--populate-beads-30
+
 **Priority:** P1
 **Complexity:** M
 **Tags:** `#testing`, `#frontend`, `#accessibility`, `#ui`
@@ -1474,6 +1534,8 @@ pnpm run test:a11y  # Runs axe-core audit
 ---
 
 #### TASK-TEST-003: Implement End-to-End Integration Tests
+
+**bd Issue:** code-claude-goal--populate-beads-31
 
 **Priority:** P1
 **Complexity:** L
@@ -1525,6 +1587,8 @@ pnpm run test:e2e  # Runs Playwright suite
 
 #### TASK-OPS-001: Implement Agent Deployment Automation
 
+**bd Issue:** code-claude-goal--populate-beads-32
+
 **Priority:** P1
 **Complexity:** M
 **Tags:** `#operations`, `#deployment`, `#backend`, `#fastapi`
@@ -1567,6 +1631,8 @@ Implement `scripts/deploy-agent.sh` for FastAPI agent deployment to Fly.io or GK
 ---
 
 #### TASK-OPS-002: Implement Monitoring Dashboards (Datadog Integration)
+
+**bd Issue:** code-claude-goal--populate-beads-33
 
 **Priority:** P1
 **Complexity:** M
@@ -1612,6 +1678,8 @@ datadog-cli monitor test <monitor_id>
 ---
 
 #### TASK-OPS-003: Implement Incident Response Automation
+
+**bd Issue:** code-claude-goal--populate-beads-34
 
 **Priority:** P2
 **Complexity:** M
@@ -1662,6 +1730,8 @@ curl -X POST http://localhost:3000/api/incidents/webhook -H "Content-Type: appli
 
 #### TASK-DOC-001: Implement Evidence Bundle Export Automation
 
+**bd Issue:** code-claude-goal--populate-beads-35
+
 **Priority:** P2
 **Complexity:** M
 **Tags:** `#documentation`, `#governance`, `#evidence`
@@ -1703,6 +1773,8 @@ pnpm ts-node scripts/export_evidence_bundle.py --mission-id <uuid> --output evid
 ---
 
 #### TASK-DOC-002: Implement Quarterly Documentation Review Checklist
+
+**bd Issue:** code-claude-goal--populate-beads-36
 
 **Priority:** P3
 **Complexity:** S
