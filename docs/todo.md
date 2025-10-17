@@ -1,44 +1,45 @@
 # AI Employee Control Plane — Active Work Queue
 
-**Last Updated:** October 17, 2025 (post AG-UI protocol refresh)
+**Last Updated:** October 17, 2025 (integration foundation reprioritisation)
 
 This file spotlights the highest-leverage tasks for the current iteration. It is a thin veneer over the canonical backlog (`docs/backlog.md`) and the Beads tracker—update all three when priorities change.
 
 ---
 
-## 🔴 Now — Keep Moving (P1 in flight)
+## 🔥 Critical Foundation (P0 active)
 
-- `ai_eployee_0-5` — Implement AG-UI → ADK translator test suite
-  - Add pytest coverage for every event type listed in `docs/04a_copilot_protocol.md` §4/§8.
-  - Blocked on: confirming fixture schemas from `@ag-ui/core` exports.
-- `ai_eployee_0-6` — Persist AG-UI event logs to Supabase
-  - Extend `agent/services/telemetry.py` with structured inserts + redaction parity.
-  - Requires Supabase migration + retention policy alignment with `docs/06_data_intelligence.md`.
-- `ai_eployee_0-8` — Instrument AG-UI heartbeat telemetry
-  - Emit `workspace_stream_open/closed` and correlate `tool_execution_id` to Composio events.
-  - Wire dashboards per `docs/04a_copilot_protocol.md` §7.
-- `ai_eployee_0-9` — Wire CopilotKit ACK responses for AG-UI custom events
-  - Ensure Connect Link and undo countdown cards send acknowledgements back through `useCopilotAction`.
-  - Coordinate with frontend owners of Prepare/Execute surfaces.
+- `ai_eployee_0-10` — Implement AG-UI ↔ ADK bridge in CopilotKit route
+  - Replace the placeholder `HttpAgent` target with a FastAPI endpoint that wraps `ag_ui_adk.ADKAgent`.
+  - Validate with `pnpm run test:ui` smoke + manual chat session to confirm AG-UI events stream.
+- `ai_eployee_0-11` — Wire real Composio SDK client in executor runtime
+  - Initialise `ComposioClientWrapper` with a live client, handling EVAL_MODE fallbacks and retries.
+  - Exercise `client.tools.search()`/`client.tools.execute()` via `mise run agent` sandbox mission.
+- `ai_eployee_0-12` — Implement Supabase token validation in FastAPI
+  - Centralise JWT verification, inject `tenant_id`/`user_id` into ADK session state, and reuse across endpoints.
+  - Confirm RLS access using `supabase gen types` + `pnpm tsc --noEmit` after wiring auth context.
+- `ai_eployee_0-13` — Replace placeholder mission data in workspace UI
+  - Remove fixtures from `src/lib/data/home-dashboard.ts` and query Supabase views for Home dashboard + stage pages.
+  - Ensure loading/empty states and telemetry hooks survive real data.
 
-**Daily rhythm:** start with translator tests + telemetry persistence; pair on ACK wiring before instrumenting dashboards.
+**Daily rhythm:** unblock AG-UI streaming and Composio wiring in parallel; pair backend/frontend once Supabase auth lands.
 
 ---
 
-## 🟠 Next — Ready to Start (unblocked P2)
+## 🟠 Next — Ready to Start (P1 queue)
 
-- `ai_eployee_0-7` — Add optional AG-UI protobuf transport
-  - Negotiate `AGUI_MEDIA_TYPE` in `/api/copilotkit` with feature flag + fallback.
-  - Confirm payload compression ≥50% before enabling by default.
+- `ai_eployee_0-14` — Consolidate execution streaming on AG-UI protocol
+  - After the bridge ships, retire bespoke SSE mapping in `/api/execution/run` and FastAPI runner.
+  - Add regression coverage ensuring CopilotKit and FastAPI emit identical event envelopes.
 
-Open question: scope a follow-on task for Supabase retention automation once `ai_eployee_0-6` lands.
+Open question: surface telemetry dashboards once unified streaming is stable (depends on `ai_eployee_0-14`).
 
 ---
 
 ## 🟡 Later — Prep & Enablement
 
-- Scope Supabase retention/backfill once event logging is live.
-- Draft Playwright mission replay once translator tests define fixtures.
+- Reintroduce AG-UI telemetry/test work (former `ai_eployee_0-5`..`0-9`) once foundation tasks land.
+- Scope Supabase retention/backfill after live event logging exists.
+- Draft Playwright mission replay once translator fixtures are defined.
 - Revisit documentation checklist quarterly (next review January 2026).
 
 ---

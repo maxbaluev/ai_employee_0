@@ -3,7 +3,7 @@
 **Version:** 1.0 (October 16, 2025)
 **Audience:** AI Coding Agents, Engineering Teams, Product Management
 **Status:** Actionable work items derived from comprehensive documentation review
-**Last Updated:** October 16, 2025
+**Last Updated:** October 17, 2025
 
 ---
 
@@ -33,6 +33,20 @@ This backlog consolidates work items derived from the AI Employee Control Plane 
 - **Progressive Trust Model:** Inspector initiates OAuth during Stage 2 (Prepare), Planner uses established connections
 - **Seven-Stage Mission Journey:** Home → Define → Prepare → Plan → Approve → Execute → Reflect
 - **Single Supabase Migration:** All schema in `supabase/migrations/0001_init.sql` (no separate migrations)
+
+---
+
+## ⚠️ Critical Update — Integration Foundation (October 17, 2025)
+
+Recent gap analysis uncovered five blockers that prevent all AG-UI protocol work from progressing:
+
+1. **AG-UI bridge unimplemented** — `/api/copilotkit` forwards to a placeholder `HttpAgent` with no ADK endpoint.
+2. **Composio client unconfigured** — `ComposioClientWrapper(client=None)` disables tool discovery/execution.
+3. **Supabase auth placeholder** — FastAPI routes skip JWT verification, so RLS cannot be enforced.
+4. **Workspace UI uses fixtures** — Home dashboard components render hardcoded mission data.
+5. **Divergent SSE pathways** — FastAPI emits bespoke events instead of the AG-UI envelopes expected by CopilotKit.
+
+The backlog below introduces Theme 0 to address these foundation tasks before returning to Theme 1 milestone work. `docs/todo.md` and the Beads tracker are aligned with this reprioritisation.
 
 ---
 
@@ -142,6 +156,230 @@ Based on documentation analysis, the Control Plane has these strategic objective
 ---
 
 ## Backlog by Theme
+
+### Theme 0: Integration Foundation
+
+> **Goal:** Stand up the minimum viable integration layer so CopilotKit ↔ AG-UI ↔ Gemini ADK ↔ Composio run end-to-end with real Supabase state.
+
+---
+
+#### TASK-INTEGRATE-001: Implement AG-UI ↔ ADK bridge in CopilotKit route
+
+**bd Issue:** ai_eployee_0-10
+
+**Priority:** P0
+**Complexity:** L
+**Tags:** `#frontend`, `#backend`, `#ag-ui`, `#adk`
+
+**Description:**
+Replace the placeholder `HttpAgent` target in `/api/copilotkit` with an endpoint that proxies to a FastAPI route wrapping `ag_ui_adk.ADKAgent`. Ensure RunAgentInput payloads reach the Gemini ADK runner and that translated AG-UI events stream back to CopilotKit.
+
+**Acceptance Criteria:**
+- [ ] `/api/copilotkit` negotiates AG-UI JSON (and optional protobuf) envelopes end-to-end.
+- [ ] FastAPI exposes an `/agui/run` (or similar) route bridging to the cached ADK runner.
+- [ ] AG-UI event types (`RUN_STARTED`, `TEXT_MESSAGE_*`, `TOOL_CALL_*`, etc.) surface in the UI without custom adapters.
+- [ ] Errors propagate through AG-UI `RUN_ERROR` with incident metadata.
+- [ ] Observability: emit `workspace_stream_open/closed` telemetry on handshake/disconnect.
+
+**Dependencies:** None (prerequisite for all other integration work)
+
+**Doc References:**
+- `docs/04a_copilot_protocol.md` §§2–5
+- `docs/04_implementation_guide.md` §2 (Copilot runtime)
+- `docs/03a_chat_experience.md` §Streaming Narration
+
+**Validation:**
+```bash
+pnpm run test:ui -- --runInBand
+curl -X POST http://localhost:3000/api/copilotkit -d @fixtures/agui-run.json
+```
+
+**Notes:**
+- Consider feature flagging protobuf (`AGUI_MEDIA_TYPE`) once JSON path is green.
+- Capture session IDs so they can be persisted when Supabase sessions replace in-memory state.
+
+---
+
+#### TASK-INTEGRATE-002: Wire real Composio SDK client in executor runtime
+
+**bd Issue:** ai_eployee_0-11
+
+**Priority:** P0
+**Complexity:** L
+**Tags:** `#backend`, `#composio`, `#execute-stage`
+
+**Description:**
+Initialise a production Composio client inside `agent/runtime/executor.py`, replacing the `client=None` placeholder. Support toolkit discovery, Connect Link initiation, tool execution, and audit retrieval while respecting `EVAL_MODE` fallbacks.
+
+**Acceptance Criteria:**
+- [ ] `ComposioClientWrapper` loads credentials from environment and exposes search/authorize/execute helpers.
+- [ ] ExecutorAgent successfully executes at least one real toolkit call via the wrapper.
+- [ ] Telemetry emits `composio_tool_call` with `tool_execution_id` correlation.
+- [ ] Rate limits handled with backoff and surfaced through ValidatorAgent when exceeded.
+- [ ] Unit tests mock Composio API to cover success and failure paths.
+
+**Dependencies:** TASK-INTEGRATE-001 (bridge events inform tooling UX)
+
+**Doc References:**
+- `docs/10_composio.md`
+- `docs/04_implementation_guide.md` §5.2
+- `agent/services/composio.py`
+
+**Validation:**
+```bash
+mise run agent  # run FastAPI locally
+pytest agent/tests/test_executor.py -k composio --maxfail=1
+```
+
+**Notes:**
+- Add structured logging for retries to aid telemetry dashboards.
+- Guard secrets with `mise exec --env-file .env` patterns called out in `AGENTS.md`.
+
+---
+
+#### TASK-INTEGRATE-003: Implement Supabase token validation in FastAPI
+
+**bd Issue:** ai_eployee_0-12
+
+**Priority:** P0
+**Complexity:** M
+**Tags:** `#backend`, `#supabase`, `#security`
+
+**Description:**
+Introduce shared Supabase auth utilities that verify JWTs for `/execution/run` and future AG-UI routes. Populate `ctx.session.state` with `tenant_id`/`user_id` so row-level security policies in Supabase apply consistently.
+
+**Acceptance Criteria:**
+- [ ] Central `agent/services/supabase.py` exposes async `validate_token()` returning identity + roles.
+- [ ] FastAPI dependencies enforce 401/403 cases instead of placeholder values.
+- [ ] Session state includes verified identity before invoking any ADK agent.
+- [ ] Integration test ensures invalid tenants cannot access other missions.
+- [ ] Documentation (`docs/07_operations_playbook.md`) updated with new auth requirements.
+
+**Dependencies:** TASK-INTEGRATE-001 (bridge) — Supabase context must flow through AG-UI sessions.
+
+**Doc References:**
+- `supabase/migrations/0001_init.sql` (RLS policies)
+- `docs/07_operations_playbook.md` §Access Controls
+- `docs/04_implementation_guide.md` §Backend Services
+
+**Validation:**
+```bash
+pytest agent/tests/test_execution_route.py -k auth
+curl -i -H "Authorization: Bearer <expired>" http://localhost:8000/execution/run
+```
+
+**Notes:**
+- Cache JWKS if Supabase project enforces rotating signing keys.
+- Emit audit telemetry (`telemetry_events`) on failed auth attempts.
+
+---
+
+#### TASK-INTEGRATE-004: Replace placeholder mission data in workspace UI
+
+**bd Issue:** ai_eployee_0-13
+
+**Priority:** P0
+**Complexity:** M
+**Tags:** `#frontend`, `#supabase`, `#ux`
+
+**Description:**
+Delete the hardcoded fixtures in `src/lib/data/home-dashboard.ts` and query Supabase views (`mission_readiness`, `adoption_funnel`, approvals) to populate the mission workspace. Ensure streaming surfaces handle loading/error states.
+
+**Acceptance Criteria:**
+- [ ] Home dashboard pulls live data per tenant with graceful fallback on empty sets.
+- [ ] Stage-specific pages reuse a shared data access layer with caching where appropriate.
+- [ ] Telemetry hooks fire when cards render (`workspace_stream_open`, `readiness_status_changed`).
+- [ ] Storybook stories updated to reflect real query shapes (mocked via MSW or fixtures).
+- [ ] Vitest/Playwright coverage updated for live data scenarios.
+
+**Dependencies:** TASK-INTEGRATE-003 (auth) — requires verified tenant context.
+
+**Doc References:**
+- `docs/03_user_experience.md` §§Stage 0–6
+- `docs/06_data_intelligence.md` §Dashboards
+- `supabase/migrations/0001_init.sql` (views)
+
+**Validation:**
+```bash
+pnpm run test:ui
+pnpm run storybook --ci
+```
+
+**Notes:**
+- Coordinate with telemetry owners to confirm event payload alignment.
+- Update `docs/readiness/` evidence once data is live.
+
+---
+
+#### TASK-INTEGRATE-005: Consolidate execution streaming on AG-UI protocol
+
+**bd Issue:** ai_eployee_0-14
+
+**Priority:** P1
+**Complexity:** M
+**Tags:** `#backend`, `#ag-ui`, `#telemetry`
+
+**Description:**
+After the bridge lands, remove the bespoke SSE mapping in `/api/execution/run` and FastAPI execution route so both surfaces emit consistent AG-UI event envelopes.
+
+**Acceptance Criteria:**
+- [ ] Execution route emits AG-UI `TOOL_CALL_*`, `STATE_DELTA`, `RUN_FINISHED` without double translation.
+- [ ] CopilotKit listeners consume a single event shape across chat + Runboard.
+- [ ] Telemetry pipeline captures AG-UI event payloads for replay.
+- [ ] Regression tests cover validator alerts and undo triggers.
+
+**Dependencies:** TASK-INTEGRATE-001, TASK-INTEGRATE-002
+
+**Doc References:**
+- `docs/04a_copilot_protocol.md` §§4–6
+- `docs/06_data_intelligence.md` §3.6 Stage 5 telemetry
+
+**Validation:**
+```bash
+pnpm run test:ui -- --grep "Execute"
+pytest agent/tests/test_execution_route.py -k streaming
+```
+
+**Notes:**
+- Coordinate rollout to avoid breaking existing mission demos.
+- Add monitoring for dropped SSE connections during migration.
+
+---
+
+#### TASK-INTEGRATE-006: Clean up mission workspace header copy
+
+**bd Issue:** ai_eployee_0-15
+
+**Priority:** P2
+**Complexity:** S
+**Tags:** `#frontend`, `#ux`
+
+**Description:**
+Replace the TODO messaging in `src/app/(control-plane)/layout.tsx` with production-ready copy once live telemetry and mission context are available.
+
+**Acceptance Criteria:**
+- [ ] Header pulls mission/tenant context dynamically (title, stage summary, readiness stats).
+- [ ] Copy reviewed with UX/Comms stakeholders.
+- [ ] Telemetry instrumentation confirms header renders.
+- [ ] Regression tests updated (snapshot or visual).
+
+**Dependencies:** TASK-INTEGRATE-004
+
+**Doc References:**
+- `docs/03_user_experience.md` §Mission Workspace
+- `docs/04_implementation_guide.md` §2 (UI components)
+
+**Validation:**
+```bash
+pnpm run lint src/app/(control-plane)/layout.tsx
+pnpm run test:ui -- --grep "Workspace header"
+```
+
+**Notes:**
+- Align tone with telemetry cues (mission stage vs. readiness badges).
+- Capture before/after screenshots for readiness evidence.
+
+---
 
 ### Theme 1: ADK Agent Implementation
 
