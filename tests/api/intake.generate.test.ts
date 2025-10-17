@@ -25,7 +25,6 @@ const missionId = "550e8400-e29b-41d4-a716-446655440000";
 const basePayload = {
   missionId,
   intent: "Re-engage high value manufacturing accounts",
-  persona: "revops" as const,
   hints: { objective: "Bring back dormant accounts" },
 };
 

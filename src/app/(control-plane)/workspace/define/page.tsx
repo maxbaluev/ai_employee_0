@@ -16,9 +16,7 @@ export default function DefineStage() {
   const {
     state,
     setIntent,
-    setPersona,
     resetGenerationError,
-    selectPersonaTemplate,
     generateBrief,
     updateChip,
     addSafeguard,
@@ -50,13 +48,10 @@ export default function DefineStage() {
       <div className="space-y-6">
         <MissionIntakeForm
           intent={state.intent}
-          persona={state.persona}
           status={state.status}
           error={state.error}
           lastUpdated={state.lastUpdated}
           onIntentChange={setIntent}
-          onPersonaChange={setPersona}
-          onTemplateSelect={selectPersonaTemplate}
           onSubmit={generateBrief}
           onDismissError={resetGenerationError}
         />

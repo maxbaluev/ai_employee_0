@@ -10,18 +10,18 @@ const SAMPLE_DOC = `
 ### 3.1 Stage 0 — Home (Mission Launcher)
 | Event | Triggered By | Context Fields | Analytics Use |
 | --- | --- | --- | --- |
-| mission_viewed | Workspace shell renders mission list | mission_id, tenantId, stage, persona | Track entry points |
+| mission_viewed | Workspace shell renders mission list | mission_id, tenantId, stage | Track entry points |
 
 ### 3.2 Stage 1 — Define
 | Event | Triggered By | Context Fields | Analytics Use |
 | --- | --- | --- | --- |
 | brief_item_modified | Chip edit (UI) | chip_type, edit_type, token_diff, aliases (\`brief_field_edited\`) | Prompt tuning |
-| mission_brief_locked | Owner locks brief | mission_id, tenantId, stage, persona | Stage completion |
+| mission_brief_locked | Owner locks brief | mission_id, tenantId, stage | Stage completion |
 
 ### 3.8 Cross-Stage & Platform
 | Event | Triggered By | Context Fields | Analytics Use |
 | --- | --- | --- | --- |
-| workspace_stream_open | CopilotKit SSE connection | mission_id, tenantId, stage, persona | Streaming health |
+| workspace_stream_open | CopilotKit SSE connection | mission_id, tenantId, stage | Streaming health |
 `;
 
 describe('parseEventCatalog', () => {
@@ -42,8 +42,7 @@ describe('analyzeSources', () => {
     const files: SourceFile[] = [
       {
         path: '/tmp/mission.ts',
-        content:
-          "telemetry.emit('mission_viewed', { mission_id: '1', tenantId: 't', stage: 'HOME', persona: 'RevOps' });",
+        content: "telemetry.emit('mission_viewed', { mission_id: '1', tenantId: 't', stage: 'HOME' });",
       },
     ];
 
@@ -61,7 +60,7 @@ describe('analyzeSources', () => {
       {
         path: '/tmp/alias.ts',
         content:
-          "telemetry.emit('brief_field_edited', { mission_id: '1', tenantId: 't', stage: 'DEFINE', persona: 'RevOps' });",
+          "telemetry.emit('brief_field_edited', { mission_id: '1', tenantId: 't', stage: 'DEFINE' });",
       },
     ];
 
@@ -86,4 +85,3 @@ describe('analyzeSources', () => {
     expect(analysis.contextIssues[0]?.missingFields).toContain('tenantId');
   });
 });
-

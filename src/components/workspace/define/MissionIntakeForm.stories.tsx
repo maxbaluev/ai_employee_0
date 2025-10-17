@@ -10,13 +10,10 @@ const meta: Meta<typeof MissionIntakeForm> = {
   },
   args: {
     intent: "Re-engage dormant manufacturing accounts with personalised outreach",
-    persona: "revops",
     status: "idle",
     error: null,
     lastUpdated: null,
     onIntentChange: () => {},
-    onPersonaChange: () => {},
-    onTemplateSelect: () => {},
     onSubmit: () => {},
     onDismissError: () => {},
   },

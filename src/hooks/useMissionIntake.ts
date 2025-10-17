@@ -268,20 +268,6 @@ export function useMissionIntake(options?: UseMissionIntakeOptions) {
     });
   }, [appendMessage, brief.objective, hasBrief, missionId, tenantId, userId, safeguards.length]);
 
-  const selectPersonaTemplate = useCallback((nextPersona: PersonaKey) => {
-    const normalized = normalizePersona(nextPersona);
-    setPersona(normalized);
-
-    const template = getPersonaTemplate(normalized);
-    if (!template || normalized === DEFAULT_PERSONA) {
-      setTemplateId(null);
-      return;
-    }
-
-    setTemplateId(`template-${normalized}`);
-    setIntent(template);
-  }, []);
-
   const generateBrief = useCallback(async () => {
     if (!intent.trim()) {
       setError("Enter a mission intent before generating a brief.");
@@ -292,15 +278,11 @@ export function useMissionIntake(options?: UseMissionIntakeOptions) {
     setError(null);
     appendMessage({ role: "assistant", text: "Parsing intent and assembling mission brief…" });
 
-    const normalizedPersona = normalizePersona(persona || DEFAULT_PERSONA);
-
     emitTelemetry("intent_submitted", {
       mission_id: missionId,
       tenant_id: tenantId,
       user_id: userId,
-      persona: normalizedPersona,
       intent_length: intent.trim().length,
-      template_id: templateId,
     });
 
     try {
@@ -318,9 +300,7 @@ export function useMissionIntake(options?: UseMissionIntakeOptions) {
         headers,
         body: JSON.stringify({
           missionId,
-          persona: normalizedPersona,
           intent: intent.trim(),
-          templateId,
           hints: brief,
         }),
       });
@@ -374,7 +354,6 @@ export function useMissionIntake(options?: UseMissionIntakeOptions) {
         mission_id: missionId,
         tenant_id: tenantId,
         user_id: userId,
-        persona: normalizedPersona,
         chip_count: Object.values(nextBrief).filter((value) => value.trim()).length,
         confidence_scores: payload.confidence_scores,
         generation_latency_ms: latency,
@@ -388,7 +367,7 @@ export function useMissionIntake(options?: UseMissionIntakeOptions) {
       setError(message);
       appendMessage({ role: "assistant", text: message });
     }
-  }, [appendMessage, brief, intent, missionId, persona, templateId, tenantId, userId]);
+  }, [appendMessage, brief, intent, missionId, tenantId, userId]);
 
   const confidencesWithLevel = useMemo<Record<string, ConfidenceWithLevel>>(() => {
     return Object.fromEntries(
@@ -399,8 +378,6 @@ export function useMissionIntake(options?: UseMissionIntakeOptions) {
   return {
     state: {
       intent,
-      persona,
-      templateId,
       status,
       error,
       brief,
@@ -411,8 +388,6 @@ export function useMissionIntake(options?: UseMissionIntakeOptions) {
       messages,
     } as MissionIntakeState,
     setIntent,
-    setPersona,
-    setTemplateId,
     resetGenerationError,
     updateChip,
     addSafeguard,
@@ -420,7 +395,6 @@ export function useMissionIntake(options?: UseMissionIntakeOptions) {
     toggleSafeguard,
     generateBrief,
     lockBrief,
-    selectPersonaTemplate,
     confidencesWithLevel,
     hasBrief,
   };

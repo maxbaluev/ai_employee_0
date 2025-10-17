@@ -28,7 +28,6 @@ export function HomeDashboard({ data }: HomeDashboardProps) {
   useEffect(() => {
     emitTelemetry("home_tile_opened", {
       missions_visible: data.missions.length,
-      persona: data.missions.length > 0 ? "multi" : "unknown",
       filter_state: "all",
     });
   }, [data.missions.length]);
@@ -65,7 +64,6 @@ export function HomeDashboard({ data }: HomeDashboardProps) {
       action_type: "library",
       template_id: template.id,
       mission_stage: "define",
-      persona: template.persona,
     });
   }, []);
 
@@ -114,10 +112,7 @@ export function HomeDashboard({ data }: HomeDashboardProps) {
             approvals={data.approvals}
             onApprovalNavigate={handleApprovalNavigate}
           />
-          <MissionLibraryPanel
-            groups={data.library}
-            onTemplateSelect={handleTemplateSelect}
-          />
+          <MissionLibraryPanel templates={data.library} onTemplateSelect={handleTemplateSelect} />
           <AlertRail alerts={data.alerts} onAlertsViewed={handleAlertsViewed} />
         </div>
       </div>

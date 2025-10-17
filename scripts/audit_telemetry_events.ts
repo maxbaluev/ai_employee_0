@@ -34,7 +34,7 @@ export interface AnalysisResult {
   coverage: number;
 }
 
-const REQUIRED_FIELDS = ['mission_id', 'tenantId', 'stage', 'persona'];
+const REQUIRED_FIELDS = ['mission_id', 'tenantId', 'stage'];
 const SCAN_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.py']);
 const EXCLUDED_DIRECTORIES = new Set([
   'node_modules',
@@ -57,7 +57,6 @@ const REQUIRED_FIELD_ALIASES: Record<string, string[]> = {
   mission_id: ['mission_id', 'missionId'],
   tenantId: ['tenantId', 'tenant_id', 'tenantid'],
   stage: ['stage'],
-  persona: ['persona'],
 };
 
 interface CliOptions {

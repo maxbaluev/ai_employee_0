@@ -6,9 +6,6 @@ export type MissionStage =
   | "execute"
   | "reflect";
 
-// Persona labels are now flexible; analytics should treat them as free-form strings.
-export type Persona = string;
-
 export type ReadinessState = "ready" | "needs-auth" | "needs-data" | "blocked";
 
 export interface MissionSummary {
@@ -16,7 +13,6 @@ export interface MissionSummary {
   title: string;
   stage: MissionStage;
   owner: string;
-  persona: Persona;
   readiness: ReadinessState;
   nextAction: string;
   updatedAt: string;
@@ -97,16 +93,10 @@ export interface ApprovalWorkspaceData {
 
 export interface MissionTemplate {
   id: string;
-  persona: Persona;
   title: string;
   description: string;
   timeToValueHours: number;
   recommendedSafeguards: string[];
-}
-
-export interface MissionTemplateGroup {
-  persona: Persona;
-  templates: MissionTemplate[];
 }
 
 export interface MissionOutcome {
@@ -133,7 +123,7 @@ export interface MissionAlert {
 export interface HomeDashboardData {
   missions: MissionSummary[];
   approvals: MissionApproval[];
-  library: MissionTemplateGroup[];
+  library: MissionTemplate[];
   outcomes: MissionOutcome[];
   alerts: MissionAlert[];
 }

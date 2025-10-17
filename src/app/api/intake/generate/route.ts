@@ -1,12 +1,9 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-import { normalizePersona, DEFAULT_PERSONA } from "@/lib/personas";
 import { intakeRateLimiter } from "@/lib/server/rate-limiter";
 import { getServiceSupabaseClient } from "@/lib/server/supabase";
 import { emitServerTelemetry } from "@/lib/telemetry/server";
-
-const personaSchema = z.string().trim().min(1).optional();
 
 const hintsSchema = z
   .object({
@@ -22,8 +19,6 @@ const hintsSchema = z
 const payloadSchema = z.object({
   missionId: z.string().uuid("missionId must be a valid UUID"),
   intent: z.string().min(8, "intent must contain at least 8 characters"),
-  persona: personaSchema,
-  templateId: z.string().min(1).optional(),
   hints: hintsSchema,
 });
 
@@ -203,7 +198,6 @@ function mapMissionBriefToChips(brief: BackendResponse["mission_brief"]) {
 
 async function callBackend(
   payload: ParsedPayload,
-  persona: string,
   auth: AuthContext,
   incidentId: string,
 ) {
@@ -213,8 +207,6 @@ async function callBackend(
   const body = {
     mission_id: payload.missionId,
     mission_intent: payload.intent,
-    mission_persona: persona,
-    template_id: payload.templateId ?? null,
     hints: payload.hints ?? {},
     auth_context: {
       user_id: auth.userId,
@@ -304,8 +296,6 @@ export async function POST(request: Request) {
     return parsed.error;
   }
 
-  const persona = normalizePersona(parsed.payload.persona ?? DEFAULT_PERSONA);
-
   const auth = await authenticateRequest(request, incidentId);
   if (auth.error || !auth.context) {
     return auth.error;
@@ -335,13 +325,12 @@ export async function POST(request: Request) {
     mission_id: parsed.payload.missionId,
     tenant_id: auth.context.tenantId,
     user_id: auth.context.userId,
-    persona,
     intent_length: parsed.payload.intent.length,
     has_hints: Boolean(parsed.payload.hints),
   });
 
   const startedAt = Date.now();
-  const backend = await callBackend(parsed.payload, persona, auth.context, incidentId);
+  const backend = await callBackend(parsed.payload, auth.context, incidentId);
   if (backend.error || !backend.data) {
     return backend.error;
   }
@@ -354,7 +343,6 @@ export async function POST(request: Request) {
     mission_id: parsed.payload.missionId,
     tenant_id: auth.context.tenantId,
     user_id: auth.context.userId,
-    persona,
     chip_count: chips.length,
     confidence_scores: backend.data.confidence_scores,
     generation_latency_ms: latencyMs,

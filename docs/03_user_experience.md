@@ -101,7 +101,7 @@ For hook-specific implementation notes, reference `docs/05a_copilotkit_hooks_gui
 
 - Mission rows surface stage, owner, next action, and readiness badge.
 - Approvals card routes directly into read-only summary with approve/decline.
-- Mission Library exposes curated templates per persona with time-to-value estimates.
+- Mission Library highlights curated templates with time-to-value estimates based on recent missions.
 
 **Telemetry**: `mission_created`, `approval_opened`, `template_selected`, `outcome_viewed`.
 
@@ -115,8 +115,8 @@ For hook-specific implementation notes, reference `docs/05a_copilotkit_hooks_gui
 +--------------------------------------------------------------+
 | Stage header: DEFINE • Status=Draft • Primary CTAs            |
 +---------------------------+-------------------------------+
-| Intent field (with        | Right rail (collapsible)      |
-| persona examples)         | - Chat recap                  |
+| Intent field (seeded      | Right rail (collapsible)      |
+| with example prompts)     | - Chat recap                  |
 | ▸ Objective summary       | - Safeguard hints             |
 | ▸ Audience line           | - Pending questions           |
 | ▸ KPI line                |                               |
@@ -128,9 +128,9 @@ For hook-specific implementation notes, reference `docs/05a_copilotkit_hooks_gui
 
 **UI essentials**
 
-- One large intent field seeded with persona-flavoured examples from `docs/examples`.
+- One large intent field seeded with example prompts from `docs/examples`.
 - Inline plain-text sections for Objective, Audience, KPI, Timeline, Safeguards; convert to compact chips only after acceptance to preserve editability.
-- Safeguard checklist uses defaults from Governance missions, with ability to add freeform safeguards.
+- Safeguard checklist uses default governance guardrails, with ability to add freeform safeguards.
 - `Lock brief` CTA summarises what will freeze; soft warning if no safeguards added.
 
 **Trust & accessibility**

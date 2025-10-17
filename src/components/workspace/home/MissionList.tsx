@@ -127,12 +127,7 @@ export function MissionList({
                 className="transition hover:bg-slate-800/40 focus-within:bg-slate-800/60"
               >
                 <th scope="row" className="px-5 py-4 font-medium">
-                  <div className="flex flex-col">
-                    <span>{mission.title}</span>
-                    <span className="text-xs text-slate-400">
-                      {mission.persona}
-                    </span>
-                  </div>
+                  {mission.title}
                 </th>
                 <td className="px-5 py-4 capitalize text-slate-300">
                   {mission.stage}

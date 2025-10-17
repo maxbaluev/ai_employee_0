@@ -99,7 +99,7 @@ flowchart LR
 
 **Mission & Lifecycle Tables (Supabase `0001_init.sql`):**
 
-- `missions`, `mission_metadata`, `mission_stage_status` — lifecycle status, persona, and timestamps.
+- `missions`, `mission_metadata`, `mission_stage_status` — lifecycle status and timestamps.
 - `mission_connections` — Inspector-approved Connect Link events with scopes and expiry (Stage 2).
 - `mission_sessions` — ADK session snapshots keyed by agent type for lag and token analysis.
 - `mission_approvals` — Approve stage decisions with approver role, rationale, and timestamps.
@@ -124,7 +124,7 @@ flowchart LR
 
 - `src/app/(control-plane)/workspace/**` pages call a shared telemetry hook (TODO in `docs/04_implementation_guide.md` §5) that batches up to 50 events per 5 seconds before posting to `/api/telemetry`.
 - Redaction helpers live alongside the hook; they call `src/lib/telemetry/redaction.ts` (see UX TODOs) before payload submission.
-- All UI components stamp `mission_id`, `tenantId`, `stage`, and `persona` to keep analytics joinable.
+- All UI components stamp `mission_id`, `tenantId`, and `stage` to keep analytics joinable.
 
 **Backend Telemetry (Gemini ADK + FastAPI):**
 
@@ -175,7 +175,7 @@ All telemetry eventually lands in `telemetry_events`. Stage naming matches the l
 
 | Event | Triggered By | Context Fields | Analytics Use |
 |-------|--------------|----------------|---------------|
-| `home_tile_opened` | Workspace shell renders mission list | `missions_visible`, `persona`, `filter_state` | Track entry points, mission load performance |
+| `home_tile_opened` | Workspace shell renders mission list | `missions_visible`, `filter_state` | Track entry points, mission load performance |
 | `readiness_badge_rendered` | Mission tile shows readiness state | `mission_id`, `badge_state` (ready/needs-auth/needs-data/blocked), `blocking_reason` | Readiness trend, blocker backlog |
 | `alert_rail_viewed` | Alert rail focus/scroll | `alert_count`, `alert_types`, `time_to_first_view` | Urgency accuracy, alert fatigue |
 | `mission_list_action_taken` | User clicks mission, approvals, or library item | `action_type` (open/approve/library), `mission_stage`, `needs_attention` | Funnel from Home to downstream stages |
@@ -184,11 +184,11 @@ All telemetry eventually lands in `telemetry_events`. Stage naming matches the l
 
 | Event | Triggered By | Context Fields | Analytics Use |
 |-------|--------------|----------------|---------------|
-| `intent_submitted` | Mission intent form submit | `intent_length`, `persona`, `source` (template/freeform) | Demand volume, intent complexity |
+| `intent_submitted` | Mission intent form submit | `intent_length`, `source` (template/freeform) | Demand volume, intent complexity |
 | `brief_generated` | IntakeAgent chips produced | `chip_count`, `confidence_scores`, `generation_latency_ms`, `template_id` | Generative quality, token usage |
 | `brief_item_modified` | Chip edit (UI) | `chip_type`, `edit_type`, `token_diff`, `aliases` (`brief_field_edited`) | Prompt tuning signals (Loop 1) |
 | `mission_brief_locked` | Operator locks Define stage | `safeguard_count`, `time_to_lock_seconds`, `edits_before_lock` | Stage completion velocity |
-| `safeguard_added` | Manual safeguard inserted | `category`, `persona`, `reason_code` | Governance coverage, manual guardrails |
+| `safeguard_added` | Manual safeguard inserted | `category`, `reason_code` | Governance coverage, manual guardrails |
 
 ### 3.3 Stage 2: Prepare
 
@@ -281,14 +281,14 @@ Maintain test fixtures for this catalog in `agent/evals/mission_end_to_end.evals
 
 ## 4. Role-Specific Analytics Dashboards
 
-Materialized views refresh via Supabase cron (nightly unless noted). Each dashboard references personas and workflows described in `docs/examples/*` and `docs/07_operations_playbook.md`.
+Materialized views refresh via Supabase cron (nightly unless noted). Each dashboard references mission templates and workflows described in `docs/examples/*` and `docs/07_operations_playbook.md`.
 
 ### 4.1 Executive Dashboard — `views/executive_summary`
 
 - **Audience:** Product leadership, GTM stakeholders.
-- **Purpose:** Business impact and adoption trends across tenants and personas.
-- **Key Metrics:** Weekly approved missions, intent → execution conversion, automation coverage (% missions with ≥3 toolkits), pipeline impact (persona-specific outcome metrics), time-to-value (Define → Execute duration).
-- **Visuals:** Multi-line trend by persona, conversion funnel, stacked bar for mission types, outcome tooltip linking to evidence bundles.
+- **Purpose:** Business impact and adoption trends across tenants and mission categories.
+- **Key Metrics:** Weekly approved missions, intent → execution conversion, automation coverage (% missions with ≥3 toolkits), pipeline impact, time-to-value (Define → Execute duration).
+- **Visuals:** Multi-line trend by mission category, conversion funnel, stacked bar for mission types, outcome tooltip linking to evidence bundles.
 - **Cadence:** Nightly refresh.
 - **Reference:** `docs/01_product_vision.md` (value narrative) and `docs/examples/revops.md` (sample success story).
 
@@ -338,7 +338,7 @@ Learning loops keep telemetry actionable. Each loop aligns with milestones in `d
 
 - **Goal:** Reduce chip edits and accelerate brief lock.
 - **Signals:** `brief_item_modified`, `mission_brief_locked`, feedback mentions of tone/clarity.
-- **Actions:** Weekly review of chip edit deltas by persona, prompt tuning for IntakeAgent (see `agent/agents/intake.py` once implemented), regression tests via `intake_quality` eval set.
+- **Actions:** Weekly review of chip edit deltas, prompt tuning for IntakeAgent (see `agent/agents/intake.py` once implemented), regression tests via `intake_quality` eval set.
 - **Success Metrics:** ≥80% briefs locked without edits, <2 average chip edits, time-to-lock <2 minutes.
 
 ### 5.2 Loop B — Planner Excellence (Plan → Approve)
@@ -475,7 +475,7 @@ Roadmap items tracked in `docs/05_capability_roadmap.md` (§Learning & Intellige
 ### 10.2 Telemetry Hygiene Checklist
 
 - Event emitted for each lifecycle transition (Home → Reflect).
-- `mission_id`, `tenantId`, `stage`, `persona`, and `correlation_id` present in context.
+- `mission_id`, `tenantId`, `stage`, and `correlation_id` present in context.
 - PII redaction applied before persistence and logged via `context.redaction_applied`.
 - Alias fields documented when UI uses legacy names (e.g., `brief_field_edited`).
 - Supabase indices refreshed after schema change (run `scripts/run_metrics_refresh.py`).
